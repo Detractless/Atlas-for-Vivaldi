@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Tab</title>
+    <link rel="stylesheet" href="src/styles/fonts.css">
+    <link rel="stylesheet" href="src/dist/newtab.bundle.css">
+    <!-- Theme first, then scale. themePreinit defines the ref-counted page hold
+         that preinit uses, so the order is load-bearing, not stylistic. -->
+    <script src="src/pages/shared/themePreinit.js"></script>
+    <script src="src/pages/newtab/preinit.js"></script>
+    <script src="src/pages/newtab/profilesCore.js"></script>
+    <link rel="stylesheet" href="src/pages/newtab/profilesPage.css">
+</head>
+
+<body class="theme-dark">
+    <div id="app">
+        <!-- The switcher button and menu are built by tabs logic (R-013);
+             this is the positioned host it renders into. -->
+        <div class="switcher" id="tabs-container"></div>
+
+        <div id="search-page" class="page active">
+          <div id="home-grid">
+            <div id="spotlight-wrapper">
+                <div class="spotlight-search-container">
+                    <div class="search-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.34-4.34"/></svg>
+                    </div>
+                    <div class="search-input-wrapper">
+                        <!-- The placeholder carries the Shift+Enter hint because
+                             that override is otherwise invisible: plain Enter
+                             opens a matching bookmark, and nothing on screen says
+                             how to search for text that matches one, or for
+                             something URL-shaped like "notes.io". A placeholder
+                             only shows while the field is EMPTY, so it teaches
+                             on arrival rather than at the moment of need, which
+                             is the honest limit of putting it here. -->
+                        <input type="text" id="search-input" placeholder="Search the web, or Shift+Enter to force a search" autocomplete="off">
+                    </div>
+
+                    <div class="plus" id="plus">
+                        <div class="current-engine-icon-display" id="current-engine-icon-display">
+                            <img src="src/assets/svg/default.api.svg" alt="Default" width="20" height="20">
+                        </div>
+                    </div>
+                    <div id="engine-links"></div>
+                    <div id="bookmark-pills-wrapper">
+                        <!-- The fade and hidden-pill count are injected around this
+                             list by the shared scroll affordance (R-010). There used
+                             to be a hand-rolled #bookmark-fade-overlay here. -->
+                        <div id="bookmark-search-results" class="bookmark-search-results" style="display: none;"></div>
+                    </div>
+                </div>
+
+            </div>
+
+          </div>
+        </div>
+
+        <div id="bookmarks-page" class="page">
+            <div id="bookmarks-content" class="bookmarks-content">
+            </div>
+        </div>
+    </div>
+
+    <!-- Dock-style discs (UI-RULES 4): card-fill circles with an icon, the
+         launcher DockIcon carried to the web. -->
+    <div class="action-buttons" id="global-actions">
+        <!-- R-021 (superseding R-016): the + disc opens a CENTRED dialog over
+             the blurred page, joining the R-012 dialog family that every other
+             branch in this area already uses. It is STILL not class="modal",
+             for the reason R-014 recorded: the shared dismissal hides by
+             clicking a .close-btn, which would leave one half of this on
+             screen. setMenuOpen owns the scrim and the panel together. -->
+        <div class="add-menu-scrim" id="add-menu-scrim" hidden></div>
+        <div class="add-menu" id="add-menu">
+            <button class="action-btn" id="global-add-btn" title="Add page or bookmark"
+                    aria-label="Add page or bookmark" aria-expanded="false" aria-haspopup="dialog">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <!-- A DIALOG, not a menu, whatever its position in this markup suggests:
+                 .add-menu-scrim covers the viewport with the overlay tint and the
+                 blur, and .add-menu-panel centres itself with inset:0 and auto
+                 margins (R-021). It was marked role="menu", which tells assistive
+                 tech to expect an inline popup with arrow-key navigation rather
+                 than something modal, so the roles now say what it actually is.
+                 aria-modal is honest here because the scrim really does take every
+                 click outside the card. -->
+            <div class="add-menu-panel picker-card" id="add-menu-panel"
+                 role="dialog" aria-modal="true" aria-label="Add page or bookmark" hidden>
+              <!-- The well, so this matches every other dialog (R-032). It was
+                   missed there because it is hand-written markup and that pass
+                   converted the four JS builders; it still picked up the CSS half
+                   of the change, which left its rows hovering with the token meant
+                   for welled rows while sitting on the card. -->
+              <div class="picker-wellhost">
+                <div class="picker-well">
+                <button class="picker-row" type="button" id="add-row-bookmark">
+                    <span class="picker-row-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"/></svg></span>
+                    <span>Add bookmark</span>
+                </button>
+                <button class="picker-row" type="button" id="add-row-page">
+                    <span class="picker-row-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18"/></svg></span>
+                    <span>Add page</span>
+                </button>
+                </div>
+              </div>
+            </div>
+        </div>
+        <span class="action-divider"></span>
+        <button class="action-btn" id="global-settings-btn" title="Settings" aria-label="Settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+        </button>
+    </div>
+
+
+    <!-- R-021: the Add Bookmark CARD stood here and is gone. It collected four
+         fields on one screen (name, url, page row, group row) behind a header
+         and a duplicate footer Close. Adding a bookmark is four small picker
+         dialogs now, built in bookmarkModal.js from the same openInputPicker /
+         openListPicker the rest of this area uses, so there is no markup for it
+         here at all. NO STEP COUNTER in that sequence, deliberately: the wizard
+         this lineage started from showed one over a conditional step and was
+         wrong whenever an existing group was chosen. -->
+
+    <div id="engine-modal" class="modal" data-no-backdrop-close>
+        <div class="settings-container">
+            <div class="settings-header">
+                <h1 id="engine-modal-title">Search Engines</h1>
+                <button class="close-btn" id="close-engine-modal" title="Close">×</button>
+            </div>
+            <div class="settings-body">
+
+                <!-- Home: engine list -->
+                <div id="engine-home">
+                    <div class="settings-section-header" style="margin-top: 4px;">Add</div>
+                    <div class="settings-group">
+                        <button class="settings-row" type="button" id="add-engine-btn">
+                            <span class="settings-row-text">
+                                <span class="settings-row-title">Add new engine</span>
+                            </span>
+                            <span class="settings-row-chevron" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                    <div class="settings-section-header">Your Engines</div>
+                    <div class="settings-group" id="engine-list-container"></div>
+                </div>
+
+                <!-- Sub-page: Add Engine -->
+                <!-- Sub-page: Add Engine -->
+                <div class="engine-subpage" data-engine-panel="add" data-engine-title="Add Engine" hidden>
+                    <div class="settings-section-header" style="margin-top: 4px;">Name</div>
+                    <input type="text" class="form-input engine-field" id="engine-add-name" placeholder="e.g. Google" autocomplete="off">
+                    <div class="settings-section-header">Search URL</div>
+                    <input type="url" class="form-input engine-field" id="engine-add-url" placeholder="https://example.com/search?q=%s" autocomplete="off">
+                    <div class="settings-section-header">Icon</div>
+                    <div class="settings-group">
+                        <button class="settings-row" style="border-radius: 16px;" type="button" id="engine-add-icon-row">
+                            <span class="settings-row-text">
+                                <span class="settings-row-title">Icon type</span>
+                                <span class="settings-row-value" id="engine-add-icon-label">Upload SVG</span>
+                            </span>
+                            <span class="settings-row-chevron" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                    <p class="picker-error" id="engine-add-error" style="padding: 6px 0 0; font-size: 13px;"></p>
+                    <div style="margin-top: 20px;">
+                        <button class="save-btn" id="engine-add-submit" style="width: 100%;" type="button">Add Engine</button>
+                    </div>
+                </div>
+
+
+
+
+            </div>
+            <div class="settings-footer">
+                <div class="footer-buttons" style="margin-left: auto;">
+                    <button class="save-btn" id="save-engines">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="settings-modal" class="modal">
+        <div class="settings-container">
+            <div class="settings-header">
+                <h1 id="settings-title">Settings</h1>
+                <button class="close-btn" id="close-settings-modal" title="Close">×</button>
+            </div>
+
+            <div class="settings-body">
+
+                <!-- Phone-style settings: one scrolling page of sections. The old
+                     sidebar tabs became section headers; Backup/Reset became
+                     drill-in sub-pages. The original inputs live on, hidden, so all
+                     save/revert wiring is untouched: rows and pickers are a
+                     visual layer that drives them (settingsModal.js). -->
+                <div id="settings-home">
+
+                    <div class="settings-section-header">Search</div>
+                    <div class="settings-group">
+                        <label class="settings-row">
+                            <span class="settings-row-text">
+                                <span class="settings-row-title">Search bar</span>
+                            </span>
+                            <span class="toggle-switch">
+                                <input type="checkbox" id="spotlight-checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </span>
+                        </label>
+                        <button class="settings-row" type="button" data-picker="search-behavior" data-picker-title="Engine preference">
+                            <span class="settings-row-text">
+                                <span class="settings-row-title">Engine preference</span>
+                                <span class="settings-row-value" data-picker-value="search-behavior"></span>
+                            </span>
+                        </button>
+                        <button class="settings-row" type="button" data-picker="bookmark-pill-behavior" data-picker-title="Bookmark pills">
+                            <span class="settings-row-text">
+                                <span class="settings-row-title">Bookmark pills</span>
+                                <span class="settings-row-value" data-picker-value="bookmark-pill-behavior"></span>
+                            </span>
+                        </button>
+                    </div>
+
+                    <div class="settings-section-header">Appearance</div>
+                    <div class="settings-group">
+                        <button class="settings-row" type="button" data-picker="theme-choice" data-picker-title="Theme">
+                            <span class="settings-row-text">
+                                <span class="settings-row-title">Theme</span>
+                                <span class="settings-row-value" data-picker-value="theme-choice"></span>
+                            </span>
+                        </button>
+                        <button class="settings-row" type="button" data-picker="ui-scale" data-picker-title="UI scale">
+                            <span class="settings-row-text">
+                                <span class="settings-row-title">UI scale</span>
+                                <span class="settings-row-value" data-picker-value="ui-scale"></span>
+                            </span>
+                        </button>
+                    </div>
+
+                    <div class="settings-section-header">Focus</div>
+                    <div class="settings-group">
+                        <button class="settings-row" type="button" data-subpage="limiter">
+                            <span class="settings-row-text">
+                                <span class="settings-row-title">Tab limiter</span>
+                            </span>
+                            <span class="settings-row-chevron" aria-hidden="true"></span>
+                        </button>
+                        <button class="settings-row" type="button" data-subpage="delay">
+                            <span class="settings-row-text">
+                                <span class="settings-row-title">Search delay</span>
+                            </span>
+                            <span class="settings-row-chevron" aria-hidden="true"></span>
+                        </button>
+                    </div>
+
+                    <div class="settings-section-header">Backup</div>
+                    <div class="settings-group">
+                        <button class="settings-row" type="button" data-subpage="backup">
+                            <span class="settings-row-text">
+                                <span class="settings-row-title">Backup</span>
+                            </span>
+                            <span class="settings-row-chevron" aria-hidden="true"></span>
+                        </button>
+                    </div>
+
+                    <!-- Reset stays isolated in its own section on purpose: an
+                         irreversible wipe never sits next to a routine action. -->
+                    <div class="settings-section-header">Danger</div>
+                    <div class="settings-group">
+                        <button class="settings-row" type="button" data-subpage="reset">
+                            <span class="settings-row-text">
+                                <span class="settings-row-title settings-row-danger">Reset everything</span>
+                                <span class="settings-row-value">Asks first</span>
+                            </span>
+                            <span class="settings-row-chevron" aria-hidden="true"></span>
+                        </button>
+                    </div>
+
+                    <!-- Original multi-choice inputs, hidden but live: pickers set
+                         them and dispatch change, so save/revert reads them as ever. -->
+                    <div hidden>
+                        <input type="radio" name="search-behavior" value="remember" id="behavior-remember">
+                        <input type="radio" name="search-behavior" value="always-default" id="behavior-default">
+                        <input type="radio" name="bookmark-pill-behavior" value="prefix" id="pill-behavior-prefix">
+                        <input type="radio" name="bookmark-pill-behavior" value="always" id="pill-behavior-always" checked>
+                        <input type="radio" name="management-method" value="random" id="method-random">
+                        <input type="radio" name="management-method" value="block" id="method-block">
+                        <input type="radio" name="theme-choice" value="system">
+                        <input type="radio" name="theme-choice" value="light">
+                        <input type="radio" name="theme-choice" value="dark">
+                        <input type="radio" name="theme-choice" value="custom">
+                        <button class="scale-btn" data-value="0.75" type="button">75%</button>
+                        <button class="scale-btn" data-value="0.9" type="button">90%</button>
+                        <button class="scale-btn" data-value="1" type="button">100%</button>
+                        <button class="scale-btn" data-value="1.1" type="button">110%</button>
+                        <button class="scale-btn" data-value="1.25" type="button">125%</button>
+                    </div>
+
+                </div>
+
+                <!-- Sub-page: Backup -->
+                <div class="settings-subpage" data-panel="backup" data-subpage-title="Backup" hidden>
+                    <div class="setting-item">
+                        <label class="setting-label">Backup</label>
+                        <div class="form-description">Export writes a single <code>.detractless</code> file containing your bookmarks, settings, snippets, notes and events — encrypted, if you have set a backup password below. Import reads one back.</div>
+
+                        <div>
+                            <input type="file" id="import-file" accept=".detractless,.pastekit,.json" style="display: none;">
+                            <div class="button-group" style="margin-top: 12px;">
+                                <button class="import-export-btn-styled" id="import-btn"><span>↑</span> Import</button>
+                                <button class="import-export-btn-styled" id="export-btn"><span>↓</span> Export</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sub-page: Reset -->
+                <div class="settings-subpage" data-panel="reset" data-subpage-title="Reset" hidden>
+                    <div class="setting-item">
+                        <label class="setting-label" style="color: var(--color-error);">Danger Zone</label>
+                        <div class="form-description">Erase everything stored on this computer and start over: bookmarks, settings, snippets and your backup password.</div>
+                        <button class="import-export-btn-styled" id="reset-all-btn" style="margin-top: 12px; width: 100%; color: var(--color-error); border-color: var(--color-error);">Reset to Defaults</button>
+                        <div id="reset-confirm-box" style="display: none; margin-top: 12px; padding: 16px; background: var(--bg-error); border-radius: var(--radius-sm); border: 1px solid var(--color-error);">
+                            <p style="font: var(--text-body-sm); color: var(--color-error); margin: 0 0 12px 0;"><strong>This deletes your snippets too</strong>, including anything sensitive saved in them. Nothing here can be undone, and only a backup file can bring it back.</p>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="import-export-btn-styled" id="reset-cancel-btn" style="flex: 1;">Cancel</button>
+                                <button class="import-export-btn-styled" id="reset-confirm-btn" style="flex: 1; color: var(--color-error); border-color: var(--color-error);">Yes, Reset Everything</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sub-page: Limiter -->
+                <div class="settings-subpage" data-panel="limiter" data-subpage-title="Tab Limiter" hidden>
+                    <div class="settings-section-header">Status</div>
+                    <div class="settings-group">
+                        <div class="settings-row stat-row">
+                            <span class="settings-row-text"><span class="settings-row-title">Open tabs</span></span>
+                            <span class="stat-value" id="current-tabs">0</span>
+                        </div>
+                        <div class="settings-row stat-row">
+                            <span class="settings-row-text"><span class="settings-row-title">Tab limit</span></span>
+                            <span class="stat-value" id="current-limit">10</span>
+                        </div>
+                    </div>
+
+                    <div class="settings-section-header">Tab limit</div>
+                    <!-- Every value 1 to 10 stays selectable, plus Off. The chooser is
+                         a wrap grid rather than a fixed 4-column one so the row count
+                         follows the width instead of the other way round. -->
+                    <div class="choice-grid">
+                        <button class="limit-btn" data-limit="0">Off</button>
+                        <button class="limit-btn" data-limit="1">1</button>
+                        <button class="limit-btn" data-limit="2">2</button>
+                        <button class="limit-btn" data-limit="3">3</button>
+                        <button class="limit-btn" data-limit="4">4</button>
+                        <button class="limit-btn" data-limit="5">5</button>
+                        <button class="limit-btn" data-limit="6">6</button>
+                        <button class="limit-btn" data-limit="7">7</button>
+                        <button class="limit-btn" data-limit="8">8</button>
+                        <button class="limit-btn" data-limit="9">9</button>
+                        <button class="limit-btn" data-limit="10">10</button>
+                    </div>
+                    <p class="choice-note">Decreases apply now. Increases take 30 minutes.</p>
+                    <div id="limiter-pending-box" class="choice-note queued" style="display: none;">
+                        Queued: <strong id="pending-target">10</strong> in <span id="time-remaining">29m 59s</span>
+                        <button id="cancel-increase" class="link-btn">Cancel</button>
+                    </div>
+
+                    <div class="settings-section-header">When the limit is hit</div>
+                    <div class="settings-group">
+                        <button class="settings-row" type="button" data-picker="management-method" data-picker-title="Action when limit hit">
+                            <span class="settings-row-text">
+                                <span class="settings-row-title">Action when limit hit</span>
+                                <span class="settings-row-value" data-picker-value="management-method"></span>
+                            </span>
+                            <span class="settings-row-chevron" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sub-page: Search Delay -->
+                <div class="settings-subpage" data-panel="delay" data-subpage-title="Search Delay" hidden>
+                    <div class="settings-section-header">Delay</div>
+                    <!-- The old Current Status pair is gone: the lit pill already states
+                         the delay, and the second tile put the word "Active" in a 36px
+                         numeral slot to say what any value other than Off already says. -->
+                    <div class="choice-grid">
+                        <button class="limit-btn delay-btn" data-value="0">Off</button>
+                        <button class="limit-btn delay-btn" data-value="15">15s</button>
+                        <button class="limit-btn delay-btn" data-value="30">30s</button>
+                        <button class="limit-btn delay-btn" data-value="60">1m</button>
+                        <button class="limit-btn delay-btn" data-value="120">2m</button>
+                        <button class="limit-btn delay-btn" data-value="300">5m</button>
+                    </div>
+                    <p class="choice-note">A pause before results, to make searching deliberate. Increases apply now. Decreases take 30 minutes.</p>
+                    <div id="delay-pending-box" class="choice-note queued" style="display: none;">
+                        Queued: <strong id="delay-target-time">0s</strong> in <span id="delay-time-remaining">30m</span>
+                        <button id="cancel-delay-decrease" class="link-btn">Cancel</button>
+                    </div>
+
+                    <div class="settings-section-header">While waiting</div>
+                    <div class="settings-group">
+                        <!-- Was a Yes/No radio pair. The JS only ever read .checked on the
+                             Yes input, so one switch carries exactly the same state. -->
+                        <label class="settings-row">
+                            <span class="settings-row-text"><span class="settings-row-title">Show the search query</span></span>
+                            <span class="toggle-switch">
+                                <input type="checkbox" id="show-query-checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="settings-footer">
+                <!-- gap is deliberate: the version line is an 8-click hidden target
+                     and the review link navigates away from the page, so a mis-click
+                     mid-sequence used to lose the whole gesture. -->
+                <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start;">
+                    <div class="version-info" id="version-trigger">v2.4.2</div>
+                    <a href="https://chromewebstore.google.com/detail/ipgmbcinekdcmhhnbanlahedgpehffab" target="_blank" style="font-size: 12px; color: var(--text-secondary); text-decoration: none;">Leave a review</a>
+                </div>
+                <div class="footer-buttons">
+                    <!-- "& Close" is not decoration: this button really does close the
+                         window, and naming that is what distinguishes it from the
+                         section buttons ("Use this password", "Sync Now") that commit
+                         one thing and stay put. -->
+                    <button class="save-btn" id="save-settings">Save &amp; Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script src="src/dist/newtab.bundle.js"></script>
+    <script src="src/pages/newtab/settingsPage.js"></script>
+    <script src="src/pages/newtab/profilesPage.js"></script>
+    <script src="src/pages/newtab/newtabBridge.js"></script>
+</body>
+
+</html>

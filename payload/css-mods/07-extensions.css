@@ -1,0 +1,216 @@
+/* ── 16. Extensions popover (built by atlas.js section 9) ────────────── */
+
+/* Vivaldi renders its Proton VPN button even with the extension disabled;
+   the toolbar stays clean without it. */
+#browser .toolbar-mainbar [data-name="VPNButton"],
+#browser .toolbar-mainbar .protonVPN { display: none !important; }
+
+/* Extensions live in the popover only — no pinned buttons on the toolbar.
+   The container keeps just its toggle. */
+#browser .toolbar-extensions > *:not(.ExtensionToggleIcon) { display: none !important; }
+
+/* Dock the puzzle toggle INSIDE the address-field pill.
+   atlas.js ensureExtDocked() moves .toolbar-extensions to be the last child of
+   .UrlBar-AddressField (which is position:relative, L280) and tags it
+   .atlas-ext-docked. Being a real DOM child means the field's own :hover /
+   :focus-within cover it, so pointing at or clicking the icon no longer drops
+   the address bar out of its focused look. It is absolutely positioned at the
+   pill's right edge with no transition (the old width/opacity reveal is what
+   caused the slide-in), and the field reserves right padding so the URL text
+   clears it. The field keeps its centred margin:auto from L276-282. */
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked {
+  position: absolute;
+  left: auto !important;   /* Vivaldi sets left:0 here; with right:4px that would stretch it full-width */
+  right: 4px;
+  top: 50%;
+  /* scale(0.72): the raw toggle is 34px tall and poked 2px past the 30px pill
+     top and bottom, which read as the address bar getting thicker. Scaled it
+     sits fully inside the pill (measured 24px span, 3px clear each side). */
+  transform: translateY(-50%) scale(0.72);
+  width: max-content !important;
+  min-width: 0;
+  opacity: 1;
+  overflow: visible;
+  pointer-events: auto;
+  /* opacity only, so it fades with the URL text and never slides or resizes */
+  transition: opacity .3s ease;
+  transition-delay: 0s;
+  z-index: 3;
+  /* Suppress Vivaldi's native flyout background/padding when expanded */
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border: none !important;
+}
+/* Vivaldi adds .ExtensionToggleIcon--Expanded to the wrapper DIV (not the button)
+   when the flyout is open or a popup is active. This triggers background-color
+   from Vivaldi's own common.css. Suppress it when docked inside the pill. */
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked .ExtensionToggleIcon,
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked .ExtensionToggleIcon.ExtensionToggleIcon--Expanded {
+  background-color: transparent !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+/* The docked toggle's inner <button> lacks the .button-toolbar wrapper that the
+   general L389 rule targets, so border-radius, colours, and states need their
+   own explicit rules here. */
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button {
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+}
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked .button-icon {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+}
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button:hover  { background-color: var(--atlas-hover-1) !important; }
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button:active  { background-color: var(--atlas-hover-2) !important; }
+/* While a native extension popup is open Vivaldi sets button-on on the toggle.
+   Match hover-1 (not hover-3) so it stays visually lightweight inside the pill. */
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button.button-on { background-color: var(--atlas-hover-1) !important; }
+
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button.atlas-fallback-ext-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  cursor: pointer;
+  color: var(--atlas-icon);
+}
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button.atlas-fallback-ext-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: var(--atlas-icon);
+}
+
+/* Hide the docked toggle whenever the pill is at rest, matching the URL text
+   reveal at L315-318 — "if the search bar is hidden, the icon is hidden". */
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked {
+  transition-delay: 0s;
+}
+#browser .UrlBar-AddressField:hover > .toolbar-extensions.atlas-ext-docked {
+  transition-delay: 0.18s;
+}
+#browser .UrlBar-AddressField:focus-within > .toolbar-extensions.atlas-ext-docked {
+  transition-delay: 0s !important;
+}
+#browser .UrlBar-AddressField:not(:hover):not(:focus-within) > .toolbar-extensions.atlas-ext-docked {
+  opacity: 0;
+  pointer-events: none;
+}
+#browser.atlas-newtab .UrlBar-AddressField:not(:hover):not(:focus-within) > .toolbar-extensions.atlas-ext-docked {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+#browser .toolbar-mainbar > .UrlBar-AddressField {
+  padding-right: 34px !important;   /* clears the scaled icon (icon left edge ~27px in) */
+}
+
+#browser .atlas-ext-pop {
+  position: fixed;
+  z-index: 10000;
+  width: 264px;
+  padding: 6px;
+  border-radius: 12px;
+  background-color: var(--atlas-menu);
+  border: 1px solid var(--atlas-border);
+  box-shadow: var(--atlas-shadow);
+  color: var(--atlas-text-1);
+  font-size: 13px;
+}
+#browser .atlas-ext-pop .aep-searchwrap { padding: 2px 2px 6px; }
+#browser .atlas-ext-pop .aep-search {
+  width: 100%;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background-color: var(--atlas-hover-1);
+  color: var(--atlas-text-1);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+#browser .atlas-ext-pop .aep-search:focus { background-color: var(--atlas-hover-2); }
+#browser .atlas-ext-pop .aep-search::placeholder { color: var(--atlas-text-2); }
+/* Eight row slots, always: the popover is one constant size however many
+   extensions exist; overflow pages, it never grows. */
+#browser .atlas-ext-pop .aep-rows {
+  height: 240px;
+  display: flex;
+  flex-direction: column;
+}
+#browser .atlas-ext-pop .aep-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 7px;
+  cursor: default; /* rows act now: click = options/details, right-click = menu */
+}
+#browser .atlas-ext-pop .aep-row:hover { background-color: var(--atlas-hover-2); }
+#browser .atlas-ext-pop .aep-icon { width: 16px; height: 16px; flex: none; }
+#browser .atlas-ext-pop .aep-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#browser .atlas-ext-pop .aep-empty {
+  padding: 14px 8px;
+  text-align: center;
+  color: var(--atlas-text-2);
+  font-size: 12.5px;
+}
+#browser .atlas-ext-pop .aep-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 4px 0 2px;
+}
+#browser .atlas-ext-pop .aep-pager span {
+  font-size: 11.5px;
+  color: var(--atlas-text-2);
+  font-variant-numeric: tabular-nums;
+}
+#browser .atlas-ext-pop .aep-pager button {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--atlas-text-1);
+  font-size: 15px;
+  line-height: 1;
+  cursor: default;
+}
+#browser .atlas-ext-pop .aep-pager button:hover:not(:disabled) { background-color: var(--atlas-hover-2); }
+#browser .atlas-ext-pop .aep-pager button:disabled { color: var(--atlas-text-2); opacity: .5; }
+#browser .atlas-ext-pop .aep-foot {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 7px 8px;
+  border: 0;
+  border-top: 1px solid var(--atlas-border);
+  border-radius: 0 0 7px 7px;
+  background: transparent;
+  color: var(--atlas-text-2);
+  font: inherit;
+  text-align: center;
+  cursor: default;
+}
+#browser .atlas-ext-pop .aep-foot:hover { color: var(--atlas-text-1); background-color: var(--atlas-hover-1); }

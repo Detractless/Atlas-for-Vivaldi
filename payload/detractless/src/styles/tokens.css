@@ -1,0 +1,101 @@
+/* ══════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS — theme-independent foundations
+   (Adopted from the Minimal Apps monochrome design system.)
+   Colors live in themes.css; these tokens never change per theme.
+   ══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* --- Neutral mono ramp (raw values; semantic mapping in themes.css) --- */
+  --mono-000: #ffffff;
+  --mono-050: #f6f6f4;
+  --mono-100: #efeeec;
+  --mono-150: #e6e5e2;
+  --mono-200: #d8d7d3;
+  --mono-300: #bcbbb6;
+  --mono-400: #9a9a95;
+  --mono-500: #76766f;
+  --mono-600: #57574f;
+  --mono-700: #3a3a33;
+  --mono-800: #1c1c18;
+  --mono-900: #111110;
+  --mono-950: #0a0a09;
+
+  /* --- Radius --- */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-pill: 999px;
+  --radius-circle: 50%;
+
+  /* --- Shadows (soft, neutral) --- */
+  /* Shadows are banned (UI-RULES 5.1): depth comes from surface steps.
+     Vars kept as none until the last consumer is deleted (ledger G-2). */
+  --shadow-none: none;
+  --shadow-sm:  none;
+  --shadow-md:  none;
+  --shadow-lg:  none;
+  --shadow-card: none;
+
+  /* --- Overlay blur ---
+     The one blur radius. Two surfaces recede the page behind them (the modal
+     overlay and the page nav scrim), and a project that has already had to rule
+     twice on two copies of one control does not need two literals for this. */
+  --blur-overlay: 3px;
+
+  /* --- Motion --- */
+  --ease-out:   cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+  --dur-slow: 360ms;
+
+  /* --- Spacing (4px grid) --- */
+  --space-1: 4px;   --space-2: 8px;   --space-3: 12px;  --space-4: 16px;
+  --space-5: 20px;  --space-6: 24px;  --space-8: 32px;  --space-10: 40px;
+  --space-12: 48px; --space-16: 64px; --space-20: 80px;
+
+  /* --- List row geometry (R-008) ---
+     A scrolling well must be a whole number of rows tall, or its fade paints
+     over a row that is still visible. The snap arithmetic lives in JS and the
+     rendering lives in CSS, so the measurements live HERE, in the one file
+     both can read. Do not hardcode 32/2/8 in either place: that is the drift
+     that produced two different switches (see components.css). */
+  --row-height: 32px;
+  --row-gap: 2px;
+  --row-pitch: 34px;   /* row-height + row-gap; the vertical period of a list */
+  --well-padding: 8px; /* inset on all four sides of a scrolling well */
+
+  /* --- Font families --- */
+  --font-sans: "Schibsted Grotesk", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* --- Weights --- */
+  --weight-regular: 400; --weight-medium: 500; --weight-semibold: 600;
+  --weight-bold: 700; --weight-black: 800;
+
+  /* --- Type scale (font shorthand) --- */
+  --text-display-lg: 800 44px/1.0 var(--font-sans);
+  --text-display-md: 700 36px/1.05 var(--font-sans);
+  --text-h1: 700 26px/1.12 var(--font-sans);
+  --text-h2: 700 20px/1.18 var(--font-sans);
+  --text-h3: 600 17px/1.25 var(--font-sans);
+  --text-body: 400 16px/1.45 var(--font-sans);
+  --text-body-sm: 400 14px/1.45 var(--font-sans);
+  --text-label: 500 13px/1.3 var(--font-sans);
+  --text-caption: 400 12px/1.35 var(--font-sans);
+  --text-mono: 400 12px/1.3 var(--font-mono);
+
+  /* --- Tracking --- */
+  --tracking-tight: -0.02em;
+  --tracking-snug: -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.06em;
+  --tracking-wider: 0.14em;
+
+  /* --- Legacy structural aliases (kept until newtab.css is fully restyled) --- */
+  --radius: var(--radius-sm);
+  --transition: var(--dur-fast) var(--ease-out);
+  --font-ui: var(--font-sans);
+}

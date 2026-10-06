@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="color-scheme" content="light dark">
+<title>Downloads</title>
+<link rel="icon" type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M12 4.6 V14.9' stroke='%23888888' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M8.2 11.1 L12 14.9 L15.8 11.1' stroke='%23888888' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M5 19.2 H19' stroke='%23888888' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="atlas-pages.css">
+<script src="atlas-pages.js"></script>
+<style>
+  /* Download-specific row states. Progress is a hairline under the row text,
+     not a bar component: the list stays one rhythm whatever is downloading. */
+  .row { cursor: default; }
+  .row.gone .row-title { color: var(--text-tertiary); text-decoration: line-through; }
+  .state-active { color: var(--text-primary); }
+  .state-bad { color: var(--text-error); }
+  .bar {
+    height: 2px; border-radius: var(--radius-pill);
+    background: var(--hover-on-card); margin-top: 4px; overflow: hidden;
+  }
+  .bar > i { display: block; height: 100%; background: var(--accent); }
+
+  /* Drag chip — the custom drag image. Parked off the right edge so it renders
+     (a hidden element will not snapshot) but never shows in the page. */
+  .drag-chip {
+    position: fixed; top: -600px; left: -600px;
+    display: inline-flex; align-items: center; gap: 8px;
+    max-width: 260px; height: 40px; padding: 0 14px 0 12px;
+    background: var(--surface-card); color: var(--text-primary);
+    border-radius: var(--radius-pill);
+    font: var(--text-label); box-shadow: 0 6px 20px rgba(0,0,0,.28);
+  }
+  .drag-chip svg { flex: none; color: var(--text-secondary); }
+  .drag-chip span {
+    max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="page-title">Downloads</h1>
+  <div class="list-card">
+    <div class="fieldrow">
+      <div class="field">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"/>
+          <path d="M16.5 16.5 L21 21"/>
+        </svg>
+        <input id="q" type="text" placeholder="Search downloads" autocomplete="off" spellcheck="false">
+      </div>
+      <button class="pill-btn danger" id="clear">Clear all…</button>
+    </div>
+    <div class="list-shell">
+      <div class="list-scroller">
+        <div id="list"></div>
+        <div class="empty" id="empty" hidden>Files you download appear here</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="head-right">
+  <div class="selbar" id="selbar" hidden>
+    <span class="sb-count" id="selcount"></span>
+    <button class="sb-cancel" id="selcancel">Cancel</button>
+    <button class="sb-delete" id="seldelete">Delete</button>
+  </div>
+  <button class="head-link" id="fullpage" title="Vivaldi's built-in downloads page">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 4 h6 v6"/><path d="M20 4 L11 13"/>
+      <path d="M18 13 v6 a1 1 0 0 1 -1 1 H5 a1 1 0 0 1 -1 -1 V7 a1 1 0 0 1 1 -1 h6"/>
+    </svg>
+    Full downloads page
+  </button>
+</div>
+
+<div class="modal" id="clearmodal" hidden>
+  <div class="dialog">
+    <div class="dialog-title">Clear downloads</div>
+    <div class="dialog-text">Empties this list. The downloaded files themselves stay on your computer.</div>
+    <div class="dialog-well">
+      <button class="dialog-row" id="cm-cancel">Cancel</button>
+      <button class="dialog-row danger" id="cm-clear">Clear the list</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* No context menu on this page. Capture phase so nothing can re-enable it.
+     atlas.js also skips components/atlas/ when injecting the shared menu. */
+  document.addEventListener('contextmenu', function (e) { e.preventDefault(); }, true);
+
+  /* Click-to-select page: owns the icon↔check hover swap (atlas-pages.css). */
+  document.body.classList.add('selectable');
+
+  /* Escape hatch to Vivaldi's own downloads page. The redirect in atlas.js is
+     exact-match on …://downloads/?$, so the query string sails through. */
+  document.getElementById('fullpage').addEventListener('click', function () {
+    chrome.tabs.create({ url: 'vivaldi://downloads/?full' });
+  });
+
+  var list = document.getElementById('list');
+  var empty = document.getElementById('empty');
+  var q = document.getElementById('q');
+  var selbar = document.getElementById('selbar');
+  var selcount = document.getElementById('selcount');
+
+  var selected = {};            /* download id -> row element */
+  var CHECK_SVG = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5 L10 18 L19.5 6.5"/></svg>';
+
+  function selSize() { return Object.keys(selected).length; }
+  function updateSelbar() {
+    var n = selSize();
+    selbar.hidden = n === 0;
+    document.body.classList.toggle('selecting', n > 0);
+    selcount.textContent = n + ' selected';
+  }
+  function toggleSel(id, row) {
+    if (selected[id]) { delete selected[id]; row.classList.remove('sel'); }
+    else { selected[id] = row; row.classList.add('sel'); }
+    updateSelbar();
+  }
+  function clearSel() {
+    Object.keys(selected).forEach(function (k) { selected[k].classList.remove('sel'); });
+    selected = {};
+    updateSelbar();
+  }
+  document.getElementById('selcancel').addEventListener('click', clearSel);
+  document.getElementById('seldelete').addEventListener('click', function () {
+    var ids = Object.keys(selected);
+    var left = ids.length;
+    ids.forEach(function (k) {
+      chrome.downloads.erase({ id: Number(k) }, function () {
+        if (selected[k]) selected[k].remove();
+        delete selected[k];
+        if (--left === 0) { updateSelbar(); load(); }
+      });
+    });
+  });
+
+  var SVG = {
+    open:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 L17 7 M9 7 h8 v8"/></svg>',
+    folder: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+    link:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14 L14 10 M8.5 11.5 l-3 3 a3.5 3.5 0 0 0 5 5 l3 -3 M15.5 12.5 l3 -3 a3.5 3.5 0 0 0 -5 -5 l-3 3"/></svg>',
+    pause:  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5 V19 M15 5 V19"/></svg>',
+    play:   '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5 L18.5 12 L8 18.5 Z"/></svg>',
+    retry:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11 A8 8 0 1 0 20 15 M20 5 v6 h-6"/></svg>',
+    x:      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>'
+  };
+
+  /* Fallback file icon: a document with a download arrow. Used when
+     getFileIcon returns nothing — canceled/failed/missing files have no
+     shell icon, and a blank slot reads as broken. Data-URI so it needs no
+     network. Stroke is #888 so it sits neutral in both themes. */
+  var FILE_ICON =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'" +
+    " stroke='%23888888' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E" +
+    "%3Cpath d='M6 3.2h7l5 5V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.2a1 1 0 0 1 1-1z'/%3E" +
+    "%3Cpath d='M13 3.4V8h4.6'/%3E%3Cpath d='M12 11v5'/%3E%3Cpath d='M9.6 13.8 12 16.2l2.4-2.4'/%3E%3C/svg%3E";
+
+  /* Custom drag image: instead of the OS snapshotting the whole row, drag a
+     small chip — a download glyph in a rounded box with the filename — so it
+     reads as "carrying a file". The element must be ON-SCREEN (offscreen or
+     display:none elements do not render as a drag image), so it is parked
+     just past the viewport and removed after the browser has snapshotted it. */
+  var CHIP_ICON =
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M12 4 V15"/><path d="M7.5 10.5 L12 15 L16.5 10.5"/><path d="M5 19 H19"/></svg>';
+  function setDragChip(e, label) {
+    var chip = document.createElement('div');
+    chip.className = 'drag-chip';
+    chip.innerHTML = CHIP_ICON + '<span></span>';
+    chip.querySelector('span').textContent = label;
+    document.body.appendChild(chip);
+    /* grab-point near the glyph so the chip tracks the cursor naturally */
+    try { e.dataTransfer.setDragImage(chip, 22, 20); } catch (err) {}
+    setTimeout(function () { chip.remove(); }, 0);
+  }
+
+  function dayLabel(iso) {
+    var d = new Date(iso);
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var day = new Date(d); day.setHours(0, 0, 0, 0);
+    var diff = Math.round((today - day) / 86400000);
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Yesterday';
+    return d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+  }
+  function timeLabel(iso) {
+    return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+  function baseName(p) { return (p || '').split(/[\\/]/).pop(); }
+  function fmtSize(n) {
+    if (!n || n < 0) return '';
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+    if (n < 1073741824) return (n / 1048576).toFixed(1) + ' MB';
+    return (n / 1073741824).toFixed(2) + ' GB';
+  }
+  function domain(u) {
+    try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; }
+  }
+  function subFor(it) {
+    if (it.state === 'in_progress') {
+      if (it.paused) return { text: 'Paused', cls: 'state-bad' };
+      var pct = it.totalBytes > 0 ? Math.round(it.bytesReceived / it.totalBytes * 100) + '%' : fmtSize(it.bytesReceived);
+      return { text: 'Downloading — ' + pct, cls: 'state-active' };
+    }
+    if (it.state === 'interrupted') {
+      return { text: 'Failed — ' + (it.error || '').toLowerCase().replace(/_/g, ' '), cls: 'state-bad' };
+    }
+    var bits = [];
+    var sz = fmtSize(it.fileSize > 0 ? it.fileSize : it.totalBytes);
+    if (sz) bits.push(sz);
+    var dm = domain(it.finalUrl || it.url);
+    if (dm) bits.push(dm);
+    return { text: bits.join(' · '), cls: '' };
+  }
+
+  function act(row, title, svg, danger, fn) {
+    var b = document.createElement('button');
+    b.className = 'row-act' + (danger ? ' danger' : '');
+    b.title = title;
+    b.innerHTML = svg;
+    b.addEventListener('click', function (e) { e.stopPropagation(); fn(); });
+    row.appendChild(b);
+    return b;
+  }
+  function lastErr() { void chrome.runtime.lastError; }
+
+  /* ── clear-all dialog ── */
+  var modal = document.getElementById('clearmodal');
+  var cmClear = document.getElementById('cm-clear');
+  function closeModal() {
+    modal.hidden = true;
+    cmClear.classList.remove('armed');
+    cmClear.textContent = 'Clear the list';
+  }
+  document.getElementById('clear').addEventListener('click', function () { modal.hidden = false; });
+  document.getElementById('cm-cancel').addEventListener('click', closeModal);
+  modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+  cmClear.addEventListener('click', function () {
+    if (!cmClear.classList.contains('armed')) {
+      cmClear.classList.add('armed');
+      cmClear.textContent = 'Clear everything — are you sure?';
+      return;
+    }
+    chrome.downloads.erase({}, function () { closeModal(); load(); });
+  });
+
+  /* ── rendering ── */
+  function render(items) {
+    list.textContent = '';
+    var lastDay = null;
+    var well = null;
+
+    items.forEach(function (it) {
+      var name = baseName(it.filename) || domain(it.url) || 'download';
+      var label = dayLabel(it.startTime);
+      if (label !== lastDay) {
+        lastDay = label;
+        var group = document.createElement('div');
+        group.className = 'group';
+        var h = document.createElement('div');
+        h.className = 'group-title';
+        var hl = document.createElement('span');
+        hl.textContent = label;
+        h.appendChild(hl);
+        group.appendChild(h);
+        well = document.createElement('div');
+        well.className = 'well';
+        group.appendChild(well);
+        list.appendChild(group);
+      }
+
+      var row = document.createElement('div');
+      row.className = 'row' + (it.exists === false && it.state === 'complete' ? ' gone' : '');
+
+      var check = document.createElement('span');
+      check.className = 'row-check';
+      check.innerHTML = CHECK_SVG;
+      check.title = 'Select';
+      check.addEventListener('click', function (e) {
+        e.stopPropagation();
+        toggleSel(it.id, row);
+      });
+      row.appendChild(check);
+
+      var img = document.createElement('img');
+      img.className = 'row-icon';
+      img.src = FILE_ICON;                       /* neutral default up front */
+      chrome.downloads.getFileIcon(it.id, { size: 32 }, function (url) {
+        lastErr();
+        if (url) img.src = url;                  /* real shell icon if any  */
+      });
+      /* a broken/expired shell-icon URL also falls back to the glyph */
+      img.addEventListener('error', function () {
+        if (img.src !== FILE_ICON) img.src = FILE_ICON;
+      });
+      row.appendChild(img);
+
+      /* a plain click selects; the explicit actions handle everything else */
+      row.addEventListener('click', function () { toggleSel(it.id, row); });
+
+      /* Drag a finished file out to Explorer or another app, like the
+         native page. DownloadURL is the web-platform route (the native
+         page's internal drag API is not exposed to extensions): Chromium
+         materialises the drop from the file:// URL. */
+      if (it.state === 'complete' && it.exists !== false && it.filename) {
+        row.draggable = true;
+        row.addEventListener('dragstart', function (e) {
+          var p = it.filename.replace(/\\/g, '/');
+          var fileUrl = 'file:///' + encodeURI(p.replace(/^\//, '')).replace(/#/g, '%23');
+          e.dataTransfer.effectAllowed = 'copy';
+          e.dataTransfer.setData('DownloadURL',
+            (it.mime || 'application/octet-stream') + ':' + baseName(it.filename) + ':' + fileUrl);
+          e.dataTransfer.setData('text/uri-list', fileUrl);
+          setDragChip(e, name);
+        });
+      }
+
+      var text = document.createElement('div');
+      text.className = 'row-text';
+      var fn = document.createElement('div');
+      fn.className = 'row-title';
+      fn.textContent = name;
+      text.appendChild(fn);
+
+      var sub = document.createElement('div');
+      sub.className = 'row-sub';
+      var s = subFor(it);
+      if (s.cls) {
+        var span = document.createElement('span');
+        span.className = s.cls;
+        span.textContent = s.text;
+        sub.appendChild(span);
+      } else {
+        sub.textContent = s.text;
+      }
+      text.appendChild(sub);
+
+      if (it.state === 'in_progress' && it.totalBytes > 0) {
+        var bar = document.createElement('div');
+        bar.className = 'bar';
+        var fill = document.createElement('i');
+        fill.style.width = Math.round(it.bytesReceived / it.totalBytes * 100) + '%';
+        bar.appendChild(fill);
+        text.appendChild(bar);
+      }
+      row.appendChild(text);
+
+      var tm = document.createElement('span');
+      tm.className = 'row-time';
+      tm.textContent = timeLabel(it.startTime);
+      row.appendChild(tm);
+
+      /* per-state actions */
+      if (it.state === 'in_progress') {
+        if (it.paused) {
+          act(row, 'Resume', SVG.play, false, function () {
+            if (it.canResume) chrome.downloads.resume(it.id, lastErr);
+          });
+        } else {
+          act(row, 'Pause', SVG.pause, false, function () {
+            chrome.downloads.pause(it.id, lastErr);
+          });
+        }
+        act(row, 'Cancel', SVG.x, true, function () {
+          chrome.downloads.cancel(it.id, lastErr);
+        });
+      } else if (it.state === 'interrupted') {
+        act(row, 'Retry', SVG.retry, false, function () {
+          chrome.downloads.download({ url: it.finalUrl || it.url }, lastErr);
+        });
+      } else { /* complete */
+        if (it.exists !== false) {
+          act(row, 'Open file', SVG.open, false, function () {
+            chrome.downloads.open(it.id);
+          });
+          act(row, 'Show in folder', SVG.folder, false, function () {
+            chrome.downloads.show(it.id);
+          });
+          row.addEventListener('dblclick', function () { chrome.downloads.open(it.id); });
+        }
+        act(row, 'Copy download link', SVG.link, false, function () {
+          try { navigator.clipboard.writeText(it.finalUrl || it.url); } catch (e) {}
+        });
+      }
+
+      well.appendChild(row);
+    });
+    empty.hidden = list.children.length !== 0;
+  }
+
+  function load() {
+    clearSel();
+    var opts = { limit: 500, orderBy: ['-startTime'] };
+    var text = q.value.trim();
+    if (text) opts.query = [text];
+    chrome.downloads.search(opts, render);
+  }
+
+  var deb;
+  q.addEventListener('input', function () {
+    clearTimeout(deb);
+    deb = setTimeout(load, 180);
+  });
+
+  var refreshTimer;
+  function refreshSoon() {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(load, 250);
+  }
+  if (chrome.downloads.onCreated) chrome.downloads.onCreated.addListener(refreshSoon);
+  if (chrome.downloads.onChanged) chrome.downloads.onChanged.addListener(refreshSoon);
+  if (chrome.downloads.onErased) chrome.downloads.onErased.addListener(refreshSoon);
+
+  load();
+})();
+</script>
+</body>
+</html>

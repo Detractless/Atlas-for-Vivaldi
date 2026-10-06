@@ -1,0 +1,624 @@
+/* Sidebar pane switcher — three top-level panes share the full viewport.
+ *
+ * SURFACES FOLLOW THE NEW TAB (ADR-4). The page is canvas, things sitting on it
+ * are card, things inside those are muted, and hover uses the token named for
+ * what is UNDERNEATH: hover-on-canvas for a card on the page, hover-on-card for
+ * a row inside a card. This file used to force `html, body` to surface-card,
+ * which pushed every layer above it up a step and left hover with nowhere to go.
+ * The page background now comes from pastekit/pages/sidepanel.css, which had it
+ * right all along. */
+.pane { display: none; flex-direction: column; flex: 1; min-height: 0; }
+.pane.active { display: flex; }
+
+/* R-022: the SECOND header vocabulary stood here (.sp-hd, .sp-wordmark,
+   .sp-back) and is deleted. Its comment claimed it was "used by home and
+   remover"; home has no header at all, so only Remover ever used it, and because
+   it never set justify-content its title packed LEFT while PasteKit's sat in the
+   middle. .sp-back was byte-for-byte the .hd button rule. All four panes now use
+   the one grid-centred .hd in styles/panel.css. */
+
+/* ── Home view ──────────────────────────────────────────────────────────── */
+/* 28px top matches the new tab's corner utilities (.action-buttons is fixed at
+   top: 28px), so the first thing on each surface starts at the same height. The
+   home header used to supply this gap; it went with the wordmark. */
+.sp-home-main {
+  flex: 1; padding: 28px 16px 20px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.sp-tile {
+  width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 15px 17px; text-align: left;
+  /* This is a <button>, so BOTH resets are required. Dropping the border rule
+     falls back to the UA border, and a button does NOT inherit colour: without an
+     explicit ink it takes the UA buttontext, which is black in BOTH themes. The
+     name and desc below set their own tokens and so themed correctly, but the
+     icon set none and stayed black in dark mode. Colouring the tile itself fixes
+     the icon by inheritance and covers any child added later. */
+  background: var(--surface-card); color: var(--text-primary);
+  border: none; border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--dur-base) var(--ease-out);
+}
+/* A card sitting on the page. The border went with the surface fix: card on
+   canvas is a real step, so there is nothing left for a line to separate. */
+.sp-tile:hover {
+  background: var(--hover-on-canvas);
+}
+.sp-tile-icon { font-size: 20px; margin-bottom: 4px; line-height: 1; color: var(--text-primary); }
+/* The tiles carry inline line-SVGs now, not glyphs; block removes the baseline
+   descender gap a glyph left under it. */
+.sp-tile-icon svg { display: block; width: 22px; height: 22px; }
+.sp-tile-name { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.sp-tile-desc { font-size: 12px; color: var(--text-secondary); margin-top: 1px; }
+
+/* ── PasteKit pane — ensure it fills its pane correctly ─────────────────── */
+#view-pastekit .hd { gap: 6px; }
+#view-pastekit .views { flex: 1; }
+
+
+/* ── Remover view (spec 008) ─────────────────────────────────────────────
+   .sp-remover-body, .sp-site-info, .sp-arm-btn, .sp-rule-row, .sp-rule-selector
+   and .sp-rule-del are DELETED: the view speaks the settings-row language now,
+   so its whole private vocabulary retires with it. Rules are settings rows, the
+   arm button is the foot's .primary, and the host lives in the header title.
+   Two rules remain, both named in the spec. */
+
+/* A selector is CODE, so a rule row's title reads in the mono the extension
+   already ships a token for, and it ellipsizes because selectors run long.
+   Deliberately a modifier on .settings-row-title rather than a new row kind. */
+.sp-mono-title {
+  font-family: var(--font-mono); font-size: 12px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Armed = tinted error surface with error ink, the pair every armed destructive
+   state already uses (.picker-row--armed, .row-actions .danger.armed). Scoped to
+   the foot so a page cannot accidentally arm an arbitrary primary. */
+.actions .primary.armed { background: var(--bg-error); color: var(--color-error); }
+
+/* ── Saved-tab groups (R-022) ────────────────────────────────────────────
+   ONLY the group header lives here. Everything else these two screens draw
+   (.bar, .search-input, .card, .row, .empty, .foot, .actions, .primary, .ghost)
+   comes from the shared styles/panel.css and is deliberately NOT restated.
+
+   The first version of these screens defined .sp-row, .sp-list, .sp-btn,
+   .sp-textarea and .sp-editor here, duplicating PasteKit's vocabulary badly
+   enough that the notes buttons rendered browser-default. All of it is deleted;
+   a group header is the one thing PasteKit has no equivalent of. */
+
+/* Saved sessions reuse PasteKit's row vocabulary wholesale: .row with .body,
+   .nm, .ds and a .qpos badge, the hover "⋯", and the .row-actions slide-over
+   opened by right-click. Only these two rules are local, because only these two
+   have no PasteKit equivalent.
+
+   An earlier version defined .sp-group-toggle, .sp-group-chev, .sp-group-act and
+   friends: a clip-path chevron plus hover-revealed icon buttons, i.e. a fourth
+   vocabulary invented for a list this panel already knew how to draw. All of it
+   is deleted rather than kept alongside. */
+.sp-group { margin-bottom: 2px; }
+
+/* The tabs inside an expanded session, indented so it stays obvious which
+   session they belong to when several are open at once. */
+.sp-group-body { padding-left: 10px; }
+
+/* Separates a session's description from its tab list on the Details screen.
+   NOT a border, which UI-RULES bans: a one-pixel block of the muted surface
+   doing the same job, inset so it reads as a divider between two parts of one
+   card rather than as an edge of the card itself. */
+.sp-sep { height: 1px; background: var(--surface-muted); margin: 2px 8px 8px; }
+
+/* ── Inline action disc (R-040) ──────────────────────────────────────────────
+   Every page's PRIMARY action — new snippet, new note, save-and-close tabs, arm
+   picker — is one disc sitting beside that page's search bar (or, on Remover
+   which has no search, beside the "Remember added rules" row), instead of a
+   header "+" here and a footer button there. Same disc as the new tab's corner
+   utilities (.action-btn): a 40px card-fill circle, icon in secondary ink, hover
+   shifts the surface only. 40 (not the new tab's 44) so it matches the height of
+   the search field it sits next to. */
+.bar { display: flex; align-items: center; gap: 8px; }
+.bar .search-input { flex: 1; width: auto; }
+.sp-action-disc {
+  flex: 0 0 auto; width: 40px; height: 40px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-card); border: none; border-radius: 50%;
+  color: var(--text-secondary); cursor: pointer;
+  transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+}
+.sp-action-disc:hover { background: var(--hover-on-canvas); }
+.sp-action-disc svg {
+  width: 20px; height: 20px; fill: none; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+/* Armed = the picker is live; the same tinted-error pair every armed state in the
+   panel already uses, so the disc reads as "on, click to stop" (Disarm). */
+.sp-action-disc.armed { background: var(--bg-error); color: var(--color-error); }
+
+/* Header and chevron glyphs are inline SVGs now; size them and let currentColor
+   (the button's own ink) drive the stroke. */
+.hd button svg {
+  display: block; width: 16px; height: 16px; fill: none; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.sp-chevron svg {
+  display: block; width: 16px; height: 16px; fill: none; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* Remover has no search bar, so its arm disc rides a bar of its own next to the
+   "Remember added rules" toggle, which moves up out of the (scrolling) rules
+   list to sit fixed with the action. */
+.sp-remover-bar { gap: 8px; }
+/* The Remember toggle keeps its card (a settings-row on the page): it is a
+   setting sitting on the canvas, so it wears the same surface-card the rules
+   list and every other row do, rather than floating bare on the bar. */
+.sp-remember {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface-card); border-radius: var(--radius-md);
+  padding: 11px 14px; cursor: pointer;
+}
+.sp-remember-label { flex: 1; font-size: 14px; color: var(--text-primary); white-space: nowrap; }
+
+/* ---------- Settings-page design for the tool panels ----------
+   Same values as #sp-root on the new tab: system font, 16px bordered cards with
+   hairline row separators, 52px rows (12px 16px), 14px/500 titles over 12px
+   descriptions, 36px bordered pills, 36x20 toggles. Only tokens are used, so
+   light and dark follow the theme. This block comes last on purpose: it
+   overrides the older flat-row rules above it. */
+:root {
+  --font-sans: ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+body {
+  font: 400 14px/20px var(--font-sans);
+}
+
+/* Header: back / title / actions */
+.hd {
+  padding: 12px 16px 4px;
+  min-height: 52px;
+}
+.hd .hd-actions {
+  gap: 8px;
+}
+.wordmark {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.hd button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  min-width: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line-hairline);
+  border-radius: 9999px;
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  font: 400 14px/18px var(--font-sans);
+}
+.hd button:hover {
+  background: var(--hover-on-card);
+}
+
+/* Search bar + round action button */
+.bar {
+  padding: 12px 16px 4px;
+  gap: 8px;
+}
+.search-input {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 9999px;
+  background: var(--surface-muted);
+  font: 400 14px/18px var(--font-sans);
+}
+.sp-action-disc {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line-hairline);
+  background: var(--surface-muted);
+  color: var(--text-primary);
+}
+.sp-action-disc:hover {
+  background: var(--hover-on-card);
+}
+.sp-action-disc svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Tag chips */
+.sp-tagbar {
+  gap: 6px;
+  padding: 10px 16px 0;
+}
+.sp-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--line-hairline);
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  font: 400 12px/16px var(--font-sans);
+}
+.sp-chip:hover {
+  background: var(--hover-on-card);
+}
+.sp-chip.active,
+.sp-chip.active:hover {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+/* Lists: one bordered card, hairlines between rows */
+.sp-page {
+  padding: 12px 16px 12px;
+}
+.settings-group {
+  gap: 0;
+  border: 1px solid var(--line-hairline);
+  border-radius: 16px;
+  background: var(--surface-card);
+}
+.settings-group:not(.sp-page-scroll) {
+  overflow: hidden;
+}
+.settings-group.sp-page-scroll {
+  flex: 0 1 auto;
+}
+.settings-group:has(> .empty) {
+  flex: 1 1 auto;
+  border-color: transparent;
+  background: transparent;
+}
+.settings-row,
+.settings-group .settings-row:first-child,
+.settings-group .settings-row:last-child,
+.settings-group .settings-row:only-child {
+  position: relative;
+  gap: 12px;
+  min-height: 52px;
+  padding: 12px 16px;
+  border-radius: 0;
+  background: transparent;
+}
+.settings-group > .settings-row + .settings-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 1px;
+  background: var(--line-hairline);
+}
+.settings-row:hover {
+  background: var(--hover-on-canvas);
+}
+.settings-row-text {
+  gap: 2px;
+}
+.settings-row-title {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+.settings-row-value {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-secondary);
+}
+.sp-row-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+}
+.sp-chevron {
+  color: var(--text-tertiary);
+}
+.sp-stack {
+  gap: 12px;
+}
+.empty {
+  font-size: 14px;
+  line-height: 20px;
+}
+.empty-hint {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* Section titles and in-row pills */
+.sp-sect {
+  padding: 20px 2px 8px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-primary);
+}
+.sp-open-pill {
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line-hairline);
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  font: 400 14px/18px var(--font-sans);
+}
+.sp-open-pill:hover {
+  background: var(--hover-on-card);
+  opacity: 1;
+}
+
+/* Toggles (36x20, off = mono-400, on = accent) */
+.toggle-slider {
+  background: var(--mono-400);
+}
+.toggle-slider::before {
+  background: var(--text-primary);
+}
+input:checked + .toggle-slider {
+  background: var(--accent);
+}
+input:checked + .toggle-slider::before {
+  background: var(--accent-text);
+}
+.chk {
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border: 1px solid var(--line-hairline);
+  border-radius: 16px;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font: 500 14px/20px var(--font-sans);
+}
+.chk input {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border-radius: 9999px;
+  background: var(--mono-400);
+  cursor: pointer;
+  transition: background var(--dur-base) var(--ease-out);
+}
+.chk input::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  transition: transform var(--dur-base) var(--ease-out), background var(--dur-base) var(--ease-out);
+}
+.chk input:checked {
+  background: var(--accent);
+}
+.chk input:checked::after {
+  transform: translateX(16px);
+  background: var(--accent-text);
+}
+.sp-remember {
+  gap: 12px;
+  min-height: 52px;
+  padding: 12px 16px;
+  border: 1px solid var(--line-hairline);
+  border-radius: 16px;
+}
+.sp-remember-label {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  white-space: normal;
+}
+
+/* Footer buttons: 36px pills (ghost = bordered, primary = accent) */
+.foot {
+  padding: 4px 16px 16px;
+}
+.status {
+  font-size: 12px;
+  line-height: 16px;
+}
+.actions button,
+.io-actions button,
+.sp-pp-actions button {
+  height: 36px;
+  padding: 0 16px;
+  font: 500 14px/18px var(--font-sans);
+}
+.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.ghost {
+  padding: 0 16px;
+  border: 1px solid var(--line-hairline);
+  background: var(--surface-muted);
+  font-weight: 400;
+}
+.ghost:hover:enabled {
+  background: var(--hover-on-card);
+}
+
+/* Editor fields */
+.editor label {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 16px;
+}
+.editor input,
+.editor textarea {
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: 12px;
+  background: var(--surface-card);
+  font: 400 14px/20px var(--font-sans);
+}
+.editor input:focus,
+.editor textarea:focus {
+  border-color: var(--text-tertiary);
+}
+.editor details {
+  margin: 0 0 12px;
+}
+
+/* Home: the four tools as one card of rows */
+.sp-home-main {
+  flex: 0 0 auto;
+  margin: 16px;
+  padding: 0;
+  gap: 0;
+  border: 1px solid var(--line-hairline);
+  border-radius: 16px;
+  background: var(--surface-card);
+  overflow: hidden;
+}
+.sp-tile {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px 1fr 8px;
+  grid-template-areas: "icon name chev" "icon desc chev";
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 2px;
+  min-height: 52px;
+  padding: 12px 16px;
+  border-radius: 0;
+  background: transparent;
+}
+.sp-tile + .sp-tile::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 1px;
+  background: var(--line-hairline);
+}
+.sp-tile::after {
+  content: "";
+  grid-area: chev;
+  width: 7px;
+  height: 7px;
+  border-top: 2px solid var(--text-tertiary);
+  border-right: 2px solid var(--text-tertiary);
+  transform: rotate(45deg);
+}
+.sp-tile-icon {
+  grid-area: icon;
+  margin: 0;
+}
+.sp-tile-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.sp-tile-name {
+  grid-area: name;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+.sp-tile-desc {
+  grid-area: desc;
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* Dialogs (the picker): same look as the Settings menus */
+.picker-card {
+  padding: 10px;
+  border-radius: 16px;
+  box-shadow: 0 0 0 .5px var(--line-hairline), 0 8px 16px -4px rgba(0, 0, 0, .12);
+}
+.sp-modal .picker-title {
+  padding: 6px 10px 0;
+  margin-bottom: 8px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+}
+.sp-modal .picker-subtitle {
+  padding: 0 10px 8px;
+}
+.picker-well {
+  padding: 0;
+  gap: 0;
+  border-radius: 0;
+  background: transparent;
+  max-height: 216px;
+}
+.sp-modal .picker-row,
+.picker-well .picker-row,
+.picker-well .picker-row:first-child,
+.picker-well .picker-row:last-child,
+.picker-well .picker-row:only-child {
+  min-height: 36px;
+  padding: 6px 10px;
+  gap: 8px;
+  border-radius: 12px;
+  background: transparent;
+  font-size: 14px;
+  line-height: 20px;
+}
+.picker-row:hover,
+.picker-well .picker-row:hover {
+  background: var(--hover-on-card);
+}
+.picker-row.is-current {
+  font-weight: 500;
+}
+.sp-modal .picker-row.picker-row--armed,
+.sp-modal .picker-row.picker-row--armed:hover {
+  background: var(--bg-error);
+}
+.sp-modal .picker-fieldwrap {
+  padding: 4px 10px 6px;
+}
+.sp-modal .picker-field {
+  padding: 8px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: 12px;
+  background: var(--surface-muted);
+  font-size: 14px;
+  line-height: 20px;
+}
+.sp-modal .picker-foot {
+  padding: 10px 10px 2px;
+}
+.sp-modal .picker-btn {
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--line-hairline);
+  background: var(--surface-muted);
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 400;
+}
+.sp-modal .picker-btn:hover {
+  background: var(--hover-on-card);
+}
+.sp-modal .picker-btn--primary,
+.sp-modal .picker-btn--primary:hover {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 500;
+}

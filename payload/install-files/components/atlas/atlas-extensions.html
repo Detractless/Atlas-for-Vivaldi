@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="color-scheme" content="light dark">
+<title>Extensions</title>
+<link rel="icon" type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M9.5 4.8a2 2 0 1 1 4 0v1.4h3a1.3 1.3 0 0 1 1.3 1.3v3h-1.4a2 2 0 1 0 0 4h1.4v3a1.3 1.3 0 0 1-1.3 1.3h-3v-1.4a2 2 0 1 0-4 0v1.4h-3A1.3 1.3 0 0 1 5.2 17.8v-3h1.4a2 2 0 1 0 0-4H5.2v-3A1.3 1.3 0 0 1 6.5 6.2h3z' stroke='%23888888' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="atlas-pages.css">
+<script src="atlas-pages.js"></script>
+<style>
+  /* An extension row is taller than a history row: it carries a description
+     and controls, so it gets the 52px minimum plus breathing room. */
+  .row { min-height: 60px; }
+  .row.off .row-title, .row.off .row-sub { color: var(--text-tertiary); }
+  .row.off .row-icon { filter: grayscale(1); opacity: .5; }
+  .row-icon { width: 24px; height: 24px; border-radius: var(--radius-xs); }
+  .chev { flex: none; color: var(--text-tertiary); transition: transform var(--dur-fast) var(--ease-out); }
+  .row.open .chev { transform: rotate(90deg); }
+  /* While a detail is open, the OTHER rows recede — the tab strip's
+     idle-tab treatment (fade + slight blur) so the open extension holds
+     the eye. */
+  .row { transition: background var(--dur-fast) var(--ease-out),
+                     opacity var(--dur-base) var(--ease-out),
+                     filter var(--dur-base) var(--ease-out); }
+  body.detail-open .row:not(.open) { opacity: .45; filter: blur(1.6px); }
+  body.detail-open .row:not(.open):hover { opacity: 1; filter: none; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="page-title">Extensions</h1>
+  <div class="list-card">
+    <div class="fieldrow">
+      <div class="field">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"/>
+          <path d="M16.5 16.5 L21 21"/>
+        </svg>
+        <input id="q" type="text" placeholder="Search extensions" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <div class="list-shell">
+      <div class="list-scroller">
+        <div id="list"></div>
+        <div class="empty" id="empty" hidden>No extensions installed</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="head-right">
+  <button class="head-link" id="fullpage" title="Developer mode, load unpacked and site access live on the native page">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 4 h6 v6"/><path d="M20 4 L11 13"/>
+      <path d="M18 13 v6 a1 1 0 0 1 -1 1 H5 a1 1 0 0 1 -1 -1 V7 a1 1 0 0 1 1 -1 h6"/>
+    </svg>
+    Full extensions page
+  </button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* No context menu on this page, matching History and Downloads. */
+  document.addEventListener('contextmenu', function (e) { e.preventDefault(); }, true);
+
+  var list = document.getElementById('list');
+  var empty = document.getElementById('empty');
+  var q = document.getElementById('q');
+
+  var CHEV_SVG = '<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5.5 L16 12 L9 18.5"/></svg>';
+
+  /* This browser's own UI extension hosts all of the Atlas integration. It is
+     not a user extension and disabling it would take the browser chrome with
+     it, so it never appears in this list. */
+  var SELF = chrome.runtime.id;
+
+  /* Removing an extension goes through Vivaldi's own extensionActionUtils
+     (below), which needs the window id. chrome.management.uninstall could not do
+     it: for a NON-self extension Chrome forces a native confirm dialog that
+     Vivaldi never renders in an extension-page context, so the call silently
+     stalled — you could disable an extension but not remove it. Cache the id now
+     so the Remove click can call removeExtension synchronously (an async
+     windows.getCurrent in the handler would spend the user gesture). */
+  var WIN_ID = null;
+  try { chrome.windows.getCurrent(function (w) { if (w) WIN_ID = w.id; }); } catch (e) {}
+
+  /* The redirect in atlas.js is exact-match on …://extensions/?$, so a query
+     string sails through to the native page: the one guaranteed path to
+     developer mode, load-unpacked, incognito and site-access controls. */
+  document.getElementById('fullpage').addEventListener('click', function () {
+    chrome.tabs.create({ url: 'vivaldi://extensions/?full' });
+  });
+
+  function iconFor(ext) {
+    if (!ext.icons || !ext.icons.length) return '';
+    var best = ext.icons.slice().sort(function (a, b) { return a.size - b.size; })
+      .filter(function (i) { return i.size >= 32; })[0] || ext.icons[ext.icons.length - 1];
+    return best.url;
+  }
+
+  /* The popover's "details" action deep-links here as ?open=<id>. */
+  var openDetailId = new URLSearchParams(location.search).get('open');
+
+  function buildDetail(ext) {
+    var d = document.createElement('div');
+    d.className = 'detail';
+
+    if (ext.description) {
+      var desc = document.createElement('div');
+      desc.className = 'd-desc';
+      desc.textContent = ext.description;
+      d.appendChild(desc);
+    }
+
+    var meta = document.createElement('dl');
+    meta.className = 'd-meta';
+    var pairs = [
+      ['Version', ext.version || '—'],
+      ['ID', ext.id],
+      ['Source', { admin: 'Installed by policy', development: 'Loaded unpacked',
+                   normal: 'Chrome Web Store', sideload: 'Added by another program',
+                   other: 'Other' }[ext.installType] || ext.installType || '—'],
+      ['State', ext.enabled ? 'Enabled' : ('Disabled' + (ext.disabledReason === 'permissions_increase' ? ' — needs new permissions' : ''))]
+    ];
+    pairs.forEach(function (p) {
+      var dt = document.createElement('dt'); dt.textContent = p[0];
+      var dd = document.createElement('dd'); dd.textContent = p[1];
+      meta.appendChild(dt); meta.appendChild(dd);
+    });
+    d.appendChild(meta);
+
+    var perms = (ext.permissions || []).concat(ext.hostPermissions || []);
+    if (perms.length) {
+      var lbl = document.createElement('div');
+      lbl.className = 'd-label';
+      lbl.textContent = 'Permissions';
+      d.appendChild(lbl);
+      var wrap = document.createElement('div');
+      wrap.className = 'd-perms';
+      perms.forEach(function (p) {
+        var chip = document.createElement('span');
+        chip.className = 'd-perm';
+        chip.textContent = p;
+        wrap.appendChild(chip);
+      });
+      d.appendChild(wrap);
+    }
+
+    /* human-readable warnings, filled async */
+    var warnHost = document.createElement('div');
+    d.appendChild(warnHost);
+    if (chrome.management.getPermissionWarningsById) {
+      chrome.management.getPermissionWarningsById(ext.id, function (ws) {
+        void chrome.runtime.lastError;
+        if (!ws || !ws.length) return;
+        var wl = document.createElement('div');
+        wl.className = 'd-label';
+        wl.textContent = 'This extension can';
+        warnHost.appendChild(wl);
+        ws.forEach(function (w) {
+          var line = document.createElement('div');
+          line.className = 'd-warn';
+          line.textContent = '· ' + w;
+          warnHost.appendChild(line);
+        });
+      });
+    }
+
+    var actions = document.createElement('div');
+    actions.className = 'd-actions';
+    var reload = document.createElement('button');
+    reload.textContent = 'Reload';
+    reload.addEventListener('click', function () {
+      chrome.management.setEnabled(ext.id, false, function () {
+        chrome.management.setEnabled(ext.id, true, function () {
+          void chrome.runtime.lastError;
+          load();
+        });
+      });
+    });
+    actions.appendChild(reload);
+    if (ext.optionsUrl) {
+      var opt = document.createElement('button');
+      opt.textContent = 'Options';
+      opt.addEventListener('click', function () { chrome.tabs.create({ url: ext.optionsUrl }); });
+      actions.appendChild(opt);
+    }
+    if (ext.homepageUrl) {
+      var home = document.createElement('button');
+      home.textContent = 'Website';
+      home.addEventListener('click', function () { chrome.tabs.create({ url: ext.homepageUrl }); });
+      actions.appendChild(home);
+    }
+    if (ext.mayDisable) {
+      var rm = document.createElement('button');
+      rm.className = 'danger';
+      rm.textContent = 'Remove';
+      var armed = false, armTimer = null;
+      rm.addEventListener('click', function () {
+        if (!armed) {
+          /* Arm in place — our own confirmation, so removal is a deliberate
+             two-click act. */
+          armed = true;
+          rm.classList.add('armed');
+          rm.textContent = 'Remove ' + ext.name.split(/[^\w]/)[0] + '? — click again';
+          armTimer = setTimeout(function () {
+            armed = false; rm.classList.remove('armed'); rm.textContent = 'Remove';
+          }, 4000);
+          return;
+        }
+        clearTimeout(armTimer);
+        /* Vivaldi's own removal path — the exact call its toolbar right-click
+           "Remove Extension" uses: extensionActionUtils.removeExtension(id,
+           windowId). chrome.management.uninstall could not remove a non-self
+           extension here (its forced confirm dialog never renders in this
+           context); this does, and onUninstalled below refreshes the list.
+           Fall back to management.uninstall if the private API is unavailable. */
+        try {
+          vivaldi.extensionActionUtils.removeExtension(ext.id, WIN_ID);
+        } catch (e) {
+          chrome.management.uninstall(ext.id, { showConfirmDialog: true }, function () {
+            void chrome.runtime.lastError;
+          });
+        }
+      });
+      actions.appendChild(rm);
+    }
+    d.appendChild(actions);
+    return d;
+  }
+
+  function render(items) {
+    list.textContent = '';
+    var text = q.value.trim().toLowerCase();
+
+    var shown = items.filter(function (e) {
+      return e.type === 'extension' && e.id !== SELF &&
+             (!text || e.name.toLowerCase().indexOf(text) !== -1);
+    }).sort(function (a, b) {
+      /* Enabled first, then alphabetical: the list answers "what is running". */
+      if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    if (!shown.length) {
+      empty.hidden = false;
+      empty.textContent = text ? 'No extensions match' : 'No extensions installed';
+      return;
+    }
+    empty.hidden = true;
+
+    var group = document.createElement('div');
+    group.className = 'group';
+    var h = document.createElement('div');
+    h.className = 'group-title';
+    var hl = document.createElement('span');
+    hl.textContent = shown.length + (shown.length === 1 ? ' extension' : ' extensions');
+    h.appendChild(hl);
+    group.appendChild(h);
+    var well = document.createElement('div');
+    well.className = 'well';
+    group.appendChild(well);
+    list.appendChild(group);
+
+    shown.forEach(function (ext) {
+      var row = document.createElement('div');
+      row.className = 'row' + (ext.enabled ? '' : ' off');
+
+      var img = document.createElement('img');
+      img.className = 'row-icon';
+      var url = iconFor(ext);
+      if (url) img.src = url;
+      row.appendChild(img);
+
+      var textWrap = document.createElement('div');
+      textWrap.className = 'row-text';
+      var t = document.createElement('div');
+      t.className = 'row-title';
+      t.textContent = ext.name;
+      textWrap.appendChild(t);
+      var s = document.createElement('div');
+      s.className = 'row-sub';
+      s.textContent = [ext.version ? 'v' + ext.version : '', ext.description]
+        .filter(Boolean).join(' · ');
+      textWrap.appendChild(s);
+      row.appendChild(textWrap);
+
+      var sw = document.createElement('label');
+      sw.className = 'toggle-switch';
+      sw.title = ext.enabled ? 'Disable' : 'Enable';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = ext.enabled;
+      cb.disabled = !ext.mayDisable;
+      cb.addEventListener('click', function (e) { e.stopPropagation(); });
+      cb.addEventListener('change', function () {
+        chrome.management.setEnabled(ext.id, cb.checked, function () {
+          if (chrome.runtime.lastError) { cb.checked = !cb.checked; return; }
+          row.classList.toggle('off', !cb.checked);
+          sw.title = cb.checked ? 'Disable' : 'Enable';
+        });
+      });
+      sw.addEventListener('click', function (e) { e.stopPropagation(); });
+      sw.appendChild(cb);
+      var sl = document.createElement('span');
+      sl.className = 'toggle-slider';
+      sw.appendChild(sl);
+      row.appendChild(sw);
+
+      var chevWrap = document.createElement('span');
+      chevWrap.innerHTML = CHEV_SVG;
+      row.appendChild(chevWrap.firstChild);
+
+      /* row click toggles the detail panel. State lives ONLY in
+         openDetailId + the DOM: a per-row closure variable went stale when
+         ANOTHER row's click removed this row's panel, and reopening then
+         took two clicks (the first "closed" a panel already gone). */
+      row.addEventListener('click', function () {
+        var wasOpen = openDetailId === ext.id;
+        well.querySelectorAll('.detail').forEach(function (el) { el.remove(); });
+        well.querySelectorAll('.row.open').forEach(function (el) { el.classList.remove('open'); });
+        openDetailId = null;
+        if (!wasOpen) {
+          row.after(buildDetail(ext));
+          row.classList.add('open');
+          openDetailId = ext.id;
+        }
+        document.body.classList.toggle('detail-open', !!openDetailId);
+      });
+
+      well.appendChild(row);
+      if (openDetailId === ext.id) {
+        row.after(buildDetail(ext));
+        row.classList.add('open');
+      }
+      document.body.classList.toggle('detail-open',
+        !!openDetailId && !!well.querySelector('.row.open'));
+    });
+  }
+
+  var cache = [];
+  function load() {
+    chrome.management.getAll(function (items) {
+      cache = items || [];
+      render(cache);
+    });
+  }
+
+  var deb;
+  q.addEventListener('input', function () {
+    clearTimeout(deb);
+    deb = setTimeout(function () { render(cache); }, 150);
+  });
+
+  if (chrome.management.onInstalled) chrome.management.onInstalled.addListener(load);
+  if (chrome.management.onUninstalled) chrome.management.onUninstalled.addListener(load);
+  if (chrome.management.onEnabled) chrome.management.onEnabled.addListener(load);
+  if (chrome.management.onDisabled) chrome.management.onDisabled.addListener(load);
+
+  load();
+})();
+</script>
+</body>
+</html>

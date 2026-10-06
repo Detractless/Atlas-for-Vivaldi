@@ -1,0 +1,272 @@
+"""
+E2E Test Helpers and Utilities
+Provides shared fixtures, filesystem checkers, subprocess runners, and AST/runtime analyzers.
+"""
+
+import os
+import re
+import sys
+import json
+import zipfile
+import subprocess
+from pathlib import Path
+from typing import Dict, List, Set, Tuple, Optional
+
+# Base Project Paths
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PAYLOAD_DIR = PROJECT_ROOT / "payload"
+CSS_MODS_DIR = PAYLOAD_DIR / "css-mods"
+INSTALL_FILES_DIR = PAYLOAD_DIR / "install-files"
+COMPONENTS_DIR = INSTALL_FILES_DIR / "components" / "atlas"
+JS_MODULES_DIR = PROJECT_ROOT / "src" / "modules"
+SCRIPTS_DIR = PROJECT_ROOT / "scripts"
+HARPER_DIR = PAYLOAD_DIR / "extensions" / "harper"
+DIST_DIR = PROJECT_ROOT / "dist"
+BUILD_CMD = PROJECT_ROOT / "build.cmd"
+INSTALL_PY = PROJECT_ROOT / "install.py"
+ATLAS_JS = INSTALL_FILES_DIR / "atlas.js"
+ATLAS_CTXMENU_JS = COMPONENTS_DIR / "atlas-ctxmenu.js"
+BACKUP_ZIP_PATH = Path(r"C:\Users\Calibro1\Downloads\atlas-installer-backup-2026-09-08.zip")
+
+# Expected Specifications
+EXPECTED_CSS_FILES = [
+    "00-tokens.css",
+    "01-chrome.css",
+    "02-tabs.css",
+    "03-addressbar.css",
+    "04-toolbar.css",
+    "05-menus.css",
+    "06-sidebar.css",
+    "07-extensions.css",
+]
+
+EXPECTED_JS_MODULES = [
+    "01-addressbar.js",
+    "02-detractless-bridge.js",
+    "03-contextmenu.js",
+    "04-toolbar.js",
+    "05-profile-menu.js",
+    "06-reload-helper.js",
+    "07-extensions-popover.js",
+    "08-theme-sync.js",
+    "09-sidebar.js",
+    "10-element-remover.js",
+    "11-page-progress.js",
+    "12-spelling.js",
+]
+
+MAX_MODULE_LINES = 350
+
+TEXT_EXTENSIONS = {
+    ".js", ".css", ".py", ".cmd", ".json", ".html", ".md", ".txt", ".svg"
+}
+
+EXCLUDE_DIRS = {
+    ".agents", ".git", "build", "dist", "__pycache__", "node_modules", ".vscode", ".idea"
+}
+
+
+def count_lines(path: Path) -> int:
+    """
+    Counts physical lines in a file.
+    Supports binary reading to be independent of platform newline conversion.
+    """
+    if not path.is_file():
+        raise FileNotFoundError(f"File not found: {path}")
+    raw = path.read_bytes()
+    if not raw:
+        return 0
+    # Count newlines: if ending without newline, it's still a line
+    lines = raw.split(b"\n")
+    if raw.endswith(b"\n"):
+        return len(lines) - 1
+    return len(lines)
+
+
+def check_file_crlf(path: Path) -> Tuple[bool, str]:
+    """
+    Checks if a text file uses strictly Windows CRLF (\\r\\n) line endings.
+    Returns (is_valid, diagnostic_message).
+    """
+    if not path.is_file():
+        return False, f"File not found: {path}"
+    raw = path.read_bytes()
+    if b"\n" not in raw:
+        # Single-line or empty file has no line breaks
+        return True, "No line breaks (single line)"
+    
+    crlf_count = raw.count(b"\r\n")
+    lf_count = raw.count(b"\n")
+    
+    if crlf_count != lf_count:
+        lone_lf_count = lf_count - crlf_count
+        return False, f"Found {lone_lf_count} lone LF line ending(s) out of {lf_count} total newlines"
+    
+    # Check for lone CR without LF
+    cr_count = raw.count(b"\r")
+    if cr_count != crlf_count:
+        lone_cr_count = cr_count - crlf_count
+        return False, f"Found {lone_cr_count} lone CR line ending(s)"
+        
+    return True, f"100% CRLF ({crlf_count} line endings)"
+
+
+def audit_repository_crlf(root: Path = PROJECT_ROOT) -> List[Tuple[Path, str]]:
+    """
+    Audits all text files in the repository for CRLF line endings.
+    Returns a list of (file_path, error_reason) for failing files.
+    """
+    violations = []
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        # Skip excluded directories
+        rel_parts = path.relative_to(root).parts
+        if any(part in EXCLUDE_DIRS for part in rel_parts):
+            continue
+        if path.suffix.lower() in TEXT_EXTENSIONS:
+            is_valid, msg = check_file_crlf(path)
+            if not is_valid:
+                violations.append((path, msg))
+    return violations
+
+
+def run_node(code: str = "", args: Optional[List[str]] = None, cwd: Optional[Path] = None, timeout: int = 10) -> subprocess.CompletedProcess:
+    """
+    Executes a JavaScript snippet or command in Node.js.
+    """
+    cmd = ["node"]
+    if args:
+        cmd.extend(args)
+    if code:
+        cmd.extend(["-e", code])
+    return subprocess.run(
+        cmd,
+        cwd=str(cwd or PROJECT_ROOT),
+        capture_output=True,
+        text=True,
+        timeout=timeout
+    )
+
+
+
+def run_python(args: List[str], cwd: Optional[Path] = None, timeout: int = 30) -> subprocess.CompletedProcess:
+    """
+    Executes a Python script or module.
+    """
+    cmd = [sys.executable] + args
+    return subprocess.run(
+        cmd,
+        cwd=str(cwd or PROJECT_ROOT),
+        capture_output=True,
+        text=True,
+        timeout=timeout
+    )
+
+
+def parse_css_custom_properties(css_text: str) -> Tuple[Set[str], Set[str]]:
+    """
+    Parses CSS custom properties from CSS text.
+    Returns (defined_tokens, consumed_tokens).
+    """
+    # Matches --token-name:
+    defined = set(re.findall(r"(--[a-zA-Z0-9_-]+)\s*:", css_text))
+    # Matches var(--token-name)
+    consumed = set(re.findall(r"var\(\s*(--[a-zA-Z0-9_-]+)", css_text))
+    return defined, consumed
+
+
+def evaluate_js_spelling(module_or_bundle_path: Path, word: str, max_results: int = 3) -> Dict:
+    """
+    Evaluates spelling suggestions for a word using Node.js.
+    Returns dict: {'is_valid': bool, 'suggestions': list, 'error': str or None}
+    """
+    if not module_or_bundle_path.is_file():
+        return {
+            "is_valid": False,
+            "suggestions": [],
+            "error": f"File not found: {module_or_bundle_path}"
+        }
+
+    # Prepare Node script that creates a simulated browser environment
+    eval_script = f"""
+    const fs = require('fs');
+    const path = require('path');
+
+    // Simulate browser globals
+    global.window = global;
+    global.__Atlas = {{}};
+    global.Atlas = global.__Atlas;
+    global.document = {{
+        addEventListener: () => {{}},
+        removeEventListener: () => {{}},
+        querySelectorAll: () => [],
+        querySelector: () => null,
+        createElement: () => ({{
+            setAttribute: () => {{}},
+            appendChild: () => {{}},
+            style: {{}}
+        }})
+    }};
+    global.navigator = {{ clipboard: {{ writeText: () => Promise.resolve() }} }};
+
+    try {{
+        const code = fs.readFileSync({json.dumps(str(module_or_bundle_path))}, 'utf8');
+        // Evaluate the script
+        eval(code);
+
+        // Find spelling provider: either Atlas.spelling, window.__Atlas.spelling, or exported functions
+        const spelling = (global.Atlas && global.Atlas.spelling) ||
+                         (global.__Atlas && global.__Atlas.spelling) ||
+                         global.spelling || {{}};
+
+        const checkFn = spelling.checkWord || spelling.isCorrect || global.checkWord;
+        const suggFn = spelling.getSuggestions || spelling.suggest || global.getSuggestions;
+
+        const word = {json.dumps(word)};
+        const maxRes = {max_results};
+
+        const isCorrect = typeof checkFn === 'function' ? Boolean(checkFn(word)) : false;
+        const suggestions = typeof suggFn === 'function' ? (suggFn(word, maxRes) || []) : [];
+
+        console.log(JSON.stringify({{
+            ok: true,
+            isCorrect: isCorrect,
+            suggestions: suggestions
+        }}));
+    }} catch (err) {{
+        console.log(JSON.stringify({{
+            ok: false,
+            error: String(err && err.stack ? err.stack : err)
+        }}));
+    }}
+    """
+
+    res = run_node(eval_script)
+    if res.returncode != 0 or not res.stdout.strip():
+        return {
+            "is_valid": False,
+            "suggestions": [],
+            "error": f"Node evaluation failed (code {res.returncode}): {res.stderr}"
+        }
+
+    try:
+        data = json.loads(res.stdout.strip())
+        if not data.get("ok"):
+            return {
+                "is_valid": False,
+                "suggestions": [],
+                "error": data.get("error", "Unknown JS error")
+            }
+        return {
+            "is_valid": True,
+            "isCorrect": data.get("isCorrect", False),
+            "suggestions": data.get("suggestions", []),
+            "error": None
+        }
+    except Exception as e:
+        return {
+            "is_valid": False,
+            "suggestions": [],
+            "error": f"Failed to parse JSON output: {res.stdout.strip()} ({e})"
+        }

@@ -1,0 +1,10 @@
+/* src/styles/content.css — content-script host fallbacks. Design tokens live
+   in tokens.css (injected before this file via the manifest css list). */
+
+/* Fallback host styling in case a page nukes custom properties — the hosts also
+   inline their own critical styles, so this is belt-and-suspenders. */
+[data-pastekit-root],
+[data-pastekit-token],
+pastekit-fill-indicator {
+  color-scheme: light;
+}

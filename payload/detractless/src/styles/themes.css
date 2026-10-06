@@ -1,0 +1,108 @@
+/* ══════════════════════════════════════════════════════════════════════
+   THEMES — semantic color mappings, selected by [data-theme] on <html>.
+   Values are the Minimal Apps family palette, hand-synced from
+   minimal-ui/tokens/tokens.json v2.0.0 (SIGNED-OFF 2026-07-29).
+   Dark is the WARM MONO family dark now, not the old neutral gray.
+   The "custom" and "system" themes are driven from theme.js as before.
+
+   Legacy roles (accent, line-*, select-bg, focus-ring...) are kept as
+   aliases onto family roles so existing selectors keep resolving during
+   the migration; each alias dies when its last consumer is fixed
+   (tracked in ui-ledger.md). Do not add NEW uses of legacy roles.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* --- DARK (default) — family warm mono --- */
+:root,
+:root[data-theme="dark"] {
+  --surface-canvas:  #111110;
+  --surface-card:    #262622;
+  --surface-muted:   #33332E;
+  /* ADR-4: hover tokens are named for what sits UNDERNEATH the element. */
+  --hover-on-card:   #3C3C36;
+  --hover-on-canvas: #2D2D29;
+  /* Old names, kept as aliases while call sites migrate. No new uses. */
+  --surface-hover:   var(--hover-on-card);
+  --surface-card-hover: var(--hover-on-canvas);
+  --surface-overlay: rgba(0, 0, 0, 0.55);
+
+  --text-primary:   #F2F1EE;
+  --text-secondary: #A0A099;
+  --text-tertiary:  #7B7B75;
+  --text-error:     #E07A70;
+
+  --mono-200: #3E3E39;
+  --mono-400: #6E6E68;
+  --mono-600: #A8A8A2;
+  --mono-900: #EFEEEC;
+
+  /* legacy aliases (migration only, no new uses) */
+  --surface-inverse: var(--mono-900);
+  --text-inverse:    var(--surface-canvas);
+  --text-on-muted:   var(--mono-600);
+  --line-hairline:   var(--mono-200);
+  --line-strong:     var(--text-primary);
+  --line-on-inverse: transparent;
+  --accent:          var(--mono-900);
+  --accent-text:     var(--surface-canvas);
+  --accent-hover:    #DCDBD6;
+  --accent-press:    #C8C7C1;
+  --select-bg:       var(--surface-hover);
+  --focus-ring:      transparent; /* rings are banned; focus = fill shift + caret */
+  --color-error:     var(--text-error);
+  --bg-error:        #2E1815;
+  --surface-base:    var(--surface-muted);
+}
+
+/* --- LIGHT — family light --- */
+:root[data-theme="light"] {
+  --surface-canvas:  #E3E3E0;
+  --surface-card:    #FFFFFF;
+  --surface-muted:   #EFEEEC;
+  /* ADR-4: hover tokens are named for what sits UNDERNEATH the element. */
+  --hover-on-card:   #E6E5E2;
+  --hover-on-canvas: #F4F3F1;
+  /* Old names, kept as aliases while call sites migrate. No new uses. */
+  --surface-hover:   var(--hover-on-card);
+  --surface-card-hover: var(--hover-on-canvas);
+  --surface-overlay: rgba(10, 10, 9, 0.45);
+
+  --text-primary:   #0A0A09;
+  --text-secondary: #76766F;
+  --text-tertiary:  #9A9A95;
+  --text-error:     #B3382E;
+
+  --mono-200: #D8D7D3;
+  --mono-400: #9A9A95;
+  --mono-600: #57574F;
+  --mono-900: #111110;
+
+  /* legacy aliases (migration only, no new uses) */
+  --surface-inverse: var(--mono-900);
+  --text-inverse:    #FFFFFF;
+  --text-on-muted:   var(--mono-600);
+  --line-hairline:   var(--mono-200);
+  --line-strong:     var(--text-primary);
+  --line-on-inverse: transparent;
+  --accent:          var(--mono-900);
+  --accent-text:     #FFFFFF;
+  --accent-hover:    #2A2A26;
+  --accent-press:    #3A3A33;
+  --select-bg:       var(--surface-hover);
+  --focus-ring:      transparent; /* rings are banned; focus = fill shift + caret */
+  --color-error:     var(--text-error);
+  --bg-error:        #FBEAE8;
+  --surface-base:    var(--surface-muted);
+}
+
+/* --- Legacy structural aliases: old variable names → semantic names.
+       Kept until every stylesheet/render fn uses the new names. --- */
+:root {
+  --bg-body:     var(--surface-canvas);
+  --win-bg:      var(--surface-canvas);
+  --ctrl-bg:     var(--surface-card);
+  --ctrl-hover:  var(--surface-hover);
+  --border:      var(--line-hairline);
+  --text-pri:    var(--text-primary);
+  --text-sec:    var(--text-secondary);
+  --sel-bg:      var(--select-bg);
+}

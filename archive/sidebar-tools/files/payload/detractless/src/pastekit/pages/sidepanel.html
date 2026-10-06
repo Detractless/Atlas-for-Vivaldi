@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pastekit</title>
+  <link rel="stylesheet" href="../styles/tokens.css">
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <header class="hd">
+    <strong class="wordmark" id="hdTitle">Pastekit</strong>
+    <span class="hd-actions">
+      <button id="newBtn" title="New snippet">+</button>
+      <button id="settingsBtn" title="Quick settings">⚙</button>
+    </span>
+  </header>
+
+  <div class="views" id="views">
+    <!-- ============================ Library view ========================== -->
+    <div class="view">
+      <div class="bar"><input id="search" class="search-input" type="search" placeholder="Search snippets and #tags…" autocomplete="off"></div>
+
+      <!-- The white card is its own slider: row list <-> editor -->
+      <div class="card" id="card">
+        <div class="card-views">
+          <div class="card-view" id="list"></div>
+          <div class="card-view editor">
+            <div class="ed-head">
+              <button id="edBack" title="Back">←</button>
+              <span id="edTitle">Edit snippet</span>
+            </div>
+            <label>Name (the @token)<input id="fName" type="text" autocomplete="off"></label>
+            <label>Description<input id="fDesc" type="text" autocomplete="off"></label>
+            <label>Tags (comma-separated)<input id="fTags" type="text" autocomplete="off"></label>
+            <label>Text<textarea id="fText" rows="6"></textarea></label>
+            <details id="fHtmlWrap"><summary>Rich text (optional HTML)</summary>
+              <textarea id="fHtml" rows="3"></textarea>
+            </details>
+            <div id="edError" class="error"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="foot">
+        <label class="chk" id="splitWrap"><input type="checkbox" id="splitLines"> Split lines into fields</label>
+        <div id="status" class="status"></div>
+        <div class="actions" id="libActions">
+          <button id="copyBtn" class="ghost" disabled>Copy</button>
+          <button id="fillBtn" class="primary" disabled>Fill (0)</button>
+        </div>
+        <div class="actions hidden" id="editActions">
+          <button id="cancelBtn" class="ghost">Cancel</button>
+          <button id="saveBtn" class="primary">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================= Quick settings view ====================== -->
+    <div class="view scrolly">
+      <div class="settings-body">
+        <label class="toggle"><span>@ token system</span>
+          <input type="checkbox" data-setting="tokenSystem"><span class="slider"></span></label>
+        <label class="toggle"><span>@ autocomplete</span>
+          <input type="checkbox" data-setting="tokenAutocomplete"><span class="slider"></span></label>
+        <label class="toggle"><span>Field dot</span>
+          <input type="checkbox" data-setting="fieldDot"><span class="slider"></span></label>
+        <div class="toggle seg-row">
+          <span class="seg-label">Dot visibility</span>
+          <span class="seg" id="dotModeSeg">
+            <button class="seg-btn" data-mode="always">Always</button>
+            <button class="seg-btn" data-mode="hover">Hover</button>
+            <button class="seg-btn" data-mode="focus">Focus</button>
+          </span>
+        </div>
+        <label class="toggle"><span>Smart field detection</span>
+          <input type="checkbox" data-setting="smartDetect"><span class="slider"></span></label>
+        <div class="toggle stepper-row">
+          <span>Picker rows visible</span>
+          <span class="stepper">
+            <button id="limitDown" class="step-btn">−</button>
+            <span id="limitVal" class="step-val">10</span>
+            <button id="limitUp" class="step-btn">+</button>
+          </span>
+        </div>
+      </div>
+
+      <div class="settings-body">
+        <div class="sect-label">Tags in use</div>
+        <div id="tagCloud" class="tagcloud"></div>
+      </div>
+
+      <div class="settings-body io-card">
+        <div class="sect-label">Import / Export</div>
+        <div class="io-actions">
+          <button id="exportBtn" class="primary">Export .pastekit</button>
+          <button id="importBtn" class="primary">Import .pastekit</button>
+          <input id="importFile" type="file" accept=".pastekit" hidden>
+        </div>
+        <div id="ioStatus" class="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../dist/sidepanel.bundle.js"></script>
+</body>
+</html>

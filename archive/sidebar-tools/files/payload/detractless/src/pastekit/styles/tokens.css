@@ -1,0 +1,54 @@
+/* src/styles/tokens.css — Pastekit design tokens: the ONE place CSS custom
+   properties are defined. Custom properties inherit through shadow boundaries,
+   so the open-shadow hosts (field dot picker, @ menu, fill indicator) read the
+   pk-* accents, and the side panel reads the surface/text/radius scale.
+   Monochrome palette adopted from the Detractless design system. */
+
+:root {
+  /* Accent = near-black ink on warm mono surfaces (Detractless light theme). */
+  --pk-accent:        #0a0a09;
+  --pk-accent-strong: #1c1c18;
+  --pk-accent-soft:   #e6e5e2;
+  --pk-accent-contrast: #ffffff;
+
+  /* Surfaces + text. */
+  --pk-surface:       #ffffff;
+  --pk-surface-alt:   #efeeec;
+  --pk-border:        #e6e5e2;
+  --pk-text:          #0a0a09;
+  --pk-text-muted:    #76766f;
+
+  /* Spacing + typography scale. */
+  --pk-space-1: 4px;
+  --pk-space-2: 8px;
+  --pk-space-3: 12px;
+  --pk-radius:  12px;
+  --pk-radius-lg: 18px;
+  --pk-font: "Schibsted Grotesk", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+  --pk-font-size: 14px;
+  --pk-shadow: 0 18px 48px rgba(10, 10, 9, 0.12);
+
+  /* Side panel surface / typography scale. */
+  --surface-canvas:  #f6f6f4;
+  --surface-card:    #ffffff;
+  --surface-muted:   #efeeec;
+  --surface-hover:   #e6e5e2;
+  --surface-inverse: #0a0a09;
+  --text-primary:   #0a0a09;
+  --text-secondary: #76766f;
+  --text-tertiary:  #9a9a95;
+  --text-inverse:   #ffffff;
+  --line-hairline:  #e6e5e2;
+  --danger:         #b3261e;
+
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px rgba(10,10,9,0.05);
+  --shadow-md: 0 6px 20px rgba(10,10,9,0.07);
+  --shadow-card: 0 2px 14px rgba(10,10,9,0.05);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-base: 220ms;
+
+  --font-sans: "Schibsted Grotesk", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+}

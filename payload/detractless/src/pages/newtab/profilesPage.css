@@ -1,0 +1,25 @@
+/* Settings > Profiles (profilesPage.js). Uses the settings page's --sp-* tokens. */
+#sp-root .pf-row { position: relative; display: flex; align-items: center; gap: 14px; padding: 12px 16px; }
+#sp-root .pf-row + .pf-row::before { content: ""; position: absolute; top: 0; left: 16px; right: 16px; height: 1px; background: var(--sp-border); }
+#sp-root .pf-av { width: 52px; height: 52px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; flex: none; }
+#sp-root .pf-av:hover .pf-avatar, #sp-root .pf-av:focus-visible .pf-avatar { box-shadow: 0 0 0 2px var(--sp-card), 0 0 0 4px var(--sp-text-3); }
+#sp-root .pf-av:focus-visible { outline: none; }
+#sp-root .pf-avatar { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font: 600 17px/1 var(--sp-font); transition: box-shadow .12s ease; }
+#sp-root .pf-row.is-active .pf-avatar { box-shadow: 0 0 0 2px var(--sp-card), 0 0 0 4px var(--sp-accent); }
+#sp-root .pf-fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+#sp-root .pf-input { width: 100%; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--sp-text); font: 14px/20px var(--sp-font); outline: none; }
+#sp-root .pf-input:hover { border-color: var(--sp-border); }
+#sp-root .pf-input:focus { border-color: var(--sp-text-3); background: var(--sp-bg); }
+#sp-root .pf-input::placeholder { color: var(--sp-text-3); }
+#sp-root .pf-name { font-weight: 500; }
+#sp-root .pf-label { height: 28px; font-size: 12px; color: var(--sp-text-2); }
+#sp-root .pf-actions { display: flex; align-items: center; gap: 8px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+#sp-root .pf-badge { font-size: 12px; line-height: 16px; padding: 2px 10px; border-radius: 9999px; background: var(--sp-nav-active); color: var(--sp-text-2); }
+#sp-root .pf-ask { font-size: 13px; color: var(--sp-text-2); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sp-root .sp-pill[disabled] { opacity: .45; cursor: default; }
+#sp-root .sp-pill[disabled]:hover { background: var(--sp-pill); }
+#sp-root .pf-addrow { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+#sp-root .pf-row + .pf-addrow::before { content: ""; position: absolute; top: 0; left: 16px; right: 16px; height: 1px; background: var(--sp-border); }
+#sp-root .pf-notice { font-size: 12px; color: var(--sp-danger); }
+#sp-root .pf-intro { margin: 0 0 12px; }
+#sp-root .pf-actions .sp-pill { height: 30px; padding: 0 12px; font-size: 13px; }

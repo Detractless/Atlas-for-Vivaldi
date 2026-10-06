@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html data-theme="dark">
+<head>
+  <title>Search Delay</title>
+  <link rel="stylesheet" href="src/styles/fonts.css">
+  <link rel="stylesheet" href="src/dist/gate.bundle.css">
+</head>
+<body class="theme-dark">
+  <div class="container">
+    <div id="timer-container">
+      <div class="lds-facebook" style="color: inherit; margin: 20px 0;">
+        <div></div>
+        <div></div>
+        <div></div>
+      </div>
+      <div class="countdown">
+        <span id="time-remaining">300</span>
+      </div>
+    </div>
+    
+    <div id="reveal-container" style="display: none;">
+      <p style="font-size: 24px; margin-bottom: 30px;">Time's up! Click the button to reveal your search results.</p>
+      <button id="reveal-button">Reveal Results</button>
+    </div>
+  </div>
+
+  <!-- Query Display (hidden by default, shown if option is enabled) -->
+  <div class="query-display" id="query-display" style="display: none;">
+    <img class="engine-icon" id="engine-icon" src="" alt="">
+    <div class="query-separator"></div>
+    <span class="query-label">Searching:</span>
+    <span class="query-text" id="query-text">Loading...</span>
+    <span class="engine-name" id="engine-name">on Google</span>
+  </div>
+
+  <script src="src/dist/gate.bundle.js"></script>
+</body>
+</html>

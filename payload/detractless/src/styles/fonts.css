@@ -1,0 +1,29 @@
+/* ============================================================
+   FONTS — bundled locally (no remote @import; MV3 + offline new tab)
+   Schibsted Grotesk = variable font (weights 400–800 in one file).
+   Space Mono = static 400 / 700 for numeric captions.
+   ============================================================ */
+
+@font-face {
+  font-family: 'Schibsted Grotesk';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('../assets/fonts/schibsted-grotesk-var.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/space-mono-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/space-mono-700.woff2') format('woff2');
+}

@@ -1,0 +1,162 @@
+/* ── 2. Chrome surfaces — no seams anywhere ─────────────────────────────── */
+
+#browser .tabbar-wrapper,
+#browser.tabs-top #header,
+#browser #tabs-tabbar-container {
+  --colorTabBar: var(--atlas-strip) !important;
+  background-color: var(--atlas-strip) !important;
+  background-image: none !important;
+}
+
+/* Seam close — measured on 8.2.4133.47 via CDP against the live window.html UI:
+   #tabs-tabbar-container ships padding: 6px 0. The active tab ends at the
+   padding edge (bottom 36) while .toolbar-mainbar starts at 41, so 6px of
+   --atlas-strip shows as a band under the tab and the tab reads as a floating
+   pill instead of merging into the bar. Dropping the bottom padding puts the
+   tab's square bottom at 36 and the bar's top at 35 — a 1px overlap, no band.
+   The theme's colorPosition:"tabbar" overlap does NOT happen on this build
+   (density-on), which is why the colour-only approach could not fix it. */
+#browser.tabs-top #tabs-tabbar-container {
+  padding-bottom: 0 !important;
+}
+#browser.tabs-top .toolbar-mainbar {
+  margin-top: -1px !important;
+}
+
+/* `color` here is load-bearing, not decoration. Vivaldi stamps `bg-dark` from
+   the active theme's accent and paints its own foreground white. We repaint the
+   bar background light, so without an explicit colour every descendant Atlas
+   doesn't style itself inherits that white and goes invisible on white —
+   measured on 8.2.4133.47 in light mode as rgb(255,255,255) on rgb(255,255,255).
+   Dark mode never showed it because white happened to match --atlas-text-1. */
+#browser .toolbar-mainbar,
+#browser .bookmark-bar,
+#browser .toolbar-statusbar {
+  background-color: var(--atlas-bar) !important;
+  background-image: none !important;
+  color: var(--atlas-text-1) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Kill the header hairline: toolbar and page are both white and must blend. */
+#browser > #header,
+#browser:not(.address-top.mail-bar-top, .unified-ui) > #header {
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   CONCENTRIC CONTAINER FRAME (OPTION B: HUG / WRAP PAGE CONTENT)
+   - Top shoulders into tab strip: Square (0px / 90°), flat ceiling.
+   - Outer container (#main): Full-width flush to window edges.
+   - Side & bottom rails: 5px container ground framing the page canvas.
+   - Inner webpage (#webpage-stack): 10px rounded corners.
+   - Inverted concave curved fillets: physically hugs/wraps the 10px page corner.
+   ========================================================================== */
+
+#browser {
+  background-color: var(--atlas-strip) !important;
+}
+
+/* Outer container shell (#main): Square top, flush with window edges */
+#browser:not(.fullscreen).tabs-top #main {
+  background-color: var(--atlas-bar) !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  margin-bottom: 0 !important;
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+}
+
+/* Top bar: Square 90° shoulders connecting flat into the tab strip */
+#browser .mainbar,
+#browser .toolbar-mainbar {
+  background-color: var(--atlas-bar) !important;
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Kill the footer container & hairline: remove the 5px bottom band so the webview extends flush to the window edge. */
+#browser #footer,
+#browser footer#footer,
+#browser:not(.tabs-bottom) footer#footer {
+  display: none !important;
+}
+
+/* Container tray holding the webpage stack */
+#browser .inner,
+#browser #webview-container,
+#browser.maximized #webview-container,
+#browser.unified-ui #webview-container {
+  --mosaicPadding: 0px !important;
+  background: var(--atlas-bar) !important;
+  background-color: var(--atlas-bar) !important;
+  background-image: none !important;
+}
+
+/* Option B: Concave radial fillets that physically wrap and hug the webpage corners */
+#browser:not(.fullscreen) #webview-container::before,
+#browser:not(.fullscreen) #webview-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  z-index: 5;
+  pointer-events: none;
+}
+#browser:not(.fullscreen) #webview-container::before {
+  left: 5px;
+  background: radial-gradient(circle at 100% 100%, transparent 10px, var(--atlas-bar) 10.5px);
+}
+#browser:not(.fullscreen) #webview-container::after {
+  right: 5px;
+  background: radial-gradient(circle at 0% 100%, transparent 10px, var(--atlas-bar) 10.5px);
+}
+
+/* Nested webpage stack: cradled by the container with uniform 5px side & bottom rails */
+#browser:not(.fullscreen) #webpage-stack {
+  margin: 0 5px 5px 5px !important;
+  border-radius: 10px !important;
+  overflow: clip !important;
+}
+
+/* Cradle inner webpage curves with solid container background */
+#browser #webpage-stack:after,
+#browser.maximized #webpage-stack:after,
+#browser.unified-ui #webpage-stack:after,
+#browser:not(.fullscreen) #webpage-stack:after {
+  background: var(--atlas-bar) !important;
+  background-color: var(--atlas-bar) !important;
+  background-image: none !important;
+  --mask-box-radius: 10px !important;
+}
+
+#browser:not(.fullscreen) #webpage-stack .webpageview,
+#browser:not(.fullscreen) #webpage-stack .internal.visible {
+  border-radius: 10px !important;
+  overflow: clip !important;
+}
+
+#browser .webpageview {
+  background-color: var(--atlas-content) !important;
+}
+
+/* Window controls (minimize / maximize / close): Vivaldi draws these DOM
+   buttons in the theme foreground colour, which stays #191919 because our
+   dark mode is a CSS class toggle, not a native theme switch — so on the
+   dark titlebar the glyphs turn black and vanish. Repaint them light. The
+   glyph is an inline SVG inheriting fill from the button, so colour + fill
+   cover it; Vivaldi's own hover backgrounds (incl. the red close) stay. */
+/* Both modes, not just dark: these were scoped to .theme-dark, so in light mode
+   nothing overrode Vivaldi's white glyphs and they vanished into the white bar.
+   --atlas-text-1 already flips per theme, so one unscoped rule serves both. */
+#browser .window-close,
+#browser .window-minimize,
+#browser .window-maximize {
+  color: var(--atlas-text-1) !important;
+  fill: var(--atlas-text-1) !important;
+}

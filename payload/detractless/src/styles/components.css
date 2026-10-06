@@ -1,0 +1,308 @@
+/* ══════════════════════════════════════════════════════════════════════
+ * SHARED COMPONENTS: one implementation per control, imported by every
+ * page that renders it.
+ *
+ * WHY THIS FILE EXISTS. The switch was implemented twice, once in
+ * newtab.css and once in pastekit/pages/sidepanel.css, and the two had
+ * already drifted six ways: 36x20 vs 34x19 track, 16 vs 15 knob, a knob
+ * painted var(--surface-card) vs a hardcoded white literal, radius-circle
+ * vs a literal 50%, --accent vs --surface-inverse when checked, and 16px
+ * vs 15px of travel. Nobody decided any of that. It is simply what two
+ * copies of a control do over time, so there is now one copy.
+ *
+ * WHAT BELONGS HERE: a control that more than one page renders and that
+ * should look identical in both. Page-specific LAYOUT around it does not;
+ * see the seam note on the switch below.
+ *
+ * NOT YET HERE, deliberately: buttons and inputs are duplicated too, but
+ * unifying them would silently settle two open questions (the panel's loud
+ * .primary fill against the new tab's quiet one, and the panel's pill
+ * input radius against the new tab's r24). They move in once those are
+ * ruled, not before.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Scroll affordance (R-010) ───────────────────────────────────────
+ * base.css:40-41 hides scrollbars everywhere with a * selector, so no
+ * scroll region in this extension can show a bar. Something else has to
+ * say "there is more". This is that something, and it is here rather
+ * than in one component's stylesheet because settings became the second
+ * adopter after bookmarks, which is the condition R-007 set for moving it.
+ *
+ * THE INVARIANT (R-008, corrected in R-009): a fade is visible if and only
+ * if the count beside it is above zero, and each end counts items that are
+ * NOT FULLY VISIBLE at that end. Both ends therefore mean the same thing,
+ * and a fade can never cover something the user can still read. Do not
+ * re-derive a fade from scroll position; that is the defect those two
+ * rulings removed.
+ *
+ * THE SEAM: this file owns the fade, the pill and the chevron. The fade's
+ * CORNERS are not authored here or by the adopter: scrollAffordance.js copies
+ * them off the scroller at runtime, because a fade whose radius disagrees with
+ * its scroller either notches itself and leaks un-faded content at the corners
+ * or overhangs and paints past them. This used to be a --scroll-fade-radius
+ * property for adopters to set, and two of three set it on the scroller, which
+ * is a SIBLING of the fades, so it never applied. */
+.scroll-affordance { position: relative; display: flex; min-height: 0; }
+.scroll-affordance > * { flex: 1; min-width: 0; }
+.scroll-fade {
+  position: absolute; left: 0; right: 0; height: 40px; pointer-events: none;
+  opacity: 1; transition: opacity var(--dur-base) var(--ease-out);
+}
+.scroll-fade.hidden { opacity: 0; }
+.scroll-fade-top {
+  top: 0; background: linear-gradient(to top, transparent, var(--surface-canvas));
+}
+.scroll-fade-bot {
+  bottom: 0; background: linear-gradient(to bottom, transparent, var(--surface-canvas));
+}
+/* Card coloured on a canvas well: the same figure and ground the rows it
+   counts already use, so this adds a component but no new material. */
+.scroll-count {
+  position: absolute; right: var(--space-3);
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--surface-card); color: var(--text-tertiary);
+  font-family: var(--font-mono); font-size: 10px; line-height: 1;
+  padding: 5px 9px; border-radius: var(--radius-pill);
+  pointer-events: none; opacity: 1;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.scroll-count.hidden { opacity: 0; }
+.scroll-count-top { top: var(--space-2); }
+.scroll-count-bot { bottom: var(--space-2); }
+/* A filled shape, not two box sides, so it needs no line. The older
+   .settings-row-chevron still uses the two-sided technique; convert it when
+   that screen is next opened rather than adding a second technique here. */
+.scroll-count-chev { width: 6px; height: 6px; flex: none; position: relative; }
+.scroll-count-chev::before {
+  content: ""; position: absolute; inset: 0;
+  background: var(--text-tertiary);
+  clip-path: polygon(50% 100%, 0 30%, 18% 14%, 50% 66%, 82% 14%, 100% 30%);
+}
+.scroll-count-top .scroll-count-chev::before { transform: rotate(180deg); }
+
+/* ── Switch ──────────────────────────────────────────────────────────
+ * THE SEAM: this file owns the switch itself (track, knob, checked
+ * state). Each page owns the row around it and hiding the native input,
+ * because those differ legitimately: the new tab wraps it in a bare
+ * .toggle-switch, the side panel puts it in a labelled .toggle row.
+ * The checked rules key off the ADJACENT input rather than any wrapper
+ * class, so either markup works without this file knowing about it. */
+/* THE SWITCH WRAPPER, promoted from newtab.css (spec 006b). The visual below was
+   already shared, but this half was not, so the side panel rendered a real
+   checkbox NEXT TO the slider: .toggle-slider styled the track and nothing hid
+   the input. Both halves live together now, because a control split across a
+   sheet one consumer does not load is not a shared control. */
+.toggle-switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+/* Load-bearing: the checkbox is the state, the slider is the picture of it. */
+.toggle-switch input { display: none; }
+
+.toggle-slider {
+  width: 36px; height: 20px; border-radius: var(--radius-pill);
+  background: var(--surface-hover); position: relative; flex: none;
+  transition: background var(--dur-base) var(--ease-out);
+}
+.toggle-slider::before {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: var(--radius-circle);
+  background: var(--surface-card);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+input:checked + .toggle-slider { background: var(--accent); }
+input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+/* Compact variant, for a switch inside a dense list row. */
+.small-switch .toggle-slider { width: 32px; height: 18px; }
+.small-switch .toggle-slider::before { width: 14px; height: 14px; }
+.small-switch input:checked + .toggle-slider::before { transform: translateX(14px); }
+
+/* ══ SETTINGS LANGUAGE (promoted from newtab.css, spec 003) ═══════════════
+   The blur-overlay modal and the grouped 52px rows. Promoted here because the
+   side panel's Saved Tabs view adopted this language and this sheet is loaded
+   by both bundles: one definition, no cross-seam borrowing (R-022). The
+   settings modal in the new tab and the saved-tabs popups in the panel are the
+   same component. */
+.modal {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: var(--surface-overlay); backdrop-filter: blur(var(--blur-overlay));
+  align-items: center; justify-content: center;
+}
+.modal.show { display: flex; }
+
+.settings-group { display: flex; flex-direction: column; gap: 2px; }
+.settings-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  min-height: 52px; padding: 10px 16px; box-sizing: border-box;
+  background: var(--surface-card); border: none; border-radius: 4px;
+  /* Ink stated explicitly, added during the move: as a <button> in the new tab
+     this row does not INHERIT colour, and it never set one, so any child that
+     names no token renders in the UA buttontext, black in both themes. That is
+     the exact .sp-tile mechanism (G-8/R-026), latent here because every current
+     child happened to carry its own token. */
+  color: var(--text-primary);
+  cursor: pointer; text-align: left; font-family: var(--font-sans);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.settings-group .settings-row:first-child { border-radius: 16px 16px 4px 4px; }
+.settings-group .settings-row:last-child { border-radius: 4px 4px 16px 16px; }
+.settings-group .settings-row:only-child { border-radius: 16px; }
+/* ADR-1: card rows sit on the canvas, so hover moves AWAY from canvas tone. */
+.settings-row:hover { background: var(--hover-on-canvas); }
+.settings-row-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.settings-row-title { font-size: 15px; font-weight: 400; color: var(--text-primary); }
+.settings-row-danger { color: var(--text-error); }
+.settings-row-value { font-size: 12px; color: var(--text-tertiary); }
+.settings-row-value:empty { display: none; }
+
+/* ══ PICKER DIALOGS (promoted from newtab.css, spec 004) ══════════════════
+   The extension's one dialog system: a centred card over the blur overlay,
+   full-width icon rows, single-field input panes with Back and Save, and
+   danger rows that arm in place to "Delete, are you sure?". The new tab's
+   bookmark dialogs and the side panel's dialogs (panelDialog.js) both
+   render THIS vocabulary; the radio rows stayed in newtab.css. */
+@keyframes modalIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.picker-modal { z-index: 400; display: flex; }
+.picker-card {
+  background: var(--surface-card); border-radius: var(--radius-lg);
+  width: 90%; max-width: 320px;
+  /* space-2 all round, not 16px top and bottom only: the rows now sit in a WELL
+     that supplies its own inset, so the card just frames it. */
+  padding: var(--space-2);
+  animation: modalIn 0.2s var(--ease-out);
+  /* The well clips its own rows now, but the card still clips its corners so a
+     pane swap cannot paint past the curve mid-animation. */
+  overflow: hidden;
+}
+.picker-title {
+  font-family: var(--font-sans); font-size: 18px; font-weight: 700;
+  color: var(--text-primary);
+  /* Sits OUTSIDE the well, so its inset is the card's, not the row's.
+     BOTTOM SPACING IS MARGIN, NOT PADDING, and that is load-bearing: overflow
+     hidden clips at the PADDING box, so with bottom padding the clamp's third
+     line paints a sliver into it, over the subtitle (the user screenshotted
+     exactly this). Margin is outside the clip and paints nothing. */
+  padding: var(--space-2) var(--space-2) 0;
+  margin-bottom: var(--space-3);
+  /* THE CEILING (R-040). Every dialog titles itself with user- or page-derived
+     text: snippet names, session names, selectors. A broad-match selector with
+     fourteen classes and no combinator once BECAME the dialog, because the
+     naming layer shortens titles but guarantees nothing. Two lines, then
+     ellipsis, whatever arrives; overflow-wrap anywhere rather than break-all,
+     so a title WITH spaces still wraps at them and only an unbroken run (a
+     selector) is split mid-word. panelStructure asserts this clamp exists, so
+     it cannot silently unhappen. */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: anywhere;
+}
+.picker-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 12px 16px; border: none; background: transparent; cursor: pointer;
+  font-family: var(--font-sans); font-size: 15px; color: var(--text-primary);
+  text-align: left; transition: background var(--dur-fast) var(--ease-out);
+}
+/* ADR-1: hover names what is UNDERNEATH. A row inside the well paints the CARD
+   colour and sits on the well's CANVAS, so it hovers with the canvas token, the
+   same relationship .settings-row has out on the page. */
+.picker-well .picker-row { background: var(--surface-card); border-radius: 3px; }
+.picker-well .picker-row:first-child { border-radius: 11px 11px 3px 3px; }
+.picker-well .picker-row:last-child { border-radius: 3px 3px 11px 11px; }
+.picker-well .picker-row:only-child { border-radius: 11px; }
+.picker-row:hover { background: var(--hover-on-canvas); }
+.picker-hidden-close { display: none; }
+
+/* ══ THE WELL ═════════════════════════════════════════════════════════════
+   Card, then an INSET canvas well, then card-coloured rows: three surface
+   levels where a dialog used to have two. Adopted from the FM project, whose
+   values these are, and which reached the same UI-RULES from the same tokens.
+
+   THE HEIGHT CAP IS THE FUNCTIONAL HALF, not decoration: a picker with fifteen
+   options (quick settings has one) used to render fifteen rows and grow taller
+   than the surface it floated on, clipping at both ends with the current value
+   potentially off screen. Six row pitches and a scroll keeps a dialog
+   dialog-sized however long its list is. */
+.picker-well {
+  background: var(--surface-canvas); border-radius: var(--radius-md);
+  padding: var(--well-padding);
+  display: flex; flex-direction: column; gap: var(--row-gap);
+  max-height: calc(var(--row-pitch) * 6); overflow-y: auto;
+}
+/* base.css hides scrollbars everywhere, so a scrolling well owes the R-010
+   fade-and-count substitute. This is its positioned host, holding the well and
+   nothing else, exactly the .sp-scrollhost contract. */
+.picker-wellhost { position: relative; display: flex; flex-direction: column; min-height: 0; }
+
+/* ══ THE TICK ═════════════════════════════════════════════════════════════
+   Selection is a CHECK ON THE CHOSEN ROW, and nothing at all on the others.
+   That is what retires the ring-versus-disc argument rather than settling it:
+   the new tab drew its ring with a 2px BORDER, which UI-RULES bans, and the
+   panel answered with a filled disc, so the two never agreed.
+
+   Drawn by masking a filled block with clip-path, so there is no line, no SVG
+   and no font glyph: it inherits colour and scales with its own box. The slot
+   is reserved on every row in a choice list so the labels stay aligned. */
+.picker-check { width: 14px; height: 14px; flex: none; position: relative; }
+.picker-row.is-current .picker-check::before {
+  content: ""; position: absolute; inset: 0;
+  background: var(--text-primary);
+  clip-path: polygon(41% 88%, 3% 52%, 16% 39%, 41% 63%, 84% 15%, 97% 28%);
+}
+.picker-row.is-current { font-weight: var(--weight-semibold); }
+
+/* THE SAME MARK, MEANING "ONE OF SEVERAL" (spec 007). A picker row is a single
+   choice, so .is-current means "the value that is set". A multi-select list needs
+   the identical glyph to mean "one of the ones I picked", which is a different
+   claim and so earns a different state class rather than overloading .is-current.
+
+   Deliberately NOT a copy: same clip-path, same 14px box, same ink token, so the
+   two marks can never drift apart. It lives here rather than in panel.css because
+   components.css is loaded by both bundles, which is the R-007/R-022 route for
+   anything a second screen adopts.
+
+   No font-weight change to match .picker-row.is-current: in a list where most
+   rows are ticked, bolding the ticked ones bolds nearly everything, which reads
+   as noise rather than as a mark. */
+.settings-row.is-checked .picker-check::before {
+  content: ""; position: absolute; inset: 0;
+  background: var(--text-primary);
+  clip-path: polygon(41% 88%, 3% 52%, 16% 39%, 41% 63%, 84% 15%, 97% 28%);
+}
+.picker-pane { display: none; }
+.picker-pane--on { display: block; }
+.picker-subtitle {
+  font: var(--text-caption); color: var(--text-tertiary);
+  padding: 0 24px 8px; margin-top: -4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.picker-row-icon { width: 16px; height: 16px; flex: none; display: flex; align-items: center; justify-content: center; }
+.picker-row-icon svg { width: 15px; height: 15px; display: block; }
+.picker-row-value { margin-left: auto; color: var(--text-tertiary); font-size: 14px; }
+.picker-row--danger { color: var(--color-error); }
+.picker-row--armed { background: var(--bg-error); color: var(--color-error); font-weight: var(--weight-semibold); }
+.picker-row--armed:hover { background: var(--bg-error); }
+.picker-fieldwrap { padding: 4px 24px 8px; }
+.picker-field {
+  width: 100%; border: none; outline: none;
+  background: var(--surface-muted); border-radius: var(--radius-lg);
+  padding: 11px 14px;
+  font-family: var(--font-sans); font-size: 15px;
+  color: var(--text-primary); caret-color: var(--text-primary);
+}
+.picker-field--upper {
+  text-transform: uppercase; letter-spacing: 0.06em;
+  font-size: 13px; font-weight: var(--weight-semibold);
+}
+.picker-error {
+  display: none; font: var(--text-caption); color: var(--color-error); padding: 6px 2px 0;
+}
+.picker-error--show { display: block; }
+.picker-empty { font: var(--text-body-sm); color: var(--text-tertiary); padding: 4px 24px 12px; }
+.picker-foot { display: flex; gap: var(--space-2); padding: 12px 24px 4px; }
+.picker-btn {
+  flex: 1; border: none; cursor: pointer; border-radius: var(--radius-pill);
+  padding: 11px 0;
+  font-family: var(--font-sans); font-size: 14px; font-weight: var(--weight-medium);
+  background: var(--surface-muted); color: var(--text-primary);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.picker-btn:hover { background: var(--surface-hover); }
+.picker-btn--primary { background: var(--accent); color: var(--accent-text); font-weight: var(--weight-semibold); }
+.picker-btn--primary:hover { background: var(--accent-hover); }

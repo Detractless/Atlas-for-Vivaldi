@@ -1,0 +1,394 @@
+/* src/styles/panel.css — the side panel's SHARED vocabulary (R-022).
+
+   WHY THIS FILE EXISTS. Every rule here was inside pastekit/pages/sidepanel.css.
+   That was correct while PasteKit was the panel's only screen, and wrong the
+   moment notes and saved tabs arrived: the second and third adopters had nothing
+   to adopt, so a parallel set (.sp-row, .sp-btn, .sp-list, .sp-textarea) got
+   built beside it and the two drifted immediately. The notes editor rendered
+   browser-default buttons, which the comment on .actions below had explicitly
+   warned would happen.
+
+   Promoted under the R-007 clause, the same one that moved scrollAffordance.js
+   to components/shared when settings became its second adopter. SELECTORS ARE
+   UNCHANGED by the move, so PasteKit does not know this happened.
+
+   Loaded BEFORE both consumers by pages/sidepanel/sidepanel.js, so either can
+   still override what it needs to.
+
+   WHAT STAYED BEHIND, deliberately: .row .qpos and .row .more (fill-queue
+   position and the per-row menu), the .row-actions slide-over, and .ed-head.
+   Those are snippet mechanics, not panel vocabulary. */
+
+/* ── Header ───────────────────────────────────────────────────────── */
+/* GRID, not space-between, and that is the whole fix. Under space-between the
+   title's position depended on HOW MANY children the header happened to have:
+   three (back, title, actions) pushed it to the middle, two (back, title) pinned
+   it to the right edge. So deleting a header button silently moved the title,
+   which is exactly what happened to notes and saved tabs when their + buttons
+   moved into the foot. space-between also never truly centred it, since it only
+   centres the middle item when the flanking items are equal width, and a 28px
+   back button never balanced two action buttons.
+
+   A 1fr auto 1fr track centres the title on the HEADER, not on its siblings, so
+   it holds still whether a page has zero, one or two buttons beside it.
+
+   This block, .wordmark and .ed-head all used to live in PasteKit's sheet, and
+   .sp-hd / .sp-wordmark / .sp-back were a second header vocabulary in the panel's
+   own sheet doing the same job with a different result (Remover packed left,
+   because it never set justify-content at all). One vocabulary now, per R-022. */
+.hd {
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 14px 16px 6px; flex: none;
+}
+.hd > * { justify-self: start; }
+.hd .wordmark { grid-column: 2; justify-self: center; }
+.hd .hd-actions { grid-column: 3; justify-self: end; display: flex; gap: 2px; }
+.wordmark { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+
+/* One rule for every header and editor-head button, back arrows included. The
+   panel sheet carried a .sp-back rule that was byte-for-byte this one. */
+.hd button {
+  border: none; background: transparent; cursor: pointer;
+  font: 500 14px var(--font-sans); color: var(--text-tertiary);
+  padding: 4px 8px; border-radius: var(--radius-pill);
+  transition: all var(--dur-base) var(--ease-out);
+}
+/* ADR-1: hover names the token for what is UNDERNEATH, and .hd sits on the
+   canvas. This was once two rules, because .ed-head sat inside the card and
+   needed the card token; that half retired with the card language, so one rule
+   is correct again rather than a simplification.
+
+   Ink holds still; hover shifts the surface only (UI-RULES 5.4). */
+.hd button:hover { background: var(--hover-on-canvas); }
+
+/* ── Search bar ───────────────────────────────────────────────────── */
+.bar { padding: 8px 16px 4px; flex: none; }
+/* Input geometry (UI-RULES 4, amended by R-005 and R-006): constant fill, no
+   border and no ring. Focus is marked by the caret, not by a colour change.
+   CARD, NOT MUTED, because this input sits on the CANVAS: `.bar` has no
+   background of its own. It is the only input in the extension on that
+   substrate, and muted here made it lighter than the .card below it in dark and
+   darker than it in light, because those two tokens swap order between the
+   themes. Card matches the list panel beneath and mirrors the new tab, whose
+   .spotlight-search-container is also a card on canvas. */
+.search-input {
+  width: 100%; padding: 10px 16px;
+  /* `border: none` is load-bearing, not tidiness. Dropping the declaration
+     entirely does not remove the border on a form control, it falls back to the
+     UA default, which is heavier than the hairline it replaced. */
+  border: none; border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  font: 400 14px var(--font-sans); color: var(--text-primary);
+  outline: none;
+}
+.search-input::placeholder { color: var(--text-tertiary); }
+/* Chrome draws its OWN clear button inside type="search", in its own colours,
+   which is the stray blue cross that matched nothing in this palette. It is a UA
+   control: nothing in the panel put it there and no token reaches it, so the only
+   fix is to switch it off. The fields already clear by selecting the text, and
+   every list they filter shows an empty state, so nothing is lost with it gone. */
+.search-input::-webkit-search-cancel-button,
+.search-input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* THE CARD LANGUAGE IS GONE (spec 006). .card, .card-views, .card-view and the
+   .editing translate lived here from R-022 until the panel finished moving to
+   page swaps; Notes was the last consumer. Deleted rather than left in place:
+   an unused 50%-wide slider slot is exactly the kind of thing a future screen
+   picks up by name and renders at half width, which is the bug R-023 exists
+   because of. tests/panelStructure.test.mjs now asserts it stays gone. */
+
+/* SCROLL AFFORDANCE ADOPTION (R-010). base.css hides scrollbars everywhere, so
+   every scroll region owes a substitute; the panel had none, which is why long
+   lists just cut off dead at the card edge. The affordance needs a positioned
+   wrapper AROUND its scroller, which is what .sp-scrollhost is: it holds the
+   scroller and nothing else, so the fades and counts clip to the list's own box
+   rather than to whatever else the page happens to contain. */
+/* The card-pane host retired with the card language (spec 006); every scroller
+   now uses .sp-scrollhost below. */
+
+/* ── Rows ─────────────────────────────────────────────────────────── */
+/* Rows */
+.row {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--dur-base) var(--ease-out);
+}
+/* Rows live inside the card, so they hover with the card token. `selected` is a
+   persistent state and sits one step lower than hover, so a selected row still
+   reads as selected while the pointer is elsewhere. */
+.row:hover { background: var(--hover-on-card); }
+.row.selected { background: var(--surface-muted); }
+.row .body { flex: 1; min-width: 0; }
+.row .nm { font-weight: 500; }
+.row .ds {
+  font-size: 12px; color: var(--text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* The empty state (R-038): a glyph over a short line, CENTRED IN THE SPACE THE
+   LIST WOULD HAVE FILLED. flex:1 is what centres it vertically: every container
+   an empty appears in is a flex column (.settings-group, .sp-stack), so the box
+   takes the leftover height and centres within it. Built only by
+   components/shared/emptyState.js, never by hand. */
+.empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  padding: 24px; text-align: center;
+  color: var(--text-tertiary); font-size: 13px;
+}
+.empty-icon svg { width: 28px; height: 28px; display: block; }
+.empty-hint { font-size: 12px; color: var(--text-tertiary); max-width: 30ch; line-height: 1.45; }
+
+/* ── Editor fields ────────────────────────────────────────────────── */
+.editor label { display: block; margin: 0 2px 10px; font-size: 12px; color: var(--text-secondary); }
+/* display:block beats the `hidden` attribute, so a hidden label would otherwise
+   still render. Needed since the saved-tabs pane hides its description field
+   while showing a session's contents in the same pane. */
+.editor label[hidden] { display: none; }
+/* Same input rule as the search field: a constant muted fill that focus does not
+   change (R-005). This block is why the rule was rewritten. It could not use the
+   documented focus value because `card` is the colour of the container these sit
+   in, so a focused field vanished into it, and the workaround here was a local
+   patch to a defect that turned out to be in the rule. */
+.editor input, .editor textarea {
+  display: block; width: 100%; margin-top: 4px;
+  padding: 8px 12px; border: none; border-radius: var(--radius-sm);
+  font: 400 13px var(--font-sans); color: var(--text-primary); background: var(--surface-muted);
+  outline: none; resize: vertical;
+}
+/* THE SAVED-TAB FIELDS DO NOT RESIZE, by hand or by content. A long title or URL
+   cannot be read in a one-line box in a panel this narrow, and there is no width
+   left to give: the field is already the full width of the card. So they are
+   textareas with a FIXED row count, chosen so the box holds still rather than
+   growing and shrinking as you type (spec 002, decision 3). A value longer than
+   the box scrolls inside it, which is the accepted cost of the box not moving.
+   `resize: vertical` above would hand that stability back to a drag handle. */
+.sp-dialog textarea { resize: none; line-height: 1.4; }
+.editor details { margin: 0 2px 10px; font-size: 12px; color: var(--text-secondary); }
+.editor summary { cursor: pointer; }
+.editor details textarea { margin-top: 6px; font-family: ui-monospace, monospace; }
+.error { color: var(--color-error); font-size: 12px; min-height: 16px; margin: 0 2px; }
+/* .ed-hint is DELETED (2026-08-15). Its only consumer was the Sensitive
+   checkbox's explanation, which left with that feature. Removed rather than kept
+   for a future field: an unused class is what a later screen picks up by name
+   and then quietly restyles. */
+
+/* ── Footer and buttons ───────────────────────────────────────────── */
+/* Footer */
+.foot { padding: 8px 16px 14px; flex: none; }
+.chk { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; }
+.chk input { accent-color: var(--surface-inverse); }
+.status { font-size: 12px; color: var(--text-secondary); min-height: 16px; margin: 6px 0; }
+.actions { display: flex; gap: 8px; }
+.actions.hidden { display: none; }
+/* Button shape for the side panel. Every group that holds buttons must be listed
+   here — .primary and .ghost supply colour only, so a group left off this list
+   renders browser-default buttons, and .ghost's own padding makes them different
+   heights from .primary ones beside them. .sp-pp-actions is the passphrase
+   prompt, which lives in the Detractless shell rather than in PasteKit. */
+.actions button, .io-actions button, .sp-pp-actions button {
+  padding: 10px; border: none; border-radius: var(--radius-pill);
+  font: 600 13px var(--font-sans); cursor: pointer;
+  transition: all var(--dur-base) var(--ease-out);
+}
+.actions button { flex: 1; }
+.primary { background: var(--surface-inverse); color: var(--text-inverse); }
+.primary:hover:enabled { opacity: .85; }
+.primary:disabled, .ghost:disabled { opacity: .4; cursor: not-allowed; }
+/* CARD FILL, CANVAS HOVER, because .foot has no background of its own and so
+   these buttons sit on the CANVAS. They used to carry the "inside a card" pair
+   (muted fill, hover-on-card), which is internally consistent and was applied to
+   the wrong surface: in the LIGHT theme hover-on-card lands within three values
+   of the canvas, so contrast fell from 1.109 to 1.021 and the button all but
+   vanished at the moment you pointed at it. Dark was fine, which is why it
+   survived: surface-card and surface-muted swap order between the ramps (G-5),
+   so a wrong-substrate pairing only misbehaves in one theme.
+
+   This is the same defect S-003 fixed on the new tab, where .plus__link vanished
+   for the same reason, and the same rule ADR-1 states at the top of the panel's
+   sheet: hover names the token for what is UNDERNEATH.
+
+   NOT muted-fill-with-canvas-hover, which was the tempting minimal fix: that
+   reads 1.109 to 1.160 in light but 1.488 DOWN TO 1.367 in dark, trading a light
+   bug for a dark one. Card fill with canvas hover is the pairing .sp-tile and the
+   new tab's .action-btn already use for controls on canvas, and it is why the
+   panel's own search bar is card-filled (R-006). Worst case here is 1.160,
+   identical to .sp-tile's hover. */
+.ghost { background: var(--surface-card); color: var(--text-primary); padding: 9px; }
+.ghost:hover:enabled { background: var(--hover-on-canvas); }
+
+/* ══ SETTINGS-LANGUAGE PAGES (spec 003, Saved Tabs only) ══════════════════
+   This view swapped the sliding card for the settings model: grouped rows on
+   the canvas, page swaps with the settings fade, and one blur modal for every
+   dialog. PasteKit and Notes keep the card language; these classes exist so
+   the adoption never reaches into newtab.css for anything not promoted. */
+
+/* A page: list or details. position:relative makes it the scroll-affordance
+   host; the fade matches the settings sub-page entrance (translate, not scale:
+   scale entrances are banned). */
+.sp-page {
+  flex: 1; min-height: 0; position: relative;
+  display: flex; flex-direction: column;
+  padding: 8px 16px 0;
+  animation: spPageIn 0.2s var(--ease-out);
+}
+@keyframes spPageIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.sp-page-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+/* A scroll page holding SEVERAL sibling blocks (R-037): a settings group, then
+   a data group, then an empty line. The 8px seam between blocks is what says
+   "separate stacks" where the 2px row gap says "one stack". Remover is the
+   first consumer; a second one promotes nothing, this is already shared. */
+.sp-stack { display: flex; flex-direction: column; gap: 8px; }
+/* THE AFFORDANCE HOST, and it must wrap the scroller and NOTHING ELSE. The fades
+   and the "N above" pill are positioned against this box, so any sibling inside
+   it (a search bar, a tag row) pushes the top fade up above that sibling: the
+   pill then floats over the search field and the list's real top edge gets no
+   fade at all. Every scroller in the panel now has one of these. */
+.sp-scrollhost {
+  position: relative; flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column;
+}
+
+/* ONE LINE EACH, BOTH LINES. The panel is 380px where the settings modal is 720,
+   so text that fits comfortably there wraps here and pushes the row taller than
+   its group siblings: a list whose rows are all different heights, sized by their
+   contents.
+
+   The title was clamped in spec 003 and the VALUE was not, which is why the
+   defect surfaced first in Notes, where the value line carries the note's first
+   body line rather than a short label. Measured before the fix: a long value took
+   a row from 61px to 96px and kept growing. It was never a Notes bug: saved tabs
+   and PasteKit measured identically, their values just happen to be short.
+
+   Qualified by .sp-page rather than changed on the shared class, so the new tab's
+   settings rows, which have the width to wrap safely, are untouched.
+
+   .settings-row-text already carries min-width: 0, without which a flex child
+   refuses to shrink below its content and ellipsis never triggers. */
+.sp-page .settings-row-title,
+.sp-page .settings-row-value {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Small round row buttons: the open glyph and the menu. Their substrate is the
+   row (surface-card at rest), so hover names hover-on-card. */
+.sp-row-btn {
+  width: 26px; height: 26px; padding: 0; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: var(--radius-circle); background: none;
+  color: var(--text-tertiary); font-size: 14px; cursor: pointer;
+}
+.sp-row-btn:hover { background: var(--hover-on-card); color: var(--text-primary); }
+
+/* THE ONLY WAY TO OPEN A SESSION (spec 004): always visible, named with its
+   count, beside the menu button. INVERSE, by R-024's own reasoning: the pill's
+   substrate is not knowable (a resting row paints card, a hovered row paints
+   hover-on-canvas, and those neighbours nearly swallowed a muted fill at 1.046
+   in light, caught by the declared contrast check before shipping), and this is
+   the row's PRIMARY action, which is precisely what the inverse fill means.
+   Hover dims by opacity, the established move for inverse fills, since there is
+   no neighbouring surface token to hover TO. */
+.sp-open-pill {
+  flex: none; border: none; cursor: pointer;
+  background: var(--surface-inverse); color: var(--text-inverse);
+  border-radius: var(--radius-pill); padding: 6px 12px;
+  font: 600 12px var(--font-sans);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.sp-open-pill:hover { opacity: .85; }
+
+
+
+/* ══ PANEL-SCALE DIALOGS (spec 004b, option B) ════════════════════════════
+   Measured before changing anything: the shared picker card is 320px, which is
+   84% of a 380px panel, against roughly 22% of the new tab's viewport. Same
+   card, same absolute size; only the surface changed, and at 84% it reads as
+   the panel being replaced rather than as something floating on it.
+
+   So the panel scales the card down and steps the type down one notch to its
+   own scale (18 to 15 for titles, 15 to 14 for rows), while the NEW TAB keeps
+   the original. Every rule here is QUALIFIED by .sp-modal, which panelDialog.js
+   puts on its host: qualifying a shared class is legitimate layering, whereas
+   bare-redefining .picker-card here would silently fight components.css for
+   every dialog in the panel (and tests/panelStructure.test.mjs would fail it).
+
+   Sizes only. No background or ink is touched, so every contrast pairing
+   declared for the pickers still holds. */
+.sp-modal .picker-card { width: 78%; max-width: 268px; }
+/* Bottom spacing stays MARGIN here too (R-040b): this scale rule re-declares
+   the shorthand at higher specificity, and its old bottom padding quietly
+   reinstated the clipped-line sliver in the panel after components.css had
+   already fixed it. Padding shorthand must keep the bottom at 0. */
+.sp-modal .picker-title { font-size: 15px; padding: var(--space-2) var(--space-2) 0; margin-bottom: var(--space-3); }
+.sp-modal .picker-subtitle { padding: 0 var(--space-2) var(--space-2); }
+.sp-modal .picker-row { font-size: 14px; padding: 8px var(--space-3); gap: 10px; }
+.sp-modal .picker-row-value { font-size: 13px; }
+.sp-modal .picker-fieldwrap { padding: 4px 20px 6px; }
+.sp-modal .picker-field { font-size: 14px; padding: 10px 13px; }
+.sp-modal .picker-foot { padding: 10px 20px 2px; }
+.sp-modal .picker-btn { font-size: 13px; padding: 10px 0; }
+
+/* ══ PASTEKIT IN THE PANEL LANGUAGE (spec 005) ════════════════════════════ */
+
+/* A section label above a settings group: the new tab's settings-section header
+   at panel scale. */
+.sp-sect {
+  font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-tertiary); padding: 14px 4px 6px;
+}
+
+/* The tag cloud, moved out of quick settings to sit under the search field it
+   actually serves. Chips are FILTERS, not decoration. */
+/* 8px of air above the chips and none below: the page beneath supplies the gap
+   to the first row, so the spacing is identical whether or not any tags exist.
+   Sitting closer to the search field than to the list is deliberate, since the
+   chips belong to the search. */
+.sp-tagbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 16px 0; flex: none; }
+.sp-tagbar:empty { display: none; }
+
+.sp-chip {
+  border: none; cursor: pointer;
+  background: var(--surface-muted); color: var(--text-secondary);
+  border-radius: var(--radius-pill); padding: 4px 10px;
+  font: 400 12px var(--font-sans);
+}
+.sp-chip:hover { background: var(--hover-on-canvas); color: var(--text-primary); }
+/* The active filter is the one thing on this bar that must be unmistakable, and
+   it sits on the canvas, so it takes the inverse fill: R-024's reasoning, a fill
+   that does not depend on what is underneath. */
+.sp-chip.active { background: var(--surface-inverse); color: var(--text-inverse); }
+.sp-chip.active:hover { background: var(--surface-inverse); color: var(--text-inverse); opacity: .85; }
+
+/* A SELECTED snippet row, queued for filling. Muted is the on-card step, so the
+   row reads as raised out of its group without a line. */
+.settings-row.selected { background: var(--surface-muted); }
+.settings-row.selected:hover { background: var(--hover-on-card); }
+
+/* The queue position badge. Inverse again (R-024): it is drawn on selected,
+   hovered and resting rows, so its substrate is not knowable in advance. */
+.settings-row .qpos {
+  min-width: 18px; height: 18px; padding: 0 5px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-circle);
+  background: var(--surface-inverse); color: var(--text-inverse);
+  font-size: 11px; font-weight: 700;
+}
+
+/* THE DRILL-IN CHEVRON. The new tab's .settings-row-chevron draws this as a
+   rotated square with two BORDERS, which UI-RULES bans, and its rules live in
+   newtab.css, which the panel never loads: the panel was using that class, so
+   its value rows had no chevron at all. Rather than promote a banned technique,
+   the panel draws the same cue as a glyph, exactly as it does for the row menu
+   and the back arrow. */
+.sp-chevron { flex: none; color: var(--text-tertiary); font-size: 15px; line-height: 1; }
+
+/* .sp-radio is DELETED (2026-08-15): choices are marked by the shared
+   .picker-check tick now, which the new tab uses too. The disc existed only
+   because the new tab's ring was a banned border and could not be copied. */
+

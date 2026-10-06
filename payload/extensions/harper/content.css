@@ -1,0 +1,248 @@
+/* Harper - Offline Grammar & Spell Checker
+   In-page Underlines & Suggestion Tooltips Stylesheet */
+
+/* ── In-page Squiggly Underlines ─────────────────────────────────────────── */
+.harper-underline {
+  position: relative;
+  text-decoration: underline wavy 2px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.harper-underline.harper-error {
+  text-decoration-color: #ff4d4f;
+  background-color: rgba(255, 77, 79, 0.08);
+}
+
+.harper-underline.harper-grammar {
+  text-decoration-color: #1890ff;
+  background-color: rgba(24, 144, 255, 0.08);
+}
+
+.harper-underline:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  .harper-underline.harper-error {
+    text-decoration-color: #ff7875;
+    background-color: rgba(255, 120, 117, 0.12);
+  }
+  .harper-underline.harper-grammar {
+    text-decoration-color: #4096ff;
+    background-color: rgba(64, 150, 255, 0.12);
+  }
+}
+
+/* ── Interactive Suggestion Tooltip Bubble ───────────────────────────────── */
+.harper-tooltip {
+  all: initial;
+  position: absolute;
+  z-index: 2147483646;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #262626;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 10px 12px;
+  min-width: 200px;
+  max-width: 320px;
+  pointer-events: auto;
+  user-select: none;
+  animation: harper-fade-in 0.15s ease-out;
+}
+
+@keyframes harper-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dark mode for tooltip */
+@media (prefers-color-scheme: dark) {
+  .harper-tooltip {
+    color: #e6e6e6;
+    background: #1f1f1f;
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+}
+
+/* ── Tooltip Header & Badges ─────────────────────────────────────────────── */
+.harper-tooltip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.harper-tooltip-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.harper-badge-spelling {
+  color: #cf1322;
+  background: #fff1f0;
+  border: 1px solid #ffa39e;
+}
+
+.harper-badge-grammar {
+  color: #0958d9;
+  background: #e6f4ff;
+  border: 1px solid #91caff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .harper-badge-spelling {
+    color: #ff7875;
+    background: #2a1215;
+    border-color: #5c2223;
+  }
+  .harper-badge-grammar {
+    color: #69b1ff;
+    background: #111d2c;
+    border-color: #1d39c4;
+  }
+}
+
+.harper-tooltip-close {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: #8c8c8c;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.harper-tooltip-close:hover {
+  color: #262626;
+}
+
+@media (prefers-color-scheme: dark) {
+  .harper-tooltip-close:hover {
+    color: #ffffff;
+  }
+}
+
+/* ── Tooltip Message ─────────────────────────────────────────────────────── */
+.harper-tooltip-message {
+  font-size: 12.5px;
+  color: #595959;
+  margin-bottom: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .harper-tooltip-message {
+    color: #bfbfbf;
+  }
+}
+
+/* ── Suggestion Replacement Chips ────────────────────────────────────────── */
+.harper-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.harper-chip {
+  all: initial;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1677ff;
+  background: #f0f5ff;
+  border: 1px solid #adc6ff;
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.harper-chip:hover {
+  background: #1677ff;
+  color: #ffffff;
+  border-color: #1677ff;
+  box-shadow: 0 2px 4px rgba(22, 119, 255, 0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+  .harper-chip {
+    color: #69b1ff;
+    background: #111d2c;
+    border-color: #1d39c4;
+  }
+  .harper-chip:hover {
+    background: #1677ff;
+    color: #ffffff;
+    border-color: #1677ff;
+  }
+}
+
+/* ── Tooltip Actions ─────────────────────────────────────────────────────── */
+.harper-tooltip-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  padding-top: 6px;
+  margin-top: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .harper-tooltip-actions {
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.harper-action-btn {
+  all: initial;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: #8c8c8c;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.harper-action-btn:hover {
+  color: #262626;
+  text-decoration: underline;
+}
+
+@media (prefers-color-scheme: dark) {
+  .harper-action-btn:hover {
+    color: #f0f0f0;
+  }
+}
+
+/* ── Floating Harper Field Indicator Badge (Disabled) ───────────────────── */
+.harper-badge {
+  display: none !important;
+}

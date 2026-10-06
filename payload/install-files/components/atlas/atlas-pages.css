@@ -1,0 +1,508 @@
+/* ══════════════════════════════════════════════════════════════════════
+   ATLAS INTERNAL PAGES — shared stylesheet
+
+   The browser chrome stays Atlas; the PAGES speak Detractless. This is that
+   vocabulary, ported from the extension's tokens.css / themes.css /
+   components.css so History, Downloads and Extensions are visibly the same
+   product as the new tab.
+
+   Themes: light is the :root default; dark redefines the same tokens under
+   [data-theme="dark"], with values from the extension's themes.css (warm
+   mono family). atlas-pages.js resolves the extension's Theme setting
+   (light / dark / system / custom) and stamps data-theme; custom themes are
+   written as inline variables on :root by the same script, so every rule
+   below styles through tokens only.
+
+   The signature idiom is three surface levels, not shadows:
+       canvas  →  inset WELL  →  card-coloured rows
+   with the first and last row of a group taking the large outer radius.
+   Shadows and focus rings are banned upstream (UI-RULES 5.1); focus is a
+   fill shift.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Fonts. Installed by reinstall.ps1 alongside the extension's own copy;
+      these pages live one level deeper, hence ../../src/. ─────────────── */
+@font-face {
+  font-family: 'Schibsted Grotesk';
+  font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url('../../src/assets/fonts/schibsted-grotesk-var.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url('../../src/assets/fonts/space-mono-400.woff2') format('woff2');
+}
+
+:root {
+  /* Radius */
+  --radius-xs: 8px;  --radius-sm: 12px; --radius-md: 18px;
+  --radius-lg: 24px; --radius-pill: 999px; --radius-circle: 50%;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 140ms; --dur-base: 220ms;
+
+  /* Spacing (4px grid) */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+  --space-16: 64px; --space-20: 80px;
+
+  /* List geometry — the vertical period of every list on these pages. */
+  --row-height: 32px; --row-gap: 2px; --row-pitch: 34px; --well-padding: 8px;
+
+  /* Type */
+  --font-sans: "Schibsted Grotesk", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --text-h1: 700 26px/1.12 var(--font-sans);
+  --text-h3: 600 17px/1.25 var(--font-sans);
+  --text-body: 400 16px/1.45 var(--font-sans);
+  --text-body-sm: 400 14px/1.45 var(--font-sans);
+  --text-label: 500 13px/1.3 var(--font-sans);
+  --text-caption: 400 12px/1.35 var(--font-sans);
+  --text-mono: 400 12px/1.3 var(--font-mono);
+  --tracking-tight: -0.02em; --tracking-snug: -0.01em;
+
+  /* Surfaces — family light (default) */
+  --surface-canvas: #E3E3E0;
+  --surface-card:   #FFFFFF;
+  --surface-muted:  #EFEEEC;
+  --surface-overlay: rgba(10, 10, 9, 0.45);
+  /* Hover tokens are named for what sits UNDERNEATH the element (ADR-4). */
+  --hover-on-card:   #E6E5E2;
+  --hover-on-canvas: #F4F3F1;
+
+  --text-primary:   #0A0A09;
+  --text-secondary: #76766F;
+  --text-tertiary:  #9A9A95;
+  --text-error:     #B3382E;
+
+  --line-hairline: #D8D7D3;
+  --accent:        #111110;
+  --accent-text:   #FFFFFF;
+  --bg-error:      #F6E2E0;
+}
+
+/* Dark — the extension's warm mono family, verbatim from themes.css. */
+:root[data-theme="dark"] {
+  --surface-canvas: #111110;
+  --surface-card:   #262622;
+  --surface-muted:  #33332E;
+  --surface-overlay: rgba(0, 0, 0, 0.55);
+  --hover-on-card:   #3C3C36;
+  --hover-on-canvas: #2D2D29;
+
+  --text-primary:   #F2F1EE;
+  --text-secondary: #A0A099;
+  --text-tertiary:  #7B7B75;
+  --text-error:     #E07A70;
+
+  --line-hairline: #3E3E39;
+  --accent:        #EFEEEC;
+  --accent-text:   #111110;
+  --bg-error:      #2E1815;
+}
+
+/* ── Base ───────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  margin: 0; padding: 0; box-sizing: border-box;
+  user-select: none; -webkit-user-select: none;
+}
+/* The PAGE never scrolls any more: the list card's well is the scroller
+   (the page-nav-panel idiom, approved 2026-09-04). Vivaldi's injected
+   html,body { overflow: hidden } now agrees with us; stated anyway so the
+   layout does not depend on that injected sheet existing. */
+html { background-color: var(--surface-canvas); overflow: hidden !important; }
+body {
+  overflow: hidden !important;
+  min-height: 100vh;
+  background-color: var(--surface-canvas);
+  color: var(--text-primary);
+  font: var(--text-body-sm);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--dur-base) var(--ease-out),
+              color var(--dur-base) var(--ease-out);
+}
+input, button { font-family: var(--font-sans); }
+input::placeholder { color: var(--text-tertiary); }
+input:focus, button:focus { outline: none; }
+a { text-decoration: none; color: inherit; }
+[hidden] { display: none !important; }
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
+
+/* ── Page frame. The title leaves the centered column and anchors 32px
+      from the window's left edge (calc walks from the column's center back
+      to the viewport's), per feedback: headers read as page furniture, the
+      list reads as content. ─────────────────────────────────────────── */
+/* Bottom padding is the card's breathing room only — the page must fit the
+   viewport exactly now that nothing scrolls at page level.
+   920px: the 720 column read too narrow once the card became the page's one
+   object (user feedback, this round). */
+.page { max-width: 920px; margin: 0 auto; padding: 108px var(--space-6) var(--space-6); }
+/* The title sits where the new tab's page-nav sits: left 32, in the 44px
+   band starting 28px from the top. Page furniture, not column content. */
+.page-title {
+  position: absolute; top: 28px; left: 32px; height: 44px;
+  display: flex; align-items: center;
+  font: var(--text-h1); letter-spacing: var(--tracking-tight);
+  margin: 0;
+}
+/* The matching right-corner slot on the same band: the selection controls
+   (History) and the native-page link (Extensions) live here. Fixed, so the
+   controls stay reachable however deep the list scrolls. */
+.head-right {
+  position: fixed; top: 28px; right: 32px; height: 44px;
+  display: flex; align-items: center; gap: var(--space-3);
+  z-index: 40;
+}
+
+/* ── THE LIST CARD — the page-nav panel at page scale (tabs.css): one card
+      on the canvas holding the search field and the well; the well is the
+      scroller. ─────────────────────────────────────────────────────── */
+.list-card {
+  background: var(--surface-card);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  display: flex; flex-direction: column;
+  /* FIXED height, not grow-to-cap: the card is the same object with two
+     rows or two hundred (user decision, this round). Sparse content just
+     shows more of the well. Divided by --atlas-z so that under UI zoom the
+     card still fits the viewport instead of overflowing the bottom. */
+  height: calc(100vh / var(--atlas-z, 1) - 108px - var(--space-6));
+}
+
+/* ── Search field + companions, ON the card. R-006: an input on a CARD
+      takes the muted fill; focus is the caret, never a ring (R-005). ── */
+.fieldrow {
+  display: flex; align-items: center; gap: var(--space-2);
+  margin-bottom: var(--space-2); flex: none;
+}
+.field {
+  flex: 1; display: flex; align-items: center; gap: var(--space-3);
+  height: 44px; padding: 0 var(--space-4);
+  background: var(--surface-muted); border: none; border-radius: var(--radius-lg);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.field svg { flex: none; color: var(--text-tertiary); }
+.field input {
+  flex: 1; min-width: 0; border: 0; background: transparent;
+  font: var(--text-body-sm); color: var(--text-primary);
+  user-select: text; -webkit-user-select: text;
+}
+/* Companion buttons sit on the CARD, so hover is the on-card token (ADR-4). */
+.pill-btn {
+  flex: none; height: 44px; padding: 0 var(--space-5);
+  background: var(--surface-muted); border: none; border-radius: var(--radius-lg);
+  font: var(--text-label); color: var(--text-secondary); cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+.pill-btn:hover { background: var(--hover-on-card); color: var(--text-primary); }
+.pill-btn.danger:hover { color: var(--text-error); }
+
+/* ── THE WELL: one inset canvas region inside the card, and it is the
+      page's only scroller. Positioned host + scroller, the extension's
+      .picker-wellhost contract. ── */
+.list-shell { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.list-scroller {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--surface-canvas);
+  border-radius: var(--radius-md);
+  padding: var(--well-padding);
+}
+
+/* ── Group heading (a day, a section): the settings-section-header,
+      verbatim from newtab.css. ── */
+.group-title {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-family: var(--font-sans); font-size: 11px; font-weight: 800;
+  letter-spacing: 1.1px; text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 20px var(--space-4) var(--space-2);
+}
+.group:first-of-type .group-title { margin-top: 4px; }
+
+/* Rows sit directly on the scroller's canvas; .well is only the grouped
+   run of rows now, the surface behind it is the scroller itself. */
+.well {
+  display: flex; flex-direction: column; gap: var(--row-gap);
+}
+
+.row {
+  display: flex; align-items: center; gap: var(--space-3);
+  width: 100%; min-height: 52px; padding: var(--space-2) var(--space-4);
+  background: var(--surface-card); border: none; border-radius: 4px;
+  color: var(--text-primary); font-family: var(--font-sans);
+  text-align: left; cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+/* Grouped radii: the group reads as one object with soft outer corners. */
+.well .row:first-child { border-radius: 16px 16px 4px 4px; }
+.well .row:last-child  { border-radius: 4px 4px 16px 16px; }
+.well .row:only-child  { border-radius: 16px; }
+/* ADR-1: a card row sits on the canvas, so hover moves AWAY from canvas tone. */
+.row:hover { background: var(--hover-on-canvas); }
+.row.sel { background: var(--hover-on-canvas); }
+
+.row-icon { flex: none; width: 20px; height: 20px; border-radius: var(--radius-xs); }
+.row-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.row-title {
+  font-size: 15px; font-weight: 400; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.row-sub {
+  font: var(--text-caption); color: var(--text-tertiary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.row-sub:empty { display: none; }
+.row-time {
+  flex: none; font: var(--text-mono); color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Row actions appear on hover; they never shift the row's metrics. */
+/* Visible at rest — an affordance the eye can find before the pointer does.
+   ADR-4: the button sits on a CARD row, so its hover fill is the on-card
+   token, never the canvas one. */
+.row-act {
+  flex: none; width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--radius-circle); background: transparent;
+  color: var(--text-tertiary); cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+.row-act:hover { background: var(--hover-on-card); color: var(--text-primary); }
+.row-act.danger:hover { color: var(--text-error); }
+
+/* ── Selection. A round check that lives where the row icon does; visible
+      on hover, and pinned visible for every row while any selection is
+      active (body.selecting). ──────────────────────────────────────── */
+.row-check {
+  flex: none; width: 18px; height: 18px; border-radius: var(--radius-circle);
+  border: 1.5px solid var(--text-tertiary); background: transparent;
+  cursor: pointer; opacity: 0; display: flex;
+  align-items: center; justify-content: center;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+/* The icon↔check swap belongs ONLY to pages with a selection model
+   (body.selectable: History, Downloads). Unscoped, it made the Extensions
+   page's icons vanish on hover with no check to replace them. */
+body.selectable .row:hover .row-check, body.selecting .row-check { opacity: 1; }
+.row-check svg { visibility: hidden; }
+.row.sel .row-check {
+  background: var(--accent); border-color: var(--accent); opacity: 1;
+}
+.row.sel .row-check svg { visibility: visible; color: var(--accent-text); }
+/* while selecting, the favicon yields its place to the check */
+body.selecting .row .row-icon { display: none; }
+.row .row-check { display: none; }
+body.selecting .row .row-check { display: flex; }
+body.selectable .row:hover .row-check { display: flex; }
+body.selectable .row:hover .row-icon { display: none; }
+
+/* ── Selection controls. They live in the head-right band, mirroring the
+      title: count, Cancel, Delete. Everything here sits on the CANVAS, so
+      hovers use the on-canvas token (ADR-4). ── */
+.selbar { display: flex; align-items: center; gap: var(--space-3); }
+.selbar .sb-count { font: var(--text-label); color: var(--text-secondary); }
+.selbar button {
+  height: 34px; padding: 0 var(--space-4); border: 0;
+  border-radius: var(--radius-pill); cursor: pointer;
+  font: var(--text-label);
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+.selbar .sb-open, .selbar .sb-cancel { background: var(--surface-card); color: var(--text-secondary); }
+.selbar .sb-open:hover, .selbar .sb-cancel:hover { background: var(--hover-on-canvas); color: var(--text-primary); }
+.selbar .sb-delete { background: var(--accent); color: var(--accent-text); }
+.selbar .sb-delete:hover { opacity: .88; }
+/* Armed (awaiting the confirming second click): the error-tint pair the clear
+   dialogs' armed rows use, so "click again" reads as the danger step. */
+.selbar .sb-delete.armed { background: var(--bg-error); color: var(--text-error); }
+.selbar .sb-delete.armed:hover { opacity: 1; }
+
+/* ── Dialog — the extension's picker vocabulary: centred card over the
+      blur overlay, danger rows arm in place. ─────────────────────────── */
+@keyframes modalIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.modal {
+  position: fixed; inset: 0; z-index: 200; display: flex;
+  align-items: center; justify-content: center;
+  background: var(--surface-overlay); backdrop-filter: blur(3px);
+}
+.dialog {
+  background: var(--surface-card); border-radius: var(--radius-lg);
+  width: 90%; max-width: 320px; padding: var(--space-2);
+  overflow: hidden; animation: modalIn 0.2s var(--ease-out);
+}
+.dialog-title {
+  font: 700 18px/1.2 var(--font-sans); color: var(--text-primary);
+  padding: var(--space-2) var(--space-2) 0; margin-bottom: var(--space-3);
+}
+.dialog-text {
+  font: var(--text-caption); color: var(--text-secondary);
+  padding: 0 var(--space-2); margin-bottom: var(--space-3);
+}
+.dialog-well {
+  background: var(--surface-canvas); border-radius: var(--radius-md);
+  padding: var(--well-padding);
+  display: flex; flex-direction: column; gap: var(--row-gap);
+}
+.dialog-row {
+  display: flex; align-items: center; width: 100%;
+  padding: 12px 16px; border: none; cursor: pointer;
+  background: var(--surface-card); border-radius: 3px;
+  font: 400 15px/1.2 var(--font-sans); color: var(--text-primary);
+  text-align: left; transition: background var(--dur-fast) var(--ease-out);
+}
+.dialog-well .dialog-row:first-child { border-radius: 11px 11px 3px 3px; }
+.dialog-well .dialog-row:last-child { border-radius: 3px 3px 11px 11px; }
+.dialog-well .dialog-row:only-child { border-radius: 11px; }
+.dialog-row:hover { background: var(--hover-on-canvas); }
+.dialog-row.danger { color: var(--text-error); }
+.dialog-row.armed { background: var(--bg-error); color: var(--text-error); }
+/* Multi-pane dialogs (the add-bookmark flow's shape): one pane at a time. */
+.dialog .pane[hidden] { display: none !important; }
+.dialog-well.scrolly {
+  max-height: calc(var(--row-pitch) * 6 + 24px); overflow-y: auto;
+}
+
+/* ── Toggle switch, ported verbatim from components.css ─────────────── */
+.toggle-switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; flex: none; }
+.toggle-switch input { display: none; }
+.toggle-slider {
+  width: 36px; height: 20px; border-radius: var(--radius-pill);
+  background: var(--hover-on-card); position: relative; flex: none;
+  transition: background var(--dur-base) var(--ease-out);
+}
+.toggle-slider::before {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: var(--radius-circle);
+  background: var(--surface-card);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+input:checked + .toggle-slider { background: var(--accent); }
+input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+/* ── Pill button (block, e.g. "Show older") ─────────────────────────── */
+.btn {
+  display: block; margin: var(--space-8) auto 0;
+  padding: var(--space-3) var(--space-6);
+  background: var(--surface-card); border: none; border-radius: var(--radius-pill);
+  font: var(--text-label); color: var(--text-secondary); cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.btn:hover { background: var(--hover-on-canvas); color: var(--text-primary); }
+
+/* ── Detail panel (extensions): a muted card that opens under its row. ─ */
+.detail {
+  background: var(--surface-muted); border-radius: 4px;
+  padding: var(--space-4) var(--space-5);
+  display: flex; flex-direction: column; gap: var(--space-3);
+  font: var(--text-caption); color: var(--text-secondary);
+}
+.well .detail:last-child { border-radius: 4px 4px 16px 16px; }
+.detail .d-desc { color: var(--text-secondary); line-height: 1.5; }
+.detail .d-meta { display: grid; grid-template-columns: 96px 1fr; gap: 4px var(--space-3); }
+.detail .d-meta dt { color: var(--text-tertiary); }
+.detail .d-meta dd { color: var(--text-secondary); font: var(--text-mono); overflow-wrap: anywhere; }
+.detail .d-label { font: var(--text-label); color: var(--text-secondary); margin-top: var(--space-1); }
+.detail .d-perms { display: flex; flex-wrap: wrap; gap: 6px; }
+.detail .d-perm {
+  background: var(--surface-card); border-radius: var(--radius-pill);
+  padding: 3px 10px; font: var(--text-mono); color: var(--text-secondary);
+}
+.detail .d-warn { color: var(--text-error); }
+.detail .d-actions { display: flex; gap: var(--space-2); margin-top: var(--space-1); }
+.detail .d-actions button, .detail .d-actions a {
+  height: 30px; padding: 0 14px; border: 0; border-radius: var(--radius-pill);
+  background: var(--surface-card); color: var(--text-secondary);
+  font: var(--text-label); cursor: pointer;
+  display: inline-flex; align-items: center;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.detail .d-actions button:hover, .detail .d-actions a:hover {
+  background: var(--hover-on-card); color: var(--text-primary);
+}
+.detail .d-actions .danger:hover { color: var(--text-error); }
+/* Armed Remove: the two-click confirm state, matching the dialog danger rows. */
+.detail .d-actions .danger.armed { background: var(--bg-error); color: var(--text-error); }
+
+/* ── Head link: the native-page escape hatch, in the head-right band.
+      Sits on the canvas; hover per ADR-4. ── */
+.head-link {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 34px; padding: 0 var(--space-4);
+  border: 0; border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  font: var(--text-label); color: var(--text-secondary); cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+.head-link svg { flex: none; }
+.head-link:hover { background: var(--hover-on-canvas); color: var(--text-primary); }
+/* On History/Downloads the selbar owns the head-right band during a
+   selection, so the native-page link steps aside until selection ends. */
+body.selecting .head-link { display: none; }
+
+/* ── Scroll affordance — R-010, now living where the extension's does: at
+      the WELL's edges inside .list-shell, fading into the well's canvas,
+      with a card-coloured pill WORDED "N above" / "N below". Driven by
+      atlas-pages.js. ── */
+.scroll-fade {
+  position: absolute; left: 0; right: 0; height: 40px; pointer-events: none;
+  z-index: 30; opacity: 1; border-radius: var(--radius-md);
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.scroll-fade.hidden { opacity: 0; }
+.scroll-fade-top {
+  top: 0; background: linear-gradient(to top, transparent, var(--surface-canvas));
+}
+.scroll-fade-bot {
+  bottom: 0; background: linear-gradient(to bottom, transparent, var(--surface-canvas));
+}
+/* Card coloured on the canvas: the same figure and ground as the rows it
+   counts, so this adds a component but no new material. */
+.scroll-count {
+  position: absolute; right: var(--space-3); z-index: 31;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--surface-card); color: var(--text-tertiary);
+  font-family: var(--font-mono); font-size: 10px; line-height: 1;
+  padding: 5px 9px; border-radius: var(--radius-pill);
+  pointer-events: none; opacity: 1;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.scroll-count.hidden { opacity: 0; }
+.scroll-count-top { top: var(--space-2); }
+.scroll-count-bot { bottom: var(--space-2); }
+/* A filled shape, not two box sides, so it needs no line (components.css). */
+.scroll-count-chev { width: 6px; height: 6px; flex: none; position: relative; }
+.scroll-count-chev::before {
+  content: ""; position: absolute; inset: 0;
+  background: var(--text-tertiary);
+  clip-path: polygon(50% 100%, 0 30%, 18% 14%, 50% 66%, 82% 14%, 100% 30%);
+}
+.scroll-count-top .scroll-count-chev::before { transform: rotate(180deg); }
+
+/* ── Empty state ────────────────────────────────────────────────────── */
+.empty {
+  margin: var(--space-20) 0; text-align: center;
+  font: var(--text-body); color: var(--text-tertiary);
+}
+
+/* ── Drag-to-select rubber band (history) ───────────────────────────────
+   A translucent grey rectangle drawn over the list while sweeping; a fixed
+   overlay so it tracks the pointer in viewport space, inert to hit-testing.
+   The neutral grey reads on both themes without an accent. */
+.select-band {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  background: rgba(127, 127, 127, 0.16);
+  border: 1px solid rgba(127, 127, 127, 0.55);
+  border-radius: 3px;
+}
+/* No text selection while sweeping, or the drag paints a text highlight too. */
+body.band-dragging, body.band-dragging * { user-select: none; }

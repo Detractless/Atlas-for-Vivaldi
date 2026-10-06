@@ -1,0 +1,196 @@
+/* ── 4. Address bar — invisible until you reach for it ──────────────────────
+   Atlas shows no field at rest: the row is a blank white band with a few
+   icons. The field materialises on hover and becomes a real control on
+   focus. */
+
+/* Vivaldi stretches the field across the whole row; Atlas keeps it short and
+   near the middle. `margin: auto` centres it in the space between the nav
+   icons and the avatar — but those sides aren't equal (4 nav buttons vs 1
+   avatar), which lands the field ~51px right of true centre. The spacer below
+   balances the right-hand side so the field centres on the window instead.
+   The correction is a *relative* nudge, not a flex spacer: relative offsets
+   don't participate in layout, so the avatar stays pinned in its corner.
+   NOTE: --atlas-urlbar-balance = (width of left nav cluster) - (width of
+   right-hand items). Re-measure it if you add or remove toolbar buttons. */
+#browser .toolbar-mainbar > .UrlBar-AddressField {
+  max-width: var(--atlas-urlbar-width);
+  margin-left: auto !important;
+  margin-right: auto !important;
+  min-width: 180px !important;
+}
+
+#browser .UrlBar-AddressField,
+#browser .UrlBar-SearchField,
+#browser .SearchField:not(.SpeedDialView-SearchField) {
+  background-color: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  color: var(--atlas-text-1) !important;
+  transition: background-color .3s ease, border-color .3s ease;
+  transition-delay: 0s;
+}
+
+#browser .UrlBar-AddressField:hover,
+#browser .UrlBar-SearchField:hover,
+#browser .SearchField:not(.SpeedDialView-SearchField):hover {
+  background-color: var(--atlas-hover-1) !important;
+  transition-delay: 0.18s;
+}
+
+#browser .UrlBar-AddressField:focus-within,
+#browser .UrlBar-SearchField:focus-within,
+#browser .SearchField:not(.SpeedDialView-SearchField):focus-within {
+  background-color: var(--atlas-hover-2) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transition-delay: 0s !important;
+}
+
+/* At rest the URL and the site-info button are simply not drawn. */
+#browser .UrlBar-AddressField .UrlBar-UrlFieldWrapper,
+#browser .UrlBar-AddressField > .toolbar-insideinput {
+  transition: opacity .3s ease;
+  transition-delay: 0s;
+}
+#browser .UrlBar-AddressField:hover .UrlBar-UrlFieldWrapper,
+#browser .UrlBar-AddressField:hover > .toolbar-insideinput {
+  transition-delay: 0.18s;
+}
+#browser .UrlBar-AddressField:focus-within .UrlBar-UrlFieldWrapper,
+#browser .UrlBar-AddressField:focus-within > .toolbar-insideinput {
+  transition-delay: 0s !important;
+}
+#browser .UrlBar-AddressField:not(:hover):not(:focus-within) .UrlBar-UrlFieldWrapper,
+#browser .UrlBar-AddressField:not(:hover):not(:focus-within) > .toolbar-insideinput {
+  opacity: 0;
+}
+
+/* On the blank new tab there is no URL to show at all — reveal it only when
+   the field is actually focused for typing. (#browser.atlas-newtab is set by
+   atlas.js.) */
+#browser.atlas-newtab .UrlBar-AddressField:not(:focus-within) .UrlBar-UrlFieldWrapper,
+#browser.atlas-newtab .UrlBar-AddressField:not(:focus-within) > .toolbar-insideinput {
+  opacity: 0 !important;
+}
+
+/* The rendered URL (a block whose 16.9px line sits at the top of its 24px
+   box) and the editable input (which centers a 13px line) draw their text
+   ~3.5px apart, so the text jumped down on focus. One line-height pins
+   both to the same vertical, rest and focused. */
+#browser .UrlBar-AddressField .UrlBar-UrlFieldWrapper,
+#browser .UrlBar-AddressField .UrlBar-UrlFieldWrapper .UrlField,
+#browser .UrlBar-AddressField input.url {
+  line-height: 24px !important;
+}
+
+/* Vivaldi paints the rendered URL on `.UrlFragments`, which overrides whatever
+   the toolbar inherits — measured as rgb(167,171,179) on white, about 2.2:1, so
+   the domain read as near-white. Colour the fragments directly instead: the
+   domain full strength, the path lowlighted, both from the Atlas vars so the
+   split survives a theme change in either mode. */
+#browser .UrlBar-AddressField .UrlFragments,
+#browser .UrlBar-AddressField .UrlFragment-Link {
+  color: var(--atlas-text-1) !important;
+}
+#browser .UrlBar-AddressField .UrlFragment--Lowlight {
+  color: var(--atlas-text-2) !important;
+}
+
+/* The domain itself is one level deeper, on `.UrlFragment--Highlight`, which the
+   rules above never matched — measured rgb(249,255,255) on white in light mode
+   while its `.UrlFragment-Link` parent was correctly rgba(0,0,0,.9). Vivaldi
+   drives that span from `--HighlightColor` / `--LowlightColor`, set on
+   `.UrlFragment-Wrapper`, so redefine the two variables at the source. This
+   also covers the hover link preview, which uses the same wrapper. */
+#browser .UrlFragment-Wrapper,
+#browser .UrlFragment-Wrapper--ShouldHighlight {
+  --HighlightColor: var(--atlas-text-1) !important;
+  --LowlightColor: var(--atlas-text-2) !important;
+}
+#browser .UrlFragment--Highlight {
+  color: var(--atlas-text-1) !important;
+}
+
+/* Same treatment for the hover link preview, which lives OUTSIDE the address
+   field and so was not covered above. Vivaldi gives it `color: var(--colorFg)`
+   over `var(--colorBg)`, both from the theme, so it goes white on white too. */
+#browser .StatusInfo,
+#browser .StatusInfo .UrlFragments,
+#browser .StatusInfo .UrlFragment-Link,
+#browser .StatusInfo-Content {
+  color: var(--atlas-text-1) !important;
+  background-color: var(--atlas-bar) !important;
+}
+#browser .StatusInfo .UrlFragment--Lowlight {
+  color: var(--atlas-text-2) !important;
+}
+
+/* No text badges in the field ("Not Secure" etc.). */
+#browser .UrlBar-AddressField .button-badge { display: none !important; }
+
+/* No "Bookmark Page" button inside the field — Atlas keeps the field empty.
+   Bookmarking still works via Ctrl+D and the Bookmarks menu. */
+#browser .UrlBar-AddressField .BookmarkButton { display: none !important; }
+
+/* ── 4b. Address Box Hairline Loader ──────────────────────────────────── */
+
+/* Suppress Vivaldi's numeric request and byte tickers */
+#browser .UrlBar-AddressField .pageload {
+  display: none !important;
+}
+
+/* A crisp, clean 2px line that glides across the bottom of the address box */
+#browser .UrlBar-AddressField::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 0%;
+  background-color: var(--atlas-text-2);
+  border-radius: 2px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+  transition: width 0.25s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.2s ease;
+}
+
+#browser.atlas-loading .UrlBar-AddressField::after {
+  opacity: 1;
+  animation: atlas-box-glide 2.2s cubic-bezier(0.1, 0.5, 0.2, 1) forwards;
+}
+
+#browser.atlas-loading-done .UrlBar-AddressField::after {
+  opacity: 1;
+  width: 100% !important;
+  animation: none !important;
+  transition: width 0.18s ease-out, opacity 0.25s ease 0.12s !important;
+}
+
+/* Never show the hairline loader on the blank new tab */
+#browser.atlas-newtab .UrlBar-AddressField::after {
+  display: none !important;
+  opacity: 0 !important;
+  animation: none !important;
+}
+
+@keyframes atlas-box-glide {
+  0% {
+    width: 0%;
+  }
+  18% {
+    width: 30%;
+  }
+  48% {
+    width: 65%;
+  }
+  78% {
+    width: 85%;
+  }
+  100% {
+    width: 93%;
+  }
+}
+

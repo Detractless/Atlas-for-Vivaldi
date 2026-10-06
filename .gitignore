@@ -1,0 +1,10 @@
+# Private keys never go in git or the payload
+*.pem
+keys/
+# Backup snapshot tarballs (may contain old keys)
+*.tar.gz
+# OS / build noise
+.DS_Store
+__pycache__/
+*.pyc
+dist/

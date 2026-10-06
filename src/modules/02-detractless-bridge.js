@@ -1,0 +1,214 @@
+/* ── 02-detractless-bridge.js: Detractless native integration & service-worker bridge stubs, session repair ── */
+
+var EXT = 'chrome-extension://mpognobbkildjkofajifpdfhcoklimli/';
+var ATLAS_DOWNLOADS = EXT + 'components/atlas/atlas-downloads.html';
+var ATLAS_EXTENSIONS = EXT + 'components/atlas/atlas-extensions.html';
+
+/* Shown in the profile menu header. Edit to taste. */
+var PROFILE_NAME = 'detractless';
+
+Atlas.EXT = EXT;
+Atlas.ATLAS_DOWNLOADS = ATLAS_DOWNLOADS;
+Atlas.ATLAS_EXTENSIONS = ATLAS_EXTENSIONS;
+Atlas.PROFILE_NAME = PROFILE_NAME;
+
+/* Detractless, integrated natively. Its runtime files are copied into
+   this extension's root, so root-relative paths and runtime.getURL()
+   resolve unchanged. Its service-worker bundle runs in this document;
+   the three APIs this context lacks are stubbed first. */
+if (!chrome.action) {
+  chrome.action = {
+    setTitle: function () {}, setIcon: function () {}, setBadgeText: function () {},
+    onClicked: { addListener: function () {}, removeListener: function () {} }
+  };
+}
+if (!chrome.sidePanel) {
+  chrome.sidePanel = {
+    setPanelBehavior: function () { return Promise.resolve(); },
+    setOptions: function () { return Promise.resolve(); },
+    open: function () { return Promise.resolve(); }
+  };
+}
+if (!chrome.search) {
+  chrome.search = {
+    query: function (opts, cb) {
+      var url = 'https://www.google.com/search?q=' + encodeURIComponent((opts && opts.text) || '');
+      if (opts && opts.disposition === 'NEW_TAB') {
+        chrome.tabs.create({ url: url });
+      } else {
+        chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
+          if (ts && ts[0]) chrome.tabs.update(ts[0].id, { url: url });
+          else chrome.tabs.create({ url: url });
+        });
+      }
+      if (cb) cb();
+      return Promise.resolve();
+    }
+  };
+}
+
+/* The bundle seeds its defaults inside chrome.runtime.onInstalled, which
+   never fires here: nothing is being installed, the bundle is just loaded as
+   a script. Unset keys then fall back silently ("showQueryOnDelay || false"
+   in gate.bundle.js reads as off no matter what the settings UI shows), so
+   do the same seeding explicitly, once. Existing values are never touched. */
+(function seedDefaults() {
+  var DEFAULTS = {
+    tabLimit: 0,
+    managementMethod: 'block',
+    searchDelaySeconds: 0,
+    showQueryOnDelay: true,
+    customSearchEngines: {}
+  };
+  var keys = Object.keys(DEFAULTS);
+  chrome.storage.sync.get(keys, function (got) {
+    var add = {};
+    keys.forEach(function (k) { if (got[k] === undefined) add[k] = DEFAULTS[k]; });
+    if (Object.keys(add).length && chrome.storage.sync.set) {
+      chrome.storage.sync.set(add, function () {
+        console.log('[atlas] seeded Detractless defaults:', Object.keys(add).join(', '));
+      });
+    }
+  });
+  chrome.storage.local.get(['activeDelays'], function (got) {
+    if (got && got.activeDelays === undefined && chrome.storage.local.set) {
+      chrome.storage.local.set({ activeDelays: {} });
+    }
+  });
+})();
+
+(function () {
+  if (typeof document === 'undefined' || !document.createElement) return;
+  var s = document.createElement('script');
+  s.src = 'src/dist/serviceWorker.bundle.js';
+  s.onerror = function () { console.warn('[atlas] Detractless background failed to load'); };
+  if (document.head && document.head.appendChild) document.head.appendChild(s);
+})();
+
+if (chrome.scripting && chrome.scripting.registerContentScripts) {
+  /* The Atlas context menu registers PERSISTENTLY at document_start: one-shot
+     injection on status=complete left a window after every navigation where a
+     fast right-click got the native menu. The executeScript path below still
+     covers internal schemes this registration cannot reach; the script's own
+     __atlasCtx guard makes the overlap harmless.
+     detractless-rules (Element Remover) and detractless-pastekit (@tokens) were
+     archived with the Tools sidebar (archive/sidebar-tools/RESTORE.md). They stay
+     in OUR_CS_IDS below so an existing registration is swept, not left running. */
+  var DESIRED_CS = [
+    { id: 'atlas-ctxmenu', matches: ['<all_urls>'],
+      excludeMatches: ['https://chromewebstore.google.com/*'],
+      js: ['components/atlas/atlas-spelling.js', 'components/atlas/atlas-ctxmenu.js'], runAt: 'document_start' }
+  ];
+  /* Registrations persist in the profile, and a plain register throws
+     "Duplicate" for an existing id. UPDATE existing ones in place (so a params
+     change like adding allFrames applies) and REGISTER absent ones — never
+     unregister-then-register, which would leave a window at startup where a
+     restoring tab loads with no context-menu script. Only ids we no longer
+     want (the archived Remover and PasteKit scripts, atlas-remover-rules from an
+     earlier build) are swept. */
+  var OUR_CS_IDS = ['atlas-ctxmenu', 'detractless-rules', 'detractless-pastekit', 'atlas-remover-rules'];
+  var WANTED_IDS = DESIRED_CS.map(function (c) { return c.id; });
+  chrome.scripting.getRegisteredContentScripts(function (existing) {
+    void chrome.runtime.lastError;
+    var present = {};
+    (existing || []).forEach(function (s) { present[s.id] = true; });
+    DESIRED_CS.forEach(function (cs) {
+      if (present[cs.id]) {
+        chrome.scripting.updateContentScripts([cs], function () { void chrome.runtime.lastError; });
+      } else {
+        chrome.scripting.registerContentScripts([cs], function () { void chrome.runtime.lastError; });
+      }
+    });
+    var stale = (existing || []).map(function (s) { return s.id; }).filter(function (id) {
+      return OUR_CS_IDS.indexOf(id) >= 0 && WANTED_IDS.indexOf(id) < 0;
+    });
+    if (stale.length) chrome.scripting.unregisterContentScripts({ ids: stale }, function () { void chrome.runtime.lastError; });
+  });
+}
+
+/* Atlas context menu on web pages: inject the shared component and act
+   on the messages its items send. Protected pages (Web Store, PDFs) are
+   refused by Chromium and keep the pruned native menu. */
+var CTX_SCRIPTS = ['components/atlas/atlas-spelling.js', 'components/atlas/atlas-ctxmenu.js'];
+var INJECTABLE = /^(https?|vivaldi|chrome|chrome-extension):/;
+/* The Web Store is unscriptable by Chromium. Our own history and downloads
+   pages deliberately have no context menu at all, so skip them too. */
+var NO_INJECT = /^(chrome:\/\/webstore|https:\/\/chromewebstore\.google\.com)|\/components\/atlas\//;
+
+function injectCtxMenu(tabId, url) {
+  if (!url || !INJECTABLE.test(url) || NO_INJECT.test(url)) return;
+  if (!chrome.scripting) return;
+  chrome.scripting.executeScript(
+    { target: { tabId: tabId, allFrames: false }, files: CTX_SCRIPTS },
+    function () { void chrome.runtime.lastError; }
+  );
+}
+
+if (chrome.tabs) {
+  chrome.tabs.onUpdated.addListener(function (tabId, info, tab) {
+    if (info.status === 'complete') injectCtxMenu(tabId, tab && tab.url);
+  });
+  chrome.tabs.query({}, function (tabs) {
+    (tabs || []).forEach(function (t) { injectCtxMenu(t.id, t.url); });
+  });
+}
+
+if (chrome.runtime && chrome.runtime.onMessage) {
+  chrome.runtime.onMessage.addListener(function (msg, sender) {
+    var m = msg && msg.atlas;
+    if (!m) return;
+    if (m.act === 'opentab' && m.url) {
+      var winId = (sender && sender.tab && sender.tab.windowId) || undefined;
+      var myWin = (typeof window !== 'undefined' && window.vivaldiWindowId) || undefined;
+      if (winId && myWin && winId !== myWin) return;
+      chrome.tabs.create({ url: m.url, active: m.active !== false, windowId: winId });
+    } else if (m.act === 'opentab-current' && m.url) {
+      var tid = sender && sender.tab && sender.tab.id;
+      if (tid) chrome.tabs.update(tid, { url: m.url });
+      else chrome.tabs.update({ url: m.url });
+    } else if (m.act === 'ctxmenu-open') {
+      if (typeof Atlas.closeUiMenu === 'function') Atlas.closeUiMenu();
+      if (typeof Atlas.closeMenu === 'function') Atlas.closeMenu();
+    } else if (m.act === 'download' && m.url) {
+      chrome.downloads.download({ url: m.url, saveAs: true }, function () { void chrome.runtime.lastError; });
+    } else if (m.act === 'savepage') {
+      var u = m.url || (sender && sender.tab && sender.tab.url);
+      if (u) chrome.downloads.download({ url: u, saveAs: true }, function () { void chrome.runtime.lastError; });
+    }
+  });
+}
+
+/* Repair session-restored extension tabs blocked on startup.
+   Vivaldi restores a tab by replaying its saved URL as a raw top-level
+   navigation. For our Atlas pages (index.html / components/atlas/*),
+   which live in the privileged UI extension and are not web-accessible,
+   that raw navigation is refused with ERR_BLOCKED_BY_CLIENT — the
+   "mpognob… is blocked" page the user saw on almost every first launch.
+   A navigation driven FROM this extension context (chrome.tabs.update)
+   is privileged and loads fine, so re-drive any blocked Atlas tab to the
+   same URL. Chromium sets the error page's TITLE to the failed URL, so
+   that is how a blocked tab is recognised (a loaded page has a real
+   title like "New Tab"). */
+var EXT_PREFIX = EXT;
+function isOurPage(u) {
+  if (!u || u.indexOf(EXT_PREFIX) !== 0) return false;
+  var p = u.slice(EXT_PREFIX.length);
+  return p.indexOf('index.html') === 0 || p.indexOf('components/atlas/') === 0;
+}
+function redriveIfBlocked(tab) {
+  /* No-op: tab recovery disabled */
+}
+
+/* The built-in history page stays native; only the home alias is redirected. */
+if (chrome.tabs && chrome.tabs.onUpdated) {
+  chrome.tabs.onUpdated.addListener(function (tabId, info) {
+    if (!info.url) return;
+    if (/^https?:\/\/home\/?$/.test(info.url)) {
+      chrome.tabs.update(tabId, { url: EXT + 'index.html' });
+    }
+  });
+}
+
+Atlas.isOurPage = isOurPage;
+Atlas.redriveIfBlocked = redriveIfBlocked;
+Atlas.injectCtxMenu = injectCtxMenu;

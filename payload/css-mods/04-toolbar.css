@@ -1,0 +1,228 @@
+/* ── 5. Toolbar buttons — flat, 72% icons, tiny hover wash ──────────────── */
+
+#browser .toolbar .button-toolbar > button {
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+  color: var(--atlas-icon) !important;
+}
+#browser .toolbar .button-toolbar > button:hover     { background-color: var(--atlas-hover-1) !important; }
+#browser .toolbar .button-toolbar > button:active    { background-color: var(--atlas-hover-2) !important; }
+#browser .toolbar .button-toolbar > button.button-on { background-color: var(--atlas-hover-3) !important; }
+#browser .toolbar .button-toolbar svg { opacity: .72; }
+#browser .toolbar .button-toolbar > button:hover svg { opacity: 1; }
+#browser .toolbar-mainbar button:disabled,
+#browser .toolbar-mainbar button[disabled] {
+  opacity: 0.35 !important;
+  cursor: default !important;
+  pointer-events: none !important;
+}
+
+/* ── 6. Panels, menus ───────────────────────────────────────────────────── */
+
+#browser .panel-group {
+  background-color: var(--atlas-sidebar) !important;
+}
+#browser .toolbar-panel { background-color: var(--atlas-sidebar) !important; }
+
+#browser .menu,
+#browser .menubar .menu,
+#browser .vivaldi-menu {
+  background-color: var(--atlas-menu) !important;
+  border: 1px solid var(--atlas-border) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--atlas-shadow) !important;
+  color: var(--atlas-text-1) !important;
+}
+
+/* ── 7. Status bar text ─────────────────────────────────────────────────── */
+
+#browser #pagetitle,
+#browser .toolbar-statusbar { color: var(--atlas-text-2) !important; }
+
+/* ── 8. Remove the Vivaldi menu button (Atlas has no menu entry point).
+   The menu stays reachable via Alt / F10 and context menus. ───────────── */
+#browser #titlebar .vivaldi,
+#browser .vivaldi-v {
+  display: none !important;
+}
+
+
+/* ── 9. Toolbar icons — redrawn to match Atlas ───────────────────────────── */
+
+/* Shared: hide Vivaldi's glyph, draw ours as a mask so it inherits the
+   icon colour (and therefore the hover/active states) automatically. */
+#browser .toolbar-mainbar button[data-name="PanelToggle"] .button-icon,
+#browser .toolbar-mainbar button[data-name="Back"] .button-icon,
+#browser .toolbar-mainbar button[data-name="Forward"] .button-icon,
+#browser .toolbar-mainbar button[data-name="Reload"] .button-icon,
+#browser .toolbar-mainbar button[data-name="Home"] .button-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+#browser .toolbar-mainbar button[data-name="PanelToggle"] .button-icon > svg,
+#browser .toolbar-mainbar button[data-name="Back"] .button-icon > svg,
+#browser .toolbar-mainbar button[data-name="Forward"] .button-icon > svg,
+#browser .toolbar-mainbar button[data-name="Reload"] .button-icon > svg,
+#browser .toolbar-mainbar button[data-name="Home"] .button-icon > svg {
+  display: none !important;
+}
+#browser .toolbar-mainbar button[data-name="PanelToggle"] .button-icon::after,
+#browser .toolbar-mainbar button[data-name="Back"] .button-icon::after,
+#browser .toolbar-mainbar button[data-name="Forward"] .button-icon::after,
+#browser .toolbar-mainbar button[data-name="Reload"] .button-icon::after,
+#browser .toolbar-mainbar button[data-name="Home"] .button-icon::after {
+  content: "";
+  background-color: currentColor;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+
+/* Chevrons — deliberately the smallest glyphs in the row, as in Atlas. */
+#browser .toolbar-mainbar button[data-name="Back"] .button-icon::after,
+#browser .toolbar-mainbar button[data-name="Forward"] .button-icon::after {
+  width: 14px;
+  height: 14px;
+  mask-size: 14px 14px;
+  -webkit-mask-size: 14px 14px;
+}
+#browser .toolbar-mainbar button[data-name="Back"] .button-icon::after {
+  mask-image: var(--atlas-chevron-left);
+  -webkit-mask-image: var(--atlas-chevron-left);
+}
+#browser .toolbar-mainbar button[data-name="Forward"] .button-icon::after {
+  mask-image: var(--atlas-chevron-right);
+  -webkit-mask-image: var(--atlas-chevron-right);
+}
+
+/* Group Back and Forward slightly closer together as a navigation pair */
+#browser .toolbar-mainbar button[data-name="PanelToggle"] { margin-right: 2px !important; }
+#browser .toolbar-mainbar button[data-name="Back"]         { margin-right: -2px !important; }
+#browser .toolbar-mainbar button[data-name="Forward"]      { margin-left: -2px !important; }
+#browser .toolbar-mainbar button[data-name="Reload"]       { margin-left: 2px !important; margin-right: 2px !important; }
+#browser .toolbar-mainbar button[data-name="Home"]         { margin-left: 2px !important; margin-right: 8px !important; }
+
+/* Reload — open circular arrow, sized to match chevrons. */
+#browser .toolbar-mainbar button[data-name="Reload"] .button-icon::after {
+  width: 14px;
+  height: 14px;
+  mask-size: 14px 14px;
+  -webkit-mask-size: 14px 14px;
+  mask-image: var(--atlas-reload);
+  -webkit-mask-image: var(--atlas-reload);
+}
+
+/* Home — minimalist roof and door glyph, sized to match chevrons and reload. */
+#browser .toolbar-mainbar button[data-name="Home"] .button-icon::after {
+  width: 14px;
+  height: 14px;
+  mask-size: 14px 14px;
+  -webkit-mask-size: 14px 14px;
+  mask-image: var(--atlas-home);
+  -webkit-mask-image: var(--atlas-home);
+}
+
+/* Sidebar toggle — rounded panel with a divider. */
+#browser .toolbar-mainbar button[data-name="PanelToggle"] .button-icon::after {
+  width: 17px;
+  height: 17px;
+  mask-size: 17px 17px;
+  -webkit-mask-size: 17px 17px;
+  mask-image: var(--atlas-panel);
+  -webkit-mask-image: var(--atlas-panel);
+}
+
+/* Compass favicon for the new tab, replacing the Vivaldi mark. The tab strip
+   resolves icons through chrome://favicon2/, which returns nothing for
+   extension pages, so the icon is drawn here instead. Covers both the blank
+   page and the Detractless new tab (index.html). */
+#browser .tab .favicon img[src*="atlas-blank"],
+#browser .tab .favicon img[src*="index.html"] { opacity: 0 !important; }
+#browser .tab .favicon:has(img[src*="atlas-blank"]),
+#browser .tab .favicon:has(img[src*="index.html"]) {
+  background-image: var(--atlas-compass);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 16px 16px;
+}
+
+/* ── 10. Spacers and the profile avatar ─────────────────────────────────── */
+
+/* Toolbar spacers ship a dashed-rectangle placeholder glyph that is only
+   meaningful in the toolbar editor. Keep the spacing, drop the glyph. */
+#browser .button-toolbar.toolbar-spacer .button-icon,
+#browser .button-toolbar.toolbar-spacer-flexible .button-icon,
+#browser .button-toolbar.toolbar-spacer-panel .button-icon {
+  display: none !important;
+}
+#browser .button-toolbar.toolbar-spacer,
+#browser .button-toolbar.toolbar-spacer-flexible,
+#browser .button-toolbar.toolbar-spacer-panel {
+  pointer-events: none;
+}
+#browser .toolbar-mainbar > .button-toolbar.toolbar-spacer,
+#browser .toolbar-mainbar > .button-toolbar.toolbar-spacer-flexible {
+  width: var(--atlas-urlbar-balance, 84px) !important;
+  min-width: 0 !important;
+  flex: 0 1 var(--atlas-urlbar-balance, 84px) !important;
+}
+
+/* Profile badge — Atlas shows a subtle rounded rectangle badge at the far right. */
+#browser .toolbar-mainbar button[data-name="AccountButton"] {
+  width: 36px !important;
+  min-width: 36px !important;
+  border-radius: 12px !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+}
+#browser .toolbar-mainbar button[data-name="AccountButton"] img.button-icon {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  object-fit: contain;
+}
+
+/* ── 11. Sidebar panel glyphs ───────────────────────────────────────────── */
+
+#browser .toolbar-panel button[data-name="PanelDownloads"] .button-icon,
+#browser .toolbar-panel button[data-name="PanelHistory"] .button-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+#browser .toolbar-panel button[data-name="PanelDownloads"] .button-icon > svg,
+#browser .toolbar-panel button[data-name="PanelHistory"] .button-icon > svg,
+#browser .toolbar-panel button[data-name="PanelDownloads"] .button-icon > img,
+#browser .toolbar-panel button[data-name="PanelHistory"] .button-icon > img {
+  display: none !important;
+}
+#browser .toolbar-panel button[data-name="PanelDownloads"] .button-icon::after,
+#browser .toolbar-panel button[data-name="PanelHistory"] .button-icon::after {
+  content: "";
+  width: 17px;
+  height: 17px;
+  background-color: currentColor;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: 17px 17px;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: 17px 17px;
+}
+#browser .toolbar-panel button[data-name="PanelDownloads"] .button-icon::after {
+  mask-image: var(--atlas-download);
+  -webkit-mask-image: var(--atlas-download);
+}
+#browser .toolbar-panel button[data-name="PanelHistory"] .button-icon::after {
+  mask-image: var(--atlas-history);
+  -webkit-mask-image: var(--atlas-history);
+}
+

@@ -1,0 +1,263 @@
+/* ── 12-spelling.js: Offline dictionary and candidate suggestion generator ── */
+(function () {
+  'use strict';
+
+  /* High-frequency lexicon (~2,000 common English words and browser terms) */
+  var WORD_CHUNKS = [
+    "vivaldi atlas detractless google github reddit download downloads history extension extensions",
+    "settings bookmark bookmarks window windows tab tabs search searches page pages reload address",
+    "profile profiles browser browsers toolbar toolbars pastekit youtube wikipedia amazon twitter",
+    "facebook linkedin netflix discord receive separate definitely spelling grammar harper offline",
+    "online website websites chrome webkit weird the of and to in for is on that by this with you it",
+    "not or be are from at as your all have new more an was we will home can us about if my has free",
+    "but our one other do no information time they site he up may what which their news out use any",
+    "there see only so his when contact here business who web also now help get pm view first am",
+    "been would how were me services some these click its like service than find price date back top",
+    "people had list name just over state year day into email two health world re next used go work",
+    "last most products music buy data make them should product system post her city add policy",
+    "number such please available copyright support message after best software then jan good video",
+    "well where info rights public books high school through each links she review years order very",
+    "privacy book items company read group need many user said de does set under general research",
+    "university january mail full map reviews program life know games way days management part could",
+    "great united hotel real item international center ebay must store travel comments made",
+    "development report off member details line terms before hotels did send right type because",
+    "local those using results office education national car design take posted internet community",
+    "within states area want phone dvd shipping reserved subject between forum family long based",
+    "code show even black check special prices index being women much sign file link open today",
+    "technology south case project same uk version section own found sports house related security",
+    "both county american photo game members power while care network down computer systems three",
+    "total place end following him without per access think north resources current posts big media",
+    "law control water pictures size art personal since including guide shop directory board",
+    "location change white text small rating rate government children during usa return students",
+    "shopping account times sites level digital previous form events love old john main call hours",
+    "image department title description non insurance another why shall property class cd still",
+    "money quality every listing content country private little visit save tools low reply customer",
+    "december compare movies include college value article york man card jobs provide food source",
+    "author different press learn sale around print course job canada process teen room stock",
+    "training too credit point join science men categories advanced west sales look english left",
+    "team estate box conditions select photos gay thread week category note live large gallery table",
+    "register however june october november market library really action start series model features",
+    "air industry plan human provided tv yes required second hot accessories cost movie forums march",
+    "la september better say questions july yahoo going medical test friend come dec server pc study",
+    "application cart staff articles san feedback again play looking issues april never users",
+    "complete street topic comment financial things working against standard tax person below mobile",
+    "less got blog party payment equipment login student let programs offers legal above recent park",
+    "stores side act problem red give memory performance social august quote language story sell",
+    "options experience rates create key body young america important field few east paper single ii",
+    "age activities club example girls additional password latest something road gift question",
+    "changes night ca hard texas oct pay four poker status browse issue range building seller court",
+    "february always result audio light write war nov offer blue groups al easy given files event",
+    "release analysis request fax china making picture needs possible might professional yet month",
+    "major star areas future space committee hand sun cards problems london washington meeting rss",
+    "become interest id child keep enter california share similar garden schools million added",
+    "reference companies listed baby learning energy run delivery net popular term film stories put",
+    "computers journal reports co try welcome central images president notice original head radio",
+    "until cell color self council away includes track australia discussion archive once others",
+    "entertainment agreement format least society months log safety friends sure faq trade edition",
+    "cars messages marketing tell further updated association able having provides david fun already",
+    "green studies close common drive specific several gold feb living sep collection called short",
+    "arts lot ask display limited powered solutions means director daily beach past natural whether",
+    "due et electronics five upon period planning database says official weather mar land average",
+    "done technical france pro region island record direct microsoft conference environment records",
+    "st district calendar costs style url front statement update parts aug ever early miles sound",
+    "resource present applications either ago document word works material bill apr written talk",
+    "federal hosting rules final adult tickets thing centre requirements via cheap kids finance true",
+    "minutes else mark third rock gifts europe reading topics bad individual tips plus auto cover",
+    "usually edit together videos percent fast function fact unit getting global tech meet far",
+    "economic en player projects lyrics often subscribe submit germany amount watch included feel",
+    "though bank risk thanks everything deals various words linux jul production commercial james",
+    "weight town heart advertising received choose treatment newsletter archives points knowledge",
+    "magazine error camera jun girl currently construction toys registered clear golf domain methods",
+    "chapter makes protection policies loan wide beauty manager india position taken sort listings",
+    "models michael known half cases step engineering florida simple quick none wireless license",
+    "paul friday lake whole annual published later basic sony shows corporate church method purchase",
+    "customers active response practice hardware figure materials fire holiday chat enough designed",
+    "along among death writing speed html countries loss face brand discount higher effects created",
+    "remember standards oil bit yellow political increase advertise kingdom base near environmental",
+    "thought stuff french storage oh japan doing loans shoes entry stay nature orders availability",
+    "africa summary turn mean growth notes agency king monday european activity copy although drug",
+    "pics western income force cash employment overall bay river commission ad package contents seen",
+    "players engine port album regional stop supplies started administration bar institute views",
+    "plans double dog build screen exchange types soon sponsored lines electronic continue across",
+    "benefits needed season apply someone held ny anything printer condition effective believe",
+    "organization effect asked eur mind sunday selection casino pdf lost tour menu volume cross",
+    "anyone mortgage hope silver corporation wish inside solution mature role rather weeks addition",
+    "came supply nothing certain usr executive running lower necessary union jewelry according dc",
+    "clothing mon com particular fine names robert homepage hour gas skills six bush islands advice",
+    "career military rental decision leave british teens pre huge sat woman facilities zip bid kind",
+    "sellers middle move cable opportunities taking values division coming tuesday object lesbian",
+    "appropriate machine logo length actually nice score statistics client ok returns capital follow",
+    "sample investment sent shown saturday christmas england culture band flash ms lead george",
+    "choice went starting registration fri thursday courses consumer hi airport foreign artist",
+    "outside furniture levels channel letter mode phones ideas wednesday structure fund summer allow",
+    "degree contract button releases wed homes super male matter custom virginia almost took located",
+    "multiple asian distribution editor inn industrial cause potential song cnet ltd los hp focus",
+    "late fall featured idea rooms female responsible inc communications win associated thomas",
+    "primary cancer numbers reason tool spring foundation answer voice eg friendly schedule",
+    "documents communication purpose feature bed comes police everyone independent ip approach",
+    "cameras brown physical operating hill maps medicine deal hold ratings chicago forms glass happy",
+    "tue smith wanted developed thank safe unique survey prior telephone sport ready feed animal",
+    "sources mexico population pa regular secure navigation operations therefore simply evidence",
+    "station christian round paypal favorite understand option master valley recently probably thu",
+    "rentals sea built publications blood cut worldwide improve connection publisher hall larger",
+    "anti networks earth parents nokia impact transfer introduction kitchen strong tel carolina",
+    "wedding properties hospital ground overview ship accommodation owners disease tx excellent paid",
+    "italy perfect hair opportunity kit classic basis command cities william express award distance",
+    "tree peter assessment ensure thus wall ie involved el extra especially interface partners",
+    "budget rated guides success maximum ma operation existing quite selected boy patients",
+    "restaurants beautiful warning wine locations horse vote forward flowers stars significant lists",
+    "technologies owner retail animals useful directly manufacturer ways est son providing rule mac",
+    "housing takes iii gmt bring catalog max trying mother authority considered told xml traffic",
+    "programme joined input strategy feet agent valid bin modern senior ireland teaching door grand",
+    "testing trial charge units instead canadian cool normal wrote enterprise ships entire",
+    "educational md leading metal positive fl fitness chinese opinion mb asia football abstract uses",
+    "output funds mr greater likely develop employees artists alternative processing responsibility",
+    "resolution java guest seems publication pass relations trust van contains session multi",
+    "photography republic fees components vacation century academic assistance completed skin",
+    "graphics indian prev ads mary il expected ring grade dating pacific mountain organizations pop",
+    "filter mailing vehicle longer consider int northern behind panel floor german buying match",
+    "proposed default require iraq boys outdoor deep morning otherwise allows rest protein plant",
+    "reported hit transportation mm pool mini politics partner disclaimer authors boards faculty",
+    "parties fish membership mission eye string sense modified pack released stage internal goods",
+    "recommended born unless richard detailed japanese race approved background target except",
+    "character usb maintenance ability maybe functions ed moving brands places php pretty trademarks",
+    "phentermine spain southern yourself etc winter battery youth pressure submitted boston debt",
+    "keywords medium television interested core break purposes throughout sets dance wood msn itself",
+    "defined papers playing awards fee studio reader virtual device established answers rent las",
+    "remote dark programming external apple le regarding instructions min offered theory enjoy",
+    "remove aid surface minimum visual host variety teachers isbn martin manual block subjects",
+    "agents increased repair fair civil steel understanding songs fixed wrong beginning hands",
+    "associates finally az updates desktop classes paris ohio gets sector capacity requires jersey",
+    "un fat fully father electric saw instruments quotes officer driver businesses dead respect",
+    "unknown specified restaurant mike trip pst worth mi procedures poor teacher eyes relationship",
+    "workers farm georgia peace traditional campus tom showing creative coast benefit progress",
+    "funding devices lord grant sub agree fiction hear sometimes watches careers beyond goes",
+    "families led museum themselves fan transport interesting blogs wife evaluation accepted former",
+    "implementation ten hits zone complex th cat galleries references die presented jack flat flow",
+    "agencies literature respective parent spanish michigan columbia setting dr scale stand economy",
+    "highest helpful monthly critical frame musical definition secretary angeles networking path",
+    "australian employee chief gives kb bottom magazines packages detail francisco laws changed pet",
+    "heard begin individuals colorado royal clean switch russian largest african guy titles relevant",
+    "guidelines justice connect bible dev cup basket applied weekly vol installation described",
+    "demand pp suite vegas na square chris attention advance skip diet army auction gear lee os",
+    "difference allowed correct charles nation selling lots piece sheet firm seven older illinois",
+    "regulations elements species jump cells module resort facility random pricing dvds certificate",
+    "minister motion looks fashion directions visitors documentation monitor trading forest calls",
+    "whose coverage couple giving chance vision ball ending clients actions listen discuss accept",
+    "automotive naked goal successful sold wind communities clinical situation sciences markets",
+    "lowest highly publishing appear emergency developing lives currency leather determine",
+    "temperature palm announcements patient actual historical stone bob commerce ringtones perhaps",
+    "persons difficult scientific satellite fit tests village accounts amateur ex met pain xbox",
+    "particularly factors coffee www buyer cultural steve easily oral ford poster edge functional",
+    "root au fi closed holidays ice pink zealand balance monitoring graduate replies shot nc",
+    "architecture initial label thinking scott llc sec recommend canon league waste minute bus",
+    "provider optional dictionary cold accounting manufacturing sections chair fishing effort phase",
+    "fields bag fantasy po letters motor va professor context install shirt apparel generally",
+    "continued"
+  ];
+
+  var DICT_WORDS = WORD_CHUNKS.join(' ').split(' ');
+  var DICT_SET = new Set(DICT_WORDS);
+
+  /* Fast static buffer for Damerau-Levenshtein calculation (avoids allocations) */
+  var MAT = new Int32Array(32 * 32);
+
+  function damerauLevenshtein(a, b) {
+    var al = a.length, bl = b.length;
+    if (Math.abs(al - bl) > 2) return 999;
+    if (al === 0) return bl;
+    if (bl === 0) return al;
+    if (al > 31 || bl > 31) return 999;
+
+    var stride = 32;
+    for (var i = 0; i <= al; i++) MAT[i * stride] = i;
+    for (var j = 0; j <= bl; j++) MAT[j] = j;
+
+    for (var i = 1; i <= al; i++) {
+      var ca = a.charCodeAt(i - 1);
+      var row = i * stride;
+      var prevRow = (i - 1) * stride;
+      var pprevRow = (i - 2) * stride;
+      for (var j = 1; j <= bl; j++) {
+        var cost = (ca === b.charCodeAt(j - 1)) ? 0 : 1;
+        var del = MAT[prevRow + j] + 1;
+        var ins = MAT[row + j - 1] + 1;
+        var sub = MAT[prevRow + j - 1] + cost;
+        var m = del < ins ? del : ins;
+        if (sub < m) m = sub;
+
+        if (i > 1 && j > 1 && ca === b.charCodeAt(j - 2) && a.charCodeAt(i - 2) === b.charCodeAt(j - 1)) {
+          var trans = MAT[pprevRow + j - 2] + 1;
+          if (trans < m) m = trans;
+        }
+        MAT[row + j] = m;
+      }
+    }
+    return MAT[al * stride + bl];
+  }
+
+  function checkWord(word) {
+    if (!word) return true;
+    var w = word.trim().toLowerCase();
+    if (!w || /^[0-9]+$/.test(w) || w.length <= 1) return true;
+    return DICT_SET.has(w);
+  }
+
+  function getSuggestions(word, maxResults) {
+    if (!word) return [];
+    maxResults = maxResults || 3;
+    var target = word.trim().toLowerCase();
+    if (!target || target.length <= 1) return [];
+    if (DICT_SET.has(target)) return [];
+
+    var candList = [];
+    for (var i = 0; i < DICT_WORDS.length; i++) {
+      var w = DICT_WORDS[i];
+      if (Math.abs(w.length - target.length) > 2) continue;
+      var dist = damerauLevenshtein(target, w);
+      if (dist <= 2) {
+        candList.push({ word: w, dist: dist, rank: i });
+      }
+    }
+    candList.sort(function (a, b) {
+      if (a.dist !== b.dist) return a.dist - b.dist;
+      return a.rank - b.rank;
+    });
+    return candList.slice(0, maxResults).map(function (c) { return c.word; });
+  }
+
+  function getWordAtInput(input) {
+    if (!input || !input.value) return null;
+    var val = input.value;
+    var start = 0, end = 0;
+
+    if (input.selectionStart !== undefined && input.selectionEnd !== undefined &&
+        input.selectionStart !== input.selectionEnd) {
+      start = input.selectionStart;
+      end = input.selectionEnd;
+    } else {
+      var pos = input.selectionStart || 0;
+      function isWordChar(c) { return c && /[a-zA-Z0-9'-]/.test(c); }
+      if (pos > 0 && !isWordChar(val.charAt(pos)) && isWordChar(val.charAt(pos - 1))) {
+        pos--;
+      }
+      if (!isWordChar(val.charAt(pos))) return null;
+      start = pos;
+      while (start > 0 && isWordChar(val.charAt(start - 1))) start--;
+      end = pos;
+      while (end < val.length && isWordChar(val.charAt(end))) end++;
+    }
+
+    var word = val.slice(start, end).trim();
+    if (!word || /[.:/?@#]/.test(word) || /^[0-9]+$/.test(word)) return null;
+    return { word: word, start: start, end: end };
+  }
+
+  var spellingApi = {
+    checkWord: checkWord,
+    getSuggestions: getSuggestions,
+    getWordAtInput: getWordAtInput
+  };
+  if (typeof Atlas !== 'undefined') Atlas.spelling = spellingApi;
+  if (typeof window !== 'undefined') window.__atlasSpelling = spellingApi;
+})();

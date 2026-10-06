@@ -1,0 +1,193 @@
+/* ── 13. Sidebar panels (Downloads, History) — Atlas treatment ──────────── */
+
+/* Panel surface and its header area: quiet, flat, no rules or bevels. */
+#browser #panels-container,
+#browser .panel-group,
+#browser .panel {
+  background-color: var(--atlas-sidebar) !important;
+}
+#browser .panel header,
+#browser .panel .panel-header {
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Search fields inside panels behave like the address bar: a wash, not a
+   bordered control. */
+#browser .panel input[type="search"],
+#browser .panel .SearchField,
+#browser .panel .search {
+  background-color: var(--atlas-hover-1) !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  color: var(--atlas-text-1) !important;
+  box-shadow: none !important;
+}
+#browser .panel input[type="search"]:focus,
+#browser .panel .SearchField:focus-within {
+  background-color: var(--atlas-elevated) !important;
+  border-color: var(--atlas-border) !important;
+}
+
+/* History rows: our text ramp, wash hover, wash selection (no accent chip). */
+#browser #history-panel .vivaldi-tree .tree-row {
+  border-radius: 7px;
+}
+#browser #history-panel .vivaldi-tree .tree-row:hover {
+  background-color: var(--atlas-hover-1) !important;
+}
+#browser #history-panel .vivaldi-tree .tree-row[data-selected],
+#browser #history-panel .vivaldi-tree .tree-row[data-selected] label {
+  background-color: var(--atlas-hover-3) !important;
+  color: var(--atlas-text-1) !important;
+}
+#browser #history-panel .title { color: var(--atlas-text-1) !important; }
+#browser #history-panel .time,
+#browser #history-panel .date-range { color: var(--atlas-text-3, rgba(0,0,0,.4)) !important; }
+
+/* The selected panel button: grey wash instead of the blue accent chip, and
+   no accent bar on the window edge. */
+#browser .toolbar-panel .button-toolbar > button.button-on {
+  background-color: var(--atlas-hover-3) !important;
+  color: var(--atlas-icon) !important;
+  fill: currentColor !important;
+}
+#browser #switch .active-indicator,
+#browser .toolbar-panel .active-indicator { display: none !important; }
+
+/* ── 14. History page (vivaldi://history — rendered in the UI document) ──── */
+
+/* The analytics sidebar (activity chart, transition donut, top domains) is
+   the least Atlas thing in the browser. Gone. The (i) toolbar button that
+   toggles it becomes a no-op while this rule stands. */
+#browser .history.manager .manager-editor.more-info {
+  display: none !important;
+}
+
+/* Column header row: quiet label treatment instead of a table chrome. */
+#browser .history.manager .sortselector-tableheader {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--atlas-text-2) !important;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* Soften row hover to our wash and drop heavy separators. */
+#browser .history.manager .manager-content {
+  background: var(--atlas-content) !important;
+}
+
+/* ── 15. Panel column — Tools sidebar only ───────────────────────────────
+   History and Downloads are full pages now, so Vivaldi's built-in panels are
+   gone from the switcher. The one panel that remains is the Detractless Tools
+   sidebar (a web panel, sidepanel.html, pinned right — set up at install).
+
+   Vivaldi's vertical switcher STRIP is always hidden: the panel is opened from
+   the mainbar "Tools" button (atlas.js §11), not from the strip. But the panel
+   column itself must stay in the layout so it can expand — Vivaldi drives its
+   width inline (animated), tagging the column `.expanded` while a panel is
+   open. So: hide the strip, collapse the column to nothing while closed, and
+   let the open column show at its panel width. */
+#browser:not(.resizing) #panels-container:not(.resizing) {
+  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease !important;
+}
+#browser #panels-container .toolbar-panel,
+#browser #panels-container #switch {
+  display: none !important;
+}
+#browser #panels-container {
+  overflow: hidden !important;
+  border-right: 1px solid transparent !important;
+  border-left: none !important;
+  position: relative !important;
+}
+#browser #panels-container:not(.expanded) {
+  width: 0 !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  border-right-color: transparent !important;
+}
+/* Side panel (Tools) card: cradled by the container with matching 5px rails and 10px rounded corners */
+#browser:not(.fullscreen) #panels-container.expanded {
+  margin: 0 0 5px 5px !important;
+  border-radius: 10px !important;
+  border-right-color: transparent !important;
+}
+
+#browser:not(.fullscreen) #panels-container.expanded .panel-collapse-guard,
+#browser:not(.fullscreen) #panels-container.expanded .panel-group,
+#browser:not(.fullscreen) #panels-container.expanded .panel,
+#browser:not(.fullscreen) #panels-container.expanded webview {
+  border-radius: 10px !important;
+  overflow: clip !important;
+}
+
+/* Option B: Concave radial fillets that physically wrap and hug the side panel top corners */
+#browser:not(.fullscreen) #panels-container.expanded::before,
+#browser:not(.fullscreen) #panels-container.expanded::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  z-index: 5;
+  pointer-events: none;
+}
+#browser:not(.fullscreen) #panels-container.expanded::before {
+  left: 0;
+  background: radial-gradient(circle at 100% 100%, transparent 10px, var(--atlas-bar) 10.5px);
+}
+#browser:not(.fullscreen) #panels-container.expanded::after {
+  right: 0;
+  background: radial-gradient(circle at 0% 100%, transparent 10px, var(--atlas-bar) 10.5px);
+}
+/* Vivaldi keeps ~34px of the panel column reserved for the switcher strip we
+   hide, and the native <webview> can't be stretched over it from CSS, so a bare
+   band sits down the panel's outer edge. Painting the column in the sidebar
+   page's OWN canvas colour makes that band read as part of the panel instead of
+   a second empty strip. Dark already matched (the page canvas and --atlas-sidebar
+   are both #111110); only light diverged (page #E3E3E0 vs sidebar #f9f9f9), so
+   this overrides §13's wash with the page canvas. */
+#browser #panels-container,
+#browser .panel-group { background-color: #E3E3E0 !important; }
+#browser.theme-dark #panels-container,
+#browser.theme-dark .panel-group { background-color: #111110 !important; }
+/* And actually RECLAIM that reserved band rather than only recolour it. Vivaldi
+   locks the panel content wrapper (.panel-collapse-guard) to panelWidth minus a
+   ~35px switcher-controls reserve, via inline `min-width`/`max-width` — the dead
+   strip down the panel's outer edge. We hide that switcher, so nothing uses the
+   reserve; overriding the inline caps (only `!important` beats inline) lets the
+   content and its native <webview> fill the whole column, edge to edge. */
+#browser #panels-container .panel-collapse-guard {
+  min-width: 100% !important;
+  max-width: 100% !important;
+}
+/* When a popover opens over the Tools panel — the profile menu or the extensions
+   popover — blur the panel behind it so the popover is the clear focus. The
+   class is toggled on #browser by atlas.js (setPanelBlur); CSS filter reaches
+   into the panel's <webview> here, so the blur lands on the tool content too. */
+#browser.atlas-panel-blur #panels-container {
+  filter: blur(5px) brightness(0.96) !important;
+  /* The blurred panel is inert: a click on it must NOT reach the tool button
+     behind the blur. pointer-events:none lets the click fall to the UI document,
+     where the popover's own outside-click handler catches it and closes — so
+     clicking the dimmed panel just dismisses the popover, like a scrim. */
+  pointer-events: none !important;
+}
+
+/* ── 15b. Webpage blur during sidebar transition ───────────────────────────── */
+
+#browser #webpage-stack .webpageview {
+  transition: filter 0.2s ease !important;
+}
+
+#browser.atlas-sidebar-transitioning #webpage-stack .webpageview {
+  filter: blur(5px) brightness(0.96) !important;
+  pointer-events: none !important;
+  transition: filter 0.12s ease !important;
+}
+

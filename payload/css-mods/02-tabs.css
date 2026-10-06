@@ -1,0 +1,129 @@
+/* ── 3. Tabs — grey band, white merged active tab ───────────────────────── */
+
+#browser .tab {
+  background-color: transparent !important;
+  background-image: none !important;
+  color: var(--atlas-tab-idle-fg) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  transition: color .12s ease;
+}
+
+#browser.tabs-top .tab,
+#browser.tabs-bottom .tab {
+  border-radius: var(--atlas-tab-radius) var(--atlas-tab-radius) 0 0 !important;
+}
+#browser.tabs-bottom .tab {
+  border-radius: 0 0 var(--atlas-tab-radius) var(--atlas-tab-radius) !important;
+}
+#browser.tabs-left .tab,
+#browser.tabs-right .tab {
+  border-radius: 8px !important;
+}
+
+#browser .tab-wrapper:hover .tab:not(.active),
+#browser .tab.atlas-tab-context-active:not(.active),
+#browser .tab-position.atlas-tab-context-active .tab:not(.active),
+#browser .tab-wrapper.atlas-tab-context-active .tab:not(.active) {
+  background-color: var(--atlas-hover-1) !important;
+  color: var(--atlas-text-1) !important;
+}
+
+/* Active tab: same colour as the toolbar it merges into. The theme's
+   colorPosition:"tabbar" + density-off gives the 1px overlap that removes
+   the seam; the colour here guarantees they match exactly. */
+#browser .tab.active,
+#browser .tab.active.active,
+#browser.color-behind-tabs-on .tab.active.active {
+  background-color: var(--atlas-bar) !important;
+  color: var(--atlas-text-1) !important;
+}
+
+/* No dividers, no unread corner flag, no progress striping. */
+#browser .toolbar-separator,
+#browser #tabs-tabbar-container .separator { display: none !important; }
+#browser .tab.unread { background-image: none !important; }
+
+/* Favicons recede with the title, so a background tab reads as one dim unit.
+   Hover and the active tab bring it back to full strength. */
+#browser .tab:not(.active) .favicon {
+  opacity: var(--atlas-tab-idle-icon) !important;
+  transition: opacity .12s ease;
+}
+#browser .tab.active .favicon,
+#browser .tab-wrapper:hover .tab .favicon,
+#browser .tab.atlas-tab-context-active .favicon,
+#browser .tab-position.atlas-tab-context-active .tab .favicon,
+#browser .tab-wrapper.atlas-tab-context-active .tab .favicon { opacity: 1 !important; }
+
+/* Vivaldi paints a 1px light outline on the ACTIVE tab's favicon with four
+   drop-shadow(#f6f6f6) filters — its "favicon contrast" halo. Invisible on
+   the white light-mode tab; on the dark tab it reads as a white glow/ring
+   around the icon. Kill it in dark mode (the flat design wants no halo). */
+#browser.theme-dark .tab .favicon { filter: none !important; }
+
+
+/* …and go soft-focus, so a background tab reads as a shape rather than
+   something to be read. Blurring the tab (not the strip) keeps the hover
+   wash and the active tab perfectly crisp. */
+#browser .tab:not(.active) {
+  filter: blur(var(--atlas-tab-idle-blur));
+  transition: filter .12s ease, color .12s ease, background-color .12s ease;
+}
+/* Only the tab actually under the cursor sharpens. Deliberately NOT keyed to
+   the whole strip: moving the pointer from the strip into the page crosses
+   into the webview's own layer, so the UI document never gets a mouse-leave
+   and a container-level :hover latches on permanently. */
+#browser .tab-wrapper:hover .tab:not(.active),
+#browser .tab.atlas-tab-context-active:not(.active),
+#browser .tab-position.atlas-tab-context-active .tab:not(.active),
+#browser .tab-wrapper.atlas-tab-context-active .tab:not(.active) {
+  filter: none !important;
+}
+
+/* Never blur a tab mid-drag: `filter` creates a stacking context and would
+   fight the drag layering. */
+#browser .tab-position.is-dragging .tab,
+#browser .tab.tab-dragged {
+  filter: none !important;
+}
+
+/* The "+" button sits among the tabs, so it recedes with them — otherwise a
+   razor-sharp glyph next to soft tabs is what reads as "off". Sharpens on its
+   own hover, matching how the tabs behave. */
+#browser .toolbar-tabbar-after .button-toolbar > button[data-name="NewTab"] {
+  filter: blur(var(--atlas-tab-idle-blur));
+  opacity: var(--atlas-tab-idle-icon);
+  transition: filter .12s ease, opacity .12s ease;
+}
+#browser .toolbar-tabbar-after .button-toolbar > button[data-name="NewTab"]:hover {
+  filter: none;
+  opacity: 1;
+}
+
+/* Vivaldi's Menu button lives in #tabs-container (not #titlebar), which is why
+   hiding it earlier only removed the V logo and left its chevron behind.
+   The menu stays reachable via Alt / F10 and context menus. */
+#browser #tabs-container > .vivaldi { display: none !important; }
+#browser .tab .close {
+  background-color: transparent !important;
+  color: var(--atlas-icon) !important;
+  opacity: .55;
+}
+#browser .tab .close:hover  { background-color: var(--atlas-hover-3) !important; opacity: 1; }
+#browser .tab .close:active { background-color: var(--atlas-hover-3) !important; }
+
+/* Dragged tab lifts. */
+#browser .tab-position.is-dragging .tab,
+#browser .tab.tab-dragged {
+  background-color: var(--atlas-elevated) !important;
+  box-shadow: var(--atlas-shadow) !important;
+}
+
+/* Dismiss tab hover tooltip / preview popup while tab context menu is open */
+#browser.atlas-menu-open #vivaldi-tooltip,
+#browser:has(.atlas-tab-context-active) #vivaldi-tooltip,
+#browser:has(.atlas-profile-menu) #vivaldi-tooltip {
+  display: none !important;
+}
+

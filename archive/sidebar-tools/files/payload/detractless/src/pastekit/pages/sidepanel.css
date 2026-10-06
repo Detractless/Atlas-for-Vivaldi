@@ -1,0 +1,170 @@
+/* src/pastekit/pages/sidepanel.css — side panel styling. Tokens, themes and
+   base.css are imported ahead of this file by pages/sidepanel/sidepanel.js.
+   The reset that used to live here (`* { box-sizing }`, `html, body { height }`,
+   `body { margin: 0 }`) is base.css's job now; only what the panel actually
+   overrides stays. */
+body {
+  font: 400 14px/1.45 var(--font-sans);
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+/* R-022: .hd, .wordmark, .hd-actions and the header/editor button rules MOVED
+   to src/styles/panel.css. Every pane in the panel uses them, not just PasteKit,
+   and the header is now grid-centred so a page with no action buttons keeps its
+   title in the middle. */
+
+/* Whole-page slide: library <-> quick settings */
+.views { display: flex; width: 200%; flex: 1; min-height: 0;
+  transition: transform .28s var(--ease-out); }
+.view { width: 50%; flex: none; display: flex; flex-direction: column; min-width: 0; }
+.view.scrolly { overflow-y: auto; }
+body.settings .views { transform: translateX(-50%); }
+
+/* R-022: the shared panel vocabulary that used to live here (.bar,
+   .search-input, .card and its slider, .row, .empty, the .editor fields, .foot,
+   .actions, .primary, .ghost) has MOVED to src/styles/panel.css, which loads
+   ahead of this file. Selectors are unchanged, so nothing in this file or in
+   Sidepanel.js had to change. What remains below is snippet-specific: the queue
+   position, the per-row menu, the slide-over row actions and the editor head. */
+
+
+
+/* INVERSE FILL (R-024), and the reason is structural rather than aesthetic.
+   A BADGE'S SUBSTRATE IS NOT KNOWABLE WHEN THE BADGE IS WRITTEN. This same rule
+   draws on a resting row, a hovered row and a selected row, across two screens.
+   canvas, card, muted, hover-on-card and hover-on-canvas all live inside one
+   narrow value band, so any fill taken from that band can land on a neighbouring
+   surface and disappear, and because card and muted swap order between the ramps
+   (G-5) a fill tuned in one theme misbehaves in the other.
+
+   Three attempts proved it: muted was 1.000 on a selected row (PasteKit's circle
+   had not existed since the G-1 swap), and card was 1.000 at rest on saved tabs,
+   which is where that badge spends nearly all its life. surface-inverse is the
+   only fill OUTSIDE the band, so its contrast does not depend on what is under
+   it: worst case 9.574 against any surface in either theme, against 1.000 before.
+
+   THE COST, accepted knowingly: inverse is also the primary-action fill
+   (.primary, .sp-arm-btn, --accent), so a passive chip carries action weight.
+   Judged acceptable at 18px with an 11px numeral, where a filled circle reads as
+   a different object from a pill button. INVERSE IS NOT GENERAL: count badges
+   and primary actions only. Enforced by tests/panelContrast.test.mjs. */
+.row .qpos {
+  font-size: 11px; font-weight: 600; line-height: 18px;
+  min-width: 18px; height: 18px; text-align: center;
+  border-radius: 50%; background: var(--surface-inverse);
+  color: var(--text-inverse); flex: none;
+}
+.row .more {
+  border: none; background: transparent; cursor: pointer; flex: none;
+  color: var(--text-tertiary); font: 700 13px var(--font-sans);
+  padding: 2px 6px; border-radius: var(--radius-pill);
+  opacity: 0; transition: opacity var(--dur-base) var(--ease-out);
+}
+.row:hover .more { opacity: 1; }
+/* CARD fill on hover, and a CIRCLE, because this button is only visible while
+   the row is hovered and a hovered row is already hover-on-card: hovering the
+   button repainted it the exact colour underneath it (1.000), so there was no
+   way to tell you were on it. Card gives 1.260 light and 1.368 dark. The round
+   shape matches the .qpos badge and the back discs, so every small control in
+   the panel is the same shape. */
+.row .more {
+  width: 22px; height: 22px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+}
+.row .more:hover { background: var(--surface-card); color: var(--text-primary); }
+
+/* Slide-over row actions (revealed by right-click or the ... button) */
+.row-actions {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; gap: 6px;
+  /* Opaque at the card's own colour: it slides over a row to hide it, and the
+     buttons are what should read, not the strip. */
+  padding: 0 10px; background: var(--surface-card);
+  transform: translateX(100%);
+  transition: transform .22s var(--ease-out);
+}
+.row-actions .row-spacer { flex: 1; }
+.row-actions .row-back {
+  font: 700 18px/1 var(--font-sans);
+  padding: 4px 14px 6px;
+}
+.row.open .row-actions { transform: none; }
+.row-actions button {
+  border: none; border-radius: var(--radius-pill); cursor: pointer;
+  font: 600 12px var(--font-sans); padding: 5px 13px;
+  background: var(--surface-muted); color: var(--text-primary);
+  transition: background var(--dur-base) var(--ease-out);
+}
+.row-actions button:hover { background: var(--hover-on-card); }
+.row-actions button.danger.armed { background: var(--bg-error); color: var(--color-error); }
+
+
+/* Editor (second pane of the card) */
+/* .ed-head moved to panel.css with the header rules: notes and saved tabs
+   both use it for their editor panes. */
+
+
+/* Quick settings */
+/* A card sitting on the page. NOTE the name clash: newtab.css also defines
+   .settings-body, but there it is a recessed well INSIDE a card and resolves to
+   canvas. Both are right for their own page; the shared name is not. */
+.settings-body {
+  flex: none; margin: 16px 16px 0; padding: 8px;
+  background: var(--surface-card); border-radius: var(--radius-md);
+}
+.settings-body:first-child { margin-top: 8px; }
+.sect-label {
+  font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: .14em; color: var(--text-tertiary); padding: 4px 10px 8px;
+}
+.toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 9px 10px; border-radius: var(--radius-sm); cursor: pointer;
+  font-size: 13px; transition: background var(--dur-base) var(--ease-out);
+}
+.toggle:hover { background: var(--hover-on-card); }
+/* The switch itself is in styles/components.css, shared with the new tab. Only
+   the row wrapper and hiding the native input stay here. The markup uses
+   .toggle-slider now; the old .slider was this page's drifted second copy. */
+.toggle input { display: none; }
+
+/* Segmented control (dot visibility) */
+.seg-row { cursor: default; }
+.seg-row:hover { background: transparent; }
+.seg-label { font-size: 13px; color: var(--text-primary); }
+.seg { display: flex; gap: 3px; background: var(--surface-muted); border-radius: var(--radius-pill); padding: 3px; }
+.seg-btn {
+  border: none; cursor: pointer; padding: 4px 10px; border-radius: var(--radius-pill);
+  font: 500 12px var(--font-sans); color: var(--text-secondary); background: transparent;
+  transition: all var(--dur-base) var(--ease-out);
+}
+.seg-btn:hover { color: var(--text-primary); }
+/* The active segment must read as raised against the muted track, so it goes UP
+   the ramp. It was on `card`, which is DARKER than muted in the dark theme and
+   made the selected segment look recessed. */
+.seg-btn.active { background: var(--hover-on-card); color: var(--text-primary); }
+
+.stepper { display: flex; align-items: center; gap: 4px; }
+.stepper .step-val { min-width: 22px; text-align: center; font-weight: 600; font-size: 13px; }
+.step-btn {
+  border: none; background: var(--surface-muted); cursor: pointer;
+  width: 24px; height: 24px; border-radius: 50%;
+  font: 600 16px var(--font-sans); color: var(--text-primary);
+  display: flex; align-items: center; justify-content: center; padding: 0;
+  transition: background var(--dur-base) var(--ease-out);
+}
+.step-btn:hover:not(:disabled) { background: var(--hover-on-card); }
+.step-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.io-actions { display: flex; gap: 8px; padding: 0 2px; }
+.io-actions button { flex: 1; }
+.settings-body .status { margin: 6px 10px 2px; }
+.tagcloud { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 10px 6px; }
+.tagcloud .tag {
+  font-size: 12px; color: var(--text-secondary); background: var(--surface-muted);
+  padding: 4px 12px; border-radius: var(--radius-pill);
+}
+.tagcloud .meta { font-size: 12px; color: var(--text-tertiary); }

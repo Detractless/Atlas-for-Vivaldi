@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Detractless</title>
+  <!-- Sets data-theme before the first paint. Without it this page has no theme
+       layer at all, which is how it came to render light while the app rendered
+       dark. Must stay ahead of the stylesheet. -->
+  <script src="src/pages/shared/themePreinit.js"></script>
+  <!-- Tokens and themes are bundled into this file by sidepanel.js. The panel no
+       longer links pastekit/styles/tokens.css: that file is the content script's
+       token set, and loading it here shadowed the real palette with hardcoded
+       light values. -->
+  <link rel="stylesheet" href="src/dist/sidepanel.bundle.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════ HOME ═══════════════════════ -->
+  <div id="view-home" class="pane active">
+    <main class="sp-home-main">
+      <button class="sp-tile" id="tilePastekit">
+        <span class="sp-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg></span>
+        <span class="sp-tile-name">PasteKit</span>
+        <span class="sp-tile-desc">Snippet library &amp; @tokens</span>
+      </button>
+      <button class="sp-tile" id="tileRemover">
+        <span class="sp-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"></path><path d="M22 21H7"></path><path d="m5 11 9 9"></path></svg></span>
+        <span class="sp-tile-name">Remover</span>
+        <span class="sp-tile-desc">Hide elements on any page</span>
+      </button>
+      <button class="sp-tile" id="tileNotes">
+        <span class="sp-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path><path d="m15 5 4 4"></path></svg></span>
+        <span class="sp-tile-name">Notes</span>
+        <span class="sp-tile-desc">Jot something down</span>
+      </button>
+      <button class="sp-tile" id="tileTabs">
+        <span class="sp-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="14" height="14" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></span>
+        <span class="sp-tile-name">Saved tabs</span>
+        <span class="sp-tile-desc">Tabs the limiter closed</span>
+      </button>
+    </main>
+  </div>
+
+  <!-- ═══════════════════════ NOTES ══════════════════════ -->
+  <!-- Spec 006 (R-031): the LAST view to leave the card language. Same shape as
+       PasteKit and Saved Tabs now: one header whose title swaps, the search bar
+       and pages as siblings, grouped rows, and the row menu as a picker.
+       With this the panel holds no sliding cards at all, so .card, .card-views,
+       .card-view, .ed-head and panelScreen.js are retired rather than left
+       lying around for the next screen to reuse by accident. -->
+  <div id="view-notes" class="pane">
+    <header class="hd">
+      <button id="notesBack" title="Back" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></button>
+      <strong class="wordmark" id="notesTitle">Notes</strong>
+    </header>
+    <div class="bar" id="notesBar">
+      <input id="noteSearch" class="search-input" type="search"
+        placeholder="Search notes…" autocomplete="off">
+      <button class="sp-action-disc" id="noteNewBtn" title="New note" aria-label="New note"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+    </div>
+
+    <div class="sp-page" id="notesListPage">
+      <div class="sp-scrollhost">
+        <div class="settings-group sp-page-scroll" id="notesList"></div>
+      </div>
+    </div>
+
+    <div class="sp-page" id="notesEditorPage" hidden>
+      <div class="sp-scrollhost">
+        <div class="sp-page-scroll editor" id="notesEditorScroll">
+          <label>Title<input id="noteTitle" type="text" autocomplete="off"></label>
+          <label>Note<textarea id="noteBody" rows="10"></textarea></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- notesFoot is shown only on the editor page: New note moved to a disc by
+         the search bar (R-040), so the list page has no footer action of its own. -->
+    <div class="foot" id="notesFoot" hidden>
+      <div class="actions hidden" id="noteListActions"></div>
+      <!-- Delete left this row for the note's own menu (R-029): destructive
+           actions arm in place there instead of sitting as a button you can hit
+           while aiming for Save. -->
+      <div class="actions hidden" id="noteActions">
+        <button id="noteCancelBtn" class="ghost">Cancel</button>
+        <button id="noteSaveBtn" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ SAVED TABS ═════════════════════ -->
+  <!-- Spec 004 (R-029): the final shape, chosen from mockups. ONE header whose
+       title swaps as you drill in (no second head, no stacked arrows); search
+       only on the list page, where it has something to search; sessions named by
+       their description or their DATE, never numbered; opening is ONLY the
+       visible pill beside the menu button, so a stray click can never launch
+       twenty tabs; every dialog is the promoted picker via panelDialog.js. The
+       "Why are you saving these?" field is GONE: renaming a session in its menu
+       is the deliberate act that replaced it. -->
+  <div id="view-tabs" class="pane">
+    <header class="hd">
+      <button id="tabsBack" title="Back" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></button>
+      <strong class="wordmark" id="tabsTitle">Saved tabs</strong>
+    </header>
+    <div class="bar" id="tabsBar">
+      <input id="tabsSearch" class="search-input" type="search"
+        placeholder="Search saved tabs…" autocomplete="off">
+      <button class="sp-action-disc" id="tabsSaveAllBtn" title="Save and close tabs" aria-label="Save and close tabs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg></button>
+    </div>
+
+    <!-- Page 1: the sessions. The group is the scroller; .sp-page hosts the
+         scroll affordance. -->
+    <div class="sp-page" id="tabsListPage">
+      <div class="sp-scrollhost">
+        <div class="settings-group sp-page-scroll" id="savedTabsList"></div>
+      </div>
+    </div>
+
+    <!-- Page 2: one session's tabs. Nothing else: the header above names the
+         session, and its menu owns rename and delete. -->
+    <div class="sp-page" id="tabsDetailPage" hidden>
+      <div class="sp-scrollhost">
+        <!-- The scroller is NOT itself a settings-group: tabsDetailBody is the
+             group, and a group inside a group restarts the corner sequence
+             (R-037). This nesting predates the rule and was invisible only
+             because the wrapper had a single child. -->
+        <div class="sp-page-scroll" id="tabsDetailScroll">
+          <div class="settings-group" id="tabsDetailBody"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page 3 (spec 007): which open tabs to save. Everything is ticked when it
+         opens, so pressing straight through is the old save-everything button;
+         unticking is how you save some. The current tab and pinned tabs are
+         listed unticked, sorted to the top, so the ticked block stays whole. -->
+    <div class="sp-page" id="tabsChoosePage" hidden>
+      <div class="sp-scrollhost">
+        <div class="settings-group sp-page-scroll" id="tabsChooseScroll"></div>
+      </div>
+    </div>
+
+    <!-- Two action rows, swapped per page. Save-and-close moved to a disc by the
+         search bar (R-040), so the list page has no footer of its own — tabsFoot
+         is hidden there and shows for the detail and choose pages. -->
+    <div class="foot" id="tabsFoot" hidden>
+      <div class="actions hidden" id="tabsListActions"></div>
+      <div class="actions hidden" id="tabsDetailActions">
+        <button id="tabsOpenAllBtn" class="ghost">Open all tabs</button>
+      </div>
+      <!-- The ghost FLIPS between Select none and Select all rather than being a
+           pair where one half is always dead. The primary carries the count, and
+           with nothing ticked it disables and drops the count instead of reading
+           "(0)", which is what makes the back arrow a working cancel. -->
+      <div class="actions hidden" id="tabsChooseActions">
+        <button id="tabsSelectToggleBtn" class="ghost">Select none</button>
+        <button id="tabsChooseSaveBtn" class="primary">Save and close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ PASTEKIT VIEW ══════════════════ -->
+  <!-- Spec 005 (R-030): PasteKit speaks the panel language now. ONE header whose
+       title swaps across three pages (library, editor, quick settings); grouped
+       settings rows instead of the card and its slide-over strips; every menu is
+       the picker via panelDialog.js. The sliding card, .row, .row-actions and the
+       armed strip button are gone from this view.
+       NOTHING ABOUT FILLING CHANGED: multi-select, the queue badge, split-lines
+       and the fill/cancel status all behave exactly as before. -->
+  <div id="view-pastekit" class="pane">
+    <header class="hd">
+      <button id="pkBack" title="Back" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></button>
+      <strong class="wordmark" id="hdTitle">PasteKit</strong>
+      <span class="hd-actions" id="pkHdActions">
+        <button id="settingsBtn" title="Quick settings" aria-label="Quick settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></button>
+      </span>
+    </header>
+
+    <!-- The bar and the tag bar are SIBLINGS of the page, not children of it,
+         exactly as in Notes and Saved Tabs. Nested inside .sp-page they picked up
+         its 16px padding on top of their own, so PasteKit's search field sat 8px
+         lower and 32px narrower than every other view's and visibly jumped when
+         you switched between them. -->
+    <div class="bar" id="pkBar">
+      <input id="search" class="search-input" type="search"
+        placeholder="Search snippets and #tags…" autocomplete="off">
+      <button class="sp-action-disc" id="newBtn" title="New snippet" aria-label="New snippet"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+    </div>
+    <!-- The tag cloud moved here from quick settings: it never changed a
+         setting, it answers "what can I search for", so it belongs under the
+         thing that searches. Tapping a chip filters the list. -->
+    <div class="sp-tagbar" id="tagCloud"></div>
+
+    <!-- Page 1: the library. The page holds ONLY the scroller now, so the gap
+         above the first row comes from the page and is the same whether or not
+         any tags exist. -->
+    <div class="sp-page" id="pkLibraryPage">
+      <!-- sp-scrollhost wraps ONLY the scroller. The scroll affordance paints its
+           fades and counts on its host, so a host that also contained the search
+           bar and the tag bar put the top fade and the "N above" pill above the
+           SEARCH FIELD instead of at the top of the list. -->
+      <div class="sp-scrollhost">
+        <div class="settings-group sp-page-scroll" id="list"></div>
+      </div>
+    </div>
+
+    <!-- Page 2: the snippet editor. Six fields will not fit a dialog, so it is
+         a page, with the header naming it and the foot saving it. -->
+    <div class="sp-page" id="pkEditorPage" hidden>
+      <div class="sp-scrollhost">
+      <div class="sp-page-scroll editor" id="pkEditorScroll">
+        <label>Name (the @token)<input id="fName" type="text" autocomplete="off"></label>
+        <label>Description<input id="fDesc" type="text" autocomplete="off"></label>
+        <label>Tags (comma-separated)<input id="fTags" type="text" autocomplete="off"></label>
+        <label>Text<textarea id="fText" rows="6"></textarea></label>
+        <details id="fHtmlWrap"><summary>Rich text (optional HTML)</summary>
+          <textarea id="fHtml" rows="3"></textarea>
+        </details>
+        <div id="edError" class="error"></div>
+      </div>
+      </div>
+    </div>
+
+    <!-- Page 3: quick settings. Switch rows for booleans, VALUE ROWS for the
+         two choices; both replaced one-off controls (a segmented strip and a
+         plus/minus stepper) with the pattern the new tab already uses for its
+         theme and UI scale. Dot visibility is grouped under Field dot because
+         it only means anything while the dot is on. -->
+    <div class="sp-page" id="pkSettingsPage" hidden>
+      <div class="sp-scrollhost">
+      <div class="sp-page-scroll" id="pkSettingsScroll">
+        <div class="settings-group">
+          <label class="settings-row">
+            <span class="settings-row-text"><span class="settings-row-title">@ token system</span></span>
+            <span class="toggle-switch">
+              <input type="checkbox" data-setting="tokenSystem"><span class="toggle-slider"></span>
+            </span>
+          </label>
+          <label class="settings-row">
+            <span class="settings-row-text"><span class="settings-row-title">@ autocomplete</span></span>
+            <span class="toggle-switch">
+              <input type="checkbox" data-setting="tokenAutocomplete"><span class="toggle-slider"></span>
+            </span>
+          </label>
+          <label class="settings-row">
+            <span class="settings-row-text"><span class="settings-row-title">Smart field detection</span></span>
+            <span class="toggle-switch">
+              <input type="checkbox" data-setting="smartDetect"><span class="toggle-slider"></span>
+            </span>
+          </label>
+        </div>
+
+        <div class="sp-sect">Field dot</div>
+        <div class="settings-group">
+          <label class="settings-row">
+            <span class="settings-row-text"><span class="settings-row-title">Field dot</span></span>
+            <span class="toggle-switch">
+              <input type="checkbox" data-setting="fieldDot"><span class="toggle-slider"></span>
+            </span>
+          </label>
+          <button class="settings-row" type="button" id="dotModeRow">
+            <span class="settings-row-text">
+              <span class="settings-row-title">Dot visibility</span>
+              <span class="settings-row-value" id="dotModeVal">Always</span>
+            </span>
+            <span class="sp-chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+          </button>
+        </div>
+
+        <div class="sp-sect">Picker</div>
+        <div class="settings-group">
+          <button class="settings-row" type="button" id="limitRow">
+            <span class="settings-row-text">
+              <span class="settings-row-title">Rows visible</span>
+              <span class="settings-row-value" id="limitVal">10</span>
+            </span>
+            <span class="sp-chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+          </button>
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <div class="foot" id="pkFoot">
+      <label class="chk" id="splitWrap">
+        <input type="checkbox" id="splitLines"> Split lines into fields
+      </label>
+      <div id="status" class="status"></div>
+      <div class="actions" id="libActions">
+        <button id="copyBtn" class="ghost" disabled>Copy</button>
+        <button id="fillBtn" class="primary" disabled>Fill (0)</button>
+      </div>
+      <div class="actions hidden" id="editActions">
+        <button id="cancelBtn" class="ghost">Cancel</button>
+        <button id="saveBtn" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ REMOVER VIEW ═══════════════════ -->
+  <!-- Spec 008 (R-036): Remover speaks the panel language. It was the last view
+       on the pre-constitution dialect; the legacy boxes, the raw checkboxes and
+       the S=Specific B=Broad legend are gone. The header title swaps to the host
+       the way a session name takes over Saved Tabs'. Keyboard hints moved to the
+       PAGE, where the keys actually work (inject.js shows a chip while armed). -->
+  <div id="view-remover" class="pane">
+    <header class="hd">
+      <button id="removerBack" title="Back" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></button>
+      <strong class="wordmark" id="removerTitle">Remover</strong>
+    </header>
+    <!-- Remover has no search bar, so the arm disc rides its own bar (R-040)
+         beside the "Remember added rules" toggle, which moves up here out of the
+         scrolling rules list to sit fixed with the action it belongs to. The
+         toggle stays a <label> so the whole row toggles it; the disc is a sibling
+         button so clicking it arms instead. -->
+    <div class="bar sp-remover-bar">
+      <label class="sp-remember">
+        <span class="sp-remember-label">Remember added rules</span>
+        <span class="toggle-switch">
+          <input type="checkbox" id="spRemoverRemember" checked><span class="toggle-slider"></span>
+        </span>
+      </label>
+      <button class="sp-action-disc" id="armBtn" title="Arm picker" aria-label="Arm picker"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"></path><path d="M22 21H7"></path><path d="m5 11 9 9"></path></svg></button>
+    </div>
+    <div class="sp-page">
+      <div class="sp-scrollhost">
+        <div class="sp-page-scroll sp-stack" id="removerScroll">
+          <div class="settings-group" id="removerRulesList"></div>
+          <!-- A HOST, deliberately text-free (R-039): renderRules fills it
+               through the emptyState owner before it is ever shown. Covers "no
+               rules yet" and "no accessible tab", worded by the loader. -->
+          <div id="removerEmpty" class="empty" hidden></div>
+        </div>
+      </div>
+    </div>
+    <!-- One-shot escape hatch for stubborn overlays / cookie walls / paywall
+         modals that a saved rule can't easily target: strip fixed & sticky
+         elements and give scrolling back (the "kill sticky" trick). Not a saved
+         rule — a per-click unstick. -->
+    <div class="foot">
+      <div class="actions">
+        <button id="nukeOverlays" class="ghost">Nuke overlays</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="src/dist/sidepanel.bundle.js"></script>
+</body>
+</html>

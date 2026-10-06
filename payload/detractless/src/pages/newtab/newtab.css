@@ -1,0 +1,394 @@
+/* ══════════════════════════════════════════════════════════════════════
+   NEW TAB — page-level & shared styles (Minimal Apps design system)
+   Component styles live co-located with each component JS file and are
+   imported from there; this file covers layout, modals, forms, and
+   shared primitives used by multiple components.
+   ══════════════════════════════════════════════════════════════════════ */
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+/* The one entrance motion: fade + small upward drift (UI-RULES 6). No scale. */
+#app { width: 100%; height: 100%; position: relative; }
+
+/* ── PAGES ────────────────────────────────────────────────────────────── */
+.page { display: none; width: 100%; height: 100vh; }
+.page.active { display: flex; align-items: center; justify-content: center; }
+#bookmarks-page.page.active { padding: 0 40px 0 140px; }
+.hide-spotlight #spotlight-wrapper { visibility: hidden; }
+
+/* ── SEARCH CARD ──────────────────────────────────────────────────────── */
+#spotlight-wrapper { width: 620px; max-width: calc(100vw - 64px); padding-bottom: 60px; }
+.spotlight-search-container {
+  position: relative;
+  background: var(--surface-card); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 6px; display: flex; align-items: center; gap: 4px;
+}
+.search-icon {
+  width: 50px; height: 50px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-tertiary);
+}
+.search-icon svg { width: 18px; height: 18px; display: block; }
+.search-input-wrapper { position: static; flex: 1; min-width: 0; }
+#search-input {
+  width: 100%; border: none; background: transparent;
+  font-family: var(--font-sans); font-size: 16px; font-weight: 400; line-height: 1;
+  color: var(--text-primary); caret-color: var(--text-primary); padding: 14px 0;
+}
+#search-input:hover, #search-input:focus { background: transparent; }
+#search-input::placeholder { color: var(--text-tertiary); }
+
+/* Engine button (the former "plus") — circular, holds current-engine icon */
+.plus {
+  position: relative; width: 50px; height: 50px; flex-shrink: 0;
+  border-radius: var(--radius-circle); background: var(--surface-muted);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background var(--dur-base) var(--ease-out);
+}
+.plus:hover { background: var(--surface-hover); }
+.plus__line--h { display: none; }
+.current-engine-icon-display { display: flex; align-items: center; justify-content: center; }
+.current-engine-icon-display img { width: 22px; height: 22px; object-fit: contain; display: block; }
+.current-engine-icon-display img[src*="svg+xml"] { width: 24px; height: 24px; }
+/* The monochrome "browser default" icon ships as white dots (sized for dark
+   surfaces). In light themes, invert it to ink so it stays visible on the
+   grey trigger button and the white dropdown card. Colored brand logos never
+   match this selector, so they're untouched. */
+:root[data-theme="light"] img[src*="default.api.svg"] { filter: invert(1); }
+
+/* Engine pill picker (rendered into #engine-links) */
+#engine-links {
+  display: none; position: absolute; left: 0; right: 0; top: calc(100% + 10px);
+  flex-wrap: wrap; gap: 8px; align-content: flex-start;
+  padding: 4px 2px; z-index: 40; animation: fadeUp 0.18s var(--ease-out);
+}
+#engine-links.active { display: flex; }
+.plus__link {
+  display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px;
+  border-radius: var(--radius-pill); background: var(--surface-card);
+  font: var(--text-body-sm); color: var(--text-primary);
+  cursor: pointer; white-space: nowrap; text-decoration: none;
+  transition: background var(--dur-base) var(--ease-out);
+}
+/* ADR-1/ADR-4: these pills float on the CANVAS, so hover must step away from
+   the canvas tone. --surface-hover aliases --hover-on-card, which is meant for
+   something sitting on a card; in the light theme it lands within a few values
+   of the canvas and the hovered pill disappears. Now matches
+   .bookmark-search-item and .action-btn, the same problem already solved.
+   The hover shadow went with it: it resolved to none under G-2, so it rendered
+   nothing and only kept a banned reference alive. */
+.plus__link:hover { background: var(--hover-on-canvas); }
+button.plus__link { border: none; }
+.plus__divider { display: none; }
+
+/* Bookmark pill search (./ prefix) */
+#bookmark-pills-wrapper { position: absolute; left: 0; right: 0; top: calc(100% + 10px); overflow: hidden; z-index: 40; }
+.bookmark-search-results {
+  display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start;
+  max-height: 200px; overflow-y: auto; padding: 4px 2px;
+  animation: fadeUp 0.18s var(--ease-out);
+}
+.bookmark-search-item {
+  display: inline-flex; align-items: center; padding: 6px 14px;
+  border-radius: var(--radius-pill); background: var(--surface-card);
+  font: var(--text-body-sm); color: var(--text-primary);
+  cursor: pointer; white-space: nowrap;
+  animation: fadeUp 0.18s var(--ease-out) backwards;
+  transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+}
+/* Hover and keyboard selection are the SAME state on purpose: the list is
+   traversable by arrow key, and a pill the caret is on should look exactly
+   like a pill the pointer is on. Inverted color tokens step strongly away from the canvas. */
+.bookmark-search-item:hover, .bookmark-search-item.selected {
+  background: var(--surface-inverse);
+  color: var(--text-inverse);
+}
+.bookmark-search-item.empty { color: var(--text-tertiary); cursor: default; background: transparent; }
+.bookmark-search-item.empty:hover { background: transparent; }
+/* R-010: the pill list is the third adopter of the shared scroll affordance,
+   replacing a hand-rolled bottom-only overlay whose visibility was derived
+   from SCROLL POSITION. That is the predicate R-008 removed for exactly this
+   reason, and it also meant scrolling down gave no signal that pills had gone
+   off the TOP. The pills sit straight on the canvas with no container radius,
+   and the fade picks that up on its own by copying the list's corners. */
+
+
+/* ── TOP-RIGHT ACTIONS ────────────────────────────────────────────────── */
+.action-buttons {
+  position: fixed; top: 16px; right: 16px; z-index: 10;
+  display: flex; gap: 4px; align-items: center;
+}
+.action-divider { display: none; }
+.action-btn {
+  /* Same family as the page switcher (.switcher-btn): 36 high, radius 12,
+     no fill at rest, fill on hover only. Top and right insets are 16, the
+     switcher's own, so all three controls share one centre line (y 34).
+     Secondary ink stays: it matches the switcher's chevron. */
+  width: 36px; height: 36px; padding: 0;
+  background: transparent; border: none; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background-color .12s ease;
+}
+.action-btn svg {
+  width: 20px; height: 20px;
+  fill: none; stroke: var(--text-secondary); stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+/* Hover shifts the surface only (UI-RULES 5.4); the ink does not change. */
+.action-btn:hover { background: var(--hover-on-canvas); }
+
+/* The + and settings buttons stay in the DOM, hidden: newtab.js and the Add
+   dialog wire them, and the toolbar menu's rows click them. */
+#global-add-btn, #global-settings-btn { display: none; }
+
+/* ── Centred Add menu (R-021, superseding R-016) ─────────────────────────
+   The + disc opens a CENTRED dialog over the blurred page, like every other
+   branch in the bookmarks area. R-016 had it anchored under the disc, decided
+   before the R-012 dialog family had spread across the rest of this surface
+   class; R-021 aligns it rather than leaving it the one branch the pattern
+   never reached. Same scrim values as .page-nav-scrim and .modal, all from
+   tokens, so the three surfaces cannot drift.
+
+   STILL NOT class="modal", and this is the R-014 trap that survives the move:
+   the shared dismissal clicks a .close-btn and otherwise strips .show, and this
+   thing has neither a close button nor a single element to strip. setMenuOpen
+   owns both halves. Centring a dialog and delegating its dismissal are separate
+   decisions; R-021 took only the first.
+
+   The z-index lift on .action-buttons is GONE with the anchoring: nothing hangs
+   off the disc any more, so the bar needs no stacking of its own. The panel sits
+   at 200 with real modals because it now IS one, visually. */
+.add-menu-scrim {
+  position: fixed; inset: 0; z-index: 200;
+  background: var(--surface-overlay);
+  backdrop-filter: blur(var(--blur-overlay));
+}
+.add-menu { display: flex; }
+/* Two classes so this beats .picker-card's own width whatever the source order.
+   Fixed rather than absolute: the panel is centred on the VIEWPORT now, not
+   positioned against the trigger, so it must not inherit the action bar's
+   containing block.
+
+   CENTRED WITH AUTO MARGINS, NOT WITH A TRANSFORM, and this is load-bearing.
+   The obvious `top:50%; left:50%; transform:translate(-50%,-50%)` is wrong for
+   this card specifically: .picker-card runs the modalIn entrance, which animates
+   TRANSFORM (translateY(12px) to 0). A running animation outranks a normal
+   declaration, so for those 200ms the animation's transform REPLACES the
+   centring one, the card's top-left corner sits at the viewport centre, and it
+   visibly slides up and left into place when the animation ends. inset:0 with
+   auto margins centres on both axes and leaves transform free for the entrance;
+   height:fit-content is what gives the vertical margins something to halve.
+
+   Every other dialog avoids this by centring through .modal's flexbox instead. */
+.add-menu-panel.picker-card {
+  position: fixed; inset: 0; margin: auto;
+  height: fit-content;
+  z-index: 201;
+  width: 280px; max-width: calc(100vw - 32px);
+}
+.add-menu-scrim[hidden], .add-menu-panel[hidden] { display: none; }
+
+
+/* ══ MODALS ═══════════════════════════════════════════════════════════ */
+/* .modal and .modal.show moved to styles/components.css (spec 003): the side
+   panel adopted them for the saved-tabs popups, and components.css is loaded
+   by BOTH bundles, so promotion shares one definition instead of copying it
+   across the seam (the R-022 route). */
+.settings-container {
+  background: var(--surface-card); border-radius: var(--radius-lg);
+  width: 90%; max-width: 500px; max-height: 85vh;
+  overflow: hidden; display: flex; flex-direction: column;
+  animation: modalIn 0.22s var(--ease-out);
+}
+.settings-container { max-width: 720px; max-height: 85vh; height: auto; }
+/* R-021: .dialog-compact lost its only consumer when the Add Bookmark card was
+   replaced by the four-dialog flow. Removed rather than left as a rule nothing
+   selects; the flow's dialogs are .picker-card, which sizes to content already. */
+/* R-015: .modal-content-new, .modal-content-options, .modal-header-new,
+   .modal-body-new and .modal-footer-new all lost their last consumer when the
+   add chooser and the add-bookmark wizard became one settings-style card. The
+   shared halves of those rules survive below under their .settings-* names,
+   which is what they had been aliasing for two screens. */
+.settings-header {
+  padding: 24px 28px 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.settings-header h1 { font: var(--text-h2); color: var(--text-primary); }
+.close-btn {
+  /* 44 is the bar/close step of the disc ladder (UI-RULES 4). */
+  width: 44px; height: 44px; flex-shrink: 0; border: none; cursor: pointer;
+  border-radius: var(--radius-circle); background: var(--surface-muted);
+  color: var(--text-secondary); font-size: 18px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.close-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+/* Settings body reads like the phone settings pages: rows as cards on the
+   canvas, separated by surface contrast (UI-RULES 2). */
+.settings-body { padding: 16px; overflow-y: auto; flex: 1; background: var(--surface-canvas); border-radius: var(--radius-lg); margin: 0 16px 16px; }
+/* R-010: the scroll affordance inserts a positioned wrapper around the body,
+   so the inset that used to sit on the body moves out to the wrapper and the
+   body fills it. Without this the body would keep its own margin INSIDE the
+   wrapper and the fade would be inset from the surface it fades into. */
+.settings-container > .scroll-affordance { flex: 1; min-height: 0; margin: 0 16px 16px; }
+.scroll-affordance > .settings-body { margin: 0; }
+.settings-footer {
+  padding: 12px 28px 18px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+/* R-015: the add-options grid (.options-grid, .option-card, .option-icon,
+   .option-title, .option-desc) is gone with the chooser modal it styled. That
+   also clears the last reference to the retired depth token, which had been
+   resolving to nothing since G-2 while keeping a banned name alive.
+
+   The wizard rules went with it: .step-content, .step-title and .step-indicator
+   had no other consumer, and .form-label was the add form's alone.
+
+   SELECTS ARE GONE FROM THIS PROJECT. .form-select, .select-field and the
+   chevron mask R-005 built for them existed for the two dropdowns in the
+   add-bookmark wizard, which are now value rows opening picker dialogs. R-005's
+   finding stands and is simply no longer reachable: it ruled that a caret-less
+   control needs an indicator, and the answer here was to stop having one. */
+.section-title, .section-header h2 {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 500;
+  letter-spacing: var(--tracking-wider); text-transform: uppercase;
+  color: var(--text-secondary); margin-bottom: 16px;
+  padding-bottom: 10px; border-bottom: 1.5px solid var(--line-strong);
+}
+.setting-label {
+  /* Row-title scale, matching the phone's 16sp titles. */
+  display: block; font-size: 15px; font-weight: 400;
+  color: var(--text-primary); margin-bottom: 6px;
+}
+.form-description { font: var(--text-caption); color: var(--text-tertiary); margin-bottom: 12px; }
+.form-input, textarea.form-input {
+  /* Input geometry (UI-RULES 4, amended by R-005): search-bar shape, CONSTANT
+     muted fill, no borders. Focus does not change the fill; the caret marks it.
+     The old rule focused to surface-card, which is the background of every
+     dialog these sit in, so a focused field became the exact colour of the
+     modal behind it and disappeared. */
+  width: 100%; padding: 13px 16px;
+  border: none; border-radius: var(--radius-lg);
+  background: var(--surface-muted); font-family: var(--font-sans); font-size: 14px;
+  color: var(--text-primary);
+}
+/* Fields on the Add card sit in a canvas well, and R-006 makes input fill
+   relative to what is underneath: muted on a card, card on the canvas. Without
+   this they would be surface-muted on surface-canvas, which inverts between the
+   two themes and is the pairing R-006 was written to stop. */
+.settings-body .form-input { background: var(--surface-card); }
+.settings-body .form-input + .form-input { margin-top: 8px; }
+
+
+/* Buttons */
+.btn, .save-btn, .cancel-btn, .import-export-btn-styled {
+  border-radius: var(--radius-pill); padding: 10px 22px; cursor: pointer;
+  font-family: var(--font-sans); font-size: 13px; font-weight: 600;
+  transition: all var(--dur-base) var(--ease-out); border: none;
+}
+.btn-primary, .save-btn { background: var(--accent); color: var(--accent-text); }
+.btn-primary:hover, .save-btn:hover { background: var(--accent-hover); }
+.btn-secondary {
+  background: transparent; border: none;
+  color: var(--text-secondary); font-weight: 500;
+}
+.btn-secondary:hover { background: var(--surface-muted); color: var(--text-primary); }
+.footer-left, .footer-right, .footer-buttons { display: flex; gap: 8px; align-items: center; }
+
+/* ── SETTINGS, phone-style (UI-RULES 2/4): one scrolling page of sections,
+      grouped card rows with 24/4 corners and 2px gaps, drill-in sub-pages. ── */
+.settings-section-header {
+  font-family: var(--font-sans); font-size: 11px; font-weight: 800;
+  letter-spacing: 1.1px; text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 0 16px; margin: 20px 0 8px;
+}
+#settings-home > .settings-section-header:first-child { margin-top: 4px; }
+/* .settings-group and the .settings-row family moved to styles/components.css
+   (spec 003), same promotion as .modal above. The chevron stays here: the
+   panel uses the rows for ACTIONS, and a chevron promises navigation. */
+.settings-row-chevron {
+  width: 8px; height: 8px; flex-shrink: 0;
+  border-right: 1.8px solid var(--text-tertiary);
+  border-top: 1.8px solid var(--text-tertiary);
+  transform: rotate(45deg);
+}
+.settings-subpage[hidden], #settings-home[hidden] { display: none; }
+.settings-subpage { animation: modalIn var(--dur-enter, 200ms) var(--ease-out); }
+
+/* Picker dialog: THE multi-choice pattern (UI-RULES 4). */
+/* Picker rows sit on the dialog card, so they take the on-card hover (ADR-4). */
+/* The picker dialog vocabulary (modalIn, .picker-*) moved to
+   styles/components.css (spec 004): the side panel adopted the pickers as its
+   ONLY dialog system, and components.css is loaded by both bundles, so the
+   bookmark dialogs here and the panel dialogs are one component. Only the
+   radio rules stay, since the panel has no radio pickers. */
+/* .picker-radio is DELETED (2026-08-15). It marked selection with a ring drawn
+   from a 2px border, which UI-RULES bans; it predated the rule and survived here
+   as the last of it. Selection is now .picker-check in components.css, a tick
+   masked with clip-path, shared by the new tab and the side panel so the two
+   finally agree. */
+/* ── Picker dialog, extended for editing (R-012) ─────────────────────────
+   The bookmark and group dialogs are the same overlay and card as above,
+   with panes instead of a single list. These rules are here, beside the
+   picker they extend, rather than in bookmarks.css, so there is one dialog
+   vocabulary rather than a second one that merely looks like it. */
+/* Armed, not committed. The fill is the tinted error surface the project
+   already uses for destructive states, so nothing new is introduced. */
+/* R-006: an input sitting on a CARD takes the muted fill, and R-005: focus
+   does not change it, the caret marks focus. */
+/* Group names are uppercased on save by bookmarks.js, so the field shows
+   what will actually be stored rather than letting the value change shape
+   after the dialog closes. */
+.settings-section { margin-bottom: 28px; }
+/* Each setting is its own card row, like GroupRow on the phones. */
+.settings-body .setting-item {
+  background: var(--surface-card); border-radius: 16px;
+  padding: 12px 16px; margin-bottom: 8px; min-height: 32px;
+}
+/* R-015: a .modal-body-new override sat here, tightening .setting-item inside
+   the old add modal. That body no longer exists and .setting-item now lives
+   only in the Backup and Reset sub-pages, so the override had no selector left
+   to match. */
+
+/* Radio groups */
+.method-options, .icon-type-options { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+.icon-type-options { flex-direction: row; gap: 8px; }
+.ui-check-group {
+  display: flex; align-items: center; gap: 12px; cursor: pointer;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  transition: background var(--dur-base) var(--ease-out);
+}
+.ui-check-group:hover { background: var(--surface-muted); }
+.ui-radio { width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
+.typo-body { font-size: 14px; color: var(--text-primary); }
+
+/* Toggle switch: the control itself now lives in styles/components.css and is
+   shared with the side panel. What stays here is this page's wrapper and hiding
+   the native input, which is layout, not the component. */
+/* .toggle-switch moved to styles/components.css (spec 006b): the side panel
+   adopted this exact markup for its own settings rows, and components.css is
+   loaded by BOTH bundles. Left here, the panel got the shared .toggle-slider
+   visual but NOT the rule that hides the real checkbox, so a native tick box
+   rendered beside the switch. */
+
+/* Import/export + version */
+.button-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.import-export-btn-styled {
+  background: var(--surface-muted); border: none;
+  padding: 10px; font-size: 13px; font-weight: 500;
+  color: var(--text-primary);
+}
+.import-export-btn-styled:hover { background: var(--surface-hover); }
+/* Plain version label. It used to be the hidden 8-click developer target, which
+   is why it carried a pointer cursor and a padded hit area; both went with the
+   gesture, so it is inert text again. */
+.version-info {
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-tertiary);
+  letter-spacing: 0.06em;
+}
+
+/* Cancel button as used in the limiter pending section (has border + bg unlike the shared ghost variant) */
+.cancel-btn { background: var(--surface-muted); border: none; color: var(--text-primary); margin-top: 6px; }
+.cancel-btn:hover { background: var(--surface-hover); }

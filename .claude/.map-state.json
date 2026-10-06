@@ -1,0 +1,12 @@
+{
+  "fingerprint": "bb362c6df47282e3a443a93dd68b228decbf2ab6fc91a406eed1d70c3424ed04",
+  "fileCount": 123,
+  "generated": "2026-09-16T10:28:39Z",
+  "topLevelDirs": [
+    ".agents",
+    "payload",
+    "scripts",
+    "src",
+    "tests"
+  ]
+}

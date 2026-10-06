@@ -1,0 +1,50 @@
+/* ══════════════════════════════════════════════════════════════════════
+   ELEMENT REMOVER OVERLAY — DETRACTLESS DESIGN SYSTEM
+   Token values mirror themes.css / tokens.css; scoped to the container
+   so they don't pollute host-page styles.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* The key-hint chip (spec 008), the only injected UI. Shown while the picker is
+   armed; created and removed by ui.js. Fixed colors rather than theme tokens,
+   because this renders on arbitrary pages where our tokens do not exist and the
+   backdrop underneath is unknowable: near-black on near-white reads everywhere.
+   The max z-index matches the highlight's own stacking assumptions. */
+#rhe-ui-container {
+  position: fixed !important;
+  left: 50% !important;
+  bottom: 18px !important;
+  transform: translateX(-50%) !important;
+  z-index: 2147483647 !important;
+  background: rgba(17, 17, 16, 0.92) !important;
+  color: rgba(242, 241, 238, 0.95) !important;
+  font: 500 12px/1 -apple-system, "Segoe UI", Arial, sans-serif !important;
+  padding: 9px 14px !important;
+  border-radius: 999px !important;
+  pointer-events: none !important;
+  white-space: nowrap !important;
+}
+
+/* ── Element Selection Highlight ── */
+*[rhe-css-cursor] {
+  cursor: crosshair !important;
+}
+
+*[rhe-css-active] {
+  background-color: rgba(220, 53, 53, 0.25) !important;
+  outline: 1.5px solid rgba(220, 53, 53, 0.75) !important;
+  transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+  cursor: crosshair !important;
+}
+
+@-moz-document url-prefix() {
+  *[rhe-css-cursor] {
+    cursor: crosshair !important;
+  }
+
+  *[rhe-css-active] {
+    background-color: rgba(220, 53, 53, 0.25) !important;
+    outline: 1.5px solid rgba(220, 53, 53, 0.75) !important;
+    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+    cursor: crosshair !important;
+  }
+}

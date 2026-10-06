@@ -1,0 +1,170 @@
+/* ── 09-sidebar.js: Tools sidebar web panel toggle and webview transition blur ── */
+(function () {
+  'use strict';
+
+  var SWITCH = '[name="WEBPANEL_atlas_sidebar"], [data-name="WEBPANEL_atlas_sidebar"]';
+
+  function triggerSidebarTransition() {
+    var b = document.getElementById ? document.getElementById('browser') : null;
+    if (!b) return;
+    b.classList.add('atlas-sidebar-transitioning');
+    clearTimeout(window.__atlasSidebarTransitionTimer);
+    window.__atlasSidebarTransitionTimer = setTimeout(function () {
+      b.classList.remove('atlas-sidebar-transitioning');
+    }, 650);
+  }
+
+  function toggleSidebar() {
+    var sw = document.querySelector(SWITCH);
+    if (!sw) return;
+    triggerSidebarTransition();
+    ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (t) {
+      var C = t.indexOf('pointer') === 0 ? PointerEvent : MouseEvent;
+      sw.dispatchEvent(new C(t, { bubbles: true, cancelable: true, composed: true, button: 0 }));
+    });
+  }
+
+  function watchPanelTransitions() {
+    var pc = document.getElementById ? document.getElementById('panels-container') : null;
+    if (!pc || pc.__atlasObserved) return;
+    pc.__atlasObserved = true;
+    var lastExpanded = pc.classList.contains('expanded');
+    new MutationObserver(function () {
+      var isExp = pc.classList.contains('expanded');
+      if (isExp !== lastExpanded) {
+        lastExpanded = isExp;
+        triggerSidebarTransition();
+      }
+    }).observe(pc, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  function ensureButton() {
+    var bar = document.querySelector('.toolbar-mainbar');
+    if (!bar) return;
+    var existing = bar.querySelector('.atlas-sidebar-toggle');
+    if (existing) {
+      if (bar.firstElementChild !== existing) {
+        bar.insertBefore(existing, bar.firstElementChild);
+      }
+      return;
+    }
+    var wrap = document.createElement('div');
+    wrap.className = 'button-toolbar atlas-sidebar-toggle';
+    var btn = document.createElement('button');
+    btn.className = 'ToolbarButton-Button';
+    btn.type = 'button';
+    btn.tabIndex = -1;
+    btn.setAttribute('data-name', 'PanelToggle');
+    btn.title = 'Tools';
+    btn.setAttribute('aria-label', 'Tools');
+    var icon = document.createElement('span');
+    icon.className = 'button-icon';
+    btn.appendChild(icon);
+    wrap.appendChild(btn);
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleSidebar();
+    });
+    bar.insertBefore(wrap, bar.firstElementChild);
+  }
+
+  function guardPanelWebview(wv) {
+    if (!wv || wv.__atlasPanelGuard) return;
+    wv.__atlasPanelGuard = true;
+    wv.addEventListener('loadabort', function (e) {
+      if (!/sidepanel\.html/.test((e && e.url) || '')) return;
+      var n = (wv.__atlasAborts || 0) + 1;
+      wv.__atlasAborts = n;
+      if (n <= 3) setTimeout(function () { try { wv.reload(); } catch (x) {} }, 500);
+    });
+  }
+
+  function panelWebview() { return document.querySelector('#panels-container webview'); }
+
+  function ensureExtDocked() {
+    var field = document.querySelector('.toolbar-mainbar > .UrlBar-AddressField');
+    if (!field) return;
+    var ext = document.querySelector('.toolbar-extensions');
+    if (!ext) {
+      ext = document.createElement('div');
+      ext.className = 'toolbar-extensions atlas-ext-docked';
+      field.appendChild(ext);
+    } else {
+      if (ext.parentElement !== field || field.lastElementChild !== ext) {
+        field.appendChild(ext);
+      }
+      ext.classList.add('atlas-ext-docked');
+    }
+
+    // Ensure puzzle button is present even if 0 extensions are installed
+    var nativeBtn = ext.querySelector('button:not(.atlas-fallback-ext-btn)');
+    var fallbackBtn = ext.querySelector('.atlas-fallback-ext-btn');
+    if (nativeBtn) {
+      if (fallbackBtn) fallbackBtn.remove();
+    } else if (!fallbackBtn) {
+      var btn = document.createElement('button');
+      btn.className = 'button-toolbar ExtensionToggleIcon atlas-fallback-ext-btn';
+      btn.setAttribute('data-name', 'Extensions');
+      btn.setAttribute('title', 'Extensions');
+      btn.setAttribute('tabindex', '-1');
+      btn.setAttribute('type', 'button');
+      btn.innerHTML = '<span class="button-icon">' +
+        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v3.8h1.5a2.5 2.5 0 0 1 0 5H2V20a2 2 0 0 0 2 2h3.8v-1.5a2.5 2.5 0 0 1 5 0V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z"/>' +
+        '</svg>' +
+        '</span>';
+      ext.appendChild(btn);
+    }
+  }
+
+  var _sidebarMutating = false;
+  var _sidebarRafScheduled = false;
+
+  function runSidebarDocking() {
+    if (_sidebarMutating) return;
+    _sidebarMutating = true;
+    try {
+      ensureButton();
+      ensureExtDocked();
+    } finally {
+      _sidebarMutating = false;
+    }
+  }
+
+  runSidebarDocking();
+  watchPanelTransitions();
+  guardPanelWebview(panelWebview());
+
+  var bar = document.querySelector('.toolbar-mainbar');
+  if (bar && typeof MutationObserver !== 'undefined') {
+    new MutationObserver(function () {
+      if (_sidebarMutating || _sidebarRafScheduled) return;
+      _sidebarRafScheduled = true;
+      requestAnimationFrame(function () {
+        _sidebarRafScheduled = false;
+        runSidebarDocking();
+      });
+    }).observe(bar, { childList: true });
+  }
+
+  var _t09Attempts = 0;
+  var _t09a = setInterval(function () {
+    _t09Attempts++;
+    runSidebarDocking();
+    watchPanelTransitions();
+    guardPanelWebview(panelWebview());
+    if (_t09Attempts > 30) {
+      clearInterval(_t09a);
+    }
+  }, 1000);
+
+  var _t09b = setTimeout(function () {
+    var wv = panelWebview();
+    if (wv) { guardPanelWebview(wv); try { wv.reload(); } catch (x) {} }
+  }, 3000);
+  if (_t09b && typeof _t09b.unref === 'function') _t09b.unref();
+
+  Atlas.toggleSidebar = toggleSidebar;
+  Atlas.triggerSidebarTransition = triggerSidebarTransition;
+})();
