@@ -92,7 +92,7 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
      covers internal schemes this registration cannot reach; the script's own
      __atlasCtx guard makes the overlap harmless.
      detractless-rules (Element Remover) and detractless-pastekit (@tokens) were
-     archived with the Tools sidebar (archive/sidebar-tools/RESTORE.md). They stay
+     archived with the Tools sidebar (_old/archive/sidebar-tools/RESTORE.md). They stay
      in OUR_CS_IDS below so an existing registration is swept, not left running. */
   var DESIRED_CS = [
     { id: 'atlas-ctxmenu', matches: ['<all_urls>'],

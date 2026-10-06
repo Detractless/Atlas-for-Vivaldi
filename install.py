@@ -50,7 +50,9 @@ def copy_tree(src_dir: Path, dst_dir: Path):
         say(f"[dry-run] copy tree {src_dir}\\*  ->  {dst_dir}")
         return
     dst_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(src_dir, dst_dir, dirs_exist_ok=True)
+    # Never install private signing keys or Finder metadata.
+    shutil.copytree(src_dir, dst_dir, dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns("*.pem", ".DS_Store"))
 
 
 def read_text(p: Path) -> str:
@@ -249,7 +251,7 @@ MENU_PLAN = {
 }
 
 # The Tools sidebar (PasteKit, Remover, Notes, Saved tabs) is archived, not
-# installed: see archive/sidebar-tools/RESTORE.md. The ids below are only used to
+# installed: see _old/archive/sidebar-tools/RESTORE.md. The ids below are only used to
 # remove a panel an earlier install left in the profile.
 PANEL_ID = "WEBPANEL_atlas_sidebar"
 PANEL_URL = "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/sidepanel.html"

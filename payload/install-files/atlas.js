@@ -205,7 +205,7 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
      covers internal schemes this registration cannot reach; the script's own
      __atlasCtx guard makes the overlap harmless.
      detractless-rules (Element Remover) and detractless-pastekit (@tokens) were
-     archived with the Tools sidebar (archive/sidebar-tools/RESTORE.md). They stay
+     archived with the Tools sidebar (_old/archive/sidebar-tools/RESTORE.md). They stay
      in OUR_CS_IDS below so an existing registration is swept, not left running. */
   var DESIRED_CS = [
     { id: 'atlas-ctxmenu', matches: ['<all_urls>'],
@@ -1666,7 +1666,7 @@ Atlas.refreshExtPop = refreshExtPop;
   /* ═══ Module: 09-ext-dock.js ═══ */
 /* ── 09-ext-dock.js: dock the Extensions button inside the address field ──
    The Tools sidebar toggle and panel helpers that used to live in 09-sidebar.js
-   were archived (archive/sidebar-tools/RESTORE.md). */
+   were archived (_old/archive/sidebar-tools/RESTORE.md). */
 (function () {
   'use strict';
 
