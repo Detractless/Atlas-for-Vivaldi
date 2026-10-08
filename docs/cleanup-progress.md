@@ -45,3 +45,16 @@ Per-phase gate: `node --test tests/unit/*.test.js`, `python3 -m unittest discove
 - New tests: `settings_page.test.js` (10; 6 of them fail on the Phase 3 code, i.e. they catch the bugs), `storage_keys.test.js` (5). Feature test export now goes through Settings > Backup.
 - Tests: node 45/45, python 7/7. Dry run OK. node --check 0 failures.
 
+## Phase 5: browser-window code, installer, dead pages
+- `02-detractless-bridge.js` split into `02-bridge-setup`, `03-bridge-content-scripts`, `04-bridge-messages`; the extensions popover into `09-extensions-native` + `10-extensions-popover`. Modules renumbered 01-14, no gaps. Legacy python tests' module paths updated.
+- `bundle.py` writes `ATLAS_EXT_ID` / `ATLAS_NEWTAB_URL` from atlasKeys.json (no module hard-codes the id), has `--out` and `--check` (never writes the payload in tests), and its `main` is split.
+- Long functions split: `showUiMenu` (87), the window right-click handler (161), `drawExtPop` (134), `atlas-ctxmenu.js` `itemsFor` (83) and `openMenu` (86). `window.__atlasDrivingNative` is now a documented module flag (`setDrivingNative`).
+- Removed: the `redriveIfBlocked` no-op, `isOurPage`, 18 `Atlas.*` exports nothing read, sidebar-toggle branches (`_old/dead-code/sidebar-toggle.md`).
+- Archived (`_old/archive/atlas-pages/`, with RESTORE.md): atlas-downloads.html, atlas-extensions.html, atlas-pages.css/js. Proof nothing reached them: menus open `vivaldi://downloads` and `vivaldi://extensions`; only unused constants named them.
+- NOT archived, on purpose: `payload/css-mods/06-sidebar.css`. Most of it styles Vivaldi's native panels and the `vivaldi://history` page, and it hides the panel strip; moving it would visibly change the browser.
+- Theme rule (moved here from Phase 4): the 4 copies live in 4 different documents and two are plain scripts, so they cannot share code; `theme_rule.test.js` runs all four over every case. atlas-pages.css token generation is moot (file archived).
+- `install.py` (957 lines) -> entry point (107) + `installer/` package (util, paths, process, files, menus, preferences, extensions, system, staging; largest 214). Moved mechanically by top-level definition; test proves step 6 still writes exactly what the pre-cleanup installer wrote. `build_dmg.py` copies the package into the app and its `main` is split; a test assembles the app in a temp folder and dry-runs it.
+- New tests: `atlas_window.test.js` (13 incl. 1 todo), `page_ctxmenu.test.js` (6), `theme_rule.test.js` (2), installer tests now 9.
+- Bug found, not fixed (behavior change outside the plan): the Extensions popover search field resets on every keystroke (`drawExtPop` calls `closeExtPop`, which clears the query). Pinned by a todo test.
+- Tests: node 66/66 + 1 todo, python 9/9. Dry run OK. node --check 0 failures.
+

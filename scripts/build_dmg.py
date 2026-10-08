@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
 scripts/build_dmg.py
-Builds a standalone macOS DMG installer containing "Install Atlas.app".
-Uses built-in macOS tools (sips, iconutil, hdiutil, codesign).
+Builds dist/AtlasSetup.dmg holding "Install Atlas.app" (install.py, the
+installer/ package and the payload). Uses built-in macOS tools (sips, iconutil,
+hdiutil, codesign).
 """
 
-import os
 import sys
 import shutil
 import subprocess
@@ -46,42 +46,13 @@ def create_icns(icon_src: Path, out_icns: Path):
         run_cmd(["iconutil", "-c", "icns", str(iconset), "-o", str(out_icns)])
 
 
-def main():
-    if sys.platform != "darwin":
-        fail("DMG packaging can only be run on macOS (requires hdiutil and iconutil).")
+ROOT = Path(__file__).resolve().parent.parent
+PAYLOAD = ROOT / "payload"
+DIST_DMG = ROOT / "dist" / "AtlasSetup.dmg"
+# Keys, Finder metadata, stale sourcemaps and Python caches never go in the DMG.
+IGNORE = shutil.ignore_patterns("*.pem", ".DS_Store", "*.map", "__pycache__", "*.pyc")
 
-    repo_root = Path(__file__).resolve().parent.parent
-    payload_dir = repo_root / "payload"
-    install_py = repo_root / "install.py"
-    dist_dir = repo_root / "dist"
-    dist_dmg = dist_dir / "AtlasSetup.dmg"
-
-    if not payload_dir.is_dir() or not install_py.is_file():
-        fail(f"Required files missing in {repo_root}")
-
-    print("[1/5] Bundling JavaScript modules...")
-    bundle_script = repo_root / "scripts" / "bundle.py"
-    run_cmd([sys.executable, str(bundle_script)])
-
-    print("[2/5] Creating application icons...")
-    icon_png = payload_dir / "detractless" / "icons" / "icon128.png"
-
-    with tempfile.TemporaryDirectory() as staging_tmp:
-        staging_path = Path(staging_tmp)
-        icns_path = staging_path / "AppIcon.icns"
-        if icon_png.is_file() and shutil.which("iconutil") and shutil.which("sips"):
-            create_icns(icon_png, icns_path)
-
-        print("[3/5] Assembling Install Atlas.app bundle...")
-        app_dir = staging_path / "Install Atlas.app"
-        contents = app_dir / "Contents"
-        macos_dir = contents / "MacOS"
-        res_dir = contents / "Resources"
-        macos_dir.mkdir(parents=True)
-        res_dir.mkdir(parents=True)
-
-        # Info.plist
-        plist_content = """<?xml version="1.0" encoding="UTF-8"?>
+INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -108,11 +79,8 @@ def main():
 </dict>
 </plist>
 """
-        with open(contents / "Info.plist", "w", encoding="utf-8") as f:
-            f.write(plist_content)
 
-        # Launcher executable
-        launcher_sh = """#!/usr/bin/env bash
+LAUNCHER = """#!/usr/bin/env bash
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RESOURCES="$DIR/Resources"
 
@@ -142,57 +110,78 @@ else
     osascript -e 'display alert "Atlas Installation Failed" message "'"$ESCAPED"'\n\nDetailed log saved to /tmp/atlas_install.log" as critical' 2>/dev/null
 fi
 """
-        launcher_bin = macos_dir / "AtlasSetup"
-        with open(launcher_bin, "w", encoding="utf-8") as f:
-            f.write(launcher_sh)
-        launcher_bin.chmod(0o755)
 
-        # Copy resources
-        if icns_path.is_file():
-            shutil.copy2(icns_path, res_dir / "AppIcon.icns")
-        shutil.copy2(install_py, res_dir / "install.py")
-        # Keys, Finder metadata and stale sourcemaps never go in the DMG.
-        shutil.copytree(payload_dir, res_dir / "payload",
-                        ignore=shutil.ignore_patterns("*.pem", ".DS_Store", "*.map"))
-
-        # Add README in DMG
-        readme_txt = """Atlas for Vivaldi - macOS Installer
+README = """Atlas for Vivaldi - macOS Installer
 ====================================
 
 Double-click "Install Atlas.app" to set up Atlas on this Mac.
-Vivaldi will be automatically updated with the Atlas UI theme, custom tabs,
-context menus, sidebar tools, and Harper extension.
+Vivaldi will be updated with the Atlas UI theme, custom tabs, context menus,
+the Detractless new tab and the Harper extension.
 
 CLI usage from Terminal:
   "/Volumes/Atlas for Vivaldi/Install Atlas.app/Contents/MacOS/AtlasSetup" --help
 """
-        with open(staging_path / "ReadMe.txt", "w", encoding="utf-8") as f:
-            f.write(readme_txt)
 
-        # Sign the app bundle
+
+def build_app(staging: Path, icns: Path) -> Path:
+    """Install Atlas.app: Info.plist, the launcher, and the installer resources."""
+    app_dir = staging / "Install Atlas.app"
+    contents = app_dir / "Contents"
+    (contents / "MacOS").mkdir(parents=True)
+    res_dir = contents / "Resources"
+    res_dir.mkdir(parents=True)
+    (contents / "Info.plist").write_text(INFO_PLIST, encoding="utf-8")
+    launcher = contents / "MacOS" / "AtlasSetup"
+    launcher.write_text(LAUNCHER, encoding="utf-8")
+    launcher.chmod(0o755)
+    if icns.is_file():
+        shutil.copy2(icns, res_dir / "AppIcon.icns")
+    shutil.copy2(ROOT / "install.py", res_dir / "install.py")
+    shutil.copytree(ROOT / "installer", res_dir / "installer", ignore=IGNORE)
+    shutil.copytree(PAYLOAD, res_dir / "payload", ignore=IGNORE)
+    return app_dir
+
+
+def make_dmg(staging: Path):
+    DIST_DMG.parent.mkdir(parents=True, exist_ok=True)
+    if DIST_DMG.exists():
+        DIST_DMG.unlink()
+    run_cmd(["hdiutil", "create", "-volname", "Atlas for Vivaldi", "-srcfolder", str(staging),
+             "-ov", "-format", "UDZO", str(DIST_DMG)])
+
+
+def main():
+    if sys.platform != "darwin":
+        fail("DMG packaging can only be run on macOS (requires hdiutil and iconutil).")
+    if not PAYLOAD.is_dir() or not (ROOT / "install.py").is_file() or not (ROOT / "installer").is_dir():
+        fail(f"Required files missing in {ROOT}")
+
+    print("[1/5] Bundling JavaScript modules...")
+    run_cmd([sys.executable, str(ROOT / "scripts" / "bundle.py")])
+
+    print("[2/5] Creating application icons...")
+    icon_png = PAYLOAD / "detractless" / "icons" / "icon128.png"
+    with tempfile.TemporaryDirectory() as staging_tmp:
+        staging = Path(staging_tmp)
+        icns = staging / "AppIcon.icns"
+        if icon_png.is_file() and shutil.which("iconutil") and shutil.which("sips"):
+            create_icns(icon_png, icns)
+
+        print("[3/5] Assembling Install Atlas.app bundle...")
+        app_dir = build_app(staging, icns)
+        (staging / "ReadMe.txt").write_text(README, encoding="utf-8")
+
         print("[4/5] Code signing app bundle (ad-hoc)...")
         run_cmd(["xattr", "-cr", str(app_dir)])
         run_cmd(["codesign", "--force", "--deep", "--sign", "-", str(app_dir)])
 
-        # Build DMG
         print("[5/5] Building compressed DMG image...")
-        dist_dir.mkdir(parents=True, exist_ok=True)
-        if dist_dmg.exists():
-            dist_dmg.unlink()
+        make_dmg(staging)
 
-        run_cmd([
-            "hdiutil", "create",
-            "-volname", "Atlas for Vivaldi",
-            "-srcfolder", str(staging_path),
-            "-ov",
-            "-format", "UDZO",
-            str(dist_dmg)
-        ])
-
-    size_mb = dist_dmg.stat().st_size / (1024 * 1024)
+    size_mb = DIST_DMG.stat().st_size / (1024 * 1024)
     print()
     print("========================================")
-    print(f"SUCCESS: Built {dist_dmg.relative_to(repo_root)} ({size_mb:.2f} MB)")
+    print(f"SUCCESS: Built {DIST_DMG.relative_to(ROOT)} ({size_mb:.2f} MB)")
     print("========================================")
 
 

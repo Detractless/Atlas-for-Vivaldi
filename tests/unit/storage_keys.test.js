@@ -90,7 +90,7 @@ test("plain scripts use the listed database name", () => {
   }
 });
 
-test("install.py points the new tab at the listed extension id", () => {
-  const out = execFileSync("python3", ["-c", "import install; print(install.newtab_url())"], { cwd: ROOT, encoding: "utf8" }).trim();
+test("the installer points the new tab at the listed extension id", () => {
+  const out = execFileSync("python3", ["-c", "from installer.paths import newtab_url; print(newtab_url())"], { cwd: ROOT, encoding: "utf8" }).trim();
   assert.equal(out, `chrome-extension://${KEYS.extensionId}/${KEYS.newTabPath}`);
 });
