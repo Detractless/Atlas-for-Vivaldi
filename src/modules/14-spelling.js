@@ -1,4 +1,4 @@
-/* ── 12-spelling.js: Offline dictionary and candidate suggestion generator ── */
+/* ── 14-spelling.js: Offline dictionary and candidate suggestion generator ── */
 (function () {
   'use strict';
 

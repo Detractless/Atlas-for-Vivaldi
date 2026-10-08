@@ -169,76 +169,15 @@
     var t = e.target;
     var field = isEditable(t);
     var sel = String(window.getSelection ? window.getSelection() : '').trim();
-
-    if (field) {
-      var fSel = getFieldSel(field, sel);
-      var items = [
-        { label: 'Cut', key: 'Ctrl+X', dis: !fSel.has, run: function () { cutField(field, fSel.txt, fSel.s, fSel.ed); } },
-        { label: 'Copy', key: 'Ctrl+C', dis: !fSel.has, run: function () { copyField(field, fSel.txt); } },
-        { label: 'Paste', key: 'Ctrl+V', run: function () { pasteField(field); } },
-        { sep: true },
-        { label: 'Select all', key: 'Ctrl+A', run: function () { field.focus(); if (field.select) field.select(); else document.execCommand('selectAll'); } }
-      ];
-
-      var sp = window.__atlasSpelling || (typeof Atlas !== 'undefined' && Atlas.spelling);
-      if (sp && typeof sp.getWordAtInput === 'function') {
-        var wordInfo = sp.getWordAtInput(field);
-        var suggs = (wordInfo && wordInfo.word && !sp.checkWord(wordInfo.word)) ? sp.getSuggestions(wordInfo.word, 3) : [];
-        if (field.dataset && field.dataset.harperIssues) {
-          try {
-            var hi = JSON.parse(field.dataset.harperIssues);
-            var p = (wordInfo && wordInfo.start !== undefined) ? wordInfo.start : (field.selectionStart || 0);
-            for (var i = 0; i < hi.length; i++) {
-              if (p >= hi[i].start && p <= hi[i].end && hi[i].suggestions) {
-                hi[i].suggestions.forEach(function (s) { if (suggs.indexOf(s) === -1) suggs.push(s); });
-                if (!wordInfo) wordInfo = { word: hi[i].matchedText, start: hi[i].start, end: hi[i].end };
-              }
-            }
-          } catch (e) {}
-        }
-        if (suggs.length > 0 && wordInfo) {
-          var suggItems = suggs.slice(0, 3).map(function (c) { return { label: c, run: function () { replaceWord(field, wordInfo, c); } }; });
-          suggItems.push({ sep: true });
-          items = suggItems.concat(items);
-        }
-      }
-      return items;
-    }
-
-    /* Link and image are considered TOGETHER: a thumbnail wrapped in a link
-       used to show only the link options, so "Save image…" was unreachable on
-       exactly the images people most want to save. Now each contributes its
-       own group, and a target that is both shows both. */
-    var link = t.closest ? t.closest('a[href]') : null;
-    var hasLink = link && /^https?:/i.test(link.href);
-    /* the image can be the target itself or sit inside the clicked link */
-    var img = (t.closest && t.closest('img')) || (link && link.querySelector && link.querySelector('img'));
-    var hasImg = img && img.src && /^(https?|data|blob):/i.test(img.src);
-
-    if (hasLink || hasImg) {
-      var items = [];
-      if (hasLink) {
-        items.push({ label: 'Open link in this tab', run: function () { send({ act: 'opentab-current', url: link.href }); try { window.location.href = link.href; } catch (e) {} } });
-        items.push({ label: 'Open link in new tab', run: function () { send({ act: 'opentab', url: link.href, active: true }); } });
-        items.push({ label: 'Open link in background tab', run: function () { send({ act: 'opentab', url: link.href, active: false }); } });
-        items.push({ label: 'Copy link', run: function () { copy(link.href); } });
-      }
-      if (hasImg) {
-        if (items.length) items.push({ sep: true });
-        items.push({ label: 'Open image in new tab', run: function () { send({ act: 'opentab', url: img.src, active: true }); } });
-        items.push({ label: 'Copy image', run: function () { copyImage(img); } });
-        items.push({ label: 'Save image…', run: function () { send({ act: 'download', url: img.src }); } });
-      }
-      return items;
-    }
-
+    if (field) return fieldItems(field, sel);
+    var linkImg = linkImageItems(t);
+    if (linkImg) return linkImg;
     if (sel) {
       return [
         { label: 'Copy', key: 'Ctrl+C', run: function () { copy(sel); } },
         { label: 'Search the web', run: function () { send({ act: 'opentab', url: 'https://www.google.com/search?q=' + encodeURIComponent(sel.slice(0, 500)), active: true }); } }
       ];
     }
-
     return [
       { label: 'Back', key: 'Alt+←', run: function () { history.back(); } },
       { label: 'Forward', key: 'Alt+→', run: function () { history.forward(); } },
@@ -247,6 +186,72 @@
       { label: 'Save page as…', key: 'Ctrl+S', run: function () { send({ act: 'savepage', url: location.href }); } },
       { label: 'Print…', key: 'Ctrl+P', run: function () { setTimeout(function () { window.print(); }, 60); } }
     ];
+  }
+
+  /* Cut / Copy / Paste / Select all, with spelling suggestions first. */
+  function fieldItems(field, sel) {
+    var fSel = getFieldSel(field, sel);
+    var items = [
+      { label: 'Cut', key: 'Ctrl+X', dis: !fSel.has, run: function () { cutField(field, fSel.txt, fSel.s, fSel.ed); } },
+      { label: 'Copy', key: 'Ctrl+C', dis: !fSel.has, run: function () { copyField(field, fSel.txt); } },
+      { label: 'Paste', key: 'Ctrl+V', run: function () { pasteField(field); } },
+      { sep: true },
+      { label: 'Select all', key: 'Ctrl+A', run: function () { field.focus(); if (field.select) field.select(); else document.execCommand('selectAll'); } }
+    ];
+    var sugg = fieldSuggestions(field);
+    if (!sugg) return items;
+    var suggItems = sugg.words.slice(0, 3).map(function (c) { return { label: c, run: function () { replaceWord(field, sugg.wordInfo, c); } }; });
+    suggItems.push({ sep: true });
+    return suggItems.concat(items);
+  }
+
+  /* Spelling suggestions for the word at the caret, merged with the Harper
+     extension's suggestions for that spot. Null when there are none. */
+  function fieldSuggestions(field) {
+    var sp = window.__atlasSpelling || (typeof Atlas !== 'undefined' && Atlas.spelling);
+    if (!(sp && typeof sp.getWordAtInput === 'function')) return null;
+    var wordInfo = sp.getWordAtInput(field);
+    var suggs = (wordInfo && wordInfo.word && !sp.checkWord(wordInfo.word)) ? sp.getSuggestions(wordInfo.word, 3) : [];
+    if (field.dataset && field.dataset.harperIssues) {
+      try {
+        var hi = JSON.parse(field.dataset.harperIssues);
+        var p = (wordInfo && wordInfo.start !== undefined) ? wordInfo.start : (field.selectionStart || 0);
+        for (var i = 0; i < hi.length; i++) {
+          if (p >= hi[i].start && p <= hi[i].end && hi[i].suggestions) {
+            hi[i].suggestions.forEach(function (s) { if (suggs.indexOf(s) === -1) suggs.push(s); });
+            if (!wordInfo) wordInfo = { word: hi[i].matchedText, start: hi[i].start, end: hi[i].end };
+          }
+        }
+      } catch (e) {}
+    }
+    return (suggs.length > 0 && wordInfo) ? { words: suggs, wordInfo: wordInfo } : null;
+  }
+
+  /* Link and image are considered TOGETHER: a thumbnail wrapped in a link
+     used to show only the link options, so "Save image…" was unreachable on
+     exactly the images people most want to save. Now each contributes its
+     own group, and a target that is both shows both. Null for neither. */
+  function linkImageItems(t) {
+    var link = t.closest ? t.closest('a[href]') : null;
+    var hasLink = link && /^https?:/i.test(link.href);
+    /* the image can be the target itself or sit inside the clicked link */
+    var img = (t.closest && t.closest('img')) || (link && link.querySelector && link.querySelector('img'));
+    var hasImg = img && img.src && /^(https?|data|blob):/i.test(img.src);
+    if (!hasLink && !hasImg) return null;
+    var items = [];
+    if (hasLink) {
+      items.push({ label: 'Open link in this tab', run: function () { send({ act: 'opentab-current', url: link.href }); try { window.location.href = link.href; } catch (e) {} } });
+      items.push({ label: 'Open link in new tab', run: function () { send({ act: 'opentab', url: link.href, active: true }); } });
+      items.push({ label: 'Open link in background tab', run: function () { send({ act: 'opentab', url: link.href, active: false }); } });
+      items.push({ label: 'Copy link', run: function () { copy(link.href); } });
+    }
+    if (hasImg) {
+      if (items.length) items.push({ sep: true });
+      items.push({ label: 'Open image in new tab', run: function () { send({ act: 'opentab', url: img.src, active: true }); } });
+      items.push({ label: 'Copy image', run: function () { copyImage(img); } });
+      items.push({ label: 'Save image…', run: function () { send({ act: 'download', url: img.src }); } });
+    }
+    return items;
   }
 
   function openMenu(e, items) {
@@ -259,22 +264,7 @@
     var dark = pageIsDark();
     var wrap = document.createElement('div'); wrap.className = 'wrap' + (dark ? ' dark' : ''); root.appendChild(wrap);
     var menu = document.createElement('div'); menu.className = 'menu';
-    items.forEach(function (it) {
-      if (it.sep) {
-        var s = document.createElement('div'); s.className = 'sep'; menu.appendChild(s); return;
-      }
-      var row = document.createElement('div'); row.className = 'mi' + (it.dis ? ' dis' : '');
-      var l = document.createElement('span'); l.textContent = it.label; row.appendChild(l);
-      if (it.key) {
-        var k = document.createElement('span'); k.className = 'k'; k.textContent = it.key; row.appendChild(k);
-      }
-      row.addEventListener('mouseup', function (ev) {
-        if (ev.button !== 0) return;
-        closeMenu();
-        try { it.run(); } catch (err) {}
-      });
-      menu.appendChild(row);
-    });
+    items.forEach(function (it) { menu.appendChild(menuRow(it)); });
     menu.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
     wrap.appendChild(menu);
 
@@ -288,25 +278,49 @@
     if (z !== 1) host.style.zoom = String(1 / z);
     (document.body || document.documentElement).appendChild(host);
 
-    var r = menu.getBoundingClientRect();
-    var mw = r.width, mh = r.height;
-    var cx = e.clientX, cy = e.clientY;
-    var vw = window.innerWidth, vh = window.innerHeight;
+    placeMenu(menu, wrap, e.clientX, e.clientY, dark);
 
-    /* Placement: prefers screen-halves rule, flips opposite if cramped, clamps as last resort. */
-    function place(coord, size, viewport, preferHigh) {
-      var pad = 6;
-      var hi = coord + 2 + TAIL.gap - 1;           /* menu starts just past click */
-      var lo = coord - 2 - TAIL.gap + 1 - size;    /* menu ends just before click */
-      var high = preferHigh;
-      if (high && hi + size > viewport - pad) high = false;
-      else if (!high && lo < pad) high = true;
-      var pos = high ? hi : lo;
-      pos = Math.max(pad, Math.min(pos, viewport - size - pad));
-      return { pos: pos, high: high };
+    document.addEventListener('mousedown', onAway, true);
+    document.addEventListener('keydown', onKey, true);
+    ['blur', 'resize'].forEach(function (v) { window.addEventListener(v, closeMenu); });
+    window.addEventListener('scroll', closeMenu, true);
+  }
+
+  function menuRow(it) {
+    if (it.sep) {
+      var s = document.createElement('div'); s.className = 'sep'; return s;
     }
-    var H = place(cx, mw, vw, cx >= vw / 2);
-    var V = place(cy, mh, vh, cy < vh / 2);
+    var row = document.createElement('div'); row.className = 'mi' + (it.dis ? ' dis' : '');
+    var l = document.createElement('span'); l.textContent = it.label; row.appendChild(l);
+    if (it.key) {
+      var k = document.createElement('span'); k.className = 'k'; k.textContent = it.key; row.appendChild(k);
+    }
+    row.addEventListener('mouseup', function (ev) {
+      if (ev.button !== 0) return;
+      closeMenu();
+      try { it.run(); } catch (err) {}
+    });
+    return row;
+  }
+
+  /* Placement: prefers screen-halves rule, flips opposite if cramped, clamps as last resort. */
+  function placeAxis(coord, size, viewport, preferHigh) {
+    var pad = 6;
+    var hi = coord + 2 + TAIL.gap - 1;           /* menu starts just past click */
+    var lo = coord - 2 - TAIL.gap + 1 - size;    /* menu ends just before click */
+    var high = preferHigh;
+    if (high && hi + size > viewport - pad) high = false;
+    else if (!high && lo < pad) high = true;
+    var pos = high ? hi : lo;
+    pos = Math.max(pad, Math.min(pos, viewport - size - pad));
+    return { pos: pos, high: high };
+  }
+
+  function placeMenu(menu, wrap, cx, cy, dark) {
+    var r = menu.getBoundingClientRect();
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var H = placeAxis(cx, r.width, vw, cx >= vw / 2);
+    var V = placeAxis(cy, r.height, vh, cy < vh / 2);
     var right = H.high, down = V.high;
     menu.style.left = H.pos + 'px';
     menu.style.top = V.pos + 'px';
@@ -329,11 +343,6 @@
     /* tail after menu in the tree: its fill paints over the menu border
        underneath, welding the two into one bubble */
     wrap.appendChild(svg);
-
-    document.addEventListener('mousedown', onAway, true);
-    document.addEventListener('keydown', onKey, true);
-    ['blur', 'resize'].forEach(function (v) { window.addEventListener(v, closeMenu); });
-    window.addEventListener('scroll', closeMenu, true);
   }
 
   /* Bubble phase: yields when the page already claimed the click (e.defaultPrevented). */

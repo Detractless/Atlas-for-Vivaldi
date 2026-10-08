@@ -259,13 +259,13 @@ class TestTier1FeatureCoverage(unittest.TestCase):
         """
         Verify offline spelling candidate generator produces expected corrections for common misspellings.
         """
-        target_file = JS_MODULES_DIR / "13-spelling.js"
+        target_file = JS_MODULES_DIR / "14-spelling.js"
         if not target_file.is_file():
             target_file = ATLAS_JS
 
         self.assertTrue(
             target_file.is_file(),
-            f"Cannot find spelling module at {JS_MODULES_DIR / '13-spelling.js'} or {ATLAS_JS}"
+            f"Cannot find spelling module at {JS_MODULES_DIR / '14-spelling.js'} or {ATLAS_JS}"
         )
 
         # Test common typographical errors

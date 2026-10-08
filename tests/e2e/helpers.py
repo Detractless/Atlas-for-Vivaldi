@@ -47,11 +47,11 @@ EXPECTED_JS_MODULES = [
     "06-toolbar.js",
     "05-profile-menu.js",
     "06-reload-helper.js",
-    "09-extensions-popover.js",
+    "10-extensions-popover.js",
     "08-theme-sync.js",
     "09-ext-dock.js",
     "11-page-progress.js",
-    "13-spelling.js",
+    "14-spelling.js",
 ]
 
 MAX_MODULE_LINES = 350

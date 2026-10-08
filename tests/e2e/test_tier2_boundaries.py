@@ -30,7 +30,7 @@ class TestTier2BoundaryAndCornerCases(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.spelling_source = JS_MODULES_DIR / "13-spelling.js"
+        cls.spelling_source = JS_MODULES_DIR / "14-spelling.js"
         if not cls.spelling_source.is_file():
             cls.spelling_source = ATLAS_JS
 
@@ -239,7 +239,7 @@ class TestTier2BoundaryAndCornerCases(unittest.TestCase):
         Verify that URLs and domain patterns are not corrupted or erroneously spellchecked.
         Examples: google.com, https://example.com/path, vivaldi://settings, localhost:8080.
         """
-        target_file = JS_MODULES_DIR / "13-spelling.js"
+        target_file = JS_MODULES_DIR / "14-spelling.js"
         if not target_file.is_file():
             target_file = ATLAS_JS
 

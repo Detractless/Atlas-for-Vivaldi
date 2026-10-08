@@ -48,7 +48,8 @@ function windowChrome(window, seed, calls, listeners) {
   const known = {
     storage: base.storage,
     runtime: new Proxy(base.runtime, { get: (t, p) => (p in t ? t[p] : recorder(`chrome.runtime.${String(p)}`, calls, listeners)) }),
-    tabs: new Proxy({ query: (q, cb) => { const r = window.JSON.parse("[]"); if (cb) Promise.resolve().then(() => cb(r)); return Promise.resolve(r); } },
+    // tabs.query answers "no tabs" at once and is recorded, so a test can answer again.
+    tabs: new Proxy({ query: (q, cb) => { calls.push({ name: "chrome.tabs.query", args: [q, cb] }); const r = window.JSON.parse("[]"); if (cb) Promise.resolve().then(() => cb(r)); return Promise.resolve(r); } },
       { get: (t, p) => (p in t ? t[p] : recorder(`chrome.tabs.${String(p)}`, calls, listeners)) }),
   };
   const chrome = new Proxy({}, {

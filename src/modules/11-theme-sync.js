@@ -1,4 +1,4 @@
-/* ── 08-theme-sync.js: Detractless extension theme synchronization and chrome class toggling ── */
+/* ── 11-theme-sync.js: Detractless extension theme synchronization and chrome class toggling ── */
 (function () {
   'use strict';
 

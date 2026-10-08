@@ -1,4 +1,4 @@
-/* ── 05-profile-menu.js: Profile menu dropdown and "D" account button interceptor ── */
+/* ── 07-profile-menu.js: Profile menu dropdown and "D" account button interceptor ── */
 
 function addDropTail(panel, anchorRect) {
   var TW = 16, TH = 9;

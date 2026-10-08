@@ -1,4 +1,4 @@
-/* ── 04-toolbar.js: React fiber toolbar instance helper and toolbar button context menu ── */
+/* ── 06-toolbar.js: React fiber toolbar instance helper and toolbar button context menu ── */
 
 function getToolbarInstance(el) {
   var candidates = [

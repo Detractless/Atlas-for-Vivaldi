@@ -1,4 +1,4 @@
-/* ── 06-reload-helper.js: Reload button enabler on internal and extension pages ── */
+/* ── 08-reload-helper.js: Reload button enabler on internal and extension pages ── */
 
 var RELOADABLE = /^(chrome|vivaldi|chrome-extension):/;
 

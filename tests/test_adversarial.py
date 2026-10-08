@@ -1,5 +1,5 @@
 """
-Adversarial Stress-Testing Suite for Offline Spelling Engine (13-spelling.js)
+Adversarial Stress-Testing Suite for Offline Spelling Engine (14-spelling.js)
 and Address Bar Context Menu (05-contextmenu.js).
 
 Challenger 1 Verification Suite.
@@ -13,7 +13,7 @@ import subprocess
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SPELLING_JS = PROJECT_ROOT / "src" / "modules" / "13-spelling.js"
+SPELLING_JS = PROJECT_ROOT / "src" / "modules" / "14-spelling.js"
 CONTEXTMENU_JS = PROJECT_ROOT / "src" / "modules" / "05-contextmenu.js"
 ATLAS_JS = PROJECT_ROOT / "payload" / "install-files" / "atlas.js"
 

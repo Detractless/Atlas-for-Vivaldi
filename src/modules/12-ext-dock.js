@@ -1,4 +1,4 @@
-/* ── 09-ext-dock.js: dock the Extensions button inside the address field ──
+/* ── 12-ext-dock.js: dock the Extensions button inside the address field ──
    The Tools sidebar toggle and panel helpers that used to live in 09-sidebar.js
    were archived (_old/archive/sidebar-tools/RESTORE.md). */
 (function () {

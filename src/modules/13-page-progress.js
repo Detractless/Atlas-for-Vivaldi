@@ -1,4 +1,4 @@
-/* ── 11-page-progress.js: Page-load progress indicator and Safari-style loading state ── */
+/* ── 13-page-progress.js: Page-load progress indicator and Safari-style loading state ── */
 (function () {
   'use strict';
 
