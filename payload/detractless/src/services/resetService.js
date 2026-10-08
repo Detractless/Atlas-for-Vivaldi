@@ -15,7 +15,7 @@
 // `onblocked` (so a reset can never hang), a missed close would look exactly like
 // success and silently leave the data behind.
 import { BookmarkDB } from './bookmarksDB.js';
-import { closeDB as closePastekitDB } from '../pastekit/services/db.js';
+import { closeDB as closePastekitDB } from './snippetBackup.js';
 import { PASTEKIT_DB } from '../constants/storageKeys.js';
 
 /** Delete one database, resolving whatever happens — a reset must not hang. */

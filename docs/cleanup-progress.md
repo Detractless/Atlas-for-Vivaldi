@@ -58,3 +58,11 @@ Per-phase gate: `node --test tests/unit/*.test.js`, `python3 -m unittest discove
 - Bug found, not fixed (behavior change outside the plan): the Extensions popover search field resets on every keystroke (`drawExtPop` calls `closeExtPop`, which clears the query). Pinned by a todo test.
 - Tests: node 66/66 + 1 todo, python 9/9. Dry run OK. node --check 0 failures.
 
+## Phase 6: archived features out of the bundles
+- Moved to `_old/archive/tools-runtime/` (with RESTORE.md): `src/pastekit/` (snippet CRUD/search, message hub, install seeding, side-panel action, "Save to Pastekit" menu) and `background/removerController.js`. The service worker no longer loads them (bundle 41 KB -> 24 KB); its message table lost the Remover actions.
+- Plan deviation, for data safety: snippets still travel in backups. The plan said to drop the PasteKit DB from the new-tab bundle, but then Export would silently leave snippets out, and Reset still deletes the `pastekit` database, so export + reset would lose them. `src/services/snippetBackup.js` (282 lines, export/import/close only, same schema and format) replaces the 463-line PasteKit db module.
+- Migration (`background/archivedCleanup.js`): removes the stale "Save to Pastekit" item from the browser's right-click menu; deletes no data. `pastekit` DB, `pastekit.settings`, `rhe_rules`, `rheTabStates` stay; atlasKeys.json marks the unused ones `archived`.
+- Left on purpose: `services/tabSaver.js` (saved tab groups); the live tab limiter still calls it.
+- New tests: snippets survive export -> import into a fresh tab (passes on the old code too); the service worker ignores Remover/PasteKit messages and removes the menu item.
+- Tests: node 68/68 + 1 todo, python 9/9. Dry run OK. node --check 0 failures.
+

@@ -1,8 +1,7 @@
 import { generateExportData } from '../../services/dataExport.js';
 import { persistImportData } from '../../services/dataImport.js';
 import { packageArchive, isDetractlessFile, openArchive } from '../../services/detractlessFormat.js';
-import { buildExport, importJson } from '../../pastekit/services/db.js';
-import { broadcast } from '../../pastekit/services/broadcast.js';
+import { buildExport, importJson } from '../../services/snippetBackup.js';
 import { refreshBookmarkCache } from '../../components/bookmarks/bookmarkCache.js';
 import {
   activeTabs,
@@ -50,7 +49,6 @@ export async function applyArchiveBuffer(buffer) {
   let appliedSnippets = false;
   if (pastekitData) {
     await importJson({ format: 'pastekit-snippets', version: 1, ...pastekitData }, 'replace');
-    broadcast();
     appliedSnippets = true;
   }
 
@@ -131,7 +129,6 @@ async function applyImportFile(file, buffer) {
     // Standalone PasteKit export — snippets only
     const pastekitData = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer)));
     await importJson(pastekitData, 'replace');
-    broadcast();
     return 'Import successful! Snippets restored.';
   } else {
     // Legacy .detractless.json format — keep working forever

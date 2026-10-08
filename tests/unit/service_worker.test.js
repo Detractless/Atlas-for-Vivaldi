@@ -11,15 +11,16 @@ const { IDBFactory, IDBKeyRange } = require("fake-indexeddb");
 
 const BUNDLE = path.join(__dirname, "..", "..", "payload", "detractless", "src", "dist", "serviceWorker.bundle.js");
 
-/** Any chrome.a.b.c(...) call resolves to `undefined`; addListener calls are recorded. */
-function anyApi(name, listeners) {
+/** Any chrome.a.b.c(...) call resolves to `undefined` and is recorded; so are addListener calls. */
+function anyApi(name, listeners, calls) {
   return new Proxy(function () {}, {
     get(_, prop) {
       if (prop === "then") return undefined;
       if (prop === "addListener") return (fn) => (listeners[name] = listeners[name] || []).push(fn);
-      return anyApi(`${name}.${String(prop)}`, listeners);
+      return anyApi(`${name}.${String(prop)}`, listeners, calls);
     },
     apply(_, __, args) {
+      calls.push({ name, args });
       const cb = args.find((a) => typeof a === "function");
       if (cb) Promise.resolve().then(() => cb(undefined));
       return Promise.resolve(undefined);
@@ -43,19 +44,19 @@ function storageArea(data = {}) {
 }
 
 function loadWorker() {
-  const listeners = {};
-  const chrome = anyApi("chrome", listeners);
+  const listeners = {}, calls = [];
+  const chrome = anyApi("chrome", listeners, calls);
   const fake = {
-    storage: { sync: storageArea(), local: storageArea(), session: storageArea(), onChanged: anyApi("chrome.storage.onChanged", listeners) },
+    storage: { sync: storageArea(), local: storageArea(), session: storageArea(), onChanged: anyApi("chrome.storage.onChanged", listeners, calls) },
     tabs: new Proxy({ query: (q, cb) => { if (cb) Promise.resolve().then(() => cb([])); return Promise.resolve([]); } }, {
-      get: (t, p) => (p in t ? t[p] : anyApi(`chrome.tabs.${String(p)}`, listeners)),
+      get: (t, p) => (p in t ? t[p] : anyApi(`chrome.tabs.${String(p)}`, listeners, calls)),
     }),
   };
   const chromeObj = new Proxy({}, {
     get: (_, p) => (p in fake ? fake[p] : p === "runtime" ? runtime : chrome[p]),
   });
   const runtime = new Proxy({ id: "test", lastError: undefined, getURL: (p) => "chrome-extension://test/" + p }, {
-    get: (t, p) => (p in t ? t[p] : anyApi(`chrome.runtime.${String(p)}`, listeners)),
+    get: (t, p) => (p in t ? t[p] : anyApi(`chrome.runtime.${String(p)}`, listeners, calls)),
   });
   const errors = [];
   const context = vm.createContext({
@@ -65,7 +66,7 @@ function loadWorker() {
   });
   context.globalThis = context;
   vm.runInContext(fs.readFileSync(BUNDLE, "utf8"), context, { filename: "serviceWorker.bundle.js" });
-  return { listeners, storage: fake.storage, errors };
+  return { listeners, calls, storage: fake.storage, errors };
 }
 
 function send(w, message) {
@@ -105,4 +106,12 @@ test("an unknown message is left for other listeners", async () => {
   const w = loadWorker();
   assert.equal(await send(w, { action: "toString" }), "not handled");
   assert.equal(await send(w, { action: "nope" }), "not handled");
+});
+
+test("the archived Remover and PasteKit no longer answer, and their menu item is removed", async () => {
+  const w = loadWorker();
+  assert.equal(await send(w, { action: "getRemoverState", tabId: 1 }), "not handled");
+  assert.equal(await send(w, { path: "page-to-background" }), "not handled");
+  assert.equal(await send(w, { type: "pastekit:get-snippets" }), "not handled");
+  assert.ok(w.calls.some((c) => c.name === "chrome.contextMenus.remove" && c.args[0] === "pastekit-save-selection"));
 });

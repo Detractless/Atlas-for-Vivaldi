@@ -276,7 +276,7 @@
   var init_atlasKeys = __esm({
     "src/constants/atlasKeys.json"() {
       atlasKeys_default = {
-        _about: "The one list of Atlas storage keys, databases and ids. The bundles import it, install.py reads it, and tests/unit/storage_keys.test.js checks that code and this file agree. Never rename a key: stored user data uses these names. default: value when the key is absent. backup: carried by Export/Import. importWhen: 'defined' restores any value that is not undefined, 'truthy' only a truthy one. profile: the profilesCore.js category that owns it when profiles keep separate settings.",
+        _about: "The one list of Atlas storage keys, databases and ids. archived: data an archived feature left in profiles; kept, not used. The bundles import it, install.py reads it, and tests/unit/storage_keys.test.js checks that code and this file agree. Never rename a key: stored user data uses these names. default: value when the key is absent. backup: carried by Export/Import. importWhen: 'defined' restores any value that is not undefined, 'truthy' only a truthy one. profile: the profilesCore.js category that owns it when profiles keep separate settings.",
         extensionId: "mpognobbkildjkofajifpdfhcoklimli",
         newTabPath: "index.html",
         databases: {
@@ -334,11 +334,11 @@
           activeDelays: { default: {}, note: "Service worker: search delays in progress." },
           atlasProfilesV2: { default: null, note: "Profiles state (profilesCore.js)." },
           __atlas_localstorage__: { default: {}, note: "Backing store of the localStorage shim (atlas-localstorage-shim.js)." },
-          "pastekit.settings": { default: null, note: "PasteKit (archived feature)." },
+          "pastekit.settings": { default: null, archived: true, note: "PasteKit settings (archived feature). Left in place; no code reads it now." },
           savedTabGroups: { default: null, note: "Tab saver (service worker)." }
         },
         session: {
-          rheTabStates: { default: null, note: "Element Remover per-tab state (archived feature)." }
+          rheTabStates: { default: null, archived: true, note: "Element Remover per-tab state (archived feature). Left in place; no code reads it now." }
         },
         localStorage: {
           _themeCache: "Theme preference for the first paint (themePreinit.js).",
@@ -4790,7 +4790,7 @@
     return isDetractlessArchive(buffer);
   }
 
-  // src/pastekit/services/db.js
+  // src/services/snippetBackup.js
   init_storageKeys();
   var DB_NAME = PASTEKIT_DB;
   var DB_VERSION = 2;
@@ -4867,17 +4867,9 @@
     const tx = db.transaction(name, mode || "readonly");
     return { tx, os: tx.objectStore(name) };
   }
-  async function readSnippetRows() {
+  async function readAllSnippets() {
     const { os } = await store("snippets");
     return p(os.getAll());
-  }
-  async function readAllSnippets() {
-    return readSnippetRows();
-  }
-  async function listSnippets(folderId) {
-    const all = await readAllSnippets();
-    if (folderId == null) return all;
-    return all.filter((s) => s.folderId === folderId);
   }
   function byName(a, b) {
     return (a.name || "").localeCompare(b.name || "");
@@ -4890,7 +4882,7 @@
   var FORMAT2 = "pastekit-snippets";
   var CURRENT_VERSION = 1;
   async function buildExport() {
-    const [folders, snippets] = await Promise.all([listFolders(), listSnippets(null)]);
+    const [folders, snippets] = await Promise.all([listFolders(), readAllSnippets()]);
     const folderXid = /* @__PURE__ */ new Map();
     folders.forEach((f, i2) => folderXid.set(f.id, "f" + (i2 + 1)));
     return {
@@ -5022,60 +5014,6 @@
     return candidate;
   }
 
-  // src/pastekit/utils/messages.js
-  var MSG = {
-    // service-worker DB API (popup/options/content -> SW)
-    SNIPPET_LIST: "snippet.list",
-    SNIPPET_GET_BY_NAME: "snippet.getByName",
-    SNIPPET_SEARCH: "snippet.search",
-    // Content-script surface. SUGGEST returns {id, name} only — never snippet
-    // bodies — so a page's renderer never holds content it has no use for. GET
-    // pulls the single snippet the user actually chose, at commit time.
-    SNIPPET_SUGGEST: "snippet.suggest",
-    SNIPPET_GET: "snippet.get",
-    SNIPPET_SAVE: "snippet.save",
-    SNIPPET_DELETE: "snippet.delete",
-    FOLDER_LIST: "folder.list",
-    FOLDER_SAVE: "folder.save",
-    FOLDER_DELETE: "folder.delete",
-    TAG_LIST: "tag.list",
-    EXPORT_JSON: "export.json",
-    IMPORT_JSON: "import.json",
-    // broadcast (SW -> everyone, fire-and-forget)
-    SNIPPETS_CHANGED: "snippets.changed",
-    // fill mode (popup -> tab content script; CS -> SW)
-    FILL_START: "fill.start",
-    FILL_STATUS: "fill.status",
-    FILL_CANCEL: "fill.cancel",
-    FILL_ENDED: "fill.ended",
-    FILL_ADVANCE: "fill.advance",
-    // quick clip via context menu (SW <-> tab content script)
-    GET_SELECTION: "clip.getSelection",
-    CLIP_SAVED: "clip.saved"
-  };
-
-  // src/pastekit/services/broadcast.js
-  function broadcast() {
-    try {
-      chrome.runtime.sendMessage({ type: MSG.SNIPPETS_CHANGED }).catch(() => {
-      });
-    } catch (_) {
-    }
-    try {
-      chrome.tabs.query({}, (tabs) => {
-        for (const t of tabs) {
-          if (t.id == null) continue;
-          try {
-            chrome.tabs.sendMessage(t.id, { type: MSG.SNIPPETS_CHANGED }).catch(() => {
-            });
-          } catch (_) {
-          }
-        }
-      });
-    } catch (_) {
-    }
-  }
-
   // src/pages/newtab/importExport.js
   init_newtabState();
   var _onImportComplete = null;
@@ -5106,7 +5044,6 @@
     let appliedSnippets = false;
     if (pastekitData) {
       await importJson({ format: "pastekit-snippets", version: 1, ...pastekitData }, "replace");
-      broadcast();
       appliedSnippets = true;
     }
     return { layout, appliedConfig, appliedSnippets };
@@ -5182,7 +5119,6 @@
     } else if (file.name.endsWith(".pastekit")) {
       const pastekitData = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer)));
       await importJson(pastekitData, "replace");
-      broadcast();
       return "Import successful! Snippets restored.";
     } else {
       const importData = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer)));

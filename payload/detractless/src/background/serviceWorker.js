@@ -17,19 +17,7 @@ import './tabLimiter.js';
 import './searchInterception.js';
 import './pendingChanges.js';
 import './messaging.js';
-import './removerController.js';
 import './stateSync.js';
-
-// Pastekit modules — snippet message hub, install seeding, side-panel
-// action behavior, and the "Save to Pastekit" context menu. Pastekit
-// dispatches on msg.type, Detractless on message.action/message.path,
-// so the two onMessage listeners coexist.
-import { initMessageHub } from '../pastekit/services/messageHub.js';
-import { initInstall } from '../pastekit/services/install.js';
-import { initAction } from '../pastekit/services/action.js';
-import { initClipMenu } from '../pastekit/services/clip.js';
-
-initMessageHub();
-initInstall();
-initAction();
-initClipMenu();
+// PasteKit and the Element Remover were archived with the Tools sidebar
+// (_old/archive/tools-runtime/RESTORE.md); this tidies what they left behind.
+import './archivedCleanup.js';

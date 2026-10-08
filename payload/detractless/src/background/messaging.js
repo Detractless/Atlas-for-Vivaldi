@@ -2,7 +2,6 @@ import { searchDelayMs, activeDelays, setSearchDelayMs } from './workerState.js'
 import { enforceTabLimit } from './tabLimiter.js';
 import { standardiseUrl } from './searchUrl.js';
 import { checkPendingIncrease, checkPendingDelayDecrease, pruneActiveDelays } from './pendingChanges.js';
-import { handleElementRemoverMessage, toggleRemoverForTab, getRemoverState } from './removerController.js';
 
 const ok = (sendResponse) => sendResponse({ success: true });
 
@@ -42,20 +41,12 @@ const ACTIONS = {
   cancelDelayDecrease: (m, send) => ok(send),
   checkDelayStatus: (m, send) => send(delayStatus(m.url)),
   markDelayCompleted: (m, send) => { markDelayCompleted(m.url); ok(send); },
-  // --- Sidebar → Remover (per-tab, async: state lives in storage.session) ---
-  toggleRemoverOnTab: (m, send) => { toggleRemoverForTab(m.tabId).then((state) => send({ state })); },
-  getRemoverState: (m, send) => { getRemoverState(m.tabId).then((state) => send({ state })); },
 };
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (Object.prototype.hasOwnProperty.call(ACTIONS, message.action)) {
     ACTIONS[message.action](message, sendResponse);
     return true;
-  }
-  // --- Element Remover Messages ---
-  if (message.path === "page-to-background") {
-    handleElementRemoverMessage(message, sender, sendResponse);
-    return true; // Keep channel open
   }
   return false;
 });

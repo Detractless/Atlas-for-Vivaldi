@@ -23,7 +23,6 @@ const DYNAMIC_OK = {
   "payload/detractless/src/services/dataExport.js": "keys come from BACKUP_SYNC_KEYS (the list)",
   "payload/detractless/src/background/stateSync.js": "SEEDED_KEYS, each checked by syncDefault()",
   "payload/detractless/src/components/tabs/tabs.js": "legacy page<id> key (syncPatterns)",
-  "payload/detractless/src/pastekit/services/install.js": "SETTINGS_KEY = 'pastekit.settings' from pastekit/utils/settings.js",
   "src/modules/02-bridge-setup.js": "seeds the service-worker defaults (atlas_window.test.js checks the values)",
 };
 
@@ -48,11 +47,12 @@ test("every storage key the code names is in atlasKeys.json", () => {
   assert.deepEqual(dynamic, [], "storage calls with keys the test cannot read; add a reason to DYNAMIC_OK");
 });
 
-test("every key in atlasKeys.json is used somewhere", () => {
+test("every key in atlasKeys.json is used somewhere (archived ones excepted)", () => {
   const code = sourceFiles().map((f) => fs.readFileSync(path.join(ROOT, f), "utf8")).join("\n");
   const unused = [];
   for (const area of ["sync", "local", "session"]) {
     for (const key of Object.keys(KEYS[area])) {
+      if (KEYS[area][key].archived) continue;
       if (!code.includes(`'${key}'`) && !code.includes(`"${key}"`)) unused.push(`${area}.${key}`);
     }
   }
