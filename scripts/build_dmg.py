@@ -151,7 +151,9 @@ fi
         if icns_path.is_file():
             shutil.copy2(icns_path, res_dir / "AppIcon.icns")
         shutil.copy2(install_py, res_dir / "install.py")
-        shutil.copytree(payload_dir, res_dir / "payload")
+        # Keys, Finder metadata and stale sourcemaps never go in the DMG.
+        shutil.copytree(payload_dir, res_dir / "payload",
+                        ignore=shutil.ignore_patterns("*.pem", ".DS_Store", "*.map"))
 
         # Add README in DMG
         readme_txt = """Atlas for Vivaldi - macOS Installer

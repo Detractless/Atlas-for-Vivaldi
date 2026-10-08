@@ -45,14 +45,17 @@ def copy_file(src: Path, dst_dir: Path):
     shutil.copy2(src, dst_dir / src.name)
 
 
+# Never install private signing keys, Finder metadata or stale source maps.
+NEVER_INSTALL = ("*.pem", ".DS_Store", "*.map")
+
+
 def copy_tree(src_dir: Path, dst_dir: Path):
     if _guard():
         say(f"[dry-run] copy tree {src_dir}\\*  ->  {dst_dir}")
         return
     dst_dir.mkdir(parents=True, exist_ok=True)
-    # Never install private signing keys or Finder metadata.
     shutil.copytree(src_dir, dst_dir, dirs_exist_ok=True,
-                    ignore=shutil.ignore_patterns("*.pem", ".DS_Store"))
+                    ignore=shutil.ignore_patterns(*NEVER_INSTALL))
 
 
 def read_text(p: Path) -> str:
@@ -89,27 +92,29 @@ def payload_root() -> Path:
     return base / "payload"
 
 
-def get_atlas_root() -> Path:
+def vivaldi_data_dir() -> Path:
+    """Vivaldi's per-user folder: ~/Library/Application Support/Vivaldi or %LOCALAPPDATA%/Vivaldi."""
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "Vivaldi" / "Atlas"
+        return Path.home() / "Library" / "Application Support" / "Vivaldi"
     local = os.environ.get("LOCALAPPDATA", "")
     if not local:
         fail("LOCALAPPDATA is not set; cannot locate Vivaldi.")
-    return Path(local) / "Vivaldi" / "Atlas"
+    return Path(local) / "Vivaldi"
+
+
+def get_atlas_root() -> Path:
+    return vivaldi_data_dir() / "Atlas"
 
 
 def get_prefs_file() -> Path:
-    if sys.platform == "darwin":
-        base = Path.home() / "Library" / "Application Support" / "Vivaldi"
-        pref = base / "Default" / "Preferences"
-        pref_ud = base / "User Data" / "Default" / "Preferences"
-        if pref_ud.is_file() and not pref.is_file():
-            return pref_ud
-        return pref
-    local = os.environ.get("LOCALAPPDATA", "")
-    if not local:
-        fail("LOCALAPPDATA is not set; cannot locate Vivaldi profile.")
-    return Path(local) / "Vivaldi" / "User Data" / "Default" / "Preferences"
+    base = vivaldi_data_dir()
+    pref_ud = base / "User Data" / "Default" / "Preferences"
+    if sys.platform != "darwin":
+        return pref_ud
+    pref = base / "Default" / "Preferences"
+    if pref_ud.is_file() and not pref.is_file():
+        return pref_ud
+    return pref
 
 
 def find_vivaldi_res() -> Path:
@@ -256,6 +261,27 @@ MENU_PLAN = {
 PANEL_ID = "WEBPANEL_atlas_sidebar"
 PANEL_URL = "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/sidepanel.html"
 
+# What step 3 installs from payload/detractless. Only files that index.html,
+# gate.html, window.html or the bundles actually load; everything else in the
+# payload (old unbundled sources, sourcemaps) stays out of Vivaldi.
+DETRACTLESS_DIRS = ("icons", "src/assets")
+DETRACTLESS_FILES = (
+    "index.html",
+    "gate.html",
+    "src/dist/newtab.bundle.js",
+    "src/dist/newtab.bundle.css",
+    "src/dist/gate.bundle.js",
+    "src/dist/gate.bundle.css",
+    "src/dist/serviceWorker.bundle.js",
+    "src/styles/fonts.css",
+    "src/pages/shared/themePreinit.js",
+    "src/pages/newtab/preinit.js",
+    "src/pages/newtab/profilesCore.js",
+    "src/pages/newtab/profilesPage.js",
+    "src/pages/newtab/profilesPage.css",
+    "src/pages/newtab/settingsPage.js",
+    "src/pages/newtab/newtabBridge.js",
+)
 # Files an earlier install put in Resources/vivaldi for the archived sidebar.
 ARCHIVED_SIDEBAR_FILES = [
     "sidepanel.html",
@@ -322,16 +348,14 @@ def step3_detractless(detract: Path, res: Path, skip: bool):
     if not detract.is_dir():
         say("Detractless payload missing - SKIPPED")
         return
-    for f in ("index.html", "gate.html"):
-        sp = detract / f
-        if sp.is_file():
-            copy_file(sp, res)
-    if (detract / "icons").is_dir():
-        copy_tree(detract / "icons", res / "icons")
-    for d in ("dist", "assets", "styles", "pages"):
-        src_d = detract / "src" / d
-        if src_d.is_dir():
-            copy_tree(src_d, res / "src" / d)
+    for d in DETRACTLESS_DIRS:
+        if (detract / d).is_dir():
+            copy_tree(detract / d, res / d)
+    for rel in DETRACTLESS_FILES:
+        sp = detract / rel
+        if not sp.is_file():
+            fail(f"Payload is missing {rel} - package is incomplete.")
+        copy_file(sp, (res / rel).parent)
     _remove_archived_sidebar_files(res)
 
     if DRY:
@@ -423,43 +447,58 @@ def _ensure(d: dict, key: str) -> dict:
     return d[key]
 
 
-def step6_preferences(payload: Path, css_dst: Path):
-    prefs_file = get_prefs_file()
+ATLAS_NEWTAB_URL = "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/index.html"
+
+
+def _load_prefs(prefs_file: Path) -> dict:
+    """Read Preferences. A file that exists but will not parse stops the install:
+    writing over it would wipe every Vivaldi setting the user has."""
     if not prefs_file.is_file():
         if DRY:
             say(f"[dry-run] Preferences not found ({prefs_file}) - will create new profile config")
-            prefs = {}
         else:
             say(f"Initializing new Preferences profile ({prefs_file})")
             prefs_file.parent.mkdir(parents=True, exist_ok=True)
-            prefs = {}
-    else:
-        bak = prefs_file.with_name(prefs_file.name + ".atlas-bak")
-        if not bak.exists() and not DRY:
-            shutil.copy2(prefs_file, bak)
-        try:
-            prefs = json.loads(read_text(prefs_file))
-        except Exception:
-            prefs = {}
-    v = _ensure(prefs, "vivaldi")
-    appear = _ensure(v, "appearance")
+        return {}
+    try:
+        prefs = json.loads(read_text(prefs_file))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as e:
+        fail(
+            f"Could not read Vivaldi Preferences ({prefs_file}): {e}\n"
+            "  Nothing was written to it. Open and close Vivaldi once, then run the installer again."
+        )
+    if not isinstance(prefs, dict):
+        fail(f"Vivaldi Preferences is not a JSON object ({prefs_file}). Nothing was written to it.")
+    return prefs
+
+
+def _backup_prefs(prefs_file: Path):
+    """Keep the very first copy (.atlas-bak) plus a dated copy of every install."""
+    if DRY or not prefs_file.is_file():
+        return
+    first = prefs_file.with_name(prefs_file.name + ".atlas-bak")
+    if not first.exists():
+        shutil.copy2(prefs_file, first)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    shutil.copy2(prefs_file, prefs_file.with_name(f"{prefs_file.name}.atlas-bak-{stamp}"))
+
+
+def _prefs_appearance(v: dict, css_dst: Path):
+    # Custom UI modifications directory.
+    _ensure(v, "appearance")["css_ui_mods_directory"] = str(css_dst)
+    # Atlas owns the browser theme. Vivaldi's default schedule ("system")
+    # swaps in the built-in Dark theme whenever macOS is dark, overriding
+    # the Atlas Light/Dark theme and turning the frame dark on its own.
+    _ensure(_ensure(v, "theme"), "schedule")["enabled"] = "off"
+
+
+def _prefs_remove_tools_panel(v: dict):
+    # The Tools sidebar web panel is archived: remove it (and its panel-bar slot)
+    # if an earlier install added it. The panel bar itself is left as the user has it.
     panels = _ensure(v, "panels")
     web = _ensure(panels, "web")
-    state = _ensure(panels, "state")
+    _ensure(panels, "state")
     toolbars = _ensure(v, "toolbars")
-    themes = _ensure(v, "themes")
-
-    # 6a. custom UI modifications directory
-    appear["css_ui_mods_directory"] = str(css_dst)
-
-    # 6a2. Atlas owns the browser theme. Vivaldi's default schedule ("system")
-    #      swaps in the built-in Dark theme whenever macOS is dark, overriding
-    #      the Atlas Light/Dark theme and turning the frame dark on its own.
-    sched = _ensure(_ensure(v, "theme"), "schedule")
-    sched["enabled"] = "off"
-
-    # 6b. Tools sidebar web panel is archived: remove it (and its panel-bar slot)
-    #     if an earlier install added it. The panel bar itself is left as the user has it.
     elements = web.get("elements")
     if isinstance(elements, list):
         web["elements"] = [
@@ -471,52 +510,52 @@ def step6_preferences(payload: Path, css_dst: Path):
         ]
     panel_bar = toolbars.get("panel")
     panel_bar = list(panel_bar) if isinstance(panel_bar, list) else []
-    panel_bar = [x for x in panel_bar if str(x) != PANEL_ID]
-    toolbars["panel"] = panel_bar
+    # Extensions moves to the mainbar (see _prefs_navigation_toolbar).
+    toolbars["panel"] = [x for x in panel_bar if str(x) != PANEL_ID and x != "Extensions"]
 
-    # 6d. Native anchors atlas.js needs. It only restyles chrome elements that
-    #     already exist, so the mainbar must be visible and must carry the
-    #     Extensions (puzzle) button and the Account button.
+
+def _prefs_address_bar(prefs: dict, v: dict):
+    # atlas.js only restyles chrome elements that already exist, so the mainbar
+    # must be visible and must carry the Extensions (puzzle) button.
     addr = _ensure(v, "address_bar")
     addr["visible"] = True
-    ext_prefs = _ensure(addr, "extensions")
-    ext_prefs["show_all_toggle"] = True
+    _ensure(addr, "extensions")["show_all_toggle"] = True
 
-    # Disable all address bar inline auto-complete, bookmarks autofill, history, and suggestions
+    # No inline auto-complete, bookmark autofill, history or suggestions.
     auto = _ensure(addr, "autocomplete")
     auto["enabled"] = False
-    auto_suffix = _ensure(auto, "suffix_expansion")
-    auto_suffix["enabled"] = False
+    _ensure(auto, "suffix_expansion")["enabled"] = False
 
     omni = _ensure(addr, "omnibox")
-    omni["enabled"] = False
-    omni["bookmarks"] = False
-    omni["bookmarks_boosted"] = False
-    omni["show_bookmarks"] = False
-    omni["show_nicknames"] = False
-    omni["show_typed_history"] = False
-    omni["show_browser_history"] = False
-    omni["show_search_history"] = False
-    omni["search_history_enable"] = False
-    omni["show_vivaldi_calculator"] = False
+    for key in ("enabled", "bookmarks", "bookmarks_boosted", "show_bookmarks",
+                "show_nicknames", "show_typed_history", "show_browser_history",
+                "show_search_history", "search_history_enable", "show_vivaldi_calculator"):
+        omni[key] = False
 
     srch = _ensure(addr, "search")
-    srch["direct_match_enabled"] = False
-    srch["direct_match_boosted"] = False
-    srch["suggest_enabled"] = False
+    for key in ("direct_match_enabled", "direct_match_boosted", "suggest_enabled"):
+        srch[key] = False
 
     in_srch = _ensure(addr, "inline_search")
     in_srch["suggest_enabled"] = False
     in_srch["suggest_on_nickname"] = False
 
-    search_root = _ensure(prefs, "search")
-    search_root["suggest_enabled"] = False
+    _ensure(prefs, "search")["suggest_enabled"] = False
 
-    if "Extensions" in panel_bar:
-        panel_bar = [x for x in panel_bar if x != "Extensions"]
-        toolbars["panel"] = panel_bar
 
-    # atlas.js §9 only restyles Back/Forward when they live on the mainbar, so
+def _insert_after(nav: list, btn: str, anchors: tuple, before: bool = False):
+    """Put btn right after the first anchor found (or before it), else at the end."""
+    nav[:] = [x for x in nav if x != btn]
+    for a in anchors:
+        if a in nav:
+            nav.insert(nav.index(a) + (0 if before else 1), btn)
+            return
+    nav.append(btn)
+
+
+def _prefs_navigation_toolbar(v: dict):
+    toolbars = _ensure(v, "toolbars")
+    # atlas.js only restyles Back/Forward when they live on the mainbar, so
     # pull them off the tab-bar sub-toolbars and onto navigation.
     for tb in ("tabbar_before", "tabbar_after"):
         arr = toolbars.get(tb)
@@ -534,68 +573,70 @@ def step6_preferences(payload: Path, css_dst: Path):
             nav.append(btn)
 
     # Extensions sits right after AddressField, not out by AccountButton/window
-    # controls — its native popup anchors to wherever the button is, and one
-    # planted at the far corner gets clipped by the screen edge. (Hover-reveal
-    # CSS in atlas.css keeps it visually tucked against the field.)
-    nav = [x for x in nav if x != "Extensions"]
-    if "AddressField" in nav:
-        nav.insert(nav.index("AddressField") + 1, "Extensions")
-    else:
-        nav.append("Extensions")
-
-    # Home sits right after Reload (to its right, before AddressField)
-    nav = [x for x in nav if x != "Home"]
+    # controls: its native popup anchors to wherever the button is, and one
+    # planted at the far corner gets clipped by the screen edge.
+    _insert_after(nav, "Extensions", ("AddressField",))
+    # Home sits right after Reload, or just before AddressField.
     if "Reload" in nav:
-        nav.insert(nav.index("Reload") + 1, "Home")
-    elif "AddressField" in nav:
-        nav.insert(nav.index("AddressField"), "Home")
+        _insert_after(nav, "Home", ("Reload",))
     else:
-        nav.append("Home")
+        _insert_after(nav, "Home", ("AddressField",), before=True)
     toolbars["navigation"] = nav
 
-    # 6e. Atlas dashboard becomes the new-tab and home page (link type 4 = custom URL).
-    v["homepage"] = "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/index.html"
+
+def _prefs_new_tab(v: dict):
+    # The Atlas dashboard becomes the new-tab and home page (link type 4 = custom URL).
+    v["homepage"] = ATLAS_NEWTAB_URL
     tabs = _ensure(v, "tabs")
     tabs["focus_webview"] = True
     new_page = _ensure(tabs, "new_page")
     new_page["link"] = 4
-    new_page["custom_url"] = (
-        "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/index.html"
-    )
+    new_page["custom_url"] = ATLAS_NEWTAB_URL
 
-    # 6c. Atlas themes: merge by id, pick one if none active
+
+def _prefs_themes(v: dict, payload: Path):
+    # Atlas themes: merge by id, pick one if none active.
     theme_file = payload / "atlas-themes.json"
-    if theme_file.is_file():
-        atlas_themes = json.loads(read_text(theme_file))
-        user_themes = themes.get("user")
-        user_themes = list(user_themes) if isinstance(user_themes, list) else []
-        existing_ids = {
-            str(t.get("id")) for t in user_themes if isinstance(t, dict)
-        }
-        for at in atlas_themes:
-            tid = str(at.get("id"))
-            if tid not in existing_ids:
-                user_themes.append(at)
-                existing_ids.add(tid)
-        themes["user"] = user_themes
-        if str(themes.get("current")) not in ("AtlasLight", "AtlasDark"):
-            themes["current"] = "AtlasLight"
+    if not theme_file.is_file():
+        return
+    themes = _ensure(v, "themes")
+    user_themes = themes.get("user")
+    user_themes = list(user_themes) if isinstance(user_themes, list) else []
+    existing_ids = {str(t.get("id")) for t in user_themes if isinstance(t, dict)}
+    for at in json.loads(read_text(theme_file)):
+        tid = str(at.get("id"))
+        if tid not in existing_ids:
+            user_themes.append(at)
+            existing_ids.add(tid)
+    themes["user"] = user_themes
+    if str(themes.get("current")) not in ("AtlasLight", "AtlasDark"):
+        themes["current"] = "AtlasLight"
 
-    # 6f. Ensure Developer Mode is enabled so unpacked extensions can be managed freely
-    ext_ui = _ensure(_ensure(prefs, "extensions"), "ui")
-    ext_ui["developer_mode"] = True
 
-    # 6g. Ensure profile.exit_type is Normal to prevent crash recovery loops on restored tabs
+def _prefs_startup(prefs: dict, v: dict):
+    # Developer Mode on, so unpacked extensions can be managed freely.
+    _ensure(_ensure(prefs, "extensions"), "ui")["developer_mode"] = True
+    # A clean exit state prevents crash-recovery loops on restored tabs.
     prof = _ensure(prefs, "profile")
     prof["exit_type"] = "Normal"
     prof["exited_cleanly"] = True
+    # Open a fresh new tab on startup rather than restoring the last session.
+    _ensure(prefs, "session")["restore_on_startup"] = 1
+    _ensure(v, "startup")["type"] = 2
 
-    # 6h. Open fresh new-tab on startup rather than attempting last session restore
-    sess = _ensure(prefs, "session")
-    sess["restore_on_startup"] = 1
-    v_start = _ensure(v, "startup")
-    v_start["type"] = 2
 
+def step6_preferences(payload: Path, css_dst: Path):
+    prefs_file = get_prefs_file()
+    prefs = _load_prefs(prefs_file)
+    v = _ensure(prefs, "vivaldi")
+    _prefs_appearance(v, css_dst)
+    _prefs_remove_tools_panel(v)
+    _prefs_address_bar(prefs, v)
+    _prefs_navigation_toolbar(v)
+    _prefs_new_tab(v)
+    _prefs_themes(v, payload)
+    _prefs_startup(prefs, v)
+    _backup_prefs(prefs_file)
     write_json(prefs_file, prefs, label="Preferences")
     say("Preferences          panel + mainbar + new-tab + css dir + themes set")
 
@@ -740,7 +781,7 @@ def step9_macos_codesign(res: Path):
         return
     say("Code signing         clearing quarantine & re-signing bundle...")
     subprocess.run(["xattr", "-cr", str(app_bundle)], capture_output=True)
-    subprocess.run(
+    sign = subprocess.run(
         [
             "codesign",
             "--force",
@@ -750,9 +791,17 @@ def step9_macos_codesign(res: Path):
             "-",
             str(app_bundle),
         ],
-        capture_output=True,
+        capture_output=True, text=True,
     )
-    subprocess.run(["codesign", "-vvv", "--check-restriction", str(app_bundle)], capture_output=True)
+    if sign.returncode != 0:
+        # Stops before a staged copy replaces Vivaldi: an unsigned bundle may not launch.
+        fail(f"codesign failed ({sign.returncode}): {sign.stderr.strip()[:400]}")
+    check = subprocess.run(
+        ["codesign", "--verify", "--deep", "--strict", str(app_bundle)],
+        capture_output=True, text=True,
+    )
+    if check.returncode != 0:
+        say(f"Warning: signature check failed: {check.stderr.strip()[:200]}", dim=True)
     say("Code signature       ad-hoc re-signed for Gatekeeper (entitlements preserved)")
 
 
