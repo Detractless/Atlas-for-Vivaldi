@@ -1,5 +1,7 @@
 import { tabLimit, setTabLimit, managementMethod, setManagementMethod } from './workerState.js';
 import { saveClosingTabs } from '../services/tabSaver.js';
+import { storageGet } from '../services/storage.js';
+import { warn } from '../services/log.js';
 
 function isTabLimitExcluded(tab) {
   const url = (typeof tab?.url === "string") ? tab.url : "";
@@ -56,7 +58,7 @@ export function selectTabsToClose(tabs, limit, method) {
 export async function enforceTabLimit() {
   try {
     // Re-fetch settings to be safe
-    const result = await chrome.storage.sync.get(['tabLimit', 'managementMethod'])
+    const result = await storageGet('sync', ['tabLimit', 'managementMethod'])
     setTabLimit(result.tabLimit !== undefined ? result.tabLimit : 0)
     setManagementMethod(result.managementMethod || "block")
 
@@ -68,12 +70,12 @@ export async function enforceTabLimit() {
     /* BEFORE the removals, not after: a closed tab has no url or title left to
        read. This is the whole point of the tab saver, since parking a page by
        leaving it open is exactly what the limiter takes away. */
-    try { await saveClosingTabs(tabsToClose) } catch (error) { }
+    try { await saveClosingTabs(tabsToClose) } catch (error) { warn('tab limiter: saving closing tabs failed', error) }
 
     for (const tab of tabsToClose) {
-      try { await chrome.tabs.remove(tab.id) } catch (error) { }
+      try { await chrome.tabs.remove(tab.id) } catch (error) { /* the tab closed on its own meanwhile */ }
     }
-  } catch (error) { }
+  } catch (error) { warn('tab limiter: enforcing the limit failed', error) }
 }
 
 /* Registration is guarded so this module can be IMPORTED by a test runner, where
@@ -81,7 +83,7 @@ export async function enforceTabLimit() {
    everything above it is callable without a browser. */
 if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.onCreated) {
   chrome.tabs.onCreated.addListener(async (tab) => {
-    const result = await chrome.storage.sync.get(['tabLimit', 'managementMethod'])
+    const result = await storageGet('sync', ['tabLimit', 'managementMethod'])
     setTabLimit(result.tabLimit !== undefined ? result.tabLimit : 0)
     setManagementMethod(result.managementMethod || "block")
 
@@ -94,15 +96,15 @@ if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.onCreated) {
         /* Block means the NEW tab does not get to exist. Nothing already open is
            touched, which is what makes this different from the enforce path. */
         if (!isTabLimitExcluded(tab)) {
-          try { await chrome.tabs.remove(tab.id) } catch (error) { }
+          try { await chrome.tabs.remove(tab.id) } catch (error) { /* the tab closed on its own meanwhile */ }
         }
       } else if (managementMethod === "random") {
         /* byStalestFirst, not a local sort: this line used to define "oldest" for
            itself, the other way round from enforceTabLimit. One definition now. */
         const oldestTab = byStalestFirst(allTabs)[0]
         const victim = (oldestTab && oldestTab.id !== tab.id) ? oldestTab : tab
-        try { await saveClosingTabs([victim]) } catch (error) { }
-        try { await chrome.tabs.remove(victim.id) } catch (error) { }
+        try { await saveClosingTabs([victim]) } catch (error) { warn('tab limiter: saving the closed tab failed', error) }
+        try { await chrome.tabs.remove(victim.id) } catch (error) { /* the tab closed on its own meanwhile */ }
       }
     }
   })

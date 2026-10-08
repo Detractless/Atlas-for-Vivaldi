@@ -146,7 +146,7 @@ function openMenu(btn) {
     var pk = t && t.closest('[data-pick]'), act = t && t.closest('[data-act]');
     if (pk && ap) ap.switchTo(pk.getAttribute('data-pick')).then(function () { if (menu) fill(); });
     else if (t && t.closest('[data-add]')) { closeMenu(); openNewTabSettings('profiles'); }
-    else if (act) { var f = PACTS[act.getAttribute('data-act')]; closeMenu(); try { f(); } catch (err) {} }
+    else if (act) { var f = PACTS[act.getAttribute('data-act')]; closeMenu(); try { f(); } catch (err) { atlasWarn('profile menu action failed', err); } }
   });
 
   host.appendChild(menu);

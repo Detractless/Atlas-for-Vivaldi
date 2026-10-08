@@ -59,7 +59,7 @@ document.addEventListener('contextmenu', function (e) {
         run: function () {
           if (btnName === 'atlas-home-toggle') {
             btnWrap.style.display = 'none';
-            try { sessionStorage.setItem('atlas_home_toggle_hidden', '1'); } catch (x) {}
+            try { sessionStorage.setItem('atlas_home_toggle_hidden', '1'); } catch (x) { /* no sessionStorage: hidden until the window reloads */ }
             return;
           }
           if (inst && inst.state && Array.isArray(inst.state.buttons)) {
@@ -107,7 +107,7 @@ var _homeRafScheduled = false;
 function ensureHomeButton() {
   try {
     if (sessionStorage.getItem('atlas_home_toggle_hidden') === '1') return false;
-  } catch (x) {}
+  } catch (x) { /* no sessionStorage: show the button */ }
 
   if (_homeMutating) return false;
   _homeMutating = true;

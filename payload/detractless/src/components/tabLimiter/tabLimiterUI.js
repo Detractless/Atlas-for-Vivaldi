@@ -5,6 +5,7 @@
 import { formatTimeRemaining } from '../../utils/formatDuration.js';
 import { getTabCount } from '../../services/tabService.js';
 import { sendToBackground } from '../../services/backgroundMessenger.js';
+import { storageGet, storageRemove, storageSet } from '../../services/storage.js';
 
 export const QUEUE_MS = 30 * 60 * 1000;
 
@@ -12,7 +13,7 @@ export const QUEUE_MS = 30 * 60 * 1000;
 export async function requestTabLimit(newLimit) {
   if (isNaN(newLimit)) return;
   try {
-    const { tabLimit } = await window.chrome.storage.sync.get("tabLimit");
+    const { tabLimit } = await storageGet('sync', "tabLimit");
     const currentLimit = tabLimit !== undefined ? tabLimit : 0;
     if (newLimit === currentLimit) return;
 
@@ -20,22 +21,22 @@ export async function requestTabLimit(newLimit) {
     const effectiveNew = newLimit === 0 ? 9999 : newLimit;
 
     if (effectiveNew < effectiveCurrent) {
-      await window.chrome.storage.sync.set({ tabLimit: newLimit });
-      await window.chrome.storage.sync.remove("pendingIncrease");
+      await storageSet('sync', { tabLimit: newLimit });
+      await storageRemove('sync', "pendingIncrease");
       if (newLimit !== 0) {
         const tabCount = await getTabCount();
         if (tabCount > newLimit) await sendToBackground({ action: "enforceLimit" });
       }
     } else {
       const startTime = Date.now();
-      await window.chrome.storage.sync.set({ pendingIncrease: { targetLimit: newLimit, startTime: startTime } });
+      await storageSet('sync', { pendingIncrease: { targetLimit: newLimit, startTime: startTime } });
       await sendToBackground({ action: "startIncrease", targetLimit: newLimit, startTime: startTime });
     }
   } catch (error) { /* storage unavailable: the limit simply stays as it was */ }
 }
 
 export async function cancelPendingIncrease() {
-  await window.chrome.storage.sync.remove("pendingIncrease");
+  await storageRemove('sync', "pendingIncrease");
   await sendToBackground({ action: "cancelIncrease" });
 }
 

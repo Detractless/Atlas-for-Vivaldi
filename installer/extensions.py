@@ -41,8 +41,8 @@ def step7_harper_extension(payload: Path):
                         "path": str(manifest_path),
                     }
                     write_json(d / f"{ext_id}.json", ext_data_unpacked, label=f"External Extensions/{ext_id}.json")
-                except Exception:
-                    pass
+                except Exception as e:
+                    say(f"Warning: could not register Harper in {d}: {e}", dim=True)
         elif sys.platform == "win32":
             try:
                 import winreg
@@ -54,8 +54,8 @@ def step7_harper_extension(payload: Path):
                         with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, reg_path, 0, winreg.KEY_SET_VALUE) as key:
                             winreg.SetValueEx(key, "path", 0, winreg.REG_SZ, str(manifest_path))
                             winreg.SetValueEx(key, "version", 0, winreg.REG_SZ, "1.0.0")
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        say(f"Warning: could not register Harper under {reg_path}: {e}", dim=True)
             except ImportError:
-                pass
+                pass  # no winreg: not Windows after all
     say("Harper extension     installed")

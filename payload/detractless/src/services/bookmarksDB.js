@@ -1,5 +1,6 @@
 import { dematerialize } from './bookmarkSync.js';
 import { BOOKMARKS_DB } from '../constants/storageKeys.js';
+import { storageGet, storageRemove, storageSet } from './storage.js';
 
 export const BookmarkDB = {
   dbName: BOOKMARKS_DB,
@@ -22,14 +23,14 @@ export const BookmarkDB = {
       request.onerror = () => reject(request.error);
       request.onblocked = () => {
         console.warn('[BookmarkDB] init blocked by another open connection');
-        if (this.db) { try { this.db.close(); } catch (_) {} this.db = null; }
+        if (this.db) { try { this.db.close(); } catch (_) { /* already closed */ } this.db = null; }
         reject(new Error('BookmarkDB init blocked by open connection'));
       };
       request.onsuccess = () => {
         this.db = request.result;
         this.db.onversionchange = () => {
           if (this.db) {
-            try { this.db.close(); } catch (_) {}
+            try { this.db.close(); } catch (_) { /* already closed */ }
             this.db = null;
           }
         };
@@ -38,7 +39,7 @@ export const BookmarkDB = {
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
         db.onversionchange = () => {
-          try { db.close(); } catch (_) {}
+          try { db.close(); } catch (_) { /* already closed */ }
         };
         if (!db.objectStoreNames.contains('bookmarks')) db.createObjectStore('bookmarks', { keyPath: 'page' });
         if (!db.objectStoreNames.contains('icons')) db.createObjectStore('icons');
@@ -357,21 +358,18 @@ export const BookmarkDB = {
 
   async migrateFromChromeStorage() {
     return new Promise((resolve) => {
-      window.chrome.storage.sync.get(
-        ['bookmarks-page-1', 'bookmarks-page-2', 'bookmarks-page-3', 'bookmarks-migrated'],
-        async (result) => {
+      storageGet('sync', ['bookmarks-page-1', 'bookmarks-page-2', 'bookmarks-page-3', 'bookmarks-migrated']).then(async (result) => {
           if (result['bookmarks-migrated']) { resolve(false); return; }
           let hasMigrated = false;
           if (result['bookmarks-page-1']) { await this.saveBookmarks(1, result['bookmarks-page-1']); hasMigrated = true; }
           if (result['bookmarks-page-2']) { await this.saveBookmarks(2, result['bookmarks-page-2']); hasMigrated = true; }
           if (result['bookmarks-page-3']) { await this.saveBookmarks(3, result['bookmarks-page-3']); hasMigrated = true; }
           if (hasMigrated) {
-            window.chrome.storage.sync.set({ 'bookmarks-migrated': true });
-            window.chrome.storage.sync.remove(['bookmarks-page-1', 'bookmarks-page-2', 'bookmarks-page-3']);
+            storageSet('sync', { 'bookmarks-migrated': true });
+            storageRemove('sync', ['bookmarks-page-1', 'bookmarks-page-2', 'bookmarks-page-3']);
           }
           resolve(hasMigrated);
-        }
-      );
+        });
     });
   }
 };

@@ -1,4 +1,5 @@
 import { BookmarkDB } from './bookmarksDB.js';
+import { storageGet, storageSet } from './storage.js';
 
 const STARTER_PAGES = [
   {
@@ -31,14 +32,10 @@ const STARTER_PAGES = [
 ];
 
 export async function seedStarterContent() {
-  const localData = await new Promise(resolve =>
-    chrome.storage.local.get(['hasSeededDefaults'], resolve)
-  );
+  const localData = await storageGet('local', ['hasSeededDefaults']);
   if (localData.hasSeededDefaults) return false;
 
-  const syncData = await new Promise(resolve =>
-    chrome.storage.sync.get(['activeTabs'], resolve)
-  );
+  const syncData = await storageGet('sync', ['activeTabs']);
   if (syncData.activeTabs && syncData.activeTabs.some(t => t.type === 'bookmarks')) return false;
 
   const existing = await BookmarkDB.getAllBookmarks();
@@ -54,8 +51,8 @@ export async function seedStarterContent() {
     await BookmarkDB.saveBookmarks(pageId, page.groups);
   }
 
-  await new Promise(resolve => chrome.storage.sync.set({ activeTabs }, resolve));
-  await new Promise(resolve => chrome.storage.local.set({ hasSeededDefaults: true }, resolve));
+  await storageSet('sync', { activeTabs });
+  await storageSet('local', { hasSeededDefaults: true });
 
   return true;
 }

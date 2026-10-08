@@ -14,7 +14,7 @@
         if (sendResponse) sendResponse({ ok: true });
       }
     });
-  } catch (e) {}
+  } catch (e) { /* not an extension page (no chrome.runtime): nothing to listen to */ }
   if (new URLSearchParams(location.search).has("add")) {
     window.addEventListener("load", () => setTimeout(openAdd, 400));
   }

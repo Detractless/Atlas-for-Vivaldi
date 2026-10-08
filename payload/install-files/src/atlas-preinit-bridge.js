@@ -69,7 +69,7 @@
           document.head.appendChild(s);
         }
       }
-    } catch (e) {}
+    } catch (e) { /* replaying the caches is only a speed-up; the page still loads */ }
     release();
   });
 })();

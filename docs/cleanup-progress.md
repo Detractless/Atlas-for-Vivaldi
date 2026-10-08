@@ -66,3 +66,12 @@ Per-phase gate: `node --test tests/unit/*.test.js`, `python3 -m unittest discove
 - New tests: snippets survive export -> import into a fresh tab (passes on the old code too); the service worker ignores Remover/PasteKit messages and removes the menu item.
 - Tests: node 68/68 + 1 todo, python 9/9. Dry run OK. node --check 0 failures.
 
+## Phase 7: no silent failures
+- `src/services/storage.js`: every chrome.storage read/write in the bundles goes through `storageGet/Set/Remove/Clear`, which checks `chrome.runtime.lastError` once, logs it, and still answers (reads resolve to {}). 60 call sites in 21 files converted by a parser-based codemod (innermost calls first); the key scanner and manifest test follow the wrappers.
+- `src/services/log.js` `warn()` for the bundles; `atlasWarn()` in the new `src/modules/00-shared.js` for atlas.js; plain scripts use `console.warn('[Atlas] ...')`.
+- All 54 silent `catch {}` blocks and 10 silent `.catch(() => {})` handlers outside Harper now either log (menu actions, profile listeners, tab-limiter failures, import image move, IndexedDB pref writes, clipboard copy) or carry a one-line reason (no localStorage in this context, already closed, best effort). Installer: 9 `except: pass` now warn or explain.
+- Removed: the service worker's `reapplyRules`/`triggerFade` messages, sent only to the archived Element Remover's page script (Phase 6 leftover).
+- Harper (`payload/extensions/harper`, a separate extension) left untouched: 2 silent catches remain there.
+- New test `error_handling.test.js`: no silent catch/.catch in JS, no reasonless `except: pass` in Python.
+- Tests: node 70/70 + 1 todo, python 9/9. Dry run OK. node --check 0 failures.
+

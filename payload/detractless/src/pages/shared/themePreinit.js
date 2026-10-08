@@ -53,7 +53,7 @@
   // Extension pages share one origin, so the side panel reads what the new tab
   // wrote without any message passing.
   var cached = null;
-  try { cached = localStorage.getItem('_themeCache'); } catch (e) {}
+  try { cached = localStorage.getItem('_themeCache'); } catch (e) { /* no localStorage: take the slow path */ }
   if (cached) {
     root.setAttribute('data-theme', resolveTheme(cached));
     return;
@@ -69,7 +69,7 @@
     applied = true;
     var p = pref;
     // Legacy key, still present if the uiPrefs migration has not run yet.
-    if (!p) { try { p = localStorage.getItem('themePref'); } catch (e) {} }
+    if (!p) { try { p = localStorage.getItem('themePref'); } catch (e) { /* no localStorage: default theme */ } }
     root.setAttribute('data-theme', resolveTheme(p));
     window.__preinitRelease();
   }
@@ -81,23 +81,23 @@
     req.onsuccess = function () {
       clearTimeout(fallback);
       var db = req.result;
-      db.onversionchange = function () { try { db.close(); } catch (e) {} };
+      db.onversionchange = function () { try { db.close(); } catch (e) { /* already closed */ } };
       try {
         if (!db.objectStoreNames.contains('uiPrefs')) { db.close(); finish(null); return; }
         var get = db.transaction('uiPrefs', 'readonly').objectStore('uiPrefs').get('themePref');
         get.onsuccess = function () {
-          try { db.close(); } catch (e) {}
+          try { db.close(); } catch (e) { /* already closed */ }
           finish(get.result !== undefined ? get.result.value : null);
         };
-        get.onerror = function () { try { db.close(); } catch (e) {} finish(null); };
-      } catch (e) { try { db.close(); } catch (e) {} finish(null); }
+        get.onerror = function () { try { db.close(); } catch (e) { /* already closed */ } finish(null); };
+      } catch (e) { try { db.close(); } catch (e) { /* already closed */ } finish(null); }
     };
     req.onerror = function () { clearTimeout(fallback); finish(null); };
     // onupgradeneeded is followed by onsuccess, which is where finish() runs.
     req.onupgradeneeded = function (event) {
       clearTimeout(fallback);
       if (event && event.target && event.target.result) {
-        try { event.target.result.close(); } catch (e) {}
+        try { event.target.result.close(); } catch (e) { /* already closed */ }
       }
     };
   } catch (e) {

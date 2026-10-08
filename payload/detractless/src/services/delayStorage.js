@@ -1,25 +1,26 @@
+import { storageGet, storageRemove, storageSet } from './storage.js';
 export async function loadDelaySettings() {
-  return chrome.storage.sync.get(['searchDelaySeconds', 'showQueryOnDelay']);
+  return storageGet('sync', ['searchDelaySeconds', 'showQueryOnDelay']);
 }
 
 export async function getDelaySeconds() {
-  const result = await chrome.storage.sync.get('searchDelaySeconds');
+  const result = await storageGet('sync', 'searchDelaySeconds');
   return result.searchDelaySeconds;
 }
 
 export async function saveDelaySeconds(seconds) {
-  return chrome.storage.sync.set({ searchDelaySeconds: seconds });
+  return storageSet('sync', { searchDelaySeconds: seconds });
 }
 
 export async function clearPendingDecrease() {
-  return chrome.storage.sync.remove('pendingDelayDecrease');
+  return storageRemove('sync', 'pendingDelayDecrease');
 }
 
 export async function savePendingDecrease(targetDelay, startTime) {
-  return chrome.storage.sync.set({ pendingDelayDecrease: { targetDelay, startTime } });
+  return storageSet('sync', { pendingDelayDecrease: { targetDelay, startTime } });
 }
 
 export async function getPendingDecrease() {
-  const result = await chrome.storage.sync.get('pendingDelayDecrease');
+  const result = await storageGet('sync', 'pendingDelayDecrease');
   return result.pendingDelayDecrease;
 }

@@ -1,14 +1,15 @@
 import { DEFAULT_ENGINES } from '../constants/engines.js';
+import { storageGet, storageSet } from './storage.js';
 
 export async function loadEngines() {
   return new Promise((resolve) => {
     if (window.chrome && window.chrome.storage) {
-      window.chrome.storage.sync.get(['customSearchEngines'], (result) => {
+      storageGet('sync', ['customSearchEngines']).then((result) => {
         if (result.customSearchEngines && Object.keys(result.customSearchEngines).length > 0) {
           resolve(result.customSearchEngines);
         } else {
           const defaults = JSON.parse(JSON.stringify(DEFAULT_ENGINES));
-          window.chrome.storage.sync.set({ customSearchEngines: defaults }, () => resolve(defaults));
+          storageSet('sync', { customSearchEngines: defaults }).then(() => resolve(defaults));
         }
       });
     } else {
@@ -19,6 +20,6 @@ export async function loadEngines() {
 
 export function saveEngines(engines, callback) {
   if (window.chrome && window.chrome.storage) {
-    window.chrome.storage.sync.set({ customSearchEngines: engines }, callback);
+    storageSet('sync', { customSearchEngines: engines }).then(callback);
   }
 }

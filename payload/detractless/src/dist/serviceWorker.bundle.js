@@ -106,6 +106,36 @@
     }
   }
 
+  // src/services/log.js
+  function warn(where, err) {
+    try {
+      console.warn("[Atlas] " + where, err);
+    } catch (e) {
+    }
+  }
+
+  // src/services/storage.js
+  function call(area, op, arg) {
+    const chrome2 = globalThis.chrome;
+    return new Promise((resolve) => {
+      const done = (result) => {
+        const err = chrome2.runtime && chrome2.runtime.lastError;
+        if (err) warn(`chrome.storage.${area}.${op} failed`, err);
+        resolve(result);
+      };
+      try {
+        if (arg === void 0) chrome2.storage[area][op](done);
+        else chrome2.storage[area][op](arg, done);
+      } catch (e) {
+        warn(`chrome.storage.${area}.${op} threw`, e);
+        resolve(void 0);
+      }
+    });
+  }
+  var storageGet = (area, keys) => call(area, "get", keys).then((r) => r || {});
+  var storageSet = (area, items) => call(area, "set", items);
+  var storageRemove = (area, keys) => call(area, "remove", keys);
+
   // src/services/tabSaver.js
   var STORAGE_KEY = "savedTabGroups";
   var SKIP_SCHEMES = /^(chrome|chrome-extension|edge|about|devtools|view-source|moz-extension):/i;
@@ -167,12 +197,12 @@
   }
   async function readGroups() {
     return new Promise((resolve) => {
-      chrome.storage.local.get([STORAGE_KEY], (res) => resolve(res && res[STORAGE_KEY] || []));
+      storageGet("local", [STORAGE_KEY]).then((res) => resolve(res && res[STORAGE_KEY] || []));
     });
   }
   async function writeGroups(list) {
     return new Promise((resolve) => {
-      chrome.storage.local.set({ [STORAGE_KEY]: list }, resolve);
+      storageSet("local", { [STORAGE_KEY]: list }).then(resolve);
     });
   }
   async function saveClosingTabs(tabs, now = Date.now()) {
@@ -209,7 +239,7 @@
   }
   async function enforceTabLimit() {
     try {
-      const result = await chrome.storage.sync.get(["tabLimit", "managementMethod"]);
+      const result = await storageGet("sync", ["tabLimit", "managementMethod"]);
       setTabLimit(result.tabLimit !== void 0 ? result.tabLimit : 0);
       setManagementMethod(result.managementMethod || "block");
       if (tabLimit === 0) return;
@@ -218,6 +248,7 @@
       try {
         await saveClosingTabs(tabsToClose);
       } catch (error) {
+        warn("tab limiter: saving closing tabs failed", error);
       }
       for (const tab of tabsToClose) {
         try {
@@ -226,11 +257,12 @@
         }
       }
     } catch (error) {
+      warn("tab limiter: enforcing the limit failed", error);
     }
   }
   if (typeof chrome !== "undefined" && chrome.tabs && chrome.tabs.onCreated) {
     chrome.tabs.onCreated.addListener(async (tab) => {
-      const result = await chrome.storage.sync.get(["tabLimit", "managementMethod"]);
+      const result = await storageGet("sync", ["tabLimit", "managementMethod"]);
       setTabLimit(result.tabLimit !== void 0 ? result.tabLimit : 0);
       setManagementMethod(result.managementMethod || "block");
       if (tabLimit === 0) return;
@@ -249,6 +281,7 @@
           try {
             await saveClosingTabs([victim]);
           } catch (error) {
+            warn("tab limiter: saving the closed tab failed", error);
           }
           try {
             await chrome.tabs.remove(victim.id);
@@ -285,7 +318,7 @@
         startTime: now,
         completed: false
       };
-      chrome.storage.local.set({ activeDelays });
+      storageSet("local", { activeDelays });
       chrome.tabs.update(tabId, {
         url: chrome.runtime.getURL("gate.html") + "?url=" + encodeURIComponent(url)
       });
@@ -301,10 +334,6 @@
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.url) {
       handleSearchInterception(tabId, changeInfo.url);
-      chrome.tabs.sendMessage(tabId, { action: "reapplyRules" }).catch(() => {
-      });
-      chrome.tabs.sendMessage(tabId, { action: "triggerFade" }).catch(() => {
-      });
     }
   });
 
@@ -319,17 +348,17 @@
         changed = true;
       }
     }
-    if (changed) chrome.storage.local.set({ activeDelays });
+    if (changed) storageSet("local", { activeDelays });
   }
   async function checkPendingIncrease() {
-    const result = await chrome.storage.sync.get(["pendingIncrease"]);
+    const result = await storageGet("sync", ["pendingIncrease"]);
     const pending = result.pendingIncrease;
     if (pending && pending.targetLimit !== void 0 && pending.startTime) {
       const elapsed = Date.now() - pending.startTime;
       const duration = 30 * 60 * 1e3;
       if (elapsed >= duration) {
-        await chrome.storage.sync.set({ tabLimit: pending.targetLimit });
-        await chrome.storage.sync.remove("pendingIncrease");
+        await storageSet("sync", { tabLimit: pending.targetLimit });
+        await storageRemove("sync", "pendingIncrease");
         setTabLimit(pending.targetLimit);
         enforceTabLimit();
       } else {
@@ -338,14 +367,14 @@
     }
   }
   async function checkPendingDelayDecrease() {
-    const result = await chrome.storage.sync.get(["pendingDelayDecrease"]);
+    const result = await storageGet("sync", ["pendingDelayDecrease"]);
     const pending = result.pendingDelayDecrease;
     if (pending && pending.targetDelay !== void 0 && pending.startTime) {
       const elapsed = Date.now() - pending.startTime;
       const duration = 30 * 60 * 1e3;
       if (elapsed >= duration) {
-        await chrome.storage.sync.set({ searchDelaySeconds: pending.targetDelay });
-        await chrome.storage.sync.remove("pendingDelayDecrease");
+        await storageSet("sync", { searchDelaySeconds: pending.targetDelay });
+        await storageRemove("sync", "pendingDelayDecrease");
         setSearchDelayMs(pending.targetDelay * 1e3);
       } else {
         setTimeout(checkPendingDelayDecrease, Math.min(duration - elapsed, 6e4));
@@ -372,7 +401,7 @@
     if (activeDelays[stdUrl]) {
       activeDelays[stdUrl].completed = true;
       pruneActiveDelays();
-      chrome.storage.local.set({ activeDelays });
+      storageSet("local", { activeDelays });
     }
   }
   var ACTIONS = {
@@ -498,7 +527,7 @@
   var SEEDED_KEYS = ["tabLimit", "managementMethod", "searchDelaySeconds", "showQueryOnDelay", "customSearchEngines"];
   var initializeState = async () => {
     try {
-      const result = await chrome.storage.sync.get(["tabLimit", "managementMethod", "searchDelaySeconds", "customSearchEngines"]);
+      const result = await storageGet("sync", ["tabLimit", "managementMethod", "searchDelaySeconds", "customSearchEngines"]);
       if (result.tabLimit !== void 0) setTabLimit(result.tabLimit);
       else setTabLimit(0);
       if (result.managementMethod !== void 0) setManagementMethod(result.managementMethod);
@@ -510,7 +539,7 @@
       if (result.customSearchEngines) {
         setManagedEngines(result.customSearchEngines);
       }
-      const localResult = await chrome.storage.local.get(["activeDelays"]);
+      const localResult = await storageGet("local", ["activeDelays"]);
       setActiveDelays(localResult.activeDelays || {});
       pruneActiveDelays();
       enforceTabLimit();
@@ -524,12 +553,12 @@
   };
   initializeState();
   chrome.runtime.onInstalled.addListener(() => {
-    chrome.storage.sync.get(SEEDED_KEYS, (result) => {
+    storageGet("sync", SEEDED_KEYS).then((result) => {
       for (const key of SEEDED_KEYS) {
-        if (result[key] === void 0) chrome.storage.sync.set({ [key]: syncDefault(key) });
+        if (result[key] === void 0) storageSet("sync", { [key]: syncDefault(key) });
       }
     });
-    chrome.storage.local.set({ activeDelays: {} });
+    storageSet("local", { activeDelays: {} });
   });
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === "sync") {

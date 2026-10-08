@@ -17,6 +17,7 @@
 import { BookmarkDB } from './bookmarksDB.js';
 import { closeDB as closePastekitDB } from './snippetBackup.js';
 import { PASTEKIT_DB } from '../constants/storageKeys.js';
+import { storageClear } from './storage.js';
 
 /** Delete one database, resolving whatever happens — a reset must not hang. */
 function deleteDatabase(name) {
@@ -44,13 +45,13 @@ export async function resetAllData() {
 
   // Settings, plus anything left over from removed features (the sync config, the
   // encryption flag and `snippetSalt` all lived here).
-  await new Promise((resolve) => chrome.storage.sync.clear(resolve));
-  await new Promise((resolve) => chrome.storage.local.clear(resolve));
+  await storageClear('sync');
+  await storageClear('local');
 
   // Session state, so a reset does not leave the next page load holding anything
   // about data that no longer exists. Not present in every context, hence the guard.
   if (chrome.storage.session) {
-    await new Promise((resolve) => chrome.storage.session.clear(resolve));
+    await storageClear('session');
   }
 
   window.location.reload();

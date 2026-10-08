@@ -44,7 +44,7 @@ def close_vivaldi():
                     if lock_file.exists() or lock_file.is_symlink():
                         lock_file.unlink()
                 except Exception:
-                    pass
+                    pass  # best effort: Vivaldi recreates or ignores a stale lock
         # Clear stale Sessions files so old tabs are discarded
         sessions_dir = vivaldi_data / "Default" / "Sessions"
         if sessions_dir.is_dir():
@@ -52,7 +52,7 @@ def close_vivaldi():
                 try:
                     sf.unlink()
                 except Exception:
-                    pass
+                    pass  # best effort: an old session file only restores old tabs
     else:
         subprocess.run(["taskkill", "/IM", "vivaldi.exe"], capture_output=True, text=True)
         deadline = time.time() + 15

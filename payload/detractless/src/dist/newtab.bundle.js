@@ -367,12 +367,54 @@
     }
   });
 
+  // src/services/log.js
+  function warn(where, err2) {
+    try {
+      console.warn("[Atlas] " + where, err2);
+    } catch (e) {
+    }
+  }
+  var init_log = __esm({
+    "src/services/log.js"() {
+    }
+  });
+
+  // src/services/storage.js
+  function call(area, op, arg) {
+    const chrome2 = globalThis.chrome;
+    return new Promise((resolve) => {
+      const done = (result) => {
+        const err2 = chrome2.runtime && chrome2.runtime.lastError;
+        if (err2) warn(`chrome.storage.${area}.${op} failed`, err2);
+        resolve(result);
+      };
+      try {
+        if (arg === void 0) chrome2.storage[area][op](done);
+        else chrome2.storage[area][op](arg, done);
+      } catch (e) {
+        warn(`chrome.storage.${area}.${op} threw`, e);
+        resolve(void 0);
+      }
+    });
+  }
+  var storageGet, storageSet, storageRemove, storageClear;
+  var init_storage = __esm({
+    "src/services/storage.js"() {
+      init_log();
+      storageGet = (area, keys) => call(area, "get", keys).then((r) => r || {});
+      storageSet = (area, items) => call(area, "set", items);
+      storageRemove = (area, keys) => call(area, "remove", keys);
+      storageClear = (area) => call(area, "clear");
+    }
+  });
+
   // src/services/bookmarksDB.js
   var BookmarkDB;
   var init_bookmarksDB = __esm({
     "src/services/bookmarksDB.js"() {
       init_bookmarkSync();
       init_storageKeys();
+      init_storage();
       BookmarkDB = {
         dbName: BOOKMARKS_DB,
         // v6 added the `notes` and `events` stores. Both features have been removed and
@@ -701,33 +743,30 @@
         },
         async migrateFromChromeStorage() {
           return new Promise((resolve) => {
-            window.chrome.storage.sync.get(
-              ["bookmarks-page-1", "bookmarks-page-2", "bookmarks-page-3", "bookmarks-migrated"],
-              async (result) => {
-                if (result["bookmarks-migrated"]) {
-                  resolve(false);
-                  return;
-                }
-                let hasMigrated = false;
-                if (result["bookmarks-page-1"]) {
-                  await this.saveBookmarks(1, result["bookmarks-page-1"]);
-                  hasMigrated = true;
-                }
-                if (result["bookmarks-page-2"]) {
-                  await this.saveBookmarks(2, result["bookmarks-page-2"]);
-                  hasMigrated = true;
-                }
-                if (result["bookmarks-page-3"]) {
-                  await this.saveBookmarks(3, result["bookmarks-page-3"]);
-                  hasMigrated = true;
-                }
-                if (hasMigrated) {
-                  window.chrome.storage.sync.set({ "bookmarks-migrated": true });
-                  window.chrome.storage.sync.remove(["bookmarks-page-1", "bookmarks-page-2", "bookmarks-page-3"]);
-                }
-                resolve(hasMigrated);
+            storageGet("sync", ["bookmarks-page-1", "bookmarks-page-2", "bookmarks-page-3", "bookmarks-migrated"]).then(async (result) => {
+              if (result["bookmarks-migrated"]) {
+                resolve(false);
+                return;
               }
-            );
+              let hasMigrated = false;
+              if (result["bookmarks-page-1"]) {
+                await this.saveBookmarks(1, result["bookmarks-page-1"]);
+                hasMigrated = true;
+              }
+              if (result["bookmarks-page-2"]) {
+                await this.saveBookmarks(2, result["bookmarks-page-2"]);
+                hasMigrated = true;
+              }
+              if (result["bookmarks-page-3"]) {
+                await this.saveBookmarks(3, result["bookmarks-page-3"]);
+                hasMigrated = true;
+              }
+              if (hasMigrated) {
+                storageSet("sync", { "bookmarks-migrated": true });
+                storageRemove("sync", ["bookmarks-page-1", "bookmarks-page-2", "bookmarks-page-3"]);
+              }
+              resolve(hasMigrated);
+            });
           });
         }
       };
@@ -1281,7 +1320,7 @@
   }
   async function initializeTabs() {
     return new Promise((resolve) => {
-      window.chrome.storage.sync.get(["activeTabs"], (result) => {
+      storageGet("sync", ["activeTabs"]).then((result) => {
         if (result.activeTabs && Array.isArray(result.activeTabs)) {
           setActiveTabs(result.activeTabs);
         } else {
@@ -1294,7 +1333,7 @@
     });
   }
   function saveTabs() {
-    window.chrome.storage.sync.set({ activeTabs });
+    storageSet("sync", { activeTabs });
   }
   function selectSearchTab() {
     const home = activeTabs.find((t) => t.type === "search") || activeTabs[0];
@@ -1434,7 +1473,7 @@
           if (_onNavigateToSearch) _onNavigateToSearch();
           selectSearchTab();
         }
-        window.chrome.storage.sync.remove(`page${tab.id}`);
+        storageRemove("sync", `page${tab.id}`);
         BookmarkDB.deleteBookmarks(tab.id);
         saveTabs();
         renderTabs();
@@ -1484,6 +1523,7 @@
       init_bookmarkDialog();
       init_bookmarksDB();
       init_scrollAffordance();
+      init_storage();
       init_newtabState();
       _onTabClick = null;
       _onNavigateToSearch = null;
@@ -1551,6 +1591,7 @@
   }
 
   // src/components/bookmarks/bookmarkSearch.js
+  init_log();
   function renderBookmarkSearchResults(matches) {
     const resultsContainer = document.getElementById("bookmark-search-results");
     if (!resultsContainer) return;
@@ -1579,8 +1620,7 @@
       nameDiv.textContent = bm.name;
       item.appendChild(nameDiv);
       item.addEventListener("click", () => {
-        BookmarkDB.recordClick(bm.url).catch(() => {
-        });
+        BookmarkDB.recordClick(bm.url).catch((e) => warn("recording a bookmark click failed", e));
         window.location.href = bm.url;
       });
       resultsContainer.appendChild(item);
@@ -2166,6 +2206,8 @@
   // src/pages/newtab/theme.js
   init_newtabState();
   init_bookmarksDB();
+  init_storage();
+  init_log();
   function applyThemeDOM(theme2) {
     document.documentElement.dataset.theme = theme2;
     document.body.className = "theme-" + theme2;
@@ -2179,16 +2221,12 @@
   }
   function applyThemeConfig(config) {
     const rawPref = config.Theme || "dark";
-    BookmarkDB.setUiPref("themePref", rawPref).catch(() => {
-    });
+    BookmarkDB.setUiPref("themePref", rawPref).catch((e) => warn("saving the theme for first paint failed", e));
     try {
       localStorage.setItem("_themeCache", rawPref);
     } catch (e) {
     }
-    try {
-      chrome.storage.local.set({ _themeCache: rawPref });
-    } catch (e) {
-    }
+    storageSet("local", { _themeCache: rawPref });
     const activeTheme = resolveActiveTheme(config);
     const root2 = document.documentElement;
     setCurrentTheme(activeTheme);
@@ -2401,15 +2439,16 @@
   };
 
   // src/services/engineStorage.js
+  init_storage();
   async function loadEngines() {
     return new Promise((resolve) => {
       if (window.chrome && window.chrome.storage) {
-        window.chrome.storage.sync.get(["customSearchEngines"], (result) => {
+        storageGet("sync", ["customSearchEngines"]).then((result) => {
           if (result.customSearchEngines && Object.keys(result.customSearchEngines).length > 0) {
             resolve(result.customSearchEngines);
           } else {
             const defaults = JSON.parse(JSON.stringify(DEFAULT_ENGINES));
-            window.chrome.storage.sync.set({ customSearchEngines: defaults }, () => resolve(defaults));
+            storageSet("sync", { customSearchEngines: defaults }).then(() => resolve(defaults));
           }
         });
       } else {
@@ -2419,13 +2458,15 @@
   }
   function saveEngines(engines, callback) {
     if (window.chrome && window.chrome.storage) {
-      window.chrome.storage.sync.set({ customSearchEngines: engines }, callback);
+      storageSet("sync", { customSearchEngines: engines }).then(callback);
     }
   }
 
   // src/components/engines/enginesUI.js
   init_icons();
   init_newtabState();
+  init_storage();
+  init_log();
   var _onManageEngines = null;
   function setManageEnginesCallback(cb) {
     _onManageEngines = cb;
@@ -2498,7 +2539,7 @@
   function loadSavedEngine() {
     try {
       if (window.chrome && window.chrome.storage) {
-        window.chrome.storage.sync.get(["selectedSearchEngine", "searchEngineBehavior", "defaultEngineKey"], (result) => {
+        storageGet("sync", ["selectedSearchEngine", "searchEngineBehavior", "defaultEngineKey"]).then((result) => {
           setSearchEngineBehavior(result.searchEngineBehavior || "remember");
           setDefaultEngineKey(result.defaultEngineKey || "default");
           if (searchEngineBehavior === "always-default") {
@@ -2514,15 +2555,16 @@
         });
       }
     } catch (error) {
-      console.log("Failed to load saved engine");
+      warn("loading the saved engine failed", error);
     }
   }
   function saveSelectedEngine(engineKey) {
     try {
       if (window.chrome && window.chrome.storage) {
-        window.chrome.storage.sync.set({ selectedSearchEngine: engineKey });
+        storageSet("sync", { selectedSearchEngine: engineKey });
       }
     } catch (error) {
+      warn("saving the selected engine failed", error);
     }
   }
 
@@ -2657,6 +2699,7 @@
   }
 
   // src/components/engines/engineModal.js
+  init_storage();
   var nav = createSubpageNav({
     panels: ".engine-subpage",
     home: "#engine-home",
@@ -2803,7 +2846,7 @@
   }
   function setDefaultEngine(key) {
     setDefaultEngineKey(key);
-    window.chrome.storage.sync.set({ defaultEngineKey: key }, () => {
+    storageSet("sync", { defaultEngineKey: key }).then(() => {
       renderEngineListInModal();
     });
   }
@@ -2994,25 +3037,26 @@
   }
 
   // src/components/tabLimiter/tabLimiterUI.js
+  init_storage();
   var QUEUE_MS = 30 * 60 * 1e3;
   async function requestTabLimit(newLimit) {
     if (isNaN(newLimit)) return;
     try {
-      const { tabLimit } = await window.chrome.storage.sync.get("tabLimit");
+      const { tabLimit } = await storageGet("sync", "tabLimit");
       const currentLimit = tabLimit !== void 0 ? tabLimit : 0;
       if (newLimit === currentLimit) return;
       const effectiveCurrent = currentLimit === 0 ? 9999 : currentLimit;
       const effectiveNew = newLimit === 0 ? 9999 : newLimit;
       if (effectiveNew < effectiveCurrent) {
-        await window.chrome.storage.sync.set({ tabLimit: newLimit });
-        await window.chrome.storage.sync.remove("pendingIncrease");
+        await storageSet("sync", { tabLimit: newLimit });
+        await storageRemove("sync", "pendingIncrease");
         if (newLimit !== 0) {
           const tabCount = await getTabCount();
           if (tabCount > newLimit) await sendToBackground({ action: "enforceLimit" });
         }
       } else {
         const startTime = Date.now();
-        await window.chrome.storage.sync.set({ pendingIncrease: { targetLimit: newLimit, startTime } });
+        await storageSet("sync", { pendingIncrease: { targetLimit: newLimit, startTime } });
         await sendToBackground({ action: "startIncrease", targetLimit: newLimit, startTime });
       }
     } catch (error) {
@@ -3376,6 +3420,7 @@
   init_bookmarksDB();
   init_defaults();
   init_storageKeys();
+  init_storage();
   var EXPORTED_SYNC_KEYS = BACKUP_SYNC_KEYS.map((k) => k.key).filter((k) => k !== "activeTabs");
   async function generateExportData(activeTabsList) {
     const data = await generateExportDataCore(activeTabsList);
@@ -3392,13 +3437,13 @@
     const allBookmarks = await BookmarkDB.getAllBookmarks();
     const [syncData, localData] = await Promise.all([
       new Promise((resolve) => {
-        window.chrome.storage.sync.get(EXPORTED_SYNC_KEYS, (items) => resolve(items || {}));
+        storageGet("sync", EXPORTED_SYNC_KEYS).then((items) => resolve(items || {}));
       }),
       // Only `rhe_rules` is read from local storage. A leftover `githubSync` key
       // may still exist from before sync was removed; it held a GitHub token, so
       // it must never be copied into config.json, which goes into export files.
       new Promise((resolve) => {
-        window.chrome.storage.local.get(["rhe_rules"], (items) => resolve(items || {}));
+        storageGet("local", ["rhe_rules"]).then((items) => resolve(items || {}));
       })
     ]);
     const customEngineIcons = {};
@@ -3433,6 +3478,7 @@
 
   // src/services/orphanCleanup.js
   init_bookmarksDB();
+  init_storage();
   var ORPHAN_REPAIR_FLAG = "hasRepairedOrphanPages";
   function findOrphanPages(storedPageIds, activeTabs2) {
     if (!Array.isArray(activeTabs2) || activeTabs2.length === 0) return [];
@@ -3475,19 +3521,17 @@
   }
   async function runOrphanRepairOnce(activeTabs2) {
     if (!Array.isArray(activeTabs2) || activeTabs2.length === 0) return [];
-    const flagged = await new Promise(
-      (resolve) => chrome.storage.local.get([ORPHAN_REPAIR_FLAG], (res) => resolve(res || {}))
-    );
+    const flagged = await storageGet("local", [ORPHAN_REPAIR_FLAG]);
     if (flagged[ORPHAN_REPAIR_FLAG]) return [];
     const removed = await pruneOrphanedPages(activeTabs2);
-    await new Promise(
-      (resolve) => chrome.storage.local.set({ [ORPHAN_REPAIR_FLAG]: true }, resolve)
-    );
+    await storageSet("local", { [ORPHAN_REPAIR_FLAG]: true });
     return removed;
   }
 
   // src/services/dataImport.js
   init_storageKeys();
+  init_storage();
+  init_log();
   async function persistImportData(importData) {
     const ap = window.AtlasProfiles;
     if (!(ap && importData && importData.atlasProfiles)) return persistImportDataCore(importData);
@@ -3512,10 +3556,10 @@
     }
     const storageData = await settingsFromImport(importData);
     const safeStorageData = sanitizeHugeStrings(storageData);
-    await new Promise((resolve) => window.chrome.storage.sync.set(safeStorageData, resolve));
+    await storageSet("sync", safeStorageData);
     if (importData.rhe_rules) {
       const safeRules = sanitizeHugeStrings(importData.rhe_rules);
-      await new Promise((resolve) => window.chrome.storage.local.set({ rhe_rules: safeRules }, resolve));
+      await storageSet("local", { rhe_rules: safeRules });
     }
   }
   async function settingsFromImport(importData) {
@@ -3544,7 +3588,8 @@
         try {
           await BookmarkDB.saveIcon("theme_custom_bg", theme2.customBg);
           return { ...theme2, customBg: "idb:theme_custom_bg" };
-        } catch (_) {
+        } catch (e) {
+          warn("import: could not move the theme background image to IndexedDB", e);
         }
       }
     }
@@ -5171,6 +5216,7 @@
 
   // src/services/starterContent.js
   init_bookmarksDB();
+  init_storage();
   var STARTER_PAGES = [
     {
       label: "Essentials",
@@ -5201,13 +5247,9 @@
     }
   ];
   async function seedStarterContent() {
-    const localData = await new Promise(
-      (resolve) => chrome.storage.local.get(["hasSeededDefaults"], resolve)
-    );
+    const localData = await storageGet("local", ["hasSeededDefaults"]);
     if (localData.hasSeededDefaults) return false;
-    const syncData = await new Promise(
-      (resolve) => chrome.storage.sync.get(["activeTabs"], resolve)
-    );
+    const syncData = await storageGet("sync", ["activeTabs"]);
     if (syncData.activeTabs && syncData.activeTabs.some((t) => t.type === "bookmarks")) return false;
     const existing = await BookmarkDB.getAllBookmarks();
     if (Object.keys(existing).length > 0) return false;
@@ -5219,8 +5261,8 @@
       activeTabs2.push({ id: pageId, label: page.label, type: "bookmarks" });
       await BookmarkDB.saveBookmarks(pageId, page.groups);
     }
-    await new Promise((resolve) => chrome.storage.sync.set({ activeTabs: activeTabs2 }, resolve));
-    await new Promise((resolve) => chrome.storage.local.set({ hasSeededDefaults: true }, resolve));
+    await storageSet("sync", { activeTabs: activeTabs2 });
+    await storageSet("local", { hasSeededDefaults: true });
     return true;
   }
 
@@ -5248,6 +5290,7 @@
 
   // src/settings/registry.js
   init_storageKeys();
+  init_storage();
   var entries = /* @__PURE__ */ new Map();
   var values = /* @__PURE__ */ new Map();
   var listeners = [];
@@ -5269,11 +5312,11 @@
       return;
     }
     update(key, value, { initial: false, local: true });
-    await new Promise((resolve) => window.chrome.storage.sync.set({ [key]: value }, resolve));
+    await storageSet("sync", { [key]: value });
   }
   async function loadSettings() {
     const keys = [...entries.keys()];
-    const stored = await new Promise((resolve) => window.chrome.storage.sync.get(keys, (r) => resolve(r || {})));
+    const stored = await storageGet("sync", keys);
     for (const key of keys) {
       const value = stored[key] !== void 0 ? stored[key] : syncDefault(key);
       update(key, value, { initial: true, local: false }, true);
@@ -5343,18 +5386,19 @@
   init_newtabState();
 
   // src/services/delayStorage.js
+  init_storage();
   async function getDelaySeconds() {
-    const result = await chrome.storage.sync.get("searchDelaySeconds");
+    const result = await storageGet("sync", "searchDelaySeconds");
     return result.searchDelaySeconds;
   }
   async function saveDelaySeconds(seconds) {
-    return chrome.storage.sync.set({ searchDelaySeconds: seconds });
+    return storageSet("sync", { searchDelaySeconds: seconds });
   }
   async function clearPendingDecrease() {
-    return chrome.storage.sync.remove("pendingDelayDecrease");
+    return storageRemove("sync", "pendingDelayDecrease");
   }
   async function savePendingDecrease(targetDelay, startTime) {
-    return chrome.storage.sync.set({ pendingDelayDecrease: { targetDelay, startTime } });
+    return storageSet("sync", { pendingDelayDecrease: { targetDelay, startTime } });
   }
 
   // src/components/searchDelay/searchDelay.js
@@ -5380,6 +5424,7 @@
   }
 
   // src/settings/definitions.js
+  init_log();
   var defined = false;
   function defineAllSettings() {
     if (defined) return;
@@ -5410,8 +5455,7 @@
       key: "uiScale",
       apply: (v, { local }) => {
         applyScale(v);
-        if (local) BookmarkDB.setUiPref("uiScale", v).catch(() => {
-        });
+        if (local) BookmarkDB.setUiPref("uiScale", v).catch((e) => warn("saving the UI scale for first paint failed", e));
       }
     });
     defineSetting({ key: "fadeInEnabled", apply: (v) => {
@@ -5643,6 +5687,7 @@
   // src/services/resetService.js
   init_bookmarksDB();
   init_storageKeys();
+  init_storage();
   function deleteDatabase(name) {
     return new Promise((resolve) => {
       const req = indexedDB.deleteDatabase(name);
@@ -5661,10 +5706,10 @@
     }
     await closeDB();
     await deleteDatabase(PASTEKIT_DB);
-    await new Promise((resolve) => chrome.storage.sync.clear(resolve));
-    await new Promise((resolve) => chrome.storage.local.clear(resolve));
+    await storageClear("sync");
+    await storageClear("local");
     if (chrome.storage.session) {
-      await new Promise((resolve) => chrome.storage.session.clear(resolve));
+      await storageClear("session");
     }
     window.location.reload();
   }

@@ -19,7 +19,7 @@
   var map = Object.create(null);
 
   function persist() {
-    try { chrome.storage.local.set({ [KEY]: map }); } catch (e) {}
+    try { chrome.storage.local.set({ [KEY]: map }); } catch (e) { console.warn('[Atlas] localStorage shim: could not save', e); }
   }
 
   var storage = {

@@ -22,8 +22,8 @@ def step8_disable_autoupdates(app_root: Path):
                     ["defaults", "write", "com.vivaldi.Vivaldi", "SUAutomaticallyUpdate", "-bool", "false"],
                     capture_output=True,
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                say(f"Warning: could not turn off auto-updates: {e}", dim=True)
         say("Auto-updates         permanently disabled (Sparkle)")
         return
 
@@ -47,8 +47,8 @@ def step8_disable_autoupdates(app_root: Path):
                             ["schtasks", "/Change", "/TN", task_name, "/Disable"],
                             capture_output=True, text=True,
                         )
-    except Exception:
-        pass
+    except Exception as e:
+        say(f"Warning: could not disable the Vivaldi update task: {e}", dim=True)
 
     # 2. Neuter update_notifier.exe
     notifier = app_root / "update_notifier.exe"
@@ -74,8 +74,8 @@ def step8_disable_autoupdates(app_root: Path):
                 winreg.SetValueEx(key, "AutoUpdate", 0, winreg.REG_DWORD, 0)
                 winreg.SetValueEx(key, "CheckForUpdates", 0, winreg.REG_DWORD, 0)
                 winreg.SetValueEx(key, "DoNotUpdate", 0, winreg.REG_DWORD, 1)
-        except Exception:
-            pass
+        except Exception as e:
+            say(f"Warning: could not set the update policy in the registry: {e}", dim=True)
 
     say("Auto-updates         permanently disabled")
 

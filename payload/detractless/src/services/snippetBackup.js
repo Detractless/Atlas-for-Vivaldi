@@ -57,7 +57,7 @@ function openDB() {
       const db = req.result;
       db.onclose = () => { _dbPromise = null; }; // SW may sleep; reopen lazily
       db.onversionchange = () => {
-        try { db.close(); } catch (_) {}
+        try { db.close(); } catch (_) { /* already closed */ }
         _dbPromise = null;
       };
       resolve(db);

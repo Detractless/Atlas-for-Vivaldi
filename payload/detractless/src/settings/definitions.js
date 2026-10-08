@@ -13,6 +13,7 @@ import { applyThemeConfig } from '../pages/newtab/theme.js';
 import { updateCurrentEngine } from '../components/engines/enginesUI.js';
 import { requestTabLimit } from '../components/tabLimiter/tabLimiterUI.js';
 import { requestSearchDelay } from '../components/searchDelay/searchDelay.js';
+import { warn } from '../services/log.js';
 
 let defined = false;
 
@@ -46,7 +47,7 @@ export function defineAllSettings() {
     apply: (v, { local }) => {
       applyScale(v);
       // preinit.js falls back to this IndexedDB copy when its cache is empty.
-      if (local) BookmarkDB.setUiPref('uiScale', v).catch(() => {});
+      if (local) BookmarkDB.setUiPref('uiScale', v).catch((e) => warn('saving the UI scale for first paint failed', e));
     },
   });
   defineSetting({ key: 'fadeInEnabled', apply: (v) => { setFadeInEnabled(v); applyFadeIn(); } });

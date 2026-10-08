@@ -2,12 +2,13 @@ import { setTabLimit, setManagementMethod, setSearchDelayMs, setManagedEngines, 
 import { enforceTabLimit } from './tabLimiter.js';
 import { pruneActiveDelays, checkPendingIncrease, checkPendingDelayDecrease } from './pendingChanges.js';
 import { syncDefault } from '../constants/storageKeys.js';
+import { storageGet, storageSet } from '../services/storage.js';
 
 const SEEDED_KEYS = ['tabLimit', 'managementMethod', 'searchDelaySeconds', 'showQueryOnDelay', 'customSearchEngines'];
 
 const initializeState = async () => {
   try {
-    const result = await chrome.storage.sync.get(['tabLimit', 'managementMethod', 'searchDelaySeconds', 'customSearchEngines'])
+    const result = await storageGet('sync', ['tabLimit', 'managementMethod', 'searchDelaySeconds', 'customSearchEngines'])
 
     if (result.tabLimit !== undefined) setTabLimit(result.tabLimit)
     else setTabLimit(0);
@@ -24,7 +25,7 @@ const initializeState = async () => {
       setManagedEngines(result.customSearchEngines);
     }
 
-    const localResult = await chrome.storage.local.get(['activeDelays'])
+    const localResult = await storageGet('local', ['activeDelays'])
     setActiveDelays(localResult.activeDelays || {})
     pruneActiveDelays()
 
@@ -43,12 +44,12 @@ initializeState()
 
 chrome.runtime.onInstalled.addListener(() => {
   // Seed the settings the service worker reads, with defaults from atlasKeys.json.
-  chrome.storage.sync.get(SEEDED_KEYS, (result) => {
+  storageGet('sync', SEEDED_KEYS).then((result) => {
     for (const key of SEEDED_KEYS) {
-      if (result[key] === undefined) chrome.storage.sync.set({ [key]: syncDefault(key) });
+      if (result[key] === undefined) storageSet('sync', { [key]: syncDefault(key) });
     }
   });
-  chrome.storage.local.set({ activeDelays: {} });
+  storageSet('local', { activeDelays: {} });
 })
 
 chrome.storage.onChanged.addListener((changes, areaName) => {

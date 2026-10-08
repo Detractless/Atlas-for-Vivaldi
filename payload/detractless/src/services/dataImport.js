@@ -1,6 +1,8 @@
 import { BookmarkDB } from './bookmarksDB.js';
 import { pruneOrphanedPages } from './orphanCleanup.js';
 import { BACKUP_SYNC_KEYS } from '../constants/storageKeys.js';
+import { storageSet } from './storage.js';
+import { warn } from './log.js';
 
 // Atlas: restore the backup's profiles first, then the usual import fills the active one.
 export async function persistImportData(importData) {
@@ -39,10 +41,10 @@ async function persistImportDataCore(importData) {
 
   const storageData = await settingsFromImport(importData);
   const safeStorageData = sanitizeHugeStrings(storageData);
-  await new Promise((resolve) => window.chrome.storage.sync.set(safeStorageData, resolve));
+  await storageSet('sync', safeStorageData);
   if (importData.rhe_rules) {
     const safeRules = sanitizeHugeStrings(importData.rhe_rules);
-    await new Promise((resolve) => window.chrome.storage.local.set({ rhe_rules: safeRules }, resolve));
+    await storageSet('local', { rhe_rules: safeRules });
   }
 
   // githubSync is intentionally ignored, even when present. Archives exported
@@ -85,7 +87,7 @@ async function themeWithBackgroundInDb(theme) {
       try {
         await BookmarkDB.saveIcon("theme_custom_bg", theme.customBg);
         return { ...theme, customBg: "idb:theme_custom_bg" };
-      } catch (_) {}
+      } catch (e) { warn('import: could not move the theme background image to IndexedDB', e); }
     }
   }
   return theme;

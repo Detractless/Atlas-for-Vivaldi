@@ -23,7 +23,7 @@
 
   // Fast synchronous path: cache written by applyScale in displayEffects.js.
   var cached = null;
-  try { cached = localStorage.getItem('_scaleCache'); } catch (e) {}
+  try { cached = localStorage.getItem('_scaleCache'); } catch (e) { /* no localStorage: take the slow path */ }
   if (cached !== null) {
     applyScale(parseFloat(cached));
     return;
@@ -40,7 +40,7 @@
     if (applied) return;
     applied = true;
     var s = scale;
-    if (isNaN(s)) { try { s = parseFloat(localStorage.getItem('uiScale') || ''); } catch (e) {} }
+    if (isNaN(s)) { try { s = parseFloat(localStorage.getItem('uiScale') || ''); } catch (e) { /* no localStorage: unscaled */ } }
     applyScale(s);
     release();
   }

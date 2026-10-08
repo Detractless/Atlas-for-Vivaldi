@@ -5,6 +5,7 @@ import './gate.css';
 import { resolveActiveTheme } from '../../utils/themeResolver.js';
 import { formatTimeCompact } from '../../utils/formatDuration.js';
 import { extractSearchQuery, detectSearchEngine } from './searchQuery.js';
+import { storageGet } from '../../services/storage.js';
 
 function applyThemeDOM(theme) {
   document.documentElement.dataset.theme = theme;
@@ -19,7 +20,7 @@ let searchDelayMs = 0
 
 function loadTheme() {
   try {
-    chrome.storage.sync.get(['Theme'], function(result) {
+    storageGet('sync', ['Theme']).then(function(result) {
       const cfg = result.Theme || {}
       let active = resolveActiveTheme(cfg)
       if (active !== 'light') active = 'dark'
@@ -32,7 +33,7 @@ function loadTheme() {
 
 // Display search query if enabled
 function displaySearchQuery() {
-  chrome.storage.sync.get(['showQueryOnDelay'], function(result) {
+  storageGet('sync', ['showQueryOnDelay']).then(function(result) {
     const showQuery = result.showQueryOnDelay || false
     
     if (showQuery && searchUrl) {
@@ -188,7 +189,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Display search query if enabled
   displaySearchQuery()
   
-  chrome.storage.sync.get(["searchDelaySeconds"], (result) => {
+  storageGet('sync', ["searchDelaySeconds"]).then((result) => {
     searchDelayMs = (result.searchDelaySeconds || 0) * 1000
     initializeDelayPage()
   })

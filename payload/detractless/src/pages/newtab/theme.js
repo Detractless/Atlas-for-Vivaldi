@@ -3,6 +3,8 @@ import { formatColorForWeb, hexMix } from '../../utils/colorFormat.js';
 import { CUSTOM_THEME_VARS } from '../../constants/themeVars.js';
 import { appThemeConfig, setCurrentTheme } from './newtabState.js';
 import { BookmarkDB } from '../../services/bookmarksDB.js';
+import { storageSet } from '../../services/storage.js';
+import { warn } from '../../services/log.js';
 
 function applyThemeDOM(theme) {
   document.documentElement.dataset.theme = theme;
@@ -20,14 +22,14 @@ export function watchSystemTheme() {
 
 export function applyThemeConfig(config) {
   const rawPref = config.Theme || 'dark';
-  BookmarkDB.setUiPref('themePref', rawPref).catch(() => {});
-  try { localStorage.setItem('_themeCache', rawPref); } catch (e) {}
+  BookmarkDB.setUiPref('themePref', rawPref).catch((e) => warn('saving the theme for first paint failed', e));
+  try { localStorage.setItem('_themeCache', rawPref); } catch (e) { /* no localStorage here: the cache only speeds up first paint */ }
   // Same value again, in chrome.storage, purely so OTHER extension pages get an
   // onChanged event. localStorage is shared across this origin but its `storage`
   // event is not something we rely on between extension contexts. The side panel
   // reads localStorage for first paint and this for live updates; both are
   // written here, so there is still one place that decides the theme.
-  try { chrome.storage.local.set({ _themeCache: rawPref }); } catch (e) {}
+  storageSet('local', { _themeCache: rawPref });
   const activeTheme = resolveActiveTheme(config);
   const root = document.documentElement;
   setCurrentTheme(activeTheme);

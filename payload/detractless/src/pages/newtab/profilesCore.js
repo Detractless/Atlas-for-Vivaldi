@@ -74,7 +74,7 @@
       var s = normalize(g[SKEY]);
       if (s) return { s: s, stored: true };
       var old = null;
-      try { old = JSON.parse((g[LKEY] || {})[OLD]); } catch (e) {}
+      try { old = JSON.parse((g[LKEY] || {})[OLD]); } catch (e) { /* no old list, or unreadable: start from the defaults */ }
       s = normalize(old) || normalize(DEFAULTS);
       s.owner = s.active;
       return { s: s, stored: false };
@@ -93,7 +93,7 @@
         });
       });
     });
-    queue = run.catch(function () {});
+    queue = run.catch(function () { /* the caller gets this failure from `run`; the queue keeps going */ });
     return run;
   }
 
@@ -112,9 +112,9 @@
       if (!next) return;
       var prev = state;
       state = next;
-      listeners.slice().forEach(function (fn) { try { fn(next, prev); } catch (e) {} });
+      listeners.slice().forEach(function (fn) { try { fn(next, prev); } catch (e) { console.warn('[Atlas] profiles: a change listener failed', e); } });
     });
-  } catch (e) {}
+  } catch (e) { /* no chrome.storage (page opened outside the browser): no live updates */ }
 
   /* ---------- Helpers shared by every UI ---------- */
   var activeOf = function (s) { s = s || state; return s.list.filter(function (p) { return p.id === s.active; })[0] || s.list[0]; };
@@ -294,7 +294,7 @@
   function dumpDb(BDB, name) {
     var c = Object.create(BDB);
     c.db = null; c.dbName = name; c.fixedName = true;
-    return c.getAllBookmarks().then(function (d) { try { c.db.close(); } catch (e) {} return d; });
+    return c.getAllBookmarks().then(function (d) { try { c.db.close(); } catch (e) { /* already closed */ } return d; });
   }
   function exportAll(BDB) {
     return readState().then(function (r) {
@@ -318,12 +318,12 @@
     return Promise.all(s.list.filter(function (p) { return p.db && dbs[p.id]; }).map(function (p) {
       var c = Object.create(BDB);
       c.db = null; c.dbName = p.db; c.fixedName = true;
-      return c.importAllBookmarks(dbs[p.id]).then(function () { try { c.db.close(); } catch (e) {} });
+      return c.importAllBookmarks(dbs[p.id]).then(function () { try { c.db.close(); } catch (e) { /* already closed */ } });
     })).then(function () {
       return sset('local', { [SKEY]: s });
     }).then(function () {
       state = s;
-      if (BDB.db) { try { BDB.db.close(); } catch (e) {} BDB.db = null; }
+      if (BDB.db) { try { BDB.db.close(); } catch (e) { /* already closed */ } BDB.db = null; }
     });
   }
 

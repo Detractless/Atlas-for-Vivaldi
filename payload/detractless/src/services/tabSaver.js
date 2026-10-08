@@ -1,3 +1,4 @@
+import { storageGet, storageSet } from './storage.js';
 // src/services/tabSaver.js — keep the URL of every tab the limiter takes away.
 //
 // THE PROBLEM. The tab limiter closes tabs to keep the count down, and a tab held
@@ -207,13 +208,13 @@ export function applyTabEdit(groups, groupId, oldUrl, patch) {
 
 async function readGroups() {
   return new Promise((resolve) => {
-    chrome.storage.local.get([STORAGE_KEY], (res) => resolve((res && res[STORAGE_KEY]) || []));
+    storageGet('local', [STORAGE_KEY]).then((res) => resolve((res && res[STORAGE_KEY]) || []));
   });
 }
 
 async function writeGroups(list) {
   return new Promise((resolve) => {
-    chrome.storage.local.set({ [STORAGE_KEY]: list }, resolve);
+    storageSet('local', { [STORAGE_KEY]: list }).then(resolve);
   });
 }
 

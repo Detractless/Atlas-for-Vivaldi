@@ -21,7 +21,7 @@ export function standardiseUrl(inputUrl, managedEngines) {
             const q = urlObj.searchParams.get(paramKey) || "";
             return engine.url + encodeURIComponent(q);
           }
-        } catch (err) { }
+        } catch (err) { /* engine URL pattern did not parse: keep the URL as typed */ }
         return inputUrl;
       }
     }

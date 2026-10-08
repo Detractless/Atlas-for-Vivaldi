@@ -19,6 +19,7 @@
 // unusable tab list means DELETE NOTHING, always, and every removal is logged.
 
 import { BookmarkDB } from './bookmarksDB.js';
+import { storageGet, storageSet } from './storage.js';
 
 /** Marks the repair as already run, so it never sweeps twice. */
 export const ORPHAN_REPAIR_FLAG = 'hasRepairedOrphanPages';
@@ -115,14 +116,10 @@ async function pruneOrphanedRecords(orphanPageIds) {
 export async function runOrphanRepairOnce(activeTabs) {
   if (!Array.isArray(activeTabs) || activeTabs.length === 0) return [];
 
-  const flagged = await new Promise((resolve) =>
-    chrome.storage.local.get([ORPHAN_REPAIR_FLAG], (res) => resolve(res || {}))
-  );
+  const flagged = await storageGet('local', [ORPHAN_REPAIR_FLAG]);
   if (flagged[ORPHAN_REPAIR_FLAG]) return [];
 
   const removed = await pruneOrphanedPages(activeTabs);
-  await new Promise((resolve) =>
-    chrome.storage.local.set({ [ORPHAN_REPAIR_FLAG]: true }, resolve)
-  );
+  await storageSet('local', { [ORPHAN_REPAIR_FLAG]: true });
   return removed;
 }

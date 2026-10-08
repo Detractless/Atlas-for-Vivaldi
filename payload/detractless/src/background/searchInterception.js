@@ -1,5 +1,6 @@
 import { searchDelayMs, activeDelays, managedEngines } from './workerState.js';
 import { isSearchEngine, standardiseUrl } from './searchUrl.js';
+import { storageSet } from '../services/storage.js';
 
 export function handleSearchInterception(tabId, url) {
   // Skip if delay is disabled
@@ -34,7 +35,7 @@ export function handleSearchInterception(tabId, url) {
       startTime: now,
       completed: false
     }
-    chrome.storage.local.set({ activeDelays })
+    storageSet('local', { activeDelays })
 
     chrome.tabs.update(tabId, {
       url: chrome.runtime.getURL('gate.html') + '?url=' + encodeURIComponent(url)
@@ -55,11 +56,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.url) {
     handleSearchInterception(tabId, changeInfo.url)
-
-    // Notify Element Remover to re-check rules (Fix for SPA FOUC)
-    chrome.tabs.sendMessage(tabId, { action: "reapplyRules" }).catch(() => { });
-
-    // Trigger Fade In (Enhanced Navigation)
-    chrome.tabs.sendMessage(tabId, { action: "triggerFade" }).catch(() => { });
+    // "reapplyRules" / "triggerFade" used to be sent here for the Element
+    // Remover's page script, archived in _old/archive/sidebar-tools/.
   }
 })

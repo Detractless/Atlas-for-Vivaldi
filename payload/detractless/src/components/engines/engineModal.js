@@ -14,6 +14,7 @@ import {
 import { setEngineIconSrc } from './engineIcons.js';
 import { saveSearchEngines, updateCurrentEngine } from './enginesUI.js';
 import { iconChoice, resetIconChoice, openIconTypePicker } from './engineIconPicker.js';
+import { storageSet } from '../../services/storage.js';
 
 /* ══════════════════════════════════════════════════════════════════════
    ENGINE MODAL: subpage navigation + popup dialogs
@@ -169,7 +170,7 @@ function openEngineItemDialog(key) {
 
 function setDefaultEngine(key) {
   setDefaultEngineKey(key);
-  window.chrome.storage.sync.set({ defaultEngineKey: key }, () => { renderEngineListInModal(); });
+  storageSet('sync', { defaultEngineKey: key }).then(() => { renderEngineListInModal(); });
 }
 
 function toggleEngineVisibility(key, isVisible) {

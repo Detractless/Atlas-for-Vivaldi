@@ -19,6 +19,7 @@ import { BookmarkDB } from '../../services/bookmarksDB.js';
 // Unused here since the switcher replaced the filtered page list; kept so the
 // bundle's module order (and so its start-up order) stays the same.
 import '../shared/scrollAffordance.js';
+import { storageGet, storageRemove, storageSet } from '../../services/storage.js';
 import {
   activeTabs, setActiveTabs, currentBookmarkPage
 } from '../../pages/newtab/newtabState.js';
@@ -50,7 +51,7 @@ export function setTabNavigationCallbacks({ onTabClick, onNavigateToSearch }) {
 
 export async function initializeTabs() {
   return new Promise((resolve) => {
-    window.chrome.storage.sync.get(["activeTabs"], (result) => {
+    storageGet('sync', ["activeTabs"]).then((result) => {
       if (result.activeTabs && Array.isArray(result.activeTabs)) {
         setActiveTabs(result.activeTabs);
       } else {
@@ -63,7 +64,7 @@ export async function initializeTabs() {
   });
 }
 
-export function saveTabs() { window.chrome.storage.sync.set({ activeTabs: activeTabs }); }
+export function saveTabs() { storageSet('sync', { activeTabs: activeTabs }); }
 
 /** Select the Home/search page. */
 export function selectSearchTab() {
@@ -216,7 +217,7 @@ function openPageDialog(tab) {
         if (_onNavigateToSearch) _onNavigateToSearch();
         selectSearchTab();
       }
-      window.chrome.storage.sync.remove(`page${tab.id}`);
+      storageRemove('sync', `page${tab.id}`);
       BookmarkDB.deleteBookmarks(tab.id);
       saveTabs();
       renderTabs();

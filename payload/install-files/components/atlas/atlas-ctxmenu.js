@@ -27,7 +27,7 @@
     syncTheme();
     if (chrome.storage.onChanged) chrome.storage.onChanged.addListener(function (ch, area) { if (area === 'sync' && ch.Theme) themeDark = resolveThemeDark(ch.Theme.newValue); });
     if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme);
-  } catch (e) {}
+  } catch (e) { /* no extension storage here: the menu stays light */ }
   function pageIsDark() { return themeDark; }
 
   /* Sharp corner tail points diagonally at click point; flips quadrants on edge clicks. */
@@ -46,7 +46,7 @@
   function onKey(e) { if (e.key === 'Escape') { closeMenu(); e.stopPropagation(); } }
 
   function send(msg) {
-    try { chrome.runtime.sendMessage({ atlas: msg }); } catch (e) {}
+    try { chrome.runtime.sendMessage({ atlas: msg }); } catch (e) { /* extension reloaded since this page loaded: nothing to tell */ }
   }
   if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
     chrome.runtime.onMessage.addListener(function (m) {
@@ -54,7 +54,7 @@
     });
   }
   function copy(text) {
-    try { navigator.clipboard.writeText(text); } catch (e) {}
+    try { navigator.clipboard.writeText(text); } catch (e) { console.warn('[Atlas] copy failed', e); }
   }
   function copyImage(img) {
     var src = img.currentSrc || img.src;
@@ -103,7 +103,7 @@
         s = f.selectionStart; ed = f.selectionEnd; has = s !== ed;
         if (has && f.value !== undefined) txt = f.value.slice(Math.min(s, ed), Math.max(s, ed));
       }
-    } catch (x) {}
+    } catch (x) { /* this kind of input has no selection range */ }
     if (!has && sel) { has = true; txt = sel; }
     return { s: s, ed: ed, has: has, txt: txt };
   }
@@ -146,22 +146,22 @@
       if (txt) dt.setData('text/plain', txt);
       var ev = new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt });
       if (!el.dispatchEvent(ev) && blob) return;
-    } catch (e) {}
+    } catch (e) { /* no DataTransfer/ClipboardEvent: fall back to inserting the text */ }
     if (txt) insertText(el, txt);
   }
   function pasteField(f) {
     f.focus();
-    try { if (document.execCommand('paste')) return; } catch (x) {}
+    try { if (document.execCommand('paste')) return; } catch (x) { /* execCommand paste refused: read the clipboard instead */ }
     if (navigator.clipboard && navigator.clipboard.read) {
       navigator.clipboard.read().then(function (its) {
         for (var i = 0; i < its.length; i++) {
           var im = its[i].types.filter(function (t) { return /^image\//.test(t); })[0];
           if (im) return its[i].getType(im).then(function (b) { dispatchPaste(f, b, null); });
         }
-        navigator.clipboard.readText().then(function (t) { dispatchPaste(f, null, t); }).catch(function () {});
-      }).catch(function () { navigator.clipboard.readText().then(function (t) { dispatchPaste(f, null, t); }).catch(function () {}); });
+        navigator.clipboard.readText().then(function (t) { dispatchPaste(f, null, t); }).catch(function () { /* clipboard refused: nothing to paste */ });
+      }).catch(function () { navigator.clipboard.readText().then(function (t) { dispatchPaste(f, null, t); }).catch(function () { /* clipboard refused: nothing to paste */ }); });
     } else if (navigator.clipboard && navigator.clipboard.readText) {
-      navigator.clipboard.readText().then(function (t) { dispatchPaste(f, null, t); }).catch(function () {});
+      navigator.clipboard.readText().then(function (t) { dispatchPaste(f, null, t); }).catch(function () { /* clipboard refused: nothing to paste */ });
     }
   }
 
@@ -222,7 +222,7 @@
             if (!wordInfo) wordInfo = { word: hi[i].matchedText, start: hi[i].start, end: hi[i].end };
           }
         }
-      } catch (e) {}
+      } catch (e) { /* Harper's issue list is unreadable: just our own suggestions */ }
     }
     return (suggs.length > 0 && wordInfo) ? { words: suggs, wordInfo: wordInfo } : null;
   }
@@ -240,7 +240,7 @@
     if (!hasLink && !hasImg) return null;
     var items = [];
     if (hasLink) {
-      items.push({ label: 'Open link in this tab', run: function () { send({ act: 'opentab-current', url: link.href }); try { window.location.href = link.href; } catch (e) {} } });
+      items.push({ label: 'Open link in this tab', run: function () { send({ act: 'opentab-current', url: link.href }); try { window.location.href = link.href; } catch (e) { /* the page blocks navigation: Atlas opens it instead */ } } });
       items.push({ label: 'Open link in new tab', run: function () { send({ act: 'opentab', url: link.href, active: true }); } });
       items.push({ label: 'Open link in background tab', run: function () { send({ act: 'opentab', url: link.href, active: false }); } });
       items.push({ label: 'Copy link', run: function () { copy(link.href); } });
@@ -274,7 +274,7 @@
        menu keeps one constant size and event coordinates map 1:1 again.
        On unscaled pages z = 1 and this is a no-op. */
     var z = 1;
-    try { z = parseFloat(document.body && document.body.style.zoom) || 1; } catch (err) {}
+    try { z = parseFloat(document.body && document.body.style.zoom) || 1; } catch (err) { /* no body yet: unscaled */ }
     if (z !== 1) host.style.zoom = String(1 / z);
     (document.body || document.documentElement).appendChild(host);
 
@@ -298,7 +298,7 @@
     row.addEventListener('mouseup', function (ev) {
       if (ev.button !== 0) return;
       closeMenu();
-      try { it.run(); } catch (err) {}
+      try { it.run(); } catch (err) { console.warn('[Atlas] menu item "' + it.label + '" failed', err); }
     });
     return row;
   }

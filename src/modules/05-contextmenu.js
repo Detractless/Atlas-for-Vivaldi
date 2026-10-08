@@ -31,7 +31,7 @@ function dismissPageMenu() {
         if (tabs && tabs[0] && tabs[0].id) chrome.tabs.sendMessage(tabs[0].id, { atlas: 'closeContextMenu' }, function () { void chrome.runtime.lastError; });
       });
     }
-  } catch (err) {}
+  } catch (err) { /* no tabs API in this context: there is no page menu to close */ }
 }
 
 function showUiMenu(x, y, items, tabNode) {
@@ -82,7 +82,7 @@ function uiMenuEntry(it) {
     if (it.dis) return;
     ev.preventDefault(); ev.stopPropagation();
     closeUiMenu();
-    try { it.run(); } catch (err) {}
+    try { it.run(); } catch (err) { atlasWarn('menu item  + it.label +  failed', err); }
   });
   return b;
 }
@@ -151,7 +151,7 @@ function pasteAndGo(text) {
   });
 }
 
-function copyFieldText(txt) { try { navigator.clipboard.writeText(txt); } catch (x) {} }
+function copyFieldText(txt) { try { navigator.clipboard.writeText(txt); } catch (x) { atlasWarn('copy failed', x); } }
 function copyFieldEl(el, sel) { el.focus(); if (sel.txt) copyFieldText(sel.txt); else document.execCommand('copy'); }
 function getElSel(el) {
   var s = 0, ed = 0, has = false, txt = '';
@@ -160,7 +160,7 @@ function getElSel(el) {
       s = el.selectionStart; ed = el.selectionEnd; has = s !== ed;
       if (has && el.value !== undefined) txt = el.value.slice(Math.min(s, ed), Math.max(s, ed));
     }
-  } catch (x) {}
+  } catch (x) { /* this kind of input has no selection range: treat as nothing selected */ }
   return { s: s, ed: ed, has: has, txt: txt };
 }
 function cutFieldEl(el, sel) {
@@ -235,7 +235,7 @@ function tabContextMenu(e) {
   var curP = tabNode.closest ? tabNode.closest('.tab-position') : null;
   if (curP) curP.classList.add('atlas-tab-context-active');
   activeContextTab = tabNode;
-  try { tabEl.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true })); } catch (err) {}
+  try { tabEl.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true })); } catch (err) { /* only hides the hover card; harmless if it fails */ }
 
   chrome.tabs.get(tid, function (t) {
     if (!t) { closeUiMenu(); return; }
@@ -245,7 +245,7 @@ function tabContextMenu(e) {
       { label: t.pinned ? 'Unpin' : 'Pin', run: function () { chrome.tabs.update(tid, { pinned: !t.pinned }); } },
       { label: (t.mutedInfo && t.mutedInfo.muted) ? 'Unmute' : 'Mute', run: function () { chrome.tabs.update(tid, { muted: !(t.mutedInfo && t.mutedInfo.muted) }); } },
       { sep: true },
-      { label: 'Copy address', run: function () { try { navigator.clipboard.writeText(t.url || ''); } catch (err) {} } },
+      { label: 'Copy address', run: function () { try { navigator.clipboard.writeText(t.url || ''); } catch (err) { atlasWarn('copy address failed', err); } } },
       { label: 'Close', run: function () { chrome.tabs.remove(tid); } }
     ], tabNode);
   });
@@ -269,7 +269,7 @@ function addressContextMenu(e) {
     { label: 'Paste and go', run: function () {
         navigator.clipboard.readText().then(function (txt) {
           pasteAndGo(txt);
-        }).catch(function () {});
+        }).catch(function () { /* clipboard refused: nothing to paste */ });
       } },
     { sep: true },
     { label: 'Select all', key: 'Ctrl+A', run: function () { input.focus(); input.select(); } }
@@ -314,7 +314,7 @@ function pageContextMenu(e) {
       { label: 'Forward', run: function () { chrome.tabs.goForward(t.id); } },
       { label: 'Reload', run: function () { chrome.tabs.reload(t.id); } },
       { sep: true },
-      { label: 'Copy address', run: function () { try { navigator.clipboard.writeText(t.url || ''); } catch (err) {} } }
+      { label: 'Copy address', run: function () { try { navigator.clipboard.writeText(t.url || ''); } catch (err) { atlasWarn('copy address failed', err); } } }
     ]);
   });
 }

@@ -58,6 +58,34 @@
     }
   }
 
+  // src/services/log.js
+  function warn(where, err) {
+    try {
+      console.warn("[Atlas] " + where, err);
+    } catch (e) {
+    }
+  }
+
+  // src/services/storage.js
+  function call(area, op, arg) {
+    const chrome2 = globalThis.chrome;
+    return new Promise((resolve) => {
+      const done = (result) => {
+        const err = chrome2.runtime && chrome2.runtime.lastError;
+        if (err) warn(`chrome.storage.${area}.${op} failed`, err);
+        resolve(result);
+      };
+      try {
+        if (arg === void 0) chrome2.storage[area][op](done);
+        else chrome2.storage[area][op](arg, done);
+      } catch (e) {
+        warn(`chrome.storage.${area}.${op} threw`, e);
+        resolve(void 0);
+      }
+    });
+  }
+  var storageGet = (area, keys) => call(area, "get", keys).then((r) => r || {});
+
   // src/pages/gate/gate.js
   function applyThemeDOM(theme) {
     document.documentElement.dataset.theme = theme;
@@ -70,7 +98,7 @@
   var searchDelayMs = 0;
   function loadTheme() {
     try {
-      chrome.storage.sync.get(["Theme"], function(result) {
+      storageGet("sync", ["Theme"]).then(function(result) {
         const cfg = result.Theme || {};
         let active = resolveActiveTheme(cfg);
         if (active !== "light") active = "dark";
@@ -81,7 +109,7 @@
     }
   }
   function displaySearchQuery() {
-    chrome.storage.sync.get(["showQueryOnDelay"], function(result) {
+    storageGet("sync", ["showQueryOnDelay"]).then(function(result) {
       const showQuery = result.showQueryOnDelay || false;
       if (showQuery && searchUrl) {
         const queryDisplay = document.getElementById("query-display");
@@ -196,7 +224,7 @@
   document.addEventListener("DOMContentLoaded", () => {
     loadTheme();
     displaySearchQuery();
-    chrome.storage.sync.get(["searchDelaySeconds"], (result) => {
+    storageGet("sync", ["searchDelaySeconds"]).then((result) => {
       searchDelayMs = (result.searchDelaySeconds || 0) * 1e3;
       initializeDelayPage();
     });

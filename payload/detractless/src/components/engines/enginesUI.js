@@ -9,6 +9,8 @@ import {
 } from '../../pages/newtab/newtabState.js';
 import { setEngineIconSrc } from './engineIcons.js';
 import { renderEngineListInModal } from './engineModal.js';
+import { storageGet, storageSet } from '../../services/storage.js';
+import { warn } from '../../services/log.js';
 
 let _onManageEngines = null;
 export function setManageEnginesCallback(cb) { _onManageEngines = cb; }
@@ -62,7 +64,7 @@ export function updateCurrentEngine(engineKey) {
 export function loadSavedEngine() {
   try {
     if (window.chrome && window.chrome.storage) {
-      window.chrome.storage.sync.get(['selectedSearchEngine', 'searchEngineBehavior', 'defaultEngineKey'], (result) => {
+      storageGet('sync', ['selectedSearchEngine', 'searchEngineBehavior', 'defaultEngineKey']).then((result) => {
         setSearchEngineBehavior(result.searchEngineBehavior || "remember");
         setDefaultEngineKey(result.defaultEngineKey || "default");
         if (searchEngineBehavior === "always-default") { setCurrentEngine(defaultEngineKey); updateCurrentEngine(defaultEngineKey); }
@@ -71,7 +73,7 @@ export function loadSavedEngine() {
         renderEngineDropdown();
       });
     }
-  } catch (error) { console.log('Failed to load saved engine'); }
+  } catch (error) { warn('loading the saved engine failed', error); }
 }
 
-export function saveSelectedEngine(engineKey) { try { if (window.chrome && window.chrome.storage) { window.chrome.storage.sync.set({ selectedSearchEngine: engineKey }); } } catch (error) { } }
+export function saveSelectedEngine(engineKey) { try { if (window.chrome && window.chrome.storage) { storageSet('sync', { selectedSearchEngine: engineKey }); } } catch (error) { warn('saving the selected engine failed', error); } }

@@ -28,7 +28,7 @@ export function applyScale(value) {
   const preScale = document.getElementById('pre-scale');
   if (preScale) preScale.remove();
   setUiScale(value);
-  try { localStorage.setItem('_scaleCache', String(value)); } catch (e) {}
+  try { localStorage.setItem('_scaleCache', String(value)); } catch (e) { /* no localStorage here: the cache only speeds up first paint */ }
   if (value === 1) {
     document.body.style.zoom = '';
     document.body.style.marginLeft = '';

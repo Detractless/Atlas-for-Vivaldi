@@ -4,6 +4,7 @@ import {
   searchDropdownIndex, setSearchDropdownIndex
 } from '../../pages/newtab/newtabState.js';
 import { initialSelectionIndex } from '../../utils/pillSelection.js';
+import { warn } from '../../services/log.js';
 
 
 /**
@@ -47,7 +48,7 @@ export function renderBookmarkSearchResults(matches) {
     item.appendChild(nameDiv);
 
     item.addEventListener("click", () => {
-      BookmarkDB.recordClick(bm.url).catch(() => {});
+      BookmarkDB.recordClick(bm.url).catch((e) => warn('recording a bookmark click failed', e));
       window.location.href = bm.url;
     });
 

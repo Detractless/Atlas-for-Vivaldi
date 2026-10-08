@@ -8,6 +8,7 @@
 //   or by a profile switch, so every open new tab stays live.
 // Defaults come from constants/atlasKeys.json.
 import { syncDefault } from '../constants/storageKeys.js';
+import { storageGet, storageSet } from '../services/storage.js';
 
 const entries = new Map();
 const values = new Map();
@@ -41,13 +42,13 @@ export async function setSetting(key, value) {
     return;
   }
   update(key, value, { initial: false, local: true });
-  await new Promise((resolve) => window.chrome.storage.sync.set({ [key]: value }, resolve));
+  await storageSet('sync', { [key]: value });
 }
 
 /** Read every setting from storage and apply it (page start, profile switch, import). */
 export async function loadSettings() {
   const keys = [...entries.keys()];
-  const stored = await new Promise((resolve) => window.chrome.storage.sync.get(keys, (r) => resolve(r || {})));
+  const stored = await storageGet('sync', keys);
   for (const key of keys) {
     const value = stored[key] !== undefined ? stored[key] : syncDefault(key);
     update(key, value, { initial: true, local: false }, true);

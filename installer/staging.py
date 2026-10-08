@@ -72,8 +72,8 @@ class MacOSStagingContext:
             try:
                 trash_dest = Path.home() / ".Trash" / f"{self.old_bundle.name}_{int(time.time())}"
                 self.old_bundle.rename(trash_dest)
-            except Exception:
-                pass
+            except Exception as e:
+                say(f"Warning: the old Vivaldi copy is still at {self.old_bundle} ({e}); delete it by hand.", dim=True)
         say("Vivaldi bundle          successfully updated")
         lsregister = Path("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister")
         if lsregister.is_file():

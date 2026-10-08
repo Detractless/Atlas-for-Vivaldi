@@ -1,5 +1,6 @@
 import { activeDelays, setTabLimit, setSearchDelayMs } from './workerState.js';
 import { enforceTabLimit } from './tabLimiter.js';
+import { storageGet, storageRemove, storageSet } from '../services/storage.js';
 
 const DELAY_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
@@ -12,11 +13,11 @@ export function pruneActiveDelays() {
       changed = true
     }
   }
-  if (changed) chrome.storage.local.set({ activeDelays })
+  if (changed) storageSet('local', { activeDelays })
 }
 
 export async function checkPendingIncrease() {
-  const result = await chrome.storage.sync.get(['pendingIncrease'])
+  const result = await storageGet('sync', ['pendingIncrease'])
   const pending = result.pendingIncrease
 
   if (pending && pending.targetLimit !== undefined && pending.startTime) {
@@ -24,8 +25,8 @@ export async function checkPendingIncrease() {
     const duration = 30 * 60 * 1000 // 30 mins
 
     if (elapsed >= duration) {
-      await chrome.storage.sync.set({ tabLimit: pending.targetLimit })
-      await chrome.storage.sync.remove('pendingIncrease')
+      await storageSet('sync', { tabLimit: pending.targetLimit })
+      await storageRemove('sync', 'pendingIncrease')
       setTabLimit(pending.targetLimit)
       enforceTabLimit()
     } else {
@@ -36,7 +37,7 @@ export async function checkPendingIncrease() {
 
 // Search Delay: Delayed Decrease
 export async function checkPendingDelayDecrease() {
-  const result = await chrome.storage.sync.get(['pendingDelayDecrease'])
+  const result = await storageGet('sync', ['pendingDelayDecrease'])
   const pending = result.pendingDelayDecrease
 
   if (pending && pending.targetDelay !== undefined && pending.startTime) {
@@ -44,8 +45,8 @@ export async function checkPendingDelayDecrease() {
     const duration = 30 * 60 * 1000 // 30 mins
 
     if (elapsed >= duration) {
-      await chrome.storage.sync.set({ searchDelaySeconds: pending.targetDelay })
-      await chrome.storage.sync.remove('pendingDelayDecrease')
+      await storageSet('sync', { searchDelaySeconds: pending.targetDelay })
+      await storageRemove('sync', 'pendingDelayDecrease')
       setSearchDelayMs(pending.targetDelay * 1000)
     } else {
       setTimeout(checkPendingDelayDecrease, Math.min(duration - elapsed, 60000))

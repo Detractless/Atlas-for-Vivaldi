@@ -1,6 +1,7 @@
 import { BookmarkDB } from './bookmarksDB.js';
 import { DEFAULT_THEME } from '../constants/defaults.js';
 import { BACKUP_SYNC_KEYS } from '../constants/storageKeys.js';
+import { storageGet } from './storage.js';
 
 // Every chrome.storage.sync key a backup carries (atlasKeys.json "backup": true),
 // except activeTabs, which comes from memory so unsaved page edits are included.
@@ -20,13 +21,13 @@ async function generateExportDataCore(activeTabsList) {
 
   const [syncData, localData] = await Promise.all([
     new Promise((resolve) => {
-      window.chrome.storage.sync.get(EXPORTED_SYNC_KEYS, (items) => resolve(items || {}));
+      storageGet('sync', EXPORTED_SYNC_KEYS).then((items) => resolve(items || {}));
     }),
     // Only `rhe_rules` is read from local storage. A leftover `githubSync` key
     // may still exist from before sync was removed; it held a GitHub token, so
     // it must never be copied into config.json, which goes into export files.
     new Promise((resolve) => {
-      window.chrome.storage.local.get(["rhe_rules"], (items) => resolve(items || {}));
+      storageGet('local', ["rhe_rules"]).then((items) => resolve(items || {}));
     })
   ]);
 

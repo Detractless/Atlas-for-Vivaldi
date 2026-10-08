@@ -2,6 +2,7 @@ import { searchDelayMs, activeDelays, setSearchDelayMs } from './workerState.js'
 import { enforceTabLimit } from './tabLimiter.js';
 import { standardiseUrl } from './searchUrl.js';
 import { checkPendingIncrease, checkPendingDelayDecrease, pruneActiveDelays } from './pendingChanges.js';
+import { storageSet } from '../services/storage.js';
 
 const ok = (sendResponse) => sendResponse({ success: true });
 
@@ -24,7 +25,7 @@ function markDelayCompleted(url) {
   if (activeDelays[stdUrl]) {
     activeDelays[stdUrl].completed = true;
     pruneActiveDelays();
-    chrome.storage.local.set({ activeDelays });
+    storageSet('local', { activeDelays });
   }
 }
 
