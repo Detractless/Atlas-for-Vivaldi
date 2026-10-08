@@ -10,43 +10,10 @@ export function initializeSearch() {
   const plus = document.getElementById('plus');
   const resultsContainer = document.getElementById("bookmark-search-results");
   if (!searchInput) return;
+  const ui = { searchInput, plus, resultsContainer };
 
   // Local Bookmark Search Trigger & Render
-  searchInput.addEventListener("input", (e) => {
-    const val = searchInput.value;
-    if (val.startsWith("./")) {
-      const raw = val.substring(2);
-      const query = raw.trim().toLowerCase();
-
-      if (raw === ' ') {
-        plus.classList.remove('plus--active');
-        renderBookmarkSearchResults(sortByUsage(allCachedBookmarks));
-      } else if (query.length > 0) {
-        const matched = allCachedBookmarks.filter(bm =>
-          bm.name.toLowerCase().includes(query)
-        );
-        plus.classList.remove('plus--active');
-        renderBookmarkSearchResults(sortByUsage(matched));
-      } else {
-        hideBookmarkSearchResults();
-      }
-
-    } else if (getBookmarkPillBehavior() === "always" && val.trim().length > 0) {
-      const query = val.trim().toLowerCase();
-      const matched = allCachedBookmarks.filter(bm =>
-        bm.name.toLowerCase().includes(query)
-      );
-      if (matched.length > 0) {
-        plus.classList.remove('plus--active');
-        renderBookmarkSearchResults(sortByUsage(matched));
-      } else {
-        hideBookmarkSearchResults();
-      }
-    } else {
-      hideBookmarkSearchResults();
-    }
-  });
-
+  searchInput.addEventListener("input", () => onSearchInput(ui));
   searchInput.addEventListener("focus", () => {
     const v = searchInput.value;
     if (v.startsWith("./") || (getBookmarkPillBehavior() === "always" && v.trim().length > 0)) {
@@ -64,7 +31,6 @@ export function initializeSearch() {
   }
 
   const searchCard = searchInput.closest('.spotlight-search-container');
-
   document.addEventListener("click", (e) => {
     const wrapper = document.getElementById('bookmark-pills-wrapper');
     const inSearch = searchCard && searchCard.contains(e.target);
@@ -74,117 +40,168 @@ export function initializeSearch() {
     }
   });
 
-  searchInput.addEventListener("keydown", async (e) => {
-    const isSearchActive = (searchInput.value.startsWith("./") || getBookmarkPillBehavior() === "always") && resultsContainer && resultsContainer.style.display === "flex";
+  searchInput.addEventListener("keydown", (e) => onSearchKeydown(e, ui));
+  if (plus) wireEnginePicker(plus);
+}
 
-    if (e.key === "ArrowDown" && isSearchActive) {
-      e.preventDefault();
-      updateSearchDropdownSelection(searchDropdownIndex + 1);
-      return;
-    }
-    if (e.key === "ArrowUp" && isSearchActive) {
-      e.preventDefault();
-      updateSearchDropdownSelection(searchDropdownIndex - 1);
-      return;
-    }
+/** Bookmarks whose name contains the (lower-cased) query. */
+function matchingBookmarks(query) {
+  return allCachedBookmarks.filter(bm => bm.name.toLowerCase().includes(query));
+}
 
-    /* Tab still commits to the top pill when nothing is selected, which only
-       happens now if the user has arrowed off the list. Kept because it costs
-       nothing and some people reach for Tab in a completion field. */
-    if (e.key === "Tab" && isSearchActive && searchDropdownIndex < 0) {
-      const items = resultsContainer.querySelectorAll(".bookmark-search-item:not(.empty)");
-      if (items.length > 0) {
-        e.preventDefault();
-        updateSearchDropdownSelection(0);
-        return;
-      }
-    }
+function showPills(ui, bookmarks) {
+  ui.plus.classList.remove('plus--active');
+  renderBookmarkSearchResults(sortByUsage(bookmarks));
+}
 
-    if (e.key === "Enter") {
-      const items = isSearchActive
-        ? resultsContainer.querySelectorAll(".bookmark-search-item:not(.empty)")
-        : [];
-
-      /* SHIFT+ENTER MEANS "SEARCH THIS, LITERALLY", and it overrides everything
-         below: the selected pill, the URL sniffing, and the file-path check. It
-         is the one escape hatch that makes plain Enter safe to keep fast, and it
-         is the only way to search for text that merely LOOKS like a destination:
-         a real bookmark name, "notes.io", "archive.zip", or a site you want to
-         read about rather than visit. */
-      const forceSearch = e.shiftKey;
-
-      if (resolveEnterAction(isSearchActive, searchDropdownIndex, items.length, forceSearch) === 'bookmark') {
-        window.location.href = items[searchDropdownIndex].dataset.url;
-        return;
-      }
-
-      // Strips a leading "./", which marks the bookmark mode and is not query text.
-      const query = searchTextFor(searchInput.value);
-      if (query) {
-        let targetUrl;
-        if (!forceSearch && isUrl(query)) {
-          targetUrl = formatUrl(query);
-          // File path: test whether file access is allowed before navigating.
-          // Chrome silently refuses file:// URLs from extensions when the user
-          // hasn't enabled "Allow access to file URLs", so we probe first.
-          if (targetUrl.startsWith('file://') || isFilePath(query)) {
-            if (!targetUrl.startsWith('file://')) targetUrl = filePathToUrl(query);
-            try {
-              // chrome.extension.isAllowedFileSchemeAccess is the official API
-              // for checking this at runtime.
-              const allowed = await new Promise(resolve =>
-                chrome.extension.isAllowedFileSchemeAccess(resolve)
-              );
-              if (!allowed) {
-                showFileAccessWarning();
-                return;
-              }
-            } catch (_) {
-              // API unavailable — try anyway; worst case Chrome shows its own error
-            }
-          }
-        } else {
-          if (currentEngine === "default" && window.chrome && window.chrome.search) {
-            try { chrome.search.query({ text: query, disposition: "CURRENT_TAB" }); searchInput.value = ""; return; } catch (error) { targetUrl = "https://www.google.com/search?q=" + encodeURIComponent(query) }
-          } else {
-            const engine = searchEngines[currentEngine];
-            if (engine) targetUrl = engine.url + encodeURIComponent(query);
-            else {
-              const defaultEngine = searchEngines[defaultEngineKey];
-              if (defaultEngine) targetUrl = defaultEngine.url + encodeURIComponent(query);
-              else targetUrl = "https://www.google.com/search?q=" + encodeURIComponent(query);
-            }
-          }
-        }
-        window.location.href = targetUrl; searchInput.value = ""
-      }
-    }
-  })
-
-  if (plus) {
-    const engineLinks = document.getElementById('engine-links');
-    plus.addEventListener('click', (e) => {
-      e.stopPropagation();
-      hideBookmarkSearchResults();
-      plus.classList.toggle('plus--active');
-      if (engineLinks) engineLinks.classList.toggle('active', plus.classList.contains('plus--active'));
-    })
-    if (engineLinks) engineLinks.addEventListener('click', function (e) {
-      const link = e.target.closest('.plus__link');
-      if (link && link.dataset.engine) {
-        e.preventDefault(); e.stopPropagation();
-        updateCurrentEngine(link.dataset.engine);
-        plus.classList.remove('plus--active');
-        engineLinks.classList.remove('active');
-      }
-    })
-    document.addEventListener('click', (e) => {
-      if (!plus.contains(e.target) && (!engineLinks || !engineLinks.contains(e.target))) {
-        plus.classList.remove('plus--active');
-        if (engineLinks) engineLinks.classList.remove('active');
-      }
-    })
+/* "./" opens the bookmark pills on purpose; with the "always" setting any text
+   that matches a bookmark name shows them too. */
+function onSearchInput(ui) {
+  const val = ui.searchInput.value;
+  if (val.startsWith("./")) {
+    const raw = val.substring(2);
+    const query = raw.trim().toLowerCase();
+    if (raw === ' ') showPills(ui, allCachedBookmarks);
+    else if (query.length > 0) showPills(ui, matchingBookmarks(query));
+    else hideBookmarkSearchResults();
+  } else if (getBookmarkPillBehavior() === "always" && val.trim().length > 0) {
+    const matched = matchingBookmarks(val.trim().toLowerCase());
+    if (matched.length > 0) showPills(ui, matched);
+    else hideBookmarkSearchResults();
+  } else {
+    hideBookmarkSearchResults();
   }
+}
+
+function pillItems(ui) {
+  return ui.resultsContainer.querySelectorAll(".bookmark-search-item:not(.empty)");
+}
+
+async function onSearchKeydown(e, ui) {
+  const { searchInput, resultsContainer } = ui;
+  const isSearchActive = (searchInput.value.startsWith("./") || getBookmarkPillBehavior() === "always") && resultsContainer && resultsContainer.style.display === "flex";
+  if (movePillSelection(e, ui, isSearchActive)) return;
+  if (e.key === "Enter") await submitSearch(e, ui, isSearchActive);
+}
+
+/** Arrow keys (and Tab) move through the pills. True when the key was used. */
+function movePillSelection(e, ui, isSearchActive) {
+  if (e.key === "ArrowDown" && isSearchActive) {
+    e.preventDefault();
+    updateSearchDropdownSelection(searchDropdownIndex + 1);
+    return true;
+  }
+  if (e.key === "ArrowUp" && isSearchActive) {
+    e.preventDefault();
+    updateSearchDropdownSelection(searchDropdownIndex - 1);
+    return true;
+  }
+  /* Tab still commits to the top pill when nothing is selected, which only
+     happens now if the user has arrowed off the list. Kept because it costs
+     nothing and some people reach for Tab in a completion field. */
+  if (e.key === "Tab" && isSearchActive && searchDropdownIndex < 0) {
+    if (pillItems(ui).length > 0) {
+      e.preventDefault();
+      updateSearchDropdownSelection(0);
+      return true;
+    }
+  }
+  return false;
+}
+
+async function submitSearch(e, ui, isSearchActive) {
+  const { searchInput } = ui;
+  const items = isSearchActive ? pillItems(ui) : [];
+
+  /* SHIFT+ENTER MEANS "SEARCH THIS, LITERALLY", and it overrides everything
+     below: the selected pill, the URL sniffing, and the file-path check. It
+     is the one escape hatch that makes plain Enter safe to keep fast, and it
+     is the only way to search for text that merely LOOKS like a destination:
+     a real bookmark name, "notes.io", "archive.zip", or a site you want to
+     read about rather than visit. */
+  const forceSearch = e.shiftKey;
+
+  if (resolveEnterAction(isSearchActive, searchDropdownIndex, items.length, forceSearch) === 'bookmark') {
+    window.location.href = items[searchDropdownIndex].dataset.url;
+    return;
+  }
+
+  // Strips a leading "./", which marks the bookmark mode and is not query text.
+  const query = searchTextFor(searchInput.value);
+  if (!query) return;
+  const targetUrl = (!forceSearch && isUrl(query)) ? await destinationUrl(query) : searchUrl(query, searchInput);
+  if (targetUrl === null) return;
+  window.location.href = targetUrl; searchInput.value = "";
+}
+
+/** URL-shaped input: the address to open, or null when a file can't be opened. */
+async function destinationUrl(query) {
+  let targetUrl = formatUrl(query);
+  // File path: test whether file access is allowed before navigating.
+  // Chrome silently refuses file:// URLs from extensions when the user
+  // hasn't enabled "Allow access to file URLs", so we probe first.
+  if (targetUrl.startsWith('file://') || isFilePath(query)) {
+    if (!targetUrl.startsWith('file://')) targetUrl = filePathToUrl(query);
+    try {
+      // chrome.extension.isAllowedFileSchemeAccess is the official API
+      // for checking this at runtime.
+      const allowed = await new Promise(resolve =>
+        chrome.extension.isAllowedFileSchemeAccess(resolve)
+      );
+      if (!allowed) {
+        showFileAccessWarning();
+        return null;
+      }
+    } catch (_) {
+      // API unavailable — try anyway; worst case Chrome shows its own error
+    }
+  }
+  return targetUrl;
+}
+
+/** Text input: the engine's search URL, or null when the browser searched itself. */
+function searchUrl(query, searchInput) {
+  if (currentEngine === "default" && window.chrome && window.chrome.search) {
+    try {
+      chrome.search.query({ text: query, disposition: "CURRENT_TAB" });
+      searchInput.value = "";
+      return null;
+    } catch (error) {
+      return "https://www.google.com/search?q=" + encodeURIComponent(query);
+    }
+  }
+  const engine = searchEngines[currentEngine];
+  if (engine) return engine.url + encodeURIComponent(query);
+  const defaultEngine = searchEngines[defaultEngineKey];
+  if (defaultEngine) return defaultEngine.url + encodeURIComponent(query);
+  return "https://www.google.com/search?q=" + encodeURIComponent(query);
+}
+
+/** The + button opens the engine links; picking one switches engine. */
+function wireEnginePicker(plus) {
+  const engineLinks = document.getElementById('engine-links');
+  const close = () => {
+    plus.classList.remove('plus--active');
+    if (engineLinks) engineLinks.classList.remove('active');
+  };
+  plus.addEventListener('click', (e) => {
+    e.stopPropagation();
+    hideBookmarkSearchResults();
+    plus.classList.toggle('plus--active');
+    if (engineLinks) engineLinks.classList.toggle('active', plus.classList.contains('plus--active'));
+  });
+  if (engineLinks) engineLinks.addEventListener('click', function (e) {
+    const link = e.target.closest('.plus__link');
+    if (link && link.dataset.engine) {
+      e.preventDefault(); e.stopPropagation();
+      updateCurrentEngine(link.dataset.engine);
+      plus.classList.remove('plus--active');
+      engineLinks.classList.remove('active');
+    }
+  });
+  document.addEventListener('click', (e) => {
+    if (!plus.contains(e.target) && (!engineLinks || !engineLinks.contains(e.target))) close();
+  });
 }
 
 /* ══════════════════════════════════════════════════════════════════════

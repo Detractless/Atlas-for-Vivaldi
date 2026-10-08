@@ -1091,45 +1091,14 @@
       scroller.parentNode.insertBefore(host, scroller);
       host.appendChild(scroller);
     }
-    const fadeTop = make("div", `${p2}-fade ${p2}-fade-top hidden`);
-    const fadeBot = make("div", `${p2}-fade ${p2}-fade-bot hidden`);
-    const countTop = make("span", `${p2}-count ${p2}-count-top hidden`);
-    const countBot = make("span", `${p2}-count ${p2}-count-bot hidden`);
-    for (const pill of [countTop, countBot]) {
-      pill.appendChild(make("i", `${p2}-count-chev`));
-      pill.appendChild(document.createTextNode(""));
-    }
-    host.append(fadeTop, fadeBot, countTop, countBot);
-    const syncRadius = () => {
-      const cs = getComputedStyle(scroller);
-      fadeTop.style.borderRadius = `${cs.borderTopLeftRadius} ${cs.borderTopRightRadius} 0 0`;
-      fadeBot.style.borderRadius = `0 0 ${cs.borderBottomRightRadius} ${cs.borderBottomLeftRadius}`;
-    };
+    const ui = buildIndicators(host, p2);
+    const syncRadius = () => matchScrollerCorners(scroller, ui);
     syncRadius();
     const noun = options.noun ? " " + options.noun : "";
     const items = () => options.items ? scroller.querySelectorAll(options.items) : scroller.children;
-    const setState = (above, below) => {
-      fadeTop.classList.toggle("hidden", above === 0);
-      fadeBot.classList.toggle("hidden", below === 0);
-      countTop.classList.toggle("hidden", above === 0);
-      countBot.classList.toggle("hidden", below === 0);
-      countTop.lastChild.textContent = above + noun + " above";
-      countBot.lastChild.textContent = below + noun + " below";
-    };
     const refresh = () => {
-      const box = scroller.getBoundingClientRect();
-      if (box.height === 0) {
-        setState(0, 0);
-        return;
-      }
-      let above = 0, below = 0;
-      for (const el3 of items()) {
-        if (el3.offsetParent === null) continue;
-        const r = el3.getBoundingClientRect();
-        if (r.top < box.top - 2) above++;
-        else if (r.bottom > box.bottom + 2) below++;
-      }
-      setState(above, below);
+      const { above, below } = countHidden(scroller, items());
+      showCounts(ui, above, below, noun);
     };
     let queued = false;
     const schedule = () => {
@@ -1141,6 +1110,48 @@
       });
     };
     scroller.addEventListener("scroll", refresh, { passive: true });
+    watchForChanges(scroller, schedule, syncRadius);
+    schedule();
+    return { refresh, host };
+  }
+  function buildIndicators(host, p2) {
+    const fadeTop = make("div", `${p2}-fade ${p2}-fade-top hidden`);
+    const fadeBot = make("div", `${p2}-fade ${p2}-fade-bot hidden`);
+    const countTop = make("span", `${p2}-count ${p2}-count-top hidden`);
+    const countBot = make("span", `${p2}-count ${p2}-count-bot hidden`);
+    for (const pill of [countTop, countBot]) {
+      pill.appendChild(make("i", `${p2}-count-chev`));
+      pill.appendChild(document.createTextNode(""));
+    }
+    host.append(fadeTop, fadeBot, countTop, countBot);
+    return { fadeTop, fadeBot, countTop, countBot };
+  }
+  function matchScrollerCorners(scroller, { fadeTop, fadeBot }) {
+    const cs = getComputedStyle(scroller);
+    fadeTop.style.borderRadius = `${cs.borderTopLeftRadius} ${cs.borderTopRightRadius} 0 0`;
+    fadeBot.style.borderRadius = `0 0 ${cs.borderBottomRightRadius} ${cs.borderBottomLeftRadius}`;
+  }
+  function showCounts({ fadeTop, fadeBot, countTop, countBot }, above, below, noun) {
+    fadeTop.classList.toggle("hidden", above === 0);
+    fadeBot.classList.toggle("hidden", below === 0);
+    countTop.classList.toggle("hidden", above === 0);
+    countBot.classList.toggle("hidden", below === 0);
+    countTop.lastChild.textContent = above + noun + " above";
+    countBot.lastChild.textContent = below + noun + " below";
+  }
+  function countHidden(scroller, items) {
+    const box = scroller.getBoundingClientRect();
+    if (box.height === 0) return { above: 0, below: 0 };
+    let above = 0, below = 0;
+    for (const el3 of items) {
+      if (el3.offsetParent === null) continue;
+      const r = el3.getBoundingClientRect();
+      if (r.top < box.top - 2) above++;
+      else if (r.bottom > box.bottom + 2) below++;
+    }
+    return { above, below };
+  }
+  function watchForChanges(scroller, schedule, syncRadius) {
     if (typeof ResizeObserver !== "undefined") {
       const ro = new ResizeObserver(() => {
         syncRadius();
@@ -1157,8 +1168,6 @@
         attributeFilter: ["hidden", "style", "class"]
       });
     }
-    schedule();
-    return { refresh, host };
   }
   var init_scrollAffordance = __esm({
     "src/components/shared/scrollAffordance.js"() {
@@ -1184,6 +1193,9 @@
   function sentenceCase(t) {
     t = String(t || "");
     return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+  }
+  function displayName(tab) {
+    return tab.type === "search" && (!tab.label || tab.label === "Home") ? "Dashboard" : sentenceCase(tab.label);
   }
   function setTabNavigationCallbacks({ onTabClick, onNavigateToSearch }) {
     _onTabClick = onTabClick;
@@ -1230,20 +1242,7 @@
       e.stopPropagation();
       setOpen(btn.getAttribute("aria-expanded") !== "true");
     });
-    menu.addEventListener("click", (e) => {
-      const li = e.target.closest(".switcher-item");
-      if (li) {
-        const targetId = isNaN(Number(li.dataset.id)) ? li.dataset.id : Number(li.dataset.id);
-        const tab = activeTabs.find((t) => t.id === targetId || String(t.id) === li.dataset.id);
-        if (tab) {
-          selectedTabId = tab.id;
-          syncSelection();
-          setOpen(false);
-          btn.focus();
-          if (_onTabClick) _onTabClick(tab);
-        }
-      }
-    });
+    menu.addEventListener("click", (e) => onMenuClick(e, btn));
     document.addEventListener("click", (e) => {
       if (!els || !container.contains(e.target)) setOpen(false);
     });
@@ -1254,31 +1253,44 @@
     menu.addEventListener("mouseleave", () => {
       if (menu.classList.contains("open")) menu.focus();
     });
-    menu.addEventListener("keydown", (e) => {
-      const items = [...menu.children].filter((el3) => el3.classList.contains("switcher-item"));
-      let i2 = items.indexOf(document.activeElement);
-      if (i2 === -1 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
-        e.preventDefault();
-        (menu.querySelector('[aria-selected="true"]') || items[0])?.focus();
-        return;
-      }
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        items[(i2 + 1) % items.length]?.focus();
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        items[(i2 - 1 + items.length) % items.length]?.focus();
-      }
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        if (i2 !== -1) items[i2].click();
-      }
-      if (e.key === "Escape") {
-        setOpen(false);
-        btn.focus();
-      }
-    });
+    menu.addEventListener("keydown", (e) => onMenuKey(e, menu, btn));
+  }
+  function onMenuClick(e, btn) {
+    const li = e.target.closest(".switcher-item");
+    if (!li) return;
+    const targetId = isNaN(Number(li.dataset.id)) ? li.dataset.id : Number(li.dataset.id);
+    const tab = activeTabs.find((t) => t.id === targetId || String(t.id) === li.dataset.id);
+    if (!tab) return;
+    selectedTabId = tab.id;
+    syncSelection();
+    setOpen(false);
+    btn.focus();
+    if (_onTabClick) _onTabClick(tab);
+  }
+  function onMenuKey(e, menu, btn) {
+    const items = [...menu.children].filter((el3) => el3.classList.contains("switcher-item"));
+    let i2 = items.indexOf(document.activeElement);
+    if (i2 === -1 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      (menu.querySelector('[aria-selected="true"]') || items[0])?.focus();
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      items[(i2 + 1) % items.length]?.focus();
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      items[(i2 - 1 + items.length) % items.length]?.focus();
+    }
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (i2 !== -1) items[i2].click();
+    }
+    if (e.key === "Escape") {
+      setOpen(false);
+      btn.focus();
+    }
   }
   function setOpen(open) {
     if (!els) return;
@@ -1295,58 +1307,61 @@
       selectedTabId = home ? home.id : "search";
     }
     els.menu.innerHTML = "";
-    activeTabs.forEach((tab) => {
-      const li = document.createElement("li");
-      li.className = "switcher-item";
-      li.setAttribute("role", "option");
-      li.setAttribute("tabindex", "-1");
-      li.dataset.id = String(tab.id);
-      li.setAttribute("aria-selected", String(tab.id === selectedTabId));
-      const tabLabel = tab.type === "search" && (!tab.label || tab.label === "Home") ? "Dashboard" : sentenceCase(tab.label);
-      const tabSub = tab.type === "search" && !tab.sub ? "Everything at a glance" : tab.sub || "";
-      const spanLabel = document.createElement("span");
-      spanLabel.className = "label";
-      spanLabel.textContent = tabLabel;
-      if (tabSub) {
-        const spanSub = document.createElement("span");
-        spanSub.className = "sub";
-        spanSub.textContent = tabSub;
-        spanLabel.appendChild(spanSub);
-      }
-      li.appendChild(spanLabel);
-      li.insertAdjacentHTML("beforeend", checkSVG);
-      if (tab.type !== "search") {
-        li.addEventListener("contextmenu", (e) => {
-          e.preventDefault();
-          if (ContextMenu.disabled) return;
-          setOpen(false);
-          openTabDialog({
-            name: tab.label,
-            onRename: (newName) => {
-              const t = activeTabs.find((t2) => t2.id === tab.id);
-              if (t) {
-                t.label = newName;
-                saveTabs();
-                renderTabs();
-              }
-            },
-            onDelete: () => {
-              setActiveTabs(activeTabs.filter((t) => t.id !== tab.id));
-              if (currentBookmarkPage === tab.id) {
-                if (_onNavigateToSearch) _onNavigateToSearch();
-                selectSearchTab();
-              }
-              window.chrome.storage.sync.remove(`page${tab.id}`);
-              BookmarkDB.deleteBookmarks(tab.id);
-              saveTabs();
-              renderTabs();
-            }
-          });
-        });
-      }
-      els.menu.appendChild(li);
-    });
+    activeTabs.forEach((tab) => els.menu.appendChild(switcherItem(tab)));
     syncSelection();
+  }
+  function switcherItem(tab) {
+    const li = document.createElement("li");
+    li.className = "switcher-item";
+    li.setAttribute("role", "option");
+    li.setAttribute("tabindex", "-1");
+    li.dataset.id = String(tab.id);
+    li.setAttribute("aria-selected", String(tab.id === selectedTabId));
+    const tabSub = tab.type === "search" && !tab.sub ? "Everything at a glance" : tab.sub || "";
+    const spanLabel = document.createElement("span");
+    spanLabel.className = "label";
+    spanLabel.textContent = displayName(tab);
+    if (tabSub) {
+      const spanSub = document.createElement("span");
+      spanSub.className = "sub";
+      spanSub.textContent = tabSub;
+      spanLabel.appendChild(spanSub);
+    }
+    li.appendChild(spanLabel);
+    li.insertAdjacentHTML("beforeend", checkSVG);
+    if (tab.type !== "search") {
+      li.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        if (ContextMenu.disabled) return;
+        setOpen(false);
+        openPageDialog(tab);
+      });
+    }
+    return li;
+  }
+  function openPageDialog(tab) {
+    openTabDialog({
+      name: tab.label,
+      onRename: (newName) => {
+        const t = activeTabs.find((t2) => t2.id === tab.id);
+        if (t) {
+          t.label = newName;
+          saveTabs();
+          renderTabs();
+        }
+      },
+      onDelete: () => {
+        setActiveTabs(activeTabs.filter((t) => t.id !== tab.id));
+        if (currentBookmarkPage === tab.id) {
+          if (_onNavigateToSearch) _onNavigateToSearch();
+          selectSearchTab();
+        }
+        window.chrome.storage.sync.remove(`page${tab.id}`);
+        BookmarkDB.deleteBookmarks(tab.id);
+        saveTabs();
+        renderTabs();
+      }
+    });
   }
   function syncSelection() {
     if (!els) return;
@@ -1355,7 +1370,7 @@
     });
     const index = activeTabs.findIndex((t) => t.id === selectedTabId);
     const tab = index === -1 ? null : activeTabs[index];
-    const name = tab ? tab.type === "search" && (!tab.label || tab.label === "Home") ? "Dashboard" : sentenceCase(tab.label) : "Dashboard";
+    const name = tab ? displayName(tab) : "Dashboard";
     els.label.textContent = name;
     els.btn.title = name;
   }
@@ -1571,23 +1586,11 @@
     container.innerHTML = "";
     const groups = Object.keys(bookmarks);
     if (loadFailed()) {
-      container.innerHTML = `<div class="empty-bookmarks-message">
-      <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.24 3.957a2 2 0 0 1 3.52 0l8.03 14.06A2 2 0 0 1 20.06 21H3.94a2 2 0 0 1-1.73-2.983z"/></svg></div>
-      <p class="empty-state-title">Could not read your bookmarks</p>
-      <p class="empty-state-hint">They have not been changed. This page is not
-        showing them because the database did not answer, so nothing will be
-        saved over them until it does.</p>
-      <button class="save-btn" id="bookmarks-retry" type="button">Try again</button>
-    </div>`;
-      container.querySelector("#bookmarks-retry")?.addEventListener("click", loadBookmarks);
+      renderLoadError(container);
       return;
     }
     if (groups.length === 0) {
-      container.innerHTML = `<div class="empty-bookmarks-message">
-      <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32"><path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"/></svg></div>
-      <p class="empty-state-title">No bookmarks yet</p>
-      <p class="empty-state-hint">Click <strong>+ Add</strong> to add your first bookmark to this page.</p>
-    </div>`;
+      renderEmptyPage(container);
       return;
     }
     const columnsCount = Math.ceil(groups.length / Math.ceil(groups.length / 3));
@@ -1597,67 +1600,93 @@
     for (let i2 = 0; i2 < columnsCount; i2++) {
       const startIndex = i2 * groupsPerColumn;
       const endIndex = Math.min(startIndex + groupsPerColumn, groups.length);
-      const columnGroups = groups.slice(startIndex, endIndex);
-      const columnDiv = document.createElement("div");
-      columnDiv.className = "bookmark-column";
-      const _n = columnGroups.length;
-      const _avail = window.innerHeight - 160;
-      const perWell = Math.min(480, Math.max(48, Math.floor((_avail - _n * 54 - (_n - 1) * 24) / _n)));
-      const capacity = rowsThatFit(perWell, metrics);
-      columnGroups.forEach((groupName) => {
-        const groupDiv = document.createElement("div");
-        groupDiv.className = "bookmark-group";
-        const titleDiv = document.createElement("div");
-        titleDiv.className = "group-title";
-        const rowBookmarks = /* @__PURE__ */ new Map();
-        groupDiv.addEventListener("contextmenu", (e) => {
-          e.preventDefault();
-          if (ContextMenu.disabled) return;
-          const row = e.target.closest?.(".bookmark-link");
-          const bookmark = row && rowBookmarks.get(row);
-          if (bookmark) {
-            openBookmarkMenu(groupName, bookmark);
-            return;
-          }
-          if (e.target.closest?.(".bookmark-well")) return;
-          openGroupMenu(groupName);
-        });
-        const titleText = document.createElement("span");
-        titleText.textContent = groupName;
-        titleDiv.appendChild(titleText);
-        const wellDiv = document.createElement("div");
-        wellDiv.className = "bookmark-well";
-        const listDiv = document.createElement("ul");
-        listDiv.className = "bookmark-list";
-        const _total = bookmarks[groupName].length;
-        const _rows = _total === capacity + 1 ? _total : Math.min(capacity, _total);
-        listDiv.style.maxHeight = wellHeight(_rows, metrics) + "px";
-        bookmarks[groupName].forEach((bookmark) => {
-          const listItem = document.createElement("li");
-          const itemDiv = document.createElement("div");
-          itemDiv.className = "bookmark-link";
-          rowBookmarks.set(itemDiv, bookmark);
-          const link = document.createElement("a");
-          link.href = bookmark.url;
-          link.target = "_self";
-          link.rel = "noopener noreferrer";
-          link.textContent = bookmark.name;
-          link.style.flex = "1";
-          link.style.textDecoration = "none";
-          link.style.color = "inherit";
-          itemDiv.appendChild(link);
-          listItem.appendChild(itemDiv);
-          listDiv.appendChild(listItem);
-        });
-        wellDiv.appendChild(listDiv);
-        allFadeChecks.push(attachScrollAffordance(listDiv, { host: wellDiv }).refresh);
-        groupDiv.appendChild(titleDiv);
-        groupDiv.appendChild(wellDiv);
-        columnDiv.appendChild(groupDiv);
-      });
-      container.appendChild(columnDiv);
+      container.appendChild(renderColumn(groups.slice(startIndex, endIndex), metrics, allFadeChecks));
     }
     requestAnimationFrame(() => allFadeChecks.forEach((fn) => fn()));
+  }
+  function renderLoadError(container) {
+    container.innerHTML = `<div class="empty-bookmarks-message">
+      <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.24 3.957a2 2 0 0 1 3.52 0l8.03 14.06A2 2 0 0 1 20.06 21H3.94a2 2 0 0 1-1.73-2.983z"/></svg></div>
+      <p class="empty-state-title">Could not read your bookmarks</p>
+      <p class="empty-state-hint">They have not been changed. This page is not
+        showing them because the database did not answer, so nothing will be
+        saved over them until it does.</p>
+      <button class="save-btn" id="bookmarks-retry" type="button">Try again</button>
+    </div>`;
+    container.querySelector("#bookmarks-retry")?.addEventListener("click", loadBookmarks);
+  }
+  function renderEmptyPage(container) {
+    container.innerHTML = `<div class="empty-bookmarks-message">
+      <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32"><path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"/></svg></div>
+      <p class="empty-state-title">No bookmarks yet</p>
+      <p class="empty-state-hint">Click <strong>+ Add</strong> to add your first bookmark to this page.</p>
+    </div>`;
+  }
+  function renderColumn(columnGroups, metrics, fadeChecks) {
+    const columnDiv = document.createElement("div");
+    columnDiv.className = "bookmark-column";
+    const _n = columnGroups.length;
+    const _avail = window.innerHeight - 160;
+    const perWell = Math.min(480, Math.max(48, Math.floor((_avail - _n * 54 - (_n - 1) * 24) / _n)));
+    const capacity = rowsThatFit(perWell, metrics);
+    columnGroups.forEach((groupName) => {
+      const { groupDiv, refresh } = renderGroup(groupName, capacity, metrics);
+      fadeChecks.push(refresh);
+      columnDiv.appendChild(groupDiv);
+    });
+    return columnDiv;
+  }
+  function renderGroup(groupName, capacity, metrics) {
+    const groupDiv = document.createElement("div");
+    groupDiv.className = "bookmark-group";
+    const titleDiv = document.createElement("div");
+    titleDiv.className = "group-title";
+    const rowBookmarks = /* @__PURE__ */ new Map();
+    groupDiv.addEventListener("contextmenu", (e) => onGroupContextMenu(e, groupName, rowBookmarks));
+    const titleText = document.createElement("span");
+    titleText.textContent = groupName;
+    titleDiv.appendChild(titleText);
+    const wellDiv = document.createElement("div");
+    wellDiv.className = "bookmark-well";
+    const listDiv = document.createElement("ul");
+    listDiv.className = "bookmark-list";
+    const _total = bookmarks[groupName].length;
+    const _rows = _total === capacity + 1 ? _total : Math.min(capacity, _total);
+    listDiv.style.maxHeight = wellHeight(_rows, metrics) + "px";
+    bookmarks[groupName].forEach((bookmark) => {
+      const listItem = document.createElement("li");
+      const itemDiv = document.createElement("div");
+      itemDiv.className = "bookmark-link";
+      rowBookmarks.set(itemDiv, bookmark);
+      const link = document.createElement("a");
+      link.href = bookmark.url;
+      link.target = "_self";
+      link.rel = "noopener noreferrer";
+      link.textContent = bookmark.name;
+      link.style.flex = "1";
+      link.style.textDecoration = "none";
+      link.style.color = "inherit";
+      itemDiv.appendChild(link);
+      listItem.appendChild(itemDiv);
+      listDiv.appendChild(listItem);
+    });
+    wellDiv.appendChild(listDiv);
+    const refresh = attachScrollAffordance(listDiv, { host: wellDiv }).refresh;
+    groupDiv.appendChild(titleDiv);
+    groupDiv.appendChild(wellDiv);
+    return { groupDiv, refresh };
+  }
+  function onGroupContextMenu(e, groupName, rowBookmarks) {
+    e.preventDefault();
+    if (ContextMenu.disabled) return;
+    const row = e.target.closest?.(".bookmark-link");
+    const bookmark = row && rowBookmarks.get(row);
+    if (bookmark) {
+      openBookmarkMenu(groupName, bookmark);
+      return;
+    }
+    if (e.target.closest?.(".bookmark-well")) return;
+    openGroupMenu(groupName);
   }
   function openGroupMenu(groupName) {
     const pages2 = activeTabs.filter((t) => t.type !== "search" && t.id !== currentBookmarkPage).map((t) => ({ label: t.label, value: t.id }));
@@ -2708,21 +2737,13 @@
     }
   }
 
-  // src/components/engines/engineModal.js
-  var _iconType = "file";
-  var _iconFile = null;
-  var _iconAcronym = { text: "", color: "#3b82f6" };
-  var nav = createSubpageNav({
-    panels: ".engine-subpage",
-    home: "#engine-home",
-    title: "#engine-modal-title",
-    closeBtn: "#close-engine-modal",
-    homeTitle: "Search Engines",
-    panelAttr: "data-engine-panel",
-    titleAttr: "engineTitle"
-  });
-  var openEngineSubpage = (name, customTitle) => nav.open(name, customTitle);
-  var closeEngineSubpage = () => nav.close();
+  // src/components/engines/engineIconPicker.js
+  var iconChoice = { type: "file", file: null, acronym: { text: "", color: "#3b82f6" } };
+  function resetIconChoice() {
+    iconChoice.type = "file";
+    iconChoice.file = null;
+    iconChoice.acronym = { text: "", color: "#3b82f6" };
+  }
   var DIALOG_CLASS = "engine-popup-dialog";
   function closeAllEngineDialogs() {
     document.querySelectorAll("." + DIALOG_CLASS).forEach((n) => n.remove());
@@ -2762,14 +2783,14 @@
     const host = el2("div", "picker-wellhost");
     const well = el2("div", "picker-well");
     [{ type: "file", label: "Upload SVG" }, { type: "acronym", label: "Acronym" }].forEach(({ type, label }) => {
-      const row = el2("button", "picker-row" + (_iconType === type ? " is-current" : ""));
+      const row = el2("button", "picker-row" + (iconChoice.type === type ? " is-current" : ""));
       row.type = "button";
       row.appendChild(el2("span", "picker-check"));
       const span = el2("span", "", label);
       span.style.flex = "1";
       row.append(span);
       row.addEventListener("click", () => {
-        _iconType = type;
+        iconChoice.type = type;
         const labelEl = document.getElementById("engine-add-icon-label");
         if (labelEl) labelEl.textContent = type === "file" ? "Upload SVG" : "Acronym";
         closeAllEngineDialogs();
@@ -2808,15 +2829,15 @@
       inputEl.maxLength = 2;
       inputEl.placeholder = "e.g. YT";
       inputEl.className = "picker-field";
-      inputEl.value = _iconAcronym.text;
+      inputEl.value = iconChoice.acronym.text;
       inputEl.style.flex = "1";
       const colorInput = document.createElement("input");
       colorInput.type = "color";
-      colorInput.value = _iconAcronym.color;
+      colorInput.value = iconChoice.acronym.color;
       colorInput.className = "color-picker-circle";
       colorInput.style.flexShrink = "0";
       colorInput.addEventListener("input", () => {
-        _iconAcronym.color = colorInput.value;
+        iconChoice.acronym.color = colorInput.value;
       });
       row.append(inputEl, colorInput);
       body.appendChild(row);
@@ -2832,9 +2853,9 @@
         } },
         { label: "Done", primary: true, onClick: () => {
           if (type === "file") {
-            _iconFile = inputEl.files?.[0] || null;
+            iconChoice.file = inputEl.files?.[0] || null;
           } else {
-            _iconAcronym.text = inputEl.value.trim();
+            iconChoice.acronym.text = inputEl.value.trim();
           }
           closeAllEngineDialogs();
         } }
@@ -2845,6 +2866,19 @@
       inputEl.select();
     });
   }
+
+  // src/components/engines/engineModal.js
+  var nav = createSubpageNav({
+    panels: ".engine-subpage",
+    home: "#engine-home",
+    title: "#engine-modal-title",
+    closeBtn: "#close-engine-modal",
+    homeTitle: "Search Engines",
+    panelAttr: "data-engine-panel",
+    titleAttr: "engineTitle"
+  });
+  var openEngineSubpage = (name, customTitle) => nav.open(name, customTitle);
+  var closeEngineSubpage = () => nav.close();
   function makeStarSvg(filled) {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
@@ -3038,9 +3072,7 @@
     if (addSubmit) addSubmit.addEventListener("click", handleAddEngine);
   }
   function resetAddForm() {
-    _iconType = "file";
-    _iconFile = null;
-    _iconAcronym = { text: "", color: "#3b82f6" };
+    resetIconChoice();
     const nameField = document.getElementById("engine-add-name");
     const urlField = document.getElementById("engine-add-url");
     const iconLabel = document.getElementById("engine-add-icon-label");
@@ -3068,18 +3100,18 @@
     let isCustomIcon = false;
     let iconData = null;
     try {
-      if (_iconType === "acronym") {
-        if (!_iconAcronym.text) {
+      if (iconChoice.type === "acronym") {
+        if (!iconChoice.acronym.text) {
           if (errEl) {
             errEl.textContent = 'Click "Icon type" to set an acronym first.';
             errEl.classList.add("picker-error--show");
           }
           return;
         }
-        iconData = generateAcronymSvg(_iconAcronym.text, _iconAcronym.color);
+        iconData = generateAcronymSvg(iconChoice.acronym.text, iconChoice.acronym.color);
         isCustomIcon = true;
-      } else if (_iconFile) {
-        iconData = await readFileAsDataURL(_iconFile);
+      } else if (iconChoice.file) {
+        iconData = await readFileAsDataURL(iconChoice.file);
         isCustomIcon = true;
       }
       if (isCustomIcon && iconData) await BookmarkDB.saveIcon(id, iconData);
@@ -3404,38 +3436,8 @@
     const plus = document.getElementById("plus");
     const resultsContainer = document.getElementById("bookmark-search-results");
     if (!searchInput) return;
-    searchInput.addEventListener("input", (e) => {
-      const val = searchInput.value;
-      if (val.startsWith("./")) {
-        const raw = val.substring(2);
-        const query = raw.trim().toLowerCase();
-        if (raw === " ") {
-          plus.classList.remove("plus--active");
-          renderBookmarkSearchResults(sortByUsage(allCachedBookmarks));
-        } else if (query.length > 0) {
-          const matched = allCachedBookmarks.filter(
-            (bm) => bm.name.toLowerCase().includes(query)
-          );
-          plus.classList.remove("plus--active");
-          renderBookmarkSearchResults(sortByUsage(matched));
-        } else {
-          hideBookmarkSearchResults();
-        }
-      } else if (getBookmarkPillBehavior() === "always" && val.trim().length > 0) {
-        const query = val.trim().toLowerCase();
-        const matched = allCachedBookmarks.filter(
-          (bm) => bm.name.toLowerCase().includes(query)
-        );
-        if (matched.length > 0) {
-          plus.classList.remove("plus--active");
-          renderBookmarkSearchResults(sortByUsage(matched));
-        } else {
-          hideBookmarkSearchResults();
-        }
-      } else {
-        hideBookmarkSearchResults();
-      }
-    });
+    const ui = { searchInput, plus, resultsContainer };
+    searchInput.addEventListener("input", () => onSearchInput(ui));
     searchInput.addEventListener("focus", () => {
       const v = searchInput.value;
       if (v.startsWith("./") || getBookmarkPillBehavior() === "always" && v.trim().length > 0) {
@@ -3454,100 +3456,134 @@
         hideBookmarkSearchResults();
       }
     });
-    searchInput.addEventListener("keydown", async (e) => {
-      const isSearchActive = (searchInput.value.startsWith("./") || getBookmarkPillBehavior() === "always") && resultsContainer && resultsContainer.style.display === "flex";
-      if (e.key === "ArrowDown" && isSearchActive) {
+    searchInput.addEventListener("keydown", (e) => onSearchKeydown(e, ui));
+    if (plus) wireEnginePicker(plus);
+  }
+  function matchingBookmarks(query) {
+    return allCachedBookmarks.filter((bm) => bm.name.toLowerCase().includes(query));
+  }
+  function showPills(ui, bookmarks2) {
+    ui.plus.classList.remove("plus--active");
+    renderBookmarkSearchResults(sortByUsage(bookmarks2));
+  }
+  function onSearchInput(ui) {
+    const val = ui.searchInput.value;
+    if (val.startsWith("./")) {
+      const raw = val.substring(2);
+      const query = raw.trim().toLowerCase();
+      if (raw === " ") showPills(ui, allCachedBookmarks);
+      else if (query.length > 0) showPills(ui, matchingBookmarks(query));
+      else hideBookmarkSearchResults();
+    } else if (getBookmarkPillBehavior() === "always" && val.trim().length > 0) {
+      const matched = matchingBookmarks(val.trim().toLowerCase());
+      if (matched.length > 0) showPills(ui, matched);
+      else hideBookmarkSearchResults();
+    } else {
+      hideBookmarkSearchResults();
+    }
+  }
+  function pillItems(ui) {
+    return ui.resultsContainer.querySelectorAll(".bookmark-search-item:not(.empty)");
+  }
+  async function onSearchKeydown(e, ui) {
+    const { searchInput, resultsContainer } = ui;
+    const isSearchActive = (searchInput.value.startsWith("./") || getBookmarkPillBehavior() === "always") && resultsContainer && resultsContainer.style.display === "flex";
+    if (movePillSelection(e, ui, isSearchActive)) return;
+    if (e.key === "Enter") await submitSearch(e, ui, isSearchActive);
+  }
+  function movePillSelection(e, ui, isSearchActive) {
+    if (e.key === "ArrowDown" && isSearchActive) {
+      e.preventDefault();
+      updateSearchDropdownSelection(searchDropdownIndex + 1);
+      return true;
+    }
+    if (e.key === "ArrowUp" && isSearchActive) {
+      e.preventDefault();
+      updateSearchDropdownSelection(searchDropdownIndex - 1);
+      return true;
+    }
+    if (e.key === "Tab" && isSearchActive && searchDropdownIndex < 0) {
+      if (pillItems(ui).length > 0) {
         e.preventDefault();
-        updateSearchDropdownSelection(searchDropdownIndex + 1);
-        return;
+        updateSearchDropdownSelection(0);
+        return true;
       }
-      if (e.key === "ArrowUp" && isSearchActive) {
+    }
+    return false;
+  }
+  async function submitSearch(e, ui, isSearchActive) {
+    const { searchInput } = ui;
+    const items = isSearchActive ? pillItems(ui) : [];
+    const forceSearch = e.shiftKey;
+    if (resolveEnterAction(isSearchActive, searchDropdownIndex, items.length, forceSearch) === "bookmark") {
+      window.location.href = items[searchDropdownIndex].dataset.url;
+      return;
+    }
+    const query = searchTextFor(searchInput.value);
+    if (!query) return;
+    const targetUrl = !forceSearch && isUrl(query) ? await destinationUrl(query) : searchUrl(query, searchInput);
+    if (targetUrl === null) return;
+    window.location.href = targetUrl;
+    searchInput.value = "";
+  }
+  async function destinationUrl(query) {
+    let targetUrl = formatUrl(query);
+    if (targetUrl.startsWith("file://") || isFilePath(query)) {
+      if (!targetUrl.startsWith("file://")) targetUrl = filePathToUrl(query);
+      try {
+        const allowed = await new Promise(
+          (resolve) => chrome.extension.isAllowedFileSchemeAccess(resolve)
+        );
+        if (!allowed) {
+          showFileAccessWarning();
+          return null;
+        }
+      } catch (_) {
+      }
+    }
+    return targetUrl;
+  }
+  function searchUrl(query, searchInput) {
+    if (currentEngine === "default" && window.chrome && window.chrome.search) {
+      try {
+        chrome.search.query({ text: query, disposition: "CURRENT_TAB" });
+        searchInput.value = "";
+        return null;
+      } catch (error) {
+        return "https://www.google.com/search?q=" + encodeURIComponent(query);
+      }
+    }
+    const engine = searchEngines[currentEngine];
+    if (engine) return engine.url + encodeURIComponent(query);
+    const defaultEngine = searchEngines[defaultEngineKey];
+    if (defaultEngine) return defaultEngine.url + encodeURIComponent(query);
+    return "https://www.google.com/search?q=" + encodeURIComponent(query);
+  }
+  function wireEnginePicker(plus) {
+    const engineLinks = document.getElementById("engine-links");
+    const close = () => {
+      plus.classList.remove("plus--active");
+      if (engineLinks) engineLinks.classList.remove("active");
+    };
+    plus.addEventListener("click", (e) => {
+      e.stopPropagation();
+      hideBookmarkSearchResults();
+      plus.classList.toggle("plus--active");
+      if (engineLinks) engineLinks.classList.toggle("active", plus.classList.contains("plus--active"));
+    });
+    if (engineLinks) engineLinks.addEventListener("click", function(e) {
+      const link = e.target.closest(".plus__link");
+      if (link && link.dataset.engine) {
         e.preventDefault();
-        updateSearchDropdownSelection(searchDropdownIndex - 1);
-        return;
-      }
-      if (e.key === "Tab" && isSearchActive && searchDropdownIndex < 0) {
-        const items = resultsContainer.querySelectorAll(".bookmark-search-item:not(.empty)");
-        if (items.length > 0) {
-          e.preventDefault();
-          updateSearchDropdownSelection(0);
-          return;
-        }
-      }
-      if (e.key === "Enter") {
-        const items = isSearchActive ? resultsContainer.querySelectorAll(".bookmark-search-item:not(.empty)") : [];
-        const forceSearch = e.shiftKey;
-        if (resolveEnterAction(isSearchActive, searchDropdownIndex, items.length, forceSearch) === "bookmark") {
-          window.location.href = items[searchDropdownIndex].dataset.url;
-          return;
-        }
-        const query = searchTextFor(searchInput.value);
-        if (query) {
-          let targetUrl;
-          if (!forceSearch && isUrl(query)) {
-            targetUrl = formatUrl(query);
-            if (targetUrl.startsWith("file://") || isFilePath(query)) {
-              if (!targetUrl.startsWith("file://")) targetUrl = filePathToUrl(query);
-              try {
-                const allowed = await new Promise(
-                  (resolve) => chrome.extension.isAllowedFileSchemeAccess(resolve)
-                );
-                if (!allowed) {
-                  showFileAccessWarning();
-                  return;
-                }
-              } catch (_) {
-              }
-            }
-          } else {
-            if (currentEngine === "default" && window.chrome && window.chrome.search) {
-              try {
-                chrome.search.query({ text: query, disposition: "CURRENT_TAB" });
-                searchInput.value = "";
-                return;
-              } catch (error) {
-                targetUrl = "https://www.google.com/search?q=" + encodeURIComponent(query);
-              }
-            } else {
-              const engine = searchEngines[currentEngine];
-              if (engine) targetUrl = engine.url + encodeURIComponent(query);
-              else {
-                const defaultEngine = searchEngines[defaultEngineKey];
-                if (defaultEngine) targetUrl = defaultEngine.url + encodeURIComponent(query);
-                else targetUrl = "https://www.google.com/search?q=" + encodeURIComponent(query);
-              }
-            }
-          }
-          window.location.href = targetUrl;
-          searchInput.value = "";
-        }
+        e.stopPropagation();
+        updateCurrentEngine(link.dataset.engine);
+        plus.classList.remove("plus--active");
+        engineLinks.classList.remove("active");
       }
     });
-    if (plus) {
-      const engineLinks = document.getElementById("engine-links");
-      plus.addEventListener("click", (e) => {
-        e.stopPropagation();
-        hideBookmarkSearchResults();
-        plus.classList.toggle("plus--active");
-        if (engineLinks) engineLinks.classList.toggle("active", plus.classList.contains("plus--active"));
-      });
-      if (engineLinks) engineLinks.addEventListener("click", function(e) {
-        const link = e.target.closest(".plus__link");
-        if (link && link.dataset.engine) {
-          e.preventDefault();
-          e.stopPropagation();
-          updateCurrentEngine(link.dataset.engine);
-          plus.classList.remove("plus--active");
-          engineLinks.classList.remove("active");
-        }
-      });
-      document.addEventListener("click", (e) => {
-        if (!plus.contains(e.target) && (!engineLinks || !engineLinks.contains(e.target))) {
-          plus.classList.remove("plus--active");
-          if (engineLinks) engineLinks.classList.remove("active");
-        }
-      });
-    }
+    document.addEventListener("click", (e) => {
+      if (!plus.contains(e.target) && (!engineLinks || !engineLinks.contains(e.target))) close();
+    });
   }
   function showFileAccessWarning() {
     document.querySelectorAll(".file-access-warning").forEach((n) => n.remove());
@@ -3739,6 +3775,15 @@
         await BookmarkDB.saveIcon(key, importData.customEngineIcons[key]);
       }));
     }
+    const storageData = await settingsFromImport(importData);
+    const safeStorageData = sanitizeHugeStrings(storageData);
+    await new Promise((resolve) => window.chrome.storage.sync.set(safeStorageData, resolve));
+    if (importData.rhe_rules) {
+      const safeRules = sanitizeHugeStrings(importData.rhe_rules);
+      await new Promise((resolve) => window.chrome.storage.local.set({ rhe_rules: safeRules }, resolve));
+    }
+  }
+  async function settingsFromImport(importData) {
     const storageData = {};
     if (importData.fadeInEnabled !== void 0) storageData.fadeInEnabled = importData.fadeInEnabled;
     if (importData.spotlightVisible !== void 0) storageData.spotlightVisible = importData.spotlightVisible;
@@ -3747,15 +3792,7 @@
     if (importData.activeTabs) storageData.activeTabs = importData.activeTabs;
     if (importData.customSearchEngines) {
       storageData.customSearchEngines = importData.customSearchEngines;
-      const keys = Object.keys(storageData.customSearchEngines);
-      for (const key of keys) {
-        const engine = storageData.customSearchEngines[key];
-        if (engine.icon && engine.icon.startsWith("data:")) {
-          await BookmarkDB.saveIcon(key, engine.icon);
-          engine.isCustomIcon = true;
-          engine.icon = null;
-        }
-      }
+      await moveEngineIconsToDb(storageData.customSearchEngines);
     }
     if (importData.defaultEngineKey) storageData.defaultEngineKey = importData.defaultEngineKey;
     if (importData.selectedSearchEngine) storageData.selectedSearchEngine = importData.selectedSearchEngine;
@@ -3764,37 +3801,43 @@
     if (importData.searchDelaySeconds !== void 0) storageData.searchDelaySeconds = importData.searchDelaySeconds;
     if (importData.showQueryOnDelay !== void 0) storageData.showQueryOnDelay = importData.showQueryOnDelay;
     if (importData.grayscale !== void 0) storageData.grayscale = importData.grayscale;
-    if (importData.Theme) {
-      storageData.Theme = importData.Theme;
-      if (typeof storageData.Theme === "object" && storageData.Theme !== null) {
-        if (storageData.Theme.customBg && typeof storageData.Theme.customBg === "string" && storageData.Theme.customBg.length > 1e3) {
-          try {
-            await BookmarkDB.saveIcon("theme_custom_bg", storageData.Theme.customBg);
-            storageData.Theme = { ...storageData.Theme, customBg: "idb:theme_custom_bg" };
-          } catch (_) {
-          }
+    if (importData.Theme) storageData.Theme = await themeWithBackgroundInDb(importData.Theme);
+    return storageData;
+  }
+  async function moveEngineIconsToDb(engines) {
+    for (const key of Object.keys(engines)) {
+      const engine = engines[key];
+      if (engine.icon && engine.icon.startsWith("data:")) {
+        await BookmarkDB.saveIcon(key, engine.icon);
+        engine.isCustomIcon = true;
+        engine.icon = null;
+      }
+    }
+  }
+  async function themeWithBackgroundInDb(theme) {
+    if (typeof theme === "object" && theme !== null) {
+      if (theme.customBg && typeof theme.customBg === "string" && theme.customBg.length > 1e3) {
+        try {
+          await BookmarkDB.saveIcon("theme_custom_bg", theme.customBg);
+          return { ...theme, customBg: "idb:theme_custom_bg" };
+        } catch (_) {
         }
       }
     }
-    const sanitizeHugeStrings = (obj) => {
-      if (typeof obj === "string" && obj.length > 8192) return void 0;
-      if (Array.isArray(obj)) return obj.map(sanitizeHugeStrings).filter((x2) => x2 !== void 0);
-      if (typeof obj === "object" && obj !== null) {
-        const newObj = {};
-        for (const k of Object.keys(obj)) {
-          const val = sanitizeHugeStrings(obj[k]);
-          if (val !== void 0) newObj[k] = val;
-        }
-        return newObj;
+    return theme;
+  }
+  function sanitizeHugeStrings(obj) {
+    if (typeof obj === "string" && obj.length > 8192) return void 0;
+    if (Array.isArray(obj)) return obj.map(sanitizeHugeStrings).filter((x2) => x2 !== void 0);
+    if (typeof obj === "object" && obj !== null) {
+      const newObj = {};
+      for (const k of Object.keys(obj)) {
+        const val = sanitizeHugeStrings(obj[k]);
+        if (val !== void 0) newObj[k] = val;
       }
-      return obj;
-    };
-    const safeStorageData = sanitizeHugeStrings(storageData);
-    await new Promise((resolve) => window.chrome.storage.sync.set(safeStorageData, resolve));
-    if (importData.rhe_rules) {
-      const safeRules = sanitizeHugeStrings(importData.rhe_rules);
-      await new Promise((resolve) => window.chrome.storage.local.set({ rhe_rules: safeRules }, resolve));
+      return newObj;
     }
+    return obj;
   }
 
   // vendor/fflate/browser.js
@@ -4733,23 +4776,7 @@
     return out;
   }
 
-  // src/services/detractlessFormat.js
-  var FORMAT = "detractless";
-  var FORMAT_VERSION = 2;
-  var CREATOR = "Detractless/3.0.0";
-  var PRODUCER = "newtab/3.0.0";
-  var FILE_MANIFEST = "manifest.json";
-  var NEWTAB_CONFIG = "newtab/config.json";
-  var SHARED_PK_MANIFEST = "shared/pastekit/manifest.json";
-  var SHARED_PK_CSV = "shared/pastekit/lists/snippets.csv";
-  var V1_CONFIG = "config.json";
-  var V1_PK_MANIFEST = "pastekit/manifest.json";
-  var V1_PK_CSV = "pastekit/lists/snippets.csv";
-  var OWNED_PREFIXES = ["newtab/", "shared/pastekit/"];
-  var SYNC_PREFIX = "sync/";
-  function isOwnedEntry(path) {
-    return path === FILE_MANIFEST || OWNED_PREFIXES.some((p2) => path.startsWith(p2));
-  }
+  // src/services/snippetCsv.js
   var CSV_COLS = ["name", "description", "contentText", "contentHtml", "tags", "folderXid", "createdAt", "updatedAt"];
   function csvEscape(val) {
     const s = String(val == null ? "" : val);
@@ -4817,6 +4844,78 @@
       if (state.row.some((c) => c !== "")) rows.push(state.row);
     }
     return rows;
+  }
+
+  // src/services/zipReader.js
+  async function readZipEntries(buffer) {
+    const input = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+    const data = input;
+    let e = data.length - 22;
+    for (; b4(data, e) !== 101010256; --e) {
+      if (!e || data.length - e > 65558) throw new Error("Not a valid .detractless file (could not unzip)");
+    }
+    let c = b2(data, e + 8);
+    if (!c) return {};
+    let o = b4(data, e + 16);
+    const z = b4(data, e - 20) === 117853008 && (() => {
+      const ze = b4(data, e - 12);
+      if (b4(data, ze) === 101075792) {
+        c = b4(data, ze + 32);
+        o = b4(data, ze + 48);
+        return true;
+      }
+      return false;
+    })();
+    const fileDescs = [];
+    let pos = o;
+    for (let i2 = 0; i2 < c; ++i2) {
+      const [c_2, sc, su, fn, no, off] = zh(data, pos, z);
+      const b = slzh(data, off);
+      fileDescs.push({ c_2, sc, su, fn, b });
+      pos = no;
+    }
+    const entries = {};
+    for (const { c_2, sc, su, fn, b } of fileDescs) {
+      if (!c_2) {
+        entries[fn] = slc(data, b, b + sc);
+      } else if (c_2 === 8) {
+        if (typeof DecompressionStream !== "undefined") {
+          try {
+            const ds = new DecompressionStream("deflate-raw");
+            const writer = ds.writable.getWriter();
+            writer.write(data.subarray(b, b + sc));
+            writer.close();
+            const response = new Response(ds.readable);
+            entries[fn] = new Uint8Array(await response.arrayBuffer());
+          } catch (e2) {
+            await new Promise((r) => setTimeout(r, 0));
+            entries[fn] = inflateSync(data.subarray(b, b + sc), { out: new u8(su) });
+          }
+        } else {
+          await new Promise((r) => setTimeout(r, 0));
+          entries[fn] = inflateSync(data.subarray(b, b + sc), { out: new u8(su) });
+        }
+      }
+    }
+    return entries;
+  }
+
+  // src/services/detractlessFormat.js
+  var FORMAT = "detractless";
+  var FORMAT_VERSION = 2;
+  var CREATOR = "Detractless/3.0.0";
+  var PRODUCER = "newtab/3.0.0";
+  var FILE_MANIFEST = "manifest.json";
+  var NEWTAB_CONFIG = "newtab/config.json";
+  var SHARED_PK_MANIFEST = "shared/pastekit/manifest.json";
+  var SHARED_PK_CSV = "shared/pastekit/lists/snippets.csv";
+  var V1_CONFIG = "config.json";
+  var V1_PK_MANIFEST = "pastekit/manifest.json";
+  var V1_PK_CSV = "pastekit/lists/snippets.csv";
+  var OWNED_PREFIXES = ["newtab/", "shared/pastekit/"];
+  var SYNC_PREFIX = "sync/";
+  function isOwnedEntry(path) {
+    return path === FILE_MANIFEST || OWNED_PREFIXES.some((p2) => path.startsWith(p2));
   }
   function mergeProducers(previousManifest) {
     const prior = Array.isArray(previousManifest && previousManifest.producers) ? previousManifest.producers.filter((p2) => typeof p2 === "string" && p2 !== PRODUCER) : [];
@@ -4957,56 +5056,7 @@
     return exportDetractless({ detractlessConfig, pastekitExport, passthrough });
   }
   async function openArchive(buffer) {
-    const input = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-    const data = input;
-    let e = data.length - 22;
-    for (; b4(data, e) !== 101010256; --e) {
-      if (!e || data.length - e > 65558) throw new Error("Not a valid .detractless file (could not unzip)");
-    }
-    let c = b2(data, e + 8);
-    if (!c) return importDetractless({});
-    let o = b4(data, e + 16);
-    const z = b4(data, e - 20) === 117853008 && (() => {
-      const ze = b4(data, e - 12);
-      if (b4(data, ze) === 101075792) {
-        c = b4(data, ze + 32);
-        o = b4(data, ze + 48);
-        return true;
-      }
-      return false;
-    })();
-    const fileDescs = [];
-    let pos = o;
-    for (let i2 = 0; i2 < c; ++i2) {
-      const [c_2, sc, su, fn, no, off] = zh(data, pos, z);
-      const b = slzh(data, off);
-      fileDescs.push({ c_2, sc, su, fn, b });
-      pos = no;
-    }
-    const entries = {};
-    for (const { c_2, sc, su, fn, b } of fileDescs) {
-      if (!c_2) {
-        entries[fn] = slc(data, b, b + sc);
-      } else if (c_2 === 8) {
-        if (typeof DecompressionStream !== "undefined") {
-          try {
-            const ds = new DecompressionStream("deflate-raw");
-            const writer = ds.writable.getWriter();
-            writer.write(data.subarray(b, b + sc));
-            writer.close();
-            const response = new Response(ds.readable);
-            entries[fn] = new Uint8Array(await response.arrayBuffer());
-          } catch (e2) {
-            await new Promise((r) => setTimeout(r, 0));
-            entries[fn] = inflateSync(data.subarray(b, b + sc), { out: new u8(su) });
-          }
-        } else {
-          await new Promise((r) => setTimeout(r, 0));
-          entries[fn] = inflateSync(data.subarray(b, b + sc), { out: new u8(su) });
-        }
-      }
-    }
-    return importDetractless(entries);
+    return importDetractless(await readZipEntries(buffer));
   }
   function isDetractlessArchive(buffer) {
     const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
@@ -5377,32 +5427,12 @@
     reader.onload = async (e) => {
       let pendingAlert = null;
       try {
-        const buffer = (
+        await new Promise((r) => setTimeout(r, 0));
+        pendingAlert = await applyImportFile(
+          file,
           /** @type {ArrayBuffer} */
           e.target.result
         );
-        await new Promise((r) => setTimeout(r, 0));
-        let applied = null;
-        if (isDetractlessFile(buffer)) {
-          applied = await applyArchiveBuffer(buffer);
-        } else if (file.name.endsWith(".pastekit")) {
-          const pastekitData = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer)));
-          await importJson(pastekitData, "replace");
-          broadcast();
-          pendingAlert = "Import successful! Snippets restored.";
-        } else {
-          const importData = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer)));
-          await applyImportData(importData);
-        }
-        if (!pendingAlert) {
-          if (applied && !applied.appliedConfig && !applied.appliedSnippets) {
-            pendingAlert = "That archive was read successfully but contained no recognisable data \u2014 nothing was changed.\n\nIf you created or modified this file outside of Detractless (e.g. with a ZIP tool on Windows), make sure it was re-zipped with a tool that stores paths using forward slashes. Some tools, like PowerShell\u2019s Compress-Archive, use backslashes internally, which prevents Detractless from finding the files inside.";
-          } else if (applied) {
-            pendingAlert = `Import successful! Restored ${describeApplied(applied)}.`;
-          } else {
-            pendingAlert = "Import successful! Bookmarks, settings, and snippets restored.";
-          }
-        }
       } catch (error) {
         console.error(error);
         pendingAlert = "Error importing file. Please ensure it is a valid Detractless export.";
@@ -5413,43 +5443,63 @@
         }
         if (pendingAlert) {
           const msg = pendingAlert;
-          setTimeout(() => {
-            const isError = msg.toLowerCase().startsWith("error");
-            const toast = document.createElement("div");
-            toast.textContent = msg;
-            toast.setAttribute("role", "status");
-            Object.assign(toast.style, {
-              position: "fixed",
-              bottom: "24px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              background: isError ? "#b91c1c" : "#166534",
-              color: "#fff",
-              padding: "10px 20px",
-              borderRadius: "8px",
-              fontSize: "14px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-              zIndex: "999999",
-              maxWidth: "480px",
-              textAlign: "center",
-              lineHeight: "1.4",
-              opacity: "0",
-              transition: "opacity 0.2s ease"
-            });
-            document.body.appendChild(toast);
-            requestAnimationFrame(() => {
-              toast.style.opacity = "1";
-            });
-            setTimeout(() => {
-              toast.style.opacity = "0";
-              setTimeout(() => toast.remove(), 300);
-            }, isError ? 6e3 : 3500);
-          }, 50);
+          setTimeout(() => showImportToast(msg), 50);
         }
       }
     };
     reader.readAsArrayBuffer(file);
     event.target.value = "";
+  }
+  async function applyImportFile(file, buffer) {
+    let applied = null;
+    if (isDetractlessFile(buffer)) {
+      applied = await applyArchiveBuffer(buffer);
+    } else if (file.name.endsWith(".pastekit")) {
+      const pastekitData = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer)));
+      await importJson(pastekitData, "replace");
+      broadcast();
+      return "Import successful! Snippets restored.";
+    } else {
+      const importData = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer)));
+      await applyImportData(importData);
+    }
+    if (applied && !applied.appliedConfig && !applied.appliedSnippets) {
+      return "That archive was read successfully but contained no recognisable data \u2014 nothing was changed.\n\nIf you created or modified this file outside of Detractless (e.g. with a ZIP tool on Windows), make sure it was re-zipped with a tool that stores paths using forward slashes. Some tools, like PowerShell\u2019s Compress-Archive, use backslashes internally, which prevents Detractless from finding the files inside.";
+    }
+    if (applied) return `Import successful! Restored ${describeApplied(applied)}.`;
+    return "Import successful! Bookmarks, settings, and snippets restored.";
+  }
+  function showImportToast(msg) {
+    const isError = msg.toLowerCase().startsWith("error");
+    const toast = document.createElement("div");
+    toast.textContent = msg;
+    toast.setAttribute("role", "status");
+    Object.assign(toast.style, {
+      position: "fixed",
+      bottom: "24px",
+      left: "50%",
+      transform: "translateX(-50%)",
+      background: isError ? "#b91c1c" : "#166534",
+      color: "#fff",
+      padding: "10px 20px",
+      borderRadius: "8px",
+      fontSize: "14px",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+      zIndex: "999999",
+      maxWidth: "480px",
+      textAlign: "center",
+      lineHeight: "1.4",
+      opacity: "0",
+      transition: "opacity 0.2s ease"
+    });
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => {
+      toast.style.opacity = "1";
+    });
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      setTimeout(() => toast.remove(), 300);
+    }, isError ? 6e3 : 3500);
   }
 
   // src/services/resetService.js
@@ -5764,12 +5814,7 @@
   // src/pages/newtab/newtab.js
   init_newtabState();
   document.addEventListener("DOMContentLoaded", async () => {
-    await BookmarkDB.init();
-    await BookmarkDB.migrateFromChromeStorage();
-    await BookmarkDB.migrateBookmarksToRecords();
-    await refreshBookmarkCache();
-    const didSeed = await seedStarterContent();
-    if (didSeed) await refreshBookmarkCache();
+    await loadBookmarkData();
     ContextMenu.init();
     const versionEl = document.getElementById("version-trigger");
     if (versionEl) versionEl.textContent = "v" + chrome.runtime.getManifest().version;
@@ -5783,6 +5828,28 @@
     await initializeTabs();
     const removedPages = await runOrphanRepairOnce(activeTabs);
     if (removedPages.length > 0) await refreshBookmarkCache();
+    wireCallbacks();
+    initFeatures();
+    const checkSettingsHash2 = wireSettingsOpeners();
+    document.querySelectorAll(".modal").forEach((modal) => modal.addEventListener("click", (e) => e.stopPropagation()));
+    await loadSearchEngines();
+    initializeSearch();
+    loadSavedEngine();
+    showPage("search");
+    const isSettingsTarget = location.hash === "#settings" || location.search.includes("settings");
+    const searchInput = document.getElementById("search-input");
+    if (searchInput && spotlightVisible && !isSettingsTarget) setTimeout(() => searchInput.focus(), 100);
+    if (isSettingsTarget) setTimeout(checkSettingsHash2, 50);
+  });
+  async function loadBookmarkData() {
+    await BookmarkDB.init();
+    await BookmarkDB.migrateFromChromeStorage();
+    await BookmarkDB.migrateBookmarksToRecords();
+    await refreshBookmarkCache();
+    const didSeed = await seedStarterContent();
+    if (didSeed) await refreshBookmarkCache();
+  }
+  function wireCallbacks() {
     setTabNavigationCallbacks({
       onTabClick: (tab) => {
         if (tab.type === "search") {
@@ -5796,27 +5863,30 @@
       onNavigateToSearch: () => showPage("search")
     });
     setManageEnginesCallback(() => showModal("engine-modal"));
-    setImportCompleteCallback(async (importData) => {
-      renderTabs();
-      loadBookmarks();
-      if (importData.fadeInEnabled !== void 0) applyFadeIn();
-      if (importData.spotlightVisible !== void 0) applySpotlightVisibility();
-      if (importData.Theme) applyThemeConfig(appThemeConfig);
-      if (importData.searchEngineBehavior !== void 0) {
-        const behaviorRadios = document.querySelectorAll('input[name="search-behavior"]');
-        behaviorRadios.forEach((radio) => {
-          if (radio.value === searchEngineBehavior) radio.checked = true;
-        });
-      }
-      if (importData.bookmarkPillBehavior !== void 0) {
-        const pillRadios = document.querySelectorAll('input[name="bookmark-pill-behavior"]');
-        pillRadios.forEach((radio) => {
-          if (radio.value === bookmarkPillBehavior) radio.checked = true;
-        });
-      }
-      if (importData.selectedSearchEngine) updateCurrentEngine(currentEngine);
-      renderEngineDropdown();
-    });
+    setImportCompleteCallback(onImportComplete);
+  }
+  async function onImportComplete(importData) {
+    renderTabs();
+    loadBookmarks();
+    if (importData.fadeInEnabled !== void 0) applyFadeIn();
+    if (importData.spotlightVisible !== void 0) applySpotlightVisibility();
+    if (importData.Theme) applyThemeConfig(appThemeConfig);
+    if (importData.searchEngineBehavior !== void 0) {
+      const behaviorRadios = document.querySelectorAll('input[name="search-behavior"]');
+      behaviorRadios.forEach((radio) => {
+        if (radio.value === searchEngineBehavior) radio.checked = true;
+      });
+    }
+    if (importData.bookmarkPillBehavior !== void 0) {
+      const pillRadios = document.querySelectorAll('input[name="bookmark-pill-behavior"]');
+      pillRadios.forEach((radio) => {
+        if (radio.value === bookmarkPillBehavior) radio.checked = true;
+      });
+    }
+    if (importData.selectedSearchEngine) updateCurrentEngine(currentEngine);
+    renderEngineDropdown();
+  }
+  function initFeatures() {
     initializeBookmarks();
     initBookmarkAddModal();
     initEngineModal();
@@ -5826,6 +5896,8 @@
     initializeSearchDelaySettings();
     const globalSettingsBtn = document.getElementById("global-settings-btn");
     if (globalSettingsBtn) globalSettingsBtn.addEventListener("click", () => showModal("settings-modal"));
+  }
+  function wireSettingsOpeners() {
     const checkSettingsHash2 = () => {
       if (location.hash === "#settings" || location.search.includes("settings")) {
         showModal("settings-modal");
@@ -5842,16 +5914,8 @@
         }
       });
     }
-    document.querySelectorAll(".modal").forEach((modal) => modal.addEventListener("click", (e) => e.stopPropagation()));
-    await loadSearchEngines();
-    initializeSearch();
-    loadSavedEngine();
-    showPage("search");
-    const isSettingsTarget = location.hash === "#settings" || location.search.includes("settings");
-    const searchInput = document.getElementById("search-input");
-    if (searchInput && spotlightVisible && !isSettingsTarget) setTimeout(() => searchInput.focus(), 100);
-    if (isSettingsTarget) setTimeout(checkSettingsHash2, 50);
-  });
+    return checkSettingsHash2;
+  }
   window.addEventListener("pageshow", () => {
     selectSearchTab();
     showPage("search");

@@ -25,11 +25,9 @@
 //
 // Import sniffing: callers check the first two bytes (PK = 0x50 0x4B) to
 // distinguish this ZIP from the legacy JSON export.
-import { zipSync, inflateSync, strToU8, strFromU8 } from 'fflate';
-// ZIP-directory helpers from inside fflate (exported by our vendored copy, see
-// vendor/fflate/README.md). openArchive reads the directory with them so it can
-// inflate one entry at a time.
-import { b2, b4, zh, slzh, slc, u8 } from 'fflate';
+import { zipSync, strToU8, strFromU8 } from 'fflate';
+import { toCsv, parseCsv } from './snippetCsv.js';
+import { readZipEntries } from './zipReader.js';
 
 const FORMAT = 'detractless';
 const FORMAT_VERSION = 2;
@@ -61,61 +59,6 @@ const SYNC_PREFIX = 'sync/';
 
 function isOwnedEntry(path) {
   return path === FILE_MANIFEST || OWNED_PREFIXES.some((p) => path.startsWith(p));
-}
-
-// ─── CSV helpers (mirrors pastekitFormat.js — kept private/self-contained) ───
-
-const CSV_COLS = ['name', 'description', 'contentText', 'contentHtml', 'tags', 'folderXid', 'createdAt', 'updatedAt'];
-
-function csvEscape(val) {
-  const s = String(val == null ? '' : val);
-  if (s.includes('"') || s.includes(',') || s.includes('\n') || s.includes('\r'))
-    return '"' + s.replace(/"/g, '""') + '"';
-  return s;
-}
-
-function toCsv(rows) {
-  const lines = [CSV_COLS.map(csvEscape).join(',')];
-  for (const row of rows) lines.push(CSV_COLS.map(h => csvEscape(row[h])).join(','));
-  return lines.join('\r\n');
-}
-
-function advanceQuoted(state, text, i) {
-  const ch = text[i];
-  if (ch !== '"') { state.field += ch; return i + 1; }
-  if (text[i + 1] === '"') { state.field += '"'; return i + 2; }
-  state.inQuote = false;
-  return i + 1;
-}
-
-function flushRow(state, rows, text, i) {
-  state.row.push(state.field);
-  state.field = '';
-  let next = i + 1;
-  if (text[i] === '\r' && text[i + 1] === '\n') next++;
-  if (state.row.some(c => c !== '')) rows.push(state.row);
-  state.row = [];
-  return next;
-}
-
-function parseCsv(text) {
-  const rows = [];
-  const state = { row: [], field: '', inQuote: false };
-  let i = 0;
-  while (i < text.length) {
-    const ch = text[i];
-    if (state.inQuote) { i = advanceQuoted(state, text, i); continue; }
-    if (ch === '"') { state.inQuote = true; i++; continue; }
-    if (ch === ',') { state.row.push(state.field); state.field = ''; i++; continue; }
-    if (ch === '\r' || ch === '\n') { i = flushRow(state, rows, text, i); continue; }
-    state.field += ch;
-    i++;
-  }
-  if (state.field || state.row.length) {
-    state.row.push(state.field);
-    if (state.row.some(c => c !== '')) rows.push(state.row);
-  }
-  return rows;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -345,63 +288,7 @@ export async function packageArchive({ detractlessConfig, pastekitExport, passth
 
 /** Read an archive. Kept async so callers do not all have to change. */
 export async function openArchive(buffer) {
-  // Decompress the ZIP entries one at a time, yielding between each inflate
-  // call so the main thread stays responsive. A .detractless archive only
-  // contains 3-5 small files so the loop completes quickly.
-  const input = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-
-  // Step 1: Parse the ZIP central directory (fast, no decompression)
-  const data = input;
-  let e = data.length - 22;
-  for (; b4(data, e) !== 101010256; --e) {
-    if (!e || data.length - e > 65558) throw new Error("Not a valid .detractless file (could not unzip)");
-  }
-  let c = b2(data, e + 8);
-  if (!c) return importDetractless({});
-  let o = b4(data, e + 16);
-  const z = b4(data, e - 20) === 117853008 && (() => {
-    const ze = b4(data, e - 12);
-    if (b4(data, ze) === 101075792) { c = b4(data, ze + 32); o = b4(data, ze + 48); return true; }
-    return false;
-  })();
-
-  // Step 2: Collect file descriptors (no decompression yet)
-  const fileDescs = [];
-  let pos = o;
-  for (let i = 0; i < c; ++i) {
-    const [c_2, sc, su, fn, no, off] = zh(data, pos, z);
-    const b = slzh(data, off);
-    fileDescs.push({ c_2, sc, su, fn, b });
-    pos = no;
-  }
-
-  // Step 3: Inflate each file with an event-loop yield between each
-  const entries = {};
-  for (const { c_2, sc, su, fn, b } of fileDescs) {
-    if (!c_2) {
-      entries[fn] = slc(data, b, b + sc);
-    } else if (c_2 === 8) {
-      if (typeof DecompressionStream !== "undefined") {
-        try {
-          const ds = new DecompressionStream("deflate-raw");
-          const writer = ds.writable.getWriter();
-          writer.write(data.subarray(b, b + sc));
-          writer.close();
-          const response = new Response(ds.readable);
-          entries[fn] = new Uint8Array(await response.arrayBuffer());
-        } catch (e) {
-          await new Promise((r) => setTimeout(r, 0));
-          entries[fn] = inflateSync(data.subarray(b, b + sc), { out: new u8(su) });
-        }
-      } else {
-        // Yield so the UI can paint / respond before blocking inflate call
-        await new Promise((r) => setTimeout(r, 0));
-        entries[fn] = inflateSync(data.subarray(b, b + sc), { out: new u8(su) });
-      }
-    }
-  }
-
-  return importDetractless(entries);
+  return importDetractless(await readZipEntries(buffer));
 }
 
 /**

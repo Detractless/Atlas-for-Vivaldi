@@ -98,8 +98,20 @@ export function renderBookmarks() {
      it. Built from the empty-state classes rather than new ones: this is the
      same slot on the same screen saying a different thing, and it needs no
      rule the stylesheet does not already have. */
-  if (loadFailed()) {
-    container.innerHTML = `<div class="empty-bookmarks-message">
+  if (loadFailed()) { renderLoadError(container); return; }
+  if (groups.length === 0) { renderEmptyPage(container); return; }
+  const columnsCount = Math.ceil(groups.length / Math.ceil(groups.length / 3)); const groupsPerColumn = Math.ceil(groups.length / columnsCount);
+  const allFadeChecks = [];
+  const metrics = rowMetrics();
+  for (let i = 0; i < columnsCount; i++) {
+    const startIndex = i * groupsPerColumn; const endIndex = Math.min(startIndex + groupsPerColumn, groups.length);
+    container.appendChild(renderColumn(groups.slice(startIndex, endIndex), metrics, allFadeChecks));
+  }
+  requestAnimationFrame(() => allFadeChecks.forEach(fn => fn()));
+}
+
+function renderLoadError(container) {
+  container.innerHTML = `<div class="empty-bookmarks-message">
       <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.24 3.957a2 2 0 0 1 3.52 0l8.03 14.06A2 2 0 0 1 20.06 21H3.94a2 2 0 0 1-1.73-2.983z"/></svg></div>
       <p class="empty-state-title">Could not read your bookmarks</p>
       <p class="empty-state-hint">They have not been changed. This page is not
@@ -107,94 +119,98 @@ export function renderBookmarks() {
         saved over them until it does.</p>
       <button class="save-btn" id="bookmarks-retry" type="button">Try again</button>
     </div>`;
-    container.querySelector('#bookmarks-retry')?.addEventListener('click', loadBookmarks);
-    return;
-  }
-  if (groups.length === 0) {
-    container.innerHTML = `<div class="empty-bookmarks-message">
+  container.querySelector('#bookmarks-retry')?.addEventListener('click', loadBookmarks);
+}
+
+function renderEmptyPage(container) {
+  container.innerHTML = `<div class="empty-bookmarks-message">
       <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32"><path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"/></svg></div>
       <p class="empty-state-title">No bookmarks yet</p>
       <p class="empty-state-hint">Click <strong>+ Add</strong> to add your first bookmark to this page.</p>
     </div>`;
-    return;
-  }
-  const columnsCount = Math.ceil(groups.length / Math.ceil(groups.length / 3)); const groupsPerColumn = Math.ceil(groups.length / columnsCount);
-  const allFadeChecks = [];
-  const metrics = rowMetrics();
-  for (let i = 0; i < columnsCount; i++) {
-    const startIndex = i * groupsPerColumn; const endIndex = Math.min(startIndex + groupsPerColumn, groups.length); const columnGroups = groups.slice(startIndex, endIndex);
-    const columnDiv = document.createElement("div"); columnDiv.className = "bookmark-column";
-    const _n = columnGroups.length;
-    const _avail = window.innerHeight - 160;
-    // Chrome each group needs outside its well: card padding (2 x --space-4),
-    // the title line (10px) and the gap under it (--space-3). Columns are
-    // separated by --space-6.
-    const perWell = Math.min(480, Math.max(48, Math.floor((_avail - _n * 54 - (_n - 1) * 24) / _n)));
-    // Whole rows the allotted space can hold. Rounding DOWN is the rule, so a
-    // group never claims more room than the column budgeted for it.
-    const capacity = rowsThatFit(perWell, metrics);
-    columnGroups.forEach((groupName) => {
-      const groupDiv = document.createElement("div"); groupDiv.className = "bookmark-group";
-      const titleDiv = document.createElement("div"); titleDiv.className = "group-title";
-      /* R-018: ONE listener, on the whole card, replacing two that sat on the
-         title strip and on each row and left everything between them falling
-         through to Chrome's own menu. .group-title is line-height:1 at 10px, so
-         the group menu had been reachable only from a ~10px strip.
+}
 
-         R-019 then split the card in two, which is the rule you can actually
-         SEE: the WELL is the bookmarks, the CARD CHROME is the group.
-           row            -> that bookmark's dialog
-           anywhere else in the well -> NOTHING
-           card padding, title, the gap under it -> the group's dialog
-         The dead middle is deliberate. The row gaps are 2px, so treating them
-         as the group turned a one pixel miss while aiming at a bookmark into
-         the wrong dialog. Nothing happens there instead of Chrome's menu
-         appearing, because a native menu in a 2px sliver is the same arbitrary
-         feeling R-018 set out to remove. The scroll fade and count pills are
-         inside the well, so they fall on the quiet side too. */
-      const rowBookmarks = new Map();
-      groupDiv.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        // ContextMenu.disabled is still honoured so the flag keeps meaning what
-        // it meant, even though nothing currently sets it (R-012).
-        if (ContextMenu.disabled) return;
-        /* A Map rather than a data-index: renderBookmarks rebuilds these nodes
-           on every mutation, so the Map is never stale, and there is no number
-           to parse or bounds-check. */
-        const row = e.target.closest?.('.bookmark-link');
-        const bookmark = row && rowBookmarks.get(row);
-        if (bookmark) { openBookmarkMenu(groupName, bookmark); return; }
-        // Tested AFTER the row, since every row is itself inside the well.
-        if (e.target.closest?.('.bookmark-well')) return;
-        openGroupMenu(groupName);
-      });
-      const titleText = document.createElement("span"); titleText.textContent = groupName; titleDiv.appendChild(titleText);
-      const wellDiv = document.createElement("div"); wellDiv.className = "bookmark-well";
-      const listDiv = document.createElement("ul"); listDiv.className = "bookmark-list";
-      // Round down, with one exception: if rounding UP swallows the whole
-      // group, take it. That is the only case where the extra row changes what
-      // is shown (scroll chrome vs none at all) rather than just how much.
-      const _total = bookmarks[groupName].length;
-      const _rows = (_total === capacity + 1) ? _total : Math.min(capacity, _total);
-      listDiv.style.maxHeight = wellHeight(_rows, metrics) + 'px';
-      bookmarks[groupName].forEach((bookmark) => {
-        const listItem = document.createElement("li"); const itemDiv = document.createElement("div"); itemDiv.className = "bookmark-link";
-        // R-018: the row no longer listens; the card does, and finds its way
-        // back here through this Map.
-        rowBookmarks.set(itemDiv, bookmark);
-        const link = document.createElement("a"); link.href = bookmark.url; link.target = "_self"; link.rel = "noopener noreferrer";
-        link.textContent = bookmark.name; link.style.flex = "1"; link.style.textDecoration = "none"; link.style.color = "inherit";
-        itemDiv.appendChild(link); listItem.appendChild(itemDiv); listDiv.appendChild(listItem);
-      });
-      wellDiv.appendChild(listDiv);
-      // Fade and counts are the shared control now (R-010). The well is passed
-      // as the host because it already exists and is already positioned.
-      allFadeChecks.push(attachScrollAffordance(listDiv, { host: wellDiv }).refresh);
-      groupDiv.appendChild(titleDiv); groupDiv.appendChild(wellDiv); columnDiv.appendChild(groupDiv);
-    });
-    container.appendChild(columnDiv);
-  }
-  requestAnimationFrame(() => allFadeChecks.forEach(fn => fn()));
+/** One column of group cards. Each card's fade refresh is pushed onto fadeChecks. */
+function renderColumn(columnGroups, metrics, fadeChecks) {
+  const columnDiv = document.createElement("div"); columnDiv.className = "bookmark-column";
+  const _n = columnGroups.length;
+  const _avail = window.innerHeight - 160;
+  // Chrome each group needs outside its well: card padding (2 x --space-4),
+  // the title line (10px) and the gap under it (--space-3). Columns are
+  // separated by --space-6.
+  const perWell = Math.min(480, Math.max(48, Math.floor((_avail - _n * 54 - (_n - 1) * 24) / _n)));
+  // Whole rows the allotted space can hold. Rounding DOWN is the rule, so a
+  // group never claims more room than the column budgeted for it.
+  const capacity = rowsThatFit(perWell, metrics);
+  columnGroups.forEach((groupName) => {
+    const { groupDiv, refresh } = renderGroup(groupName, capacity, metrics);
+    fadeChecks.push(refresh);
+    columnDiv.appendChild(groupDiv);
+  });
+  return columnDiv;
+}
+
+function renderGroup(groupName, capacity, metrics) {
+  const groupDiv = document.createElement("div"); groupDiv.className = "bookmark-group";
+  const titleDiv = document.createElement("div"); titleDiv.className = "group-title";
+  const rowBookmarks = new Map();
+  groupDiv.addEventListener("contextmenu", (e) => onGroupContextMenu(e, groupName, rowBookmarks));
+  const titleText = document.createElement("span"); titleText.textContent = groupName; titleDiv.appendChild(titleText);
+  const wellDiv = document.createElement("div"); wellDiv.className = "bookmark-well";
+  const listDiv = document.createElement("ul"); listDiv.className = "bookmark-list";
+  // Round down, with one exception: if rounding UP swallows the whole
+  // group, take it. That is the only case where the extra row changes what
+  // is shown (scroll chrome vs none at all) rather than just how much.
+  const _total = bookmarks[groupName].length;
+  const _rows = (_total === capacity + 1) ? _total : Math.min(capacity, _total);
+  listDiv.style.maxHeight = wellHeight(_rows, metrics) + 'px';
+  bookmarks[groupName].forEach((bookmark) => {
+    const listItem = document.createElement("li"); const itemDiv = document.createElement("div"); itemDiv.className = "bookmark-link";
+    // R-018: the row no longer listens; the card does, and finds its way
+    // back here through this Map.
+    rowBookmarks.set(itemDiv, bookmark);
+    const link = document.createElement("a"); link.href = bookmark.url; link.target = "_self"; link.rel = "noopener noreferrer";
+    link.textContent = bookmark.name; link.style.flex = "1"; link.style.textDecoration = "none"; link.style.color = "inherit";
+    itemDiv.appendChild(link); listItem.appendChild(itemDiv); listDiv.appendChild(listItem);
+  });
+  wellDiv.appendChild(listDiv);
+  // Fade and counts are the shared control now (R-010). The well is passed
+  // as the host because it already exists and is already positioned.
+  const refresh = attachScrollAffordance(listDiv, { host: wellDiv }).refresh;
+  groupDiv.appendChild(titleDiv); groupDiv.appendChild(wellDiv);
+  return { groupDiv, refresh };
+}
+
+/* R-018: ONE listener, on the whole card, replacing two that sat on the
+   title strip and on each row and left everything between them falling
+   through to Chrome's own menu. .group-title is line-height:1 at 10px, so
+   the group menu had been reachable only from a ~10px strip.
+
+   R-019 then split the card in two, which is the rule you can actually
+   SEE: the WELL is the bookmarks, the CARD CHROME is the group.
+     row            -> that bookmark's dialog
+     anywhere else in the well -> NOTHING
+     card padding, title, the gap under it -> the group's dialog
+   The dead middle is deliberate. The row gaps are 2px, so treating them
+   as the group turned a one pixel miss while aiming at a bookmark into
+   the wrong dialog. Nothing happens there instead of Chrome's menu
+   appearing, because a native menu in a 2px sliver is the same arbitrary
+   feeling R-018 set out to remove. The scroll fade and count pills are
+   inside the well, so they fall on the quiet side too. */
+function onGroupContextMenu(e, groupName, rowBookmarks) {
+  e.preventDefault();
+  // ContextMenu.disabled is still honoured so the flag keeps meaning what
+  // it meant, even though nothing currently sets it (R-012).
+  if (ContextMenu.disabled) return;
+  /* A Map rather than a data-index: renderBookmarks rebuilds these nodes
+     on every mutation, so the Map is never stale, and there is no number
+     to parse or bounds-check. */
+  const row = e.target.closest?.('.bookmark-link');
+  const bookmark = row && rowBookmarks.get(row);
+  if (bookmark) { openBookmarkMenu(groupName, bookmark); return; }
+  // Tested AFTER the row, since every row is itself inside the well.
+  if (e.target.closest?.('.bookmark-well')) return;
+  openGroupMenu(groupName);
 }
 
 /* ── Right-click dialogs (R-012, hit area widened in R-018) ──────────────

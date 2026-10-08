@@ -13,6 +13,7 @@ import {
 } from '../../pages/newtab/newtabState.js';
 import { setEngineIconSrc } from './engineIcons.js';
 import { saveSearchEngines, updateCurrentEngine } from './enginesUI.js';
+import { iconChoice, resetIconChoice, openIconTypePicker } from './engineIconPicker.js';
 
 /* ══════════════════════════════════════════════════════════════════════
    ENGINE MODAL: subpage navigation + popup dialogs
@@ -38,9 +39,7 @@ import { saveSearchEngines, updateCurrentEngine } from './enginesUI.js';
    WRITTEN (declared, then cleared on returning home) and never read: they held
    the state of the edit subpage that this file's header claimed existed and
    index.html never had. They went with the dead dialogs. */
-let _iconType    = 'file';
-let _iconFile    = null;
-let _iconAcronym = { text: '', color: '#3b82f6' };
+// The icon choice of the Add form lives in engineIconPicker.js (iconChoice).
 
 /* ── Subpage navigation ───────────────────────────────────────────── */
 
@@ -60,131 +59,6 @@ const nav = createSubpageNav({
 
 const openEngineSubpage  = (name, customTitle) => nav.open(name, customTitle);
 const closeEngineSubpage = () => nav.close();
-
-/* ── Popup dialog builder ─────────────────────────────────────────── */
-
-const DIALOG_CLASS = 'engine-popup-dialog';
-
-function closeAllEngineDialogs() {
-  document.querySelectorAll('.' + DIALOG_CLASS).forEach(n => n.remove());
-}
-
-function el(tag, cls, text) {
-  const e = document.createElement(tag);
-  if (cls)  e.className  = cls;
-  if (text !== undefined) e.textContent = text;
-  return e;
-}
-
-function buildEngineDialog({ title, subtitle, body, foot }) {
-  closeAllEngineDialogs();
-
-  const overlay = el('div', `modal show ${DIALOG_CLASS}`);
-  const card    = el('div', 'picker-card');
-
-  card.appendChild(el('div', 'picker-title', title));
-  if (subtitle) card.appendChild(el('div', 'picker-subtitle', subtitle));
-  if (body) card.appendChild(body);
-
-  if (foot && foot.length) {
-    const footEl = el('div', 'picker-foot');
-    foot.forEach(({ label, primary, onClick }) => {
-      const btn = el('button', 'picker-btn' + (primary ? ' picker-btn--primary' : ''), label);
-      btn.type = 'button';
-      btn.addEventListener('click', onClick);
-      footEl.appendChild(btn);
-    });
-    card.appendChild(footEl);
-  }
-
-  overlay.appendChild(card);
-  overlay.addEventListener('click', e => { if (e.target === overlay) closeAllEngineDialogs(); });
-  document.body.appendChild(overlay);
-  return overlay;
-}
-
-/* ── Icon type picker — layer 1 ───────────────────────────────────── */
-
-function openIconTypePicker() {
-  const body = el('div', 'picker-pane picker-pane--on');
-
-  /* The options sit in a well like every other dialog list, and the current one
-     is marked with the shared tick. This was the THIRD consumer of .picker-radio
-     and the one I missed when deleting it: the class had no rules left, so the
-     mark would have rendered as nothing at all. */
-  const host = el('div', 'picker-wellhost');
-  const well = el('div', 'picker-well');
-
-  [{ type: 'file', label: 'Upload SVG' }, { type: 'acronym', label: 'Acronym' }].forEach(({ type, label }) => {
-    const row = el('button', 'picker-row' + (_iconType === type ? ' is-current' : ''));
-    row.type = 'button';
-    row.appendChild(el('span', 'picker-check'));
-    const span = el('span', '', label); span.style.flex = '1';
-    row.append(span);
-    row.addEventListener('click', () => {
-      _iconType = type;
-      const labelEl = document.getElementById('engine-add-icon-label');
-      if (labelEl) labelEl.textContent = type === 'file' ? 'Upload SVG' : 'Acronym';
-      closeAllEngineDialogs();
-      setTimeout(() => openIconInputPicker(type), 80);
-    });
-    well.appendChild(row);
-  });
-  host.appendChild(well);
-  body.appendChild(host);
-
-  buildEngineDialog({ title: 'Icon type', subtitle: 'How the engine icon is provided', body, foot: [] });
-}
-
-/* ── Icon input picker — layer 2 ──────────────────────────────────── */
-
-function openIconInputPicker(type) {
-  const body = el('div', 'picker-fieldwrap');
-  let inputEl;
-
-  if (type === 'file') {
-    inputEl = document.createElement('input');
-    inputEl.type = 'file'; inputEl.accept = '.svg';
-    inputEl.style.display = 'none';
-    const proxyBtn = document.createElement('button');
-    proxyBtn.className = 'picker-btn';
-    proxyBtn.type = 'button';
-    proxyBtn.style.width = '100%';
-    proxyBtn.textContent = 'Select SVG File';
-    proxyBtn.addEventListener('click', () => inputEl.click());
-    inputEl.addEventListener('change', () => {
-      const file = inputEl.files?.[0];
-      proxyBtn.textContent = file ? file.name : 'Select SVG File';
-    });
-    body.append(inputEl, proxyBtn);
-  } else {
-    const row = el('div'); row.style.cssText = 'display:flex;gap:10px;align-items:center;';
-    inputEl = document.createElement('input');
-    inputEl.type = 'text'; inputEl.maxLength = 2; inputEl.placeholder = 'e.g. YT';
-    inputEl.className = 'picker-field'; inputEl.value = _iconAcronym.text; inputEl.style.flex = '1';
-    const colorInput = document.createElement('input');
-    colorInput.type = 'color'; colorInput.value = _iconAcronym.color;
-    colorInput.className = 'color-picker-circle'; colorInput.style.flexShrink = '0';
-    colorInput.addEventListener('input', () => { _iconAcronym.color = colorInput.value; });
-    row.append(inputEl, colorInput); body.appendChild(row);
-  }
-
-  buildEngineDialog({
-    title: type === 'file' ? 'Upload SVG' : 'Acronym',
-    subtitle: type === 'acronym' ? 'Up to 2 letters and a colour' : undefined,
-    body,
-    foot: [
-      { label: 'Back', onClick: () => { closeAllEngineDialogs(); setTimeout(() => openIconTypePicker(), 80); } },
-      { label: 'Done', primary: true, onClick: () => {
-        if (type === 'file') { _iconFile = inputEl.files?.[0] || null; }
-        else { _iconAcronym.text = inputEl.value.trim(); }
-        closeAllEngineDialogs();
-      }},
-    ],
-  });
-
-  if (type === 'acronym') requestAnimationFrame(() => { inputEl.focus(); inputEl.select(); });
-}
 
 /* Rename and Edit URL used to live here as a second pair of dialogs, reached
    through exports nothing imported. They were an ABANDONED COPY of what
@@ -355,7 +229,7 @@ export function initEngineModal() {
 /* ── Add form helpers ─────────────────────────────────────────────── */
 
 function resetAddForm() {
-  _iconType = 'file'; _iconFile = null; _iconAcronym = { text: '', color: '#3b82f6' };
+  resetIconChoice();
   const nameField = document.getElementById('engine-add-name');
   const urlField  = document.getElementById('engine-add-url');
   const iconLabel = document.getElementById('engine-add-icon-label');
@@ -380,14 +254,14 @@ async function handleAddEngine() {
   let isCustomIcon = false; let iconData = null;
 
   try {
-    if (_iconType === 'acronym') {
-      if (!_iconAcronym.text) {
+    if (iconChoice.type === 'acronym') {
+      if (!iconChoice.acronym.text) {
         if (errEl) { errEl.textContent = 'Click "Icon type" to set an acronym first.'; errEl.classList.add('picker-error--show'); }
         return;
       }
-      iconData = generateAcronymSvg(_iconAcronym.text, _iconAcronym.color); isCustomIcon = true;
-    } else if (_iconFile) {
-      iconData = await readFileAsDataURL(_iconFile); isCustomIcon = true;
+      iconData = generateAcronymSvg(iconChoice.acronym.text, iconChoice.acronym.color); isCustomIcon = true;
+    } else if (iconChoice.file) {
+      iconData = await readFileAsDataURL(iconChoice.file); isCustomIcon = true;
     }
     if (isCustomIcon && iconData) await BookmarkDB.saveIcon(id, iconData);
   } catch (_) {

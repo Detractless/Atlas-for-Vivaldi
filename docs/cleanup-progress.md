@@ -22,3 +22,14 @@ Per-phase gate: `node --test tests/unit/*.test.js`, `python3 -m unittest discove
 - Tests: node 18/18 (smoke 5/5), python 7/7. Dry run OK. `node --check` on 75 changed JS files: 0 failures.
 - Size rules not yet met by restored sources (largest: `engineModal.js` 406, `bookmarkDialog.js` 367, `bookmarksDB.js` ~385); Phase 3 splits them.
 
+## Phase 3: no god files in the new tab
+- Split every new-tab/service-worker function over 80 lines: `initializeSearch` (181), `attachScrollAffordance` (112), `renderBookmarks` (105), the DOMContentLoaded boot (92), `persistImportDataCore` (88), the SW message listener (87, now an action table), `importBookmarks` (85).
+- Split the two files over 400 lines: `detractlessFormat.js` (422 -> 309, plus `snippetCsv.js` and `zipReader.js`), `engineModal.js` (406 -> 279, plus `engineIconPicker.js`).
+- `tabs.js`: dead filter code and the unused `el`/`FILTER_THRESHOLD` removed; the switcher split into small functions.
+- Kept the existing src layout (components/, services/, pages/, utils/, constants/) instead of the plan's suggested core/db/features tree: the restored sources are already one module per job, and moving 80 files would only churn imports.
+- State: `pages/newtab/newtabState.js` already is the one small state module (live exports + setters); no events added, nothing needs them yet.
+- New tests: `newtab_features.test.js` (8: pills, Enter on URL/text/engine, Shift+Enter, file-path warning, bookmarks page, backup export -> import round trip) and `service_worker.test.js` (4). Both pass on the Phase 2 bundle too, so they pin old behavior. Harness records navigations (`helpers/jsdomNavigation.js`) and closes windows after each test.
+- `scripts/size_report.mjs`: lists files/functions over the limits (a whole-file IIFE wrapper counts as file scope).
+- Left over the limits on purpose: `settingsPage.js` 424, `initSettingsModal` 106, `index.html` 449 (Phase 4); `pastekit/services/db.js` 462 (Phase 6).
+- Tests: node 30/30, python 7/7. Dry run OK. node --check 0 failures.
+

@@ -36,11 +36,7 @@ import './settingsPage.css';
    no markup and no init of its own left. */
 
 document.addEventListener("DOMContentLoaded", async () => {
-  await BookmarkDB.init(); await BookmarkDB.migrateFromChromeStorage();
-  await BookmarkDB.migrateBookmarksToRecords(); // Phase 12, non-destructive
-  await refreshBookmarkCache();
-  const didSeed = await seedStarterContent();
-  if (didSeed) await refreshBookmarkCache();
+  await loadBookmarkData();
   ContextMenu.init();
   const versionEl = document.getElementById('version-trigger');
   if (versionEl) versionEl.textContent = 'v' + chrome.runtime.getManifest().version;
@@ -59,6 +55,32 @@ document.addEventListener("DOMContentLoaded", async () => {
   const removedPages = await runOrphanRepairOnce(activeTabs);
   if (removedPages.length > 0) await refreshBookmarkCache();
 
+  wireCallbacks();
+  initFeatures();
+  const checkSettingsHash = wireSettingsOpeners();
+
+  document.querySelectorAll(".modal").forEach(modal => modal.addEventListener("click", e => e.stopPropagation()));
+
+  await loadSearchEngines(); initializeSearch(); loadSavedEngine();
+
+  showPage("search");
+  const isSettingsTarget = location.hash === '#settings' || location.search.includes('settings');
+  const searchInput = document.getElementById("search-input");
+  if (searchInput && spotlightVisible && !isSettingsTarget) setTimeout(() => searchInput.focus(), 100);
+  if (isSettingsTarget) setTimeout(checkSettingsHash, 50);
+
+});
+
+/** Open the bookmarks database, run its migrations, and seed a first-run profile. */
+async function loadBookmarkData() {
+  await BookmarkDB.init(); await BookmarkDB.migrateFromChromeStorage();
+  await BookmarkDB.migrateBookmarksToRecords(); // Phase 12, non-destructive
+  await refreshBookmarkCache();
+  const didSeed = await seedStarterContent();
+  if (didSeed) await refreshBookmarkCache();
+}
+
+function wireCallbacks() {
   setTabNavigationCallbacks({
     onTabClick: (tab) => {
       if (tab.type === "search") { showPage("search"); }
@@ -67,25 +89,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     onNavigateToSearch: () => showPage("search")
   });
   setManageEnginesCallback(() => showModal('engine-modal'));
+  setImportCompleteCallback(onImportComplete);
+}
 
-  setImportCompleteCallback(async (importData) => {
-    renderTabs();
-    loadBookmarks();
-    if (importData.fadeInEnabled !== undefined) applyFadeIn();
-    if (importData.spotlightVisible !== undefined) applySpotlightVisibility();
-    if (importData.Theme) applyThemeConfig(appThemeConfig);
-    if (importData.searchEngineBehavior !== undefined) {
-      const behaviorRadios = document.querySelectorAll('input[name="search-behavior"]');
-      behaviorRadios.forEach(radio => { if (radio.value === searchEngineBehavior) radio.checked = true; });
-    }
-    if (importData.bookmarkPillBehavior !== undefined) {
-      const pillRadios = document.querySelectorAll('input[name="bookmark-pill-behavior"]');
-      pillRadios.forEach(radio => { if (radio.value === bookmarkPillBehavior) radio.checked = true; });
-    }
-    if (importData.selectedSearchEngine) updateCurrentEngine(currentEngine);
-    renderEngineDropdown();
-  });
+/** After a backup is restored: redraw everything the import may have changed. */
+async function onImportComplete(importData) {
+  renderTabs();
+  loadBookmarks();
+  if (importData.fadeInEnabled !== undefined) applyFadeIn();
+  if (importData.spotlightVisible !== undefined) applySpotlightVisibility();
+  if (importData.Theme) applyThemeConfig(appThemeConfig);
+  if (importData.searchEngineBehavior !== undefined) {
+    const behaviorRadios = document.querySelectorAll('input[name="search-behavior"]');
+    behaviorRadios.forEach(radio => { if (radio.value === searchEngineBehavior) radio.checked = true; });
+  }
+  if (importData.bookmarkPillBehavior !== undefined) {
+    const pillRadios = document.querySelectorAll('input[name="bookmark-pill-behavior"]');
+    pillRadios.forEach(radio => { if (radio.value === bookmarkPillBehavior) radio.checked = true; });
+  }
+  if (importData.selectedSearchEngine) updateCurrentEngine(currentEngine);
+  renderEngineDropdown();
+}
 
+function initFeatures() {
   initializeBookmarks();
   initBookmarkAddModal();
   initEngineModal();
@@ -98,7 +124,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   /* R-016: the + disc opens the anchored Add menu, and initBookmarkAddModal
      wires it. Nothing here binds it any more. */
   if (globalSettingsBtn) globalSettingsBtn.addEventListener('click', () => showModal('settings-modal'));
+}
 
+/** Settings opens from #settings / ?settings and from an "open-settings" message. */
+function wireSettingsOpeners() {
   const checkSettingsHash = () => {
     if (location.hash === '#settings' || location.search.includes('settings')) {
       showModal('settings-modal');
@@ -115,18 +144,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
   }
-
-  document.querySelectorAll(".modal").forEach(modal => modal.addEventListener("click", e => e.stopPropagation()));
-
-  await loadSearchEngines(); initializeSearch(); loadSavedEngine();
-
-  showPage("search");
-  const isSettingsTarget = location.hash === '#settings' || location.search.includes('settings');
-  const searchInput = document.getElementById("search-input");
-  if (searchInput && spotlightVisible && !isSettingsTarget) setTimeout(() => searchInput.focus(), 100);
-  if (isSettingsTarget) setTimeout(checkSettingsHash, 50);
-
-});
+  return checkSettingsHash;
+}
 
 window.addEventListener("pageshow", () => {
   // R-013: the page nav owns its own selection now, so returning to Home is a

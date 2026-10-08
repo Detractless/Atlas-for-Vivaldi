@@ -64,32 +64,8 @@ export function attachScrollAffordance(scroller, options = {}) {
     host.appendChild(scroller);
   }
 
-  const fadeTop = make("div", `${p}-fade ${p}-fade-top hidden`);
-  const fadeBot = make("div", `${p}-fade ${p}-fade-bot hidden`);
-  const countTop = make("span", `${p}-count ${p}-count-top hidden`);
-  const countBot = make("span", `${p}-count ${p}-count-bot hidden`);
-  for (const pill of [countTop, countBot]) {
-    pill.appendChild(make("i", `${p}-count-chev`));
-    pill.appendChild(document.createTextNode(""));
-  }
-  host.append(fadeTop, fadeBot, countTop, countBot);
-
-  // The fade must clip to exactly the SCROLLER's corners. Any mismatch shows:
-  // a fade rounder than its scroller cuts a notch out of itself and lets the
-  // un-faded content show through at the corners; a fade squarer than its
-  // scroller overhangs and paints its own colour past the corner onto whatever
-  // is behind. This is read from the scroller rather than authored per adopter
-  // because the first attempt exposed a --scroll-fade-radius custom property
-  // and two of the three adopters set it on the SCROLLER, which is a SIBLING of
-  // the fades, so it never reached them and both silently fell back to the
-  // default. Deriving it here removes the chance to get it wrong.
-  const syncRadius = () => {
-    const cs = getComputedStyle(scroller);
-    fadeTop.style.borderRadius =
-      `${cs.borderTopLeftRadius} ${cs.borderTopRightRadius} 0 0`;
-    fadeBot.style.borderRadius =
-      `0 0 ${cs.borderBottomRightRadius} ${cs.borderBottomLeftRadius}`;
-  };
+  const ui = buildIndicators(host, p);
+  const syncRadius = () => matchScrollerCorners(scroller, ui);
   syncRadius();
 
   const noun = options.noun ? " " + options.noun : "";
@@ -97,35 +73,9 @@ export function attachScrollAffordance(scroller, options = {}) {
     ? scroller.querySelectorAll(options.items)
     : scroller.children);
 
-  const setState = (above, below) => {
-    fadeTop.classList.toggle("hidden", above === 0);
-    fadeBot.classList.toggle("hidden", below === 0);
-    countTop.classList.toggle("hidden", above === 0);
-    countBot.classList.toggle("hidden", below === 0);
-    countTop.lastChild.textContent = above + noun + " above";
-    countBot.lastChild.textContent = below + noun + " below";
-  };
-
   const refresh = () => {
-    const box = scroller.getBoundingClientRect();
-    // A scroller that is display:none measures zero, and every item would read
-    // as "above". CLEAR rather than early-return: the fade and pill live on the
-    // wrapper, not inside the scroller, so leaving them alone would strand two
-    // gradients and a stale count over a collapsed box. Callers that hide their
-    // list (the search pills) depend on this to tidy up after themselves.
-    if (box.height === 0) { setState(0, 0); return; }
-
-    let above = 0, below = 0;
-    for (const el of items()) {
-      // Skips display:none items, which matters wherever one scroller holds
-      // several panes and shows one at a time (settings sub-pages).
-      if (el.offsetParent === null) continue;
-      const r = el.getBoundingClientRect();
-      if (r.top < box.top - 2) above++;
-      else if (r.bottom > box.bottom + 2) below++;
-    }
-
-    setState(above, below);
+    const { above, below } = countHidden(scroller, items());
+    showCounts(ui, above, below, noun);
   };
 
   // Coalesce to one measurement per frame. A mutation burst (a settings pane
@@ -141,7 +91,75 @@ export function attachScrollAffordance(scroller, options = {}) {
   // Scrolling is measured immediately: a frame of lag here is visible as the
   // fade trailing the content.
   scroller.addEventListener("scroll", refresh, { passive: true });
+  watchForChanges(scroller, schedule, syncRadius);
+  schedule();
 
+  return { refresh, host };
+}
+
+/** The two fades and two count pills, appended to the host. */
+function buildIndicators(host, p) {
+  const fadeTop = make("div", `${p}-fade ${p}-fade-top hidden`);
+  const fadeBot = make("div", `${p}-fade ${p}-fade-bot hidden`);
+  const countTop = make("span", `${p}-count ${p}-count-top hidden`);
+  const countBot = make("span", `${p}-count ${p}-count-bot hidden`);
+  for (const pill of [countTop, countBot]) {
+    pill.appendChild(make("i", `${p}-count-chev`));
+    pill.appendChild(document.createTextNode(""));
+  }
+  host.append(fadeTop, fadeBot, countTop, countBot);
+  return { fadeTop, fadeBot, countTop, countBot };
+}
+
+// The fade must clip to exactly the SCROLLER's corners. Any mismatch shows:
+// a fade rounder than its scroller cuts a notch out of itself and lets the
+// un-faded content show through at the corners; a fade squarer than its
+// scroller overhangs and paints its own colour past the corner onto whatever
+// is behind. This is read from the scroller rather than authored per adopter
+// because the first attempt exposed a --scroll-fade-radius custom property
+// and two of the three adopters set it on the SCROLLER, which is a SIBLING of
+// the fades, so it never reached them and both silently fell back to the
+// default. Deriving it here removes the chance to get it wrong.
+function matchScrollerCorners(scroller, { fadeTop, fadeBot }) {
+  const cs = getComputedStyle(scroller);
+  fadeTop.style.borderRadius =
+    `${cs.borderTopLeftRadius} ${cs.borderTopRightRadius} 0 0`;
+  fadeBot.style.borderRadius =
+    `0 0 ${cs.borderBottomRightRadius} ${cs.borderBottomLeftRadius}`;
+}
+
+function showCounts({ fadeTop, fadeBot, countTop, countBot }, above, below, noun) {
+  fadeTop.classList.toggle("hidden", above === 0);
+  fadeBot.classList.toggle("hidden", below === 0);
+  countTop.classList.toggle("hidden", above === 0);
+  countBot.classList.toggle("hidden", below === 0);
+  countTop.lastChild.textContent = above + noun + " above";
+  countBot.lastChild.textContent = below + noun + " below";
+}
+
+/** How many items are not fully visible above and below the scroller's box. */
+function countHidden(scroller, items) {
+  const box = scroller.getBoundingClientRect();
+  // A scroller that is display:none measures zero, and every item would read
+  // as "above". CLEAR rather than early-return: the fade and pill live on the
+  // wrapper, not inside the scroller, so leaving them alone would strand two
+  // gradients and a stale count over a collapsed box. Callers that hide their
+  // list (the search pills) depend on this to tidy up after themselves.
+  if (box.height === 0) return { above: 0, below: 0 };
+
+  let above = 0, below = 0;
+  for (const el of items) {
+    // Skips display:none items, which matters wherever one scroller holds
+    // several panes and shows one at a time (settings sub-pages).
+    if (el.offsetParent === null) continue;
+    const r = el.getBoundingClientRect();
+    if (r.top < box.top - 2) above++;
+    else if (r.bottom > box.bottom + 2) below++;
+  }
+  return { above, below };
+}
+
+function watchForChanges(scroller, schedule, syncRadius) {
   if (typeof ResizeObserver !== "undefined") {
     const ro = new ResizeObserver(() => { syncRadius(); schedule(); });
     ro.observe(scroller);           // first reveal, window resize
@@ -160,7 +178,4 @@ export function attachScrollAffordance(scroller, options = {}) {
       attributes: true, attributeFilter: ["hidden", "style", "class"]
     });
   }
-  schedule();
-
-  return { refresh, host };
 }

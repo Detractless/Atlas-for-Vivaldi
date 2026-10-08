@@ -102,42 +102,10 @@ export async function importBookmarks(event) {
   reader.onload = async (e) => {
     let pendingAlert = null;
     try {
-      const buffer = /** @type {ArrayBuffer} */ (e.target.result);
-
       // Yield one event-loop tick so the "Importing…" label renders before the
       // blocking unzipSync call locks the thread.
       await new Promise((r) => setTimeout(r, 0));
-
-      let applied = null;
-      if (isDetractlessFile(buffer)) {
-        // A .detractless archive: v2 namespaced, or v1 from either app.
-        applied = await applyArchiveBuffer(buffer);
-      } else if (file.name.endsWith('.pastekit')) {
-        // Standalone PasteKit export — snippets only
-        const pastekitData = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer)));
-        await importJson(pastekitData, 'replace');
-        broadcast();
-        pendingAlert = 'Import successful! Snippets restored.';
-      } else {
-        // Legacy .detractless.json format — keep working forever
-        const importData = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer)));
-        await applyImportData(importData);
-      }
-
-      if (!pendingAlert) {
-        if (applied && !applied.appliedConfig && !applied.appliedSnippets) {
-          pendingAlert =
-            'That archive was read successfully but contained no recognisable data — nothing was changed.\n\n' +
-            'If you created or modified this file outside of Detractless (e.g. with a ZIP tool on Windows), ' +
-            'make sure it was re-zipped with a tool that stores paths using forward slashes. ' +
-            'Some tools, like PowerShell\u2019s Compress-Archive, use backslashes internally, ' +
-            'which prevents Detractless from finding the files inside.';
-        } else if (applied) {
-          pendingAlert = `Import successful! Restored ${describeApplied(applied)}.`;
-        } else {
-          pendingAlert = 'Import successful! Bookmarks, settings, and snippets restored.';
-        }
-      }
+      pendingAlert = await applyImportFile(file, /** @type {ArrayBuffer} */ (e.target.result));
     } catch (error) {
       console.error(error);
       pendingAlert = 'Error importing file. Please ensure it is a valid Detractless export.';
@@ -145,34 +113,66 @@ export async function importBookmarks(event) {
       if (importBtn) { importBtn.disabled = false; importBtn.textContent = originalLabel; }
       if (pendingAlert) {
         const msg = pendingAlert;
-        setTimeout(() => {
-          const isError = msg.toLowerCase().startsWith('error');
-          const toast = document.createElement('div');
-          toast.textContent = msg;
-          toast.setAttribute('role', 'status');
-          Object.assign(toast.style, {
-            position: 'fixed', bottom: '24px', left: '50%',
-            transform: 'translateX(-50%)',
-            background: isError ? '#b91c1c' : '#166534',
-            color: '#fff', padding: '10px 20px',
-            borderRadius: '8px', fontSize: '14px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-            zIndex: '999999', maxWidth: '480px',
-            textAlign: 'center', lineHeight: '1.4',
-            opacity: '0', transition: 'opacity 0.2s ease',
-          });
-          document.body.appendChild(toast);
-          requestAnimationFrame(() => { toast.style.opacity = '1'; });
-          setTimeout(() => {
-            toast.style.opacity = '0';
-            setTimeout(() => toast.remove(), 300);
-          }, isError ? 6000 : 3500);
-        }, 50);
+        setTimeout(() => showImportToast(msg), 50);
       }
     }
   };
   reader.readAsArrayBuffer(file);
   event.target.value = '';
+}
+
+/** Apply one imported file; returns the message to show the user. */
+async function applyImportFile(file, buffer) {
+  let applied = null;
+  if (isDetractlessFile(buffer)) {
+    // A .detractless archive: v2 namespaced, or v1 from either app.
+    applied = await applyArchiveBuffer(buffer);
+  } else if (file.name.endsWith('.pastekit')) {
+    // Standalone PasteKit export — snippets only
+    const pastekitData = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer)));
+    await importJson(pastekitData, 'replace');
+    broadcast();
+    return 'Import successful! Snippets restored.';
+  } else {
+    // Legacy .detractless.json format — keep working forever
+    const importData = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer)));
+    await applyImportData(importData);
+  }
+
+  if (applied && !applied.appliedConfig && !applied.appliedSnippets) {
+    return 'That archive was read successfully but contained no recognisable data — nothing was changed.\n\n' +
+      'If you created or modified this file outside of Detractless (e.g. with a ZIP tool on Windows), ' +
+      'make sure it was re-zipped with a tool that stores paths using forward slashes. ' +
+      'Some tools, like PowerShell\u2019s Compress-Archive, use backslashes internally, ' +
+      'which prevents Detractless from finding the files inside.';
+  }
+  if (applied) return `Import successful! Restored ${describeApplied(applied)}.`;
+  return 'Import successful! Bookmarks, settings, and snippets restored.';
+}
+
+/** A short status toast at the bottom of the page (red for errors). */
+function showImportToast(msg) {
+  const isError = msg.toLowerCase().startsWith('error');
+  const toast = document.createElement('div');
+  toast.textContent = msg;
+  toast.setAttribute('role', 'status');
+  Object.assign(toast.style, {
+    position: 'fixed', bottom: '24px', left: '50%',
+    transform: 'translateX(-50%)',
+    background: isError ? '#b91c1c' : '#166534',
+    color: '#fff', padding: '10px 20px',
+    borderRadius: '8px', fontSize: '14px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+    zIndex: '999999', maxWidth: '480px',
+    textAlign: 'center', lineHeight: '1.4',
+    opacity: '0', transition: 'opacity 0.2s ease',
+  });
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => { toast.style.opacity = '1'; });
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, isError ? 6000 : 3500);
 }
 
 export function downloadExampleExport() {

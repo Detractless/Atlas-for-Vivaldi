@@ -4,7 +4,9 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { openNewTab, waitFor, settle, click, pressEnter } = require("./helpers/newtabDom");
+const { openNewTab, closeAll, waitFor, settle, click, pressEnter } = require("./helpers/newtabDom");
+
+test.afterEach(closeAll);
 
 const text = (el) => (el ? el.textContent.replace(/\s+/g, " ").trim() : "");
 const switcherLabels = (doc) =>

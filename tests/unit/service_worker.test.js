@@ -1,0 +1,108 @@
+// The background bundle (serviceWorker.bundle.js) loaded in a Node vm with a
+// stand-in chrome.*: it must start without errors and answer its messages.
+"use strict";
+
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+const { IDBFactory, IDBKeyRange } = require("fake-indexeddb");
+
+const BUNDLE = path.join(__dirname, "..", "..", "payload", "detractless", "src", "dist", "serviceWorker.bundle.js");
+
+/** Any chrome.a.b.c(...) call resolves to `undefined`; addListener calls are recorded. */
+function anyApi(name, listeners) {
+  return new Proxy(function () {}, {
+    get(_, prop) {
+      if (prop === "then") return undefined;
+      if (prop === "addListener") return (fn) => (listeners[name] = listeners[name] || []).push(fn);
+      return anyApi(`${name}.${String(prop)}`, listeners);
+    },
+    apply(_, __, args) {
+      const cb = args.find((a) => typeof a === "function");
+      if (cb) Promise.resolve().then(() => cb(undefined));
+      return Promise.resolve(undefined);
+    },
+  });
+}
+
+function storageArea(data = {}) {
+  return {
+    get(keys, cb) {
+      const pick = {};
+      const list = keys == null ? Object.keys(data) : typeof keys === "string" ? [keys] : Array.isArray(keys) ? keys : Object.keys(keys);
+      for (const k of list) if (k in data) pick[k] = JSON.parse(JSON.stringify(data[k]));
+      if (cb) Promise.resolve().then(() => cb(pick));
+      return Promise.resolve(pick);
+    },
+    set(items, cb) { Object.assign(data, JSON.parse(JSON.stringify(items))); if (cb) Promise.resolve().then(cb); return Promise.resolve(); },
+    remove(keys, cb) { for (const k of [].concat(keys)) delete data[k]; if (cb) Promise.resolve().then(cb); return Promise.resolve(); },
+    _data: data,
+  };
+}
+
+function loadWorker() {
+  const listeners = {};
+  const chrome = anyApi("chrome", listeners);
+  const fake = {
+    storage: { sync: storageArea(), local: storageArea(), session: storageArea(), onChanged: anyApi("chrome.storage.onChanged", listeners) },
+    tabs: new Proxy({ query: (q, cb) => { if (cb) Promise.resolve().then(() => cb([])); return Promise.resolve([]); } }, {
+      get: (t, p) => (p in t ? t[p] : anyApi(`chrome.tabs.${String(p)}`, listeners)),
+    }),
+  };
+  const chromeObj = new Proxy({}, {
+    get: (_, p) => (p in fake ? fake[p] : p === "runtime" ? runtime : chrome[p]),
+  });
+  const runtime = new Proxy({ id: "test", lastError: undefined, getURL: (p) => "chrome-extension://test/" + p }, {
+    get: (t, p) => (p in t ? t[p] : anyApi(`chrome.runtime.${String(p)}`, listeners)),
+  });
+  const errors = [];
+  const context = vm.createContext({
+    chrome: chromeObj, self: {}, console: { log() {}, info() {}, warn() {}, error: (...a) => errors.push(a.join(" ")) },
+    setTimeout, clearTimeout, setInterval, clearInterval, URL, URLSearchParams, TextEncoder, TextDecoder,
+    indexedDB: new IDBFactory(), IDBKeyRange, structuredClone, Promise, Date, Math, JSON,
+  });
+  context.globalThis = context;
+  vm.runInContext(fs.readFileSync(BUNDLE, "utf8"), context, { filename: "serviceWorker.bundle.js" });
+  return { listeners, storage: fake.storage, errors };
+}
+
+function send(w, message) {
+  const fns = w.listeners["chrome.runtime.onMessage"] || [];
+  // Replies come from the vm's realm; copy them so deepStrictEqual compares values.
+  return new Promise((resolve) => {
+    const reply = (r) => resolve(JSON.parse(JSON.stringify(r)));
+    const kept = fns.map((fn) => fn(message, { tab: { id: 1 } }, reply));
+    if (!kept.some((k) => k === true)) resolve("not handled");
+  });
+}
+
+test("the service worker starts and registers its message listener", () => {
+  const w = loadWorker();
+  assert.ok((w.listeners["chrome.runtime.onMessage"] || []).length >= 1);
+  assert.deepEqual(w.errors, []);
+});
+
+test("search-delay messages get their answers", async () => {
+  const w = loadWorker();
+  const url = "https://www.google.com/search?q=cats";
+  assert.deepEqual(await send(w, { action: "checkDelayStatus", url }), { inDelay: false });
+  assert.deepEqual(await send(w, { action: "updateSearchDelay", delaySeconds: 30 }), { success: true });
+  assert.deepEqual(await send(w, { action: "markDelayCompleted", url }), { success: true });
+  assert.deepEqual(await send(w, { action: "startDelayDecrease" }), { success: true });
+  assert.deepEqual(await send(w, { action: "cancelDelayDecrease" }), { success: true });
+});
+
+test("tab-limit messages get their answers", async () => {
+  const w = loadWorker();
+  assert.deepEqual(await send(w, { action: "enforceLimit" }), { success: true });
+  assert.deepEqual(await send(w, { action: "startIncrease" }), { success: true });
+  assert.deepEqual(await send(w, { action: "cancelIncrease" }), { success: true });
+});
+
+test("an unknown message is left for other listeners", async () => {
+  const w = loadWorker();
+  assert.equal(await send(w, { action: "toString" }), "not handled");
+  assert.equal(await send(w, { action: "nope" }), "not handled");
+});

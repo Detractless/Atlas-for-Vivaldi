@@ -439,68 +439,63 @@
   }
 
   // src/background/messaging.js
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "enforceLimit") {
-      enforceTabLimit().then(() => sendResponse({ success: true }));
-      return true;
+  var ok = (sendResponse) => sendResponse({ success: true });
+  function delayStatus(url) {
+    const delayInfo = activeDelays[standardiseUrl(url)];
+    if (!delayInfo) return { inDelay: false };
+    const elapsed = Date.now() - delayInfo.startTime;
+    const remaining = Math.max(0, searchDelayMs - elapsed);
+    return {
+      inDelay: true,
+      completed: delayInfo.completed,
+      remainingSeconds: Math.ceil(remaining / 1e3),
+      showRevealButton: remaining === 0 && !delayInfo.completed
+    };
+  }
+  function markDelayCompleted(url) {
+    const stdUrl = standardiseUrl(url);
+    if (activeDelays[stdUrl]) {
+      activeDelays[stdUrl].completed = true;
+      pruneActiveDelays();
+      chrome.storage.local.set({ activeDelays });
     }
-    if (message.action === "startIncrease") {
+  }
+  var ACTIONS = {
+    // --- Tab Limiter Messages ---
+    enforceLimit: (m, send) => {
+      enforceTabLimit().then(() => ok(send));
+    },
+    startIncrease: (m, send) => {
       checkPendingIncrease();
-      sendResponse({ success: true });
-      return true;
-    }
-    if (message.action === "cancelIncrease") {
-      sendResponse({ success: true });
-      return true;
-    }
-    if (message.action === "updateSearchDelay") {
-      setSearchDelayMs(message.delaySeconds * 1e3);
-      sendResponse({ success: true });
-      return true;
-    }
-    if (message.action === "startDelayDecrease") {
+      ok(send);
+    },
+    cancelIncrease: (m, send) => ok(send),
+    // --- Search Delay Messages ---
+    updateSearchDelay: (m, send) => {
+      setSearchDelayMs(m.delaySeconds * 1e3);
+      ok(send);
+    },
+    startDelayDecrease: (m, send) => {
       checkPendingDelayDecrease();
-      sendResponse({ success: true });
-      return true;
+      ok(send);
+    },
+    cancelDelayDecrease: (m, send) => ok(send),
+    checkDelayStatus: (m, send) => send(delayStatus(m.url)),
+    markDelayCompleted: (m, send) => {
+      markDelayCompleted(m.url);
+      ok(send);
+    },
+    // --- Sidebar → Remover (per-tab, async: state lives in storage.session) ---
+    toggleRemoverOnTab: (m, send) => {
+      toggleRemoverForTab(m.tabId).then((state) => send({ state }));
+    },
+    getRemoverState: (m, send) => {
+      getRemoverState(m.tabId).then((state) => send({ state }));
     }
-    if (message.action === "cancelDelayDecrease") {
-      sendResponse({ success: true });
-      return true;
-    }
-    if (message.action === "checkDelayStatus") {
-      const stdUrl = standardiseUrl(message.url);
-      const delayInfo = activeDelays[stdUrl];
-      if (!delayInfo) {
-        sendResponse({ inDelay: false });
-        return true;
-      }
-      const now = Date.now();
-      const elapsed = now - delayInfo.startTime;
-      const remaining = Math.max(0, searchDelayMs - elapsed);
-      sendResponse({
-        inDelay: true,
-        completed: delayInfo.completed,
-        remainingSeconds: Math.ceil(remaining / 1e3),
-        showRevealButton: remaining === 0 && !delayInfo.completed
-      });
-      return true;
-    }
-    if (message.action === "markDelayCompleted") {
-      const stdUrl = standardiseUrl(message.url);
-      if (activeDelays[stdUrl]) {
-        activeDelays[stdUrl].completed = true;
-        pruneActiveDelays();
-        chrome.storage.local.set({ activeDelays });
-      }
-      sendResponse({ success: true });
-      return true;
-    }
-    if (message.action === "toggleRemoverOnTab") {
-      toggleRemoverForTab(message.tabId).then((state) => sendResponse({ state }));
-      return true;
-    }
-    if (message.action === "getRemoverState") {
-      getRemoverState(message.tabId).then((state) => sendResponse({ state }));
+  };
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (Object.prototype.hasOwnProperty.call(ACTIONS, message.action)) {
+      ACTIONS[message.action](message, sendResponse);
       return true;
     }
     if (message.path === "page-to-background") {

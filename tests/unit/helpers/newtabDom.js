@@ -6,6 +6,7 @@
 
 const fs = require("fs");
 const path = require("path");
+require("./jsdomNavigation"); // must load before jsdom
 const { JSDOM, VirtualConsole, requestInterceptor } = require("jsdom");
 const { IDBFactory, IDBKeyRange } = require("fake-indexeddb");
 const { makeFakeChrome } = require("./fakeChrome");
@@ -34,6 +35,13 @@ function stubBrowserOnlyApis(window) {
   window.scrollTo = () => {};
   window.HTMLElement.prototype.scrollIntoView = function () {};
   window.open = () => null;
+  // Downloads: keep each Blob handed to createObjectURL on window.__blobs.
+  window.__blobs = [];
+  window.URL.createObjectURL = (blob) => {
+    window.__blobs.push(blob);
+    return "blob:https://atlas.test/" + window.__blobs.length;
+  };
+  window.URL.revokeObjectURL = () => {};
 }
 
 /**
@@ -42,7 +50,7 @@ function stubBrowserOnlyApis(window) {
  * @param {{ sync?: object, local?: object, query?: string, root?: string }} opts
  */
 async function openNewTab(opts = {}) {
-  const root = path.resolve(opts.root || PAGE_ROOT);
+  const root = path.resolve(opts.root || process.env.ATLAS_PAGE_ROOT || PAGE_ROOT);
   const errors = [];
   const virtualConsole = new VirtualConsole();
   virtualConsole.on("jsdomError", (err) => {
@@ -68,9 +76,20 @@ async function openNewTab(opts = {}) {
     },
   });
   const { window } = dom;
+  openWindows.add(window);
   await waitFor(() => window.document.querySelector("#tabs-container .switcher-item"), 8000, "page switcher");
   await settle(window);
   return { dom, window, document: window.document, chrome: fake.chrome, control: fake.control, errors };
+}
+
+const openWindows = new Set();
+
+/** Close every window this file opened (use in test.afterEach). Open windows keep timers alive. */
+function closeAll() {
+  for (const w of openWindows) {
+    try { w.close(); } catch (e) { /* already closed */ }
+  }
+  openWindows.clear();
 }
 
 /** Let pending timers, animation frames and IndexedDB callbacks run. */
@@ -96,4 +115,4 @@ function pressEnter(window, el) {
   el.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
 }
 
-module.exports = { openNewTab, waitFor, settle, click, pressEnter, PAGE_ROOT, ROOT };
+module.exports = { openNewTab, closeAll, waitFor, settle, click, pressEnter, PAGE_ROOT, ROOT };
