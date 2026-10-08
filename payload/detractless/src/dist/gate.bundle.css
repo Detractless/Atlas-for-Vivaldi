@@ -1,0 +1,355 @@
+/* src/styles/base.css */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+html,
+body {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+html {
+  background-color: var(--surface-canvas);
+}
+body {
+  background-color: var(--surface-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+}
+input,
+select,
+textarea,
+button {
+  font-family: var(--font-sans);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-tertiary);
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+}
+a {
+  text-decoration: none;
+  color: inherit;
+}
+[hidden] {
+  display: none !important;
+}
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* src/styles/tokens.css */
+:root {
+  --mono-000: #ffffff;
+  --mono-050: #f6f6f4;
+  --mono-100: #efeeec;
+  --mono-150: #e6e5e2;
+  --mono-200: #d8d7d3;
+  --mono-300: #bcbbb6;
+  --mono-400: #9a9a95;
+  --mono-500: #76766f;
+  --mono-600: #57574f;
+  --mono-700: #3a3a33;
+  --mono-800: #1c1c18;
+  --mono-900: #111110;
+  --mono-950: #0a0a09;
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-pill: 999px;
+  --radius-circle: 50%;
+  --shadow-none: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-card: none;
+  --blur-overlay: 3px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+  --dur-slow: 360ms;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --row-height: 32px;
+  --row-gap: 2px;
+  --row-pitch: 34px;
+  --well-padding: 8px;
+  --font-sans:
+    "Schibsted Grotesk",
+    "Helvetica Neue",
+    "Segoe UI",
+    Arial,
+    sans-serif;
+  --font-mono:
+    "Space Mono",
+    ui-monospace,
+    "SF Mono",
+    Menlo,
+    monospace;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-black: 800;
+  --text-display-lg: 800 44px/1.0 var(--font-sans);
+  --text-display-md: 700 36px/1.05 var(--font-sans);
+  --text-h1: 700 26px/1.12 var(--font-sans);
+  --text-h2: 700 20px/1.18 var(--font-sans);
+  --text-h3: 600 17px/1.25 var(--font-sans);
+  --text-body: 400 16px/1.45 var(--font-sans);
+  --text-body-sm: 400 14px/1.45 var(--font-sans);
+  --text-label: 500 13px/1.3 var(--font-sans);
+  --text-caption: 400 12px/1.35 var(--font-sans);
+  --text-mono: 400 12px/1.3 var(--font-mono);
+  --tracking-tight: -0.02em;
+  --tracking-snug: -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.06em;
+  --tracking-wider: 0.14em;
+  --radius: var(--radius-sm);
+  --transition: var(--dur-fast) var(--ease-out);
+  --font-ui: var(--font-sans);
+}
+
+/* src/styles/themes.css */
+:root,
+:root[data-theme=dark] {
+  --surface-canvas: #111110;
+  --surface-card: #262622;
+  --surface-muted: #33332E;
+  --hover-on-card: #3C3C36;
+  --hover-on-canvas: #2D2D29;
+  --surface-hover: var(--hover-on-card);
+  --surface-card-hover: var(--hover-on-canvas);
+  --surface-overlay: rgba(0, 0, 0, 0.55);
+  --text-primary: #F2F1EE;
+  --text-secondary: #A0A099;
+  --text-tertiary: #7B7B75;
+  --text-error: #E07A70;
+  --mono-200: #3E3E39;
+  --mono-400: #6E6E68;
+  --mono-600: #A8A8A2;
+  --mono-900: #EFEEEC;
+  --surface-inverse: var(--mono-900);
+  --text-inverse: var(--surface-canvas);
+  --text-on-muted: var(--mono-600);
+  --line-hairline: var(--mono-200);
+  --line-strong: var(--text-primary);
+  --line-on-inverse: transparent;
+  --accent: var(--mono-900);
+  --accent-text: var(--surface-canvas);
+  --accent-hover: #DCDBD6;
+  --accent-press: #C8C7C1;
+  --select-bg: var(--surface-hover);
+  --focus-ring: transparent;
+  --color-error: var(--text-error);
+  --bg-error: #2E1815;
+  --surface-base: var(--surface-muted);
+}
+:root[data-theme=light] {
+  --surface-canvas: #E3E3E0;
+  --surface-card: #FFFFFF;
+  --surface-muted: #EFEEEC;
+  --hover-on-card: #E6E5E2;
+  --hover-on-canvas: #F4F3F1;
+  --surface-hover: var(--hover-on-card);
+  --surface-card-hover: var(--hover-on-canvas);
+  --surface-overlay: rgba(10, 10, 9, 0.45);
+  --text-primary: #0A0A09;
+  --text-secondary: #76766F;
+  --text-tertiary: #9A9A95;
+  --text-error: #B3382E;
+  --mono-200: #D8D7D3;
+  --mono-400: #9A9A95;
+  --mono-600: #57574F;
+  --mono-900: #111110;
+  --surface-inverse: var(--mono-900);
+  --text-inverse: #FFFFFF;
+  --text-on-muted: var(--mono-600);
+  --line-hairline: var(--mono-200);
+  --line-strong: var(--text-primary);
+  --line-on-inverse: transparent;
+  --accent: var(--mono-900);
+  --accent-text: #FFFFFF;
+  --accent-hover: #2A2A26;
+  --accent-press: #3A3A33;
+  --select-bg: var(--surface-hover);
+  --focus-ring: transparent;
+  --color-error: var(--text-error);
+  --bg-error: #FBEAE8;
+  --surface-base: var(--surface-muted);
+}
+:root {
+  --bg-body: var(--surface-canvas);
+  --win-bg: var(--surface-canvas);
+  --ctrl-bg: var(--surface-card);
+  --ctrl-hover: var(--surface-hover);
+  --border: var(--line-hairline);
+  --text-pri: var(--text-primary);
+  --text-sec: var(--text-secondary);
+  --sel-bg: var(--select-bg);
+}
+
+/* src/pages/gate/gate.css */
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.container {
+  max-width: 600px;
+  padding: 20px;
+}
+.query-display {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  max-width: 90vw;
+  background: var(--surface-card);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.query-display h2,
+.engine-name {
+  display: none;
+}
+.engine-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.query-separator {
+  width: 1px;
+  height: 16px;
+  background: var(--line-hairline);
+  flex-shrink: 0;
+}
+.query-label {
+  font-size: 10px;
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.query-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.countdown {
+  font-family: var(--font-mono);
+  font-size: 48px;
+  font-weight: 700;
+  margin: 40px 0;
+  letter-spacing: 2px;
+  line-height: 1;
+  color: var(--text-primary);
+  opacity: 0;
+}
+#reveal-button {
+  padding: 12px 28px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--accent);
+  color: var(--accent-text);
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background var(--dur-base) var(--ease-out);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+#reveal-button:hover {
+  background: var(--accent-hover);
+}
+#reveal-button:disabled {
+  background: var(--surface-muted);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+.lds-facebook,
+.lds-facebook div {
+  box-sizing: border-box;
+}
+.lds-facebook {
+  display: inline-block;
+  position: relative;
+  width: 240px;
+  height: 240px;
+  color: var(--text-tertiary);
+}
+.lds-facebook div {
+  display: inline-block;
+  position: absolute;
+  left: 24px;
+  width: 48px;
+  background: currentColor;
+  animation: lds-facebook 1.2s cubic-bezier(0, 0.5, 0.5, 1) infinite;
+}
+.lds-facebook div:nth-child(1) {
+  left: 24px;
+  animation-delay: -0.24s;
+}
+.lds-facebook div:nth-child(2) {
+  left: 96px;
+  animation-delay: -0.12s;
+}
+.lds-facebook div:nth-child(3) {
+  left: 168px;
+  animation-delay: 0s;
+}
+@keyframes lds-facebook {
+  0% {
+    top: 24px;
+    height: 192px;
+  }
+  50%, 100% {
+    top: 72px;
+    height: 96px;
+  }
+}
+/*# sourceMappingURL=gate.bundle.css.map */

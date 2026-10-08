@@ -7,5 +7,7 @@ keys/
 .DS_Store
 __pycache__/
 *.pyc
-dist/
+# Only the top-level DMG output; payload/detractless/src/dist holds the shipped bundles.
+/dist/
 node_modules/
+.scratch/

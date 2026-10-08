@@ -1,0 +1,1181 @@
+(() => {
+  // src/constants/engines.js
+  var SEARCH_ENGINE_PARSERS = {
+    primary: [
+      { host: "google.", path: "/search", pathMatch: "exact", param: "q", present: "none" },
+      { host: "bing.com", path: "/search", pathMatch: "exact", param: "q", present: "none" },
+      { host: "duckduckgo.com", path: "/", pathMatch: "exact", param: "q", present: "has" },
+      { host: "youtube.com", path: "/results", pathMatch: "prefix", param: "search_query", present: "truthy" }
+    ],
+    secondary: [
+      { host: "reddit.com", path: "/search/", pathMatch: "exact", param: "q", present: "has" },
+      { host: "yahoo.com", path: "/search", pathMatch: "exact", param: "p", present: "has" },
+      { host: "yandex.com", path: "/search/", pathMatch: "exact", param: "text", present: "has" },
+      { host: "mojeek.com", path: "/search", pathMatch: "exact", param: "q", present: "none" }
+    ]
+  };
+
+  // src/utils/searchParsers.js
+  function matchSearchParser(urlObj, p2, applyPresent) {
+    if (!urlObj.hostname.includes(p2.host)) return false;
+    if (p2.pathMatch === "prefix") {
+      if (!urlObj.pathname.startsWith(p2.path)) return false;
+    } else if (urlObj.pathname !== p2.path) {
+      return false;
+    }
+    if (applyPresent) {
+      if (p2.present === "has") return urlObj.searchParams.has(p2.param);
+      if (p2.present === "truthy") return !!urlObj.searchParams.get(p2.param);
+    }
+    return true;
+  }
+  function standardiseByParser(urlObj, p2) {
+    const value = urlObj.searchParams.get(p2.param) || "";
+    return `https://${urlObj.hostname}${p2.path}?${p2.param}=${encodeURIComponent(value)}`;
+  }
+
+  // src/background/workerState.js
+  var tabLimit = 0;
+  function setTabLimit(v) {
+    tabLimit = v;
+  }
+  var managementMethod = "block";
+  function setManagementMethod(v) {
+    managementMethod = v;
+  }
+  var searchDelayMs = 0;
+  function setSearchDelayMs(v) {
+    searchDelayMs = v;
+  }
+  var activeDelays = {};
+  function setActiveDelays(v) {
+    activeDelays = v;
+  }
+  var managedEngines = {};
+  function setManagedEngines(v) {
+    managedEngines = v;
+  }
+
+  // src/background/searchUrl.js
+  function standardiseUrl(inputUrl, managedEngines2) {
+    try {
+      const urlObj = new URL(inputUrl);
+      for (const parser of SEARCH_ENGINE_PARSERS.primary) {
+        if (matchSearchParser(urlObj, parser, false)) return standardiseByParser(urlObj, parser);
+      }
+      const engineList = Object.values(managedEngines2);
+      for (const engine of engineList) {
+        if (inputUrl.startsWith(engine.url)) {
+          try {
+            const match = engine.url.match(/[?&]([^=]+)=$/);
+            if (match && match[1]) {
+              const paramKey = match[1];
+              const q = urlObj.searchParams.get(paramKey) || "";
+              return engine.url + encodeURIComponent(q);
+            }
+          } catch (err) {
+          }
+          return inputUrl;
+        }
+      }
+      for (const parser of SEARCH_ENGINE_PARSERS.secondary) {
+        if (matchSearchParser(urlObj, parser, false)) return standardiseByParser(urlObj, parser);
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function isSearchEngine(url, managedEngines2) {
+    try {
+      const parsedUrl = new URL(url);
+      for (const parser of SEARCH_ENGINE_PARSERS.primary) {
+        if (matchSearchParser(parsedUrl, parser, true)) return true;
+      }
+      const engineList = Object.values(managedEngines2);
+      if (engineList.some((engine) => url.startsWith(engine.url))) {
+        return true;
+      }
+      for (const parser of SEARCH_ENGINE_PARSERS.secondary) {
+        if (matchSearchParser(parsedUrl, parser, true)) return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // src/services/tabSaver.js
+  var STORAGE_KEY = "savedTabGroups";
+  var SKIP_SCHEMES = /^(chrome|chrome-extension|edge|about|devtools|view-source|moz-extension):/i;
+  function shouldSaveTab(url) {
+    if (!url || typeof url !== "string") return false;
+    const trimmed = url.trim();
+    if (!trimmed) return false;
+    if (trimmed === "about:blank") return false;
+    if (SKIP_SCHEMES.test(trimmed)) return false;
+    return /^https?:\/\//i.test(trimmed);
+  }
+  function dayKey(ts) {
+    const d = new Date(ts);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  function toEntry(tab, closedAt) {
+    return {
+      url: tab.url,
+      title: tab.title || tab.url,
+      favIconUrl: tab.favIconUrl || "",
+      closedAt
+    };
+  }
+  function addTabsToGroups(groups, entries, mode, now = Date.now()) {
+    const list = Array.isArray(groups) ? groups.map((g) => ({ ...g, tabs: [...g.tabs || []] })) : [];
+    const fresh = (entries || []).filter((e) => e && e.url);
+    if (fresh.length === 0) return list;
+    let target = null;
+    if (mode === "auto") {
+      const key = dayKey(now);
+      target = list.find((g) => g.kind === "auto" && g.dayKey === key) || null;
+    }
+    if (!target) {
+      target = {
+        id: `grp-${now}-${Math.random().toString(16).slice(2, 8)}`,
+        kind: mode === "auto" ? "auto" : "manual",
+        dayKey: dayKey(now),
+        savedAt: now,
+        /* A STABLE number, assigned once and stored, never a position in the list.
+           "Session N" was derived from chronological ORDER, which meant deleting an
+           old session silently renumbered every later one: a name that changes when
+           you delete something else is exactly what made the old numbering feel
+           arbitrary. Stored, "Save 12" stays Save 12 forever. */
+        seq: nextSeq(list),
+        description: "",
+        tabs: []
+      };
+      list.unshift(target);
+    }
+    const byUrl = new Map(target.tabs.map((t) => [t.url, t]));
+    for (const entry of fresh) byUrl.set(entry.url, entry);
+    target.tabs = [...byUrl.values()].sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0));
+    target.savedAt = Math.max(target.savedAt || 0, now);
+    return list.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+  }
+  function nextSeq(groups) {
+    return (groups || []).reduce((max, g) => Math.max(max, Number(g && g.seq) || 0), 0) + 1;
+  }
+  async function readGroups() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get([STORAGE_KEY], (res) => resolve(res && res[STORAGE_KEY] || []));
+    });
+  }
+  async function writeGroups(list) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ [STORAGE_KEY]: list }, resolve);
+    });
+  }
+  async function saveClosingTabs(tabs, now = Date.now()) {
+    const worth = (tabs || []).filter((tab) => tab && shouldSaveTab(tab.url));
+    if (worth.length === 0) return [];
+    const entries = worth.map((tab) => toEntry(tab, now));
+    await writeGroups(addTabsToGroups(await readGroups(), entries, "auto", now));
+    return entries;
+  }
+
+  // src/background/tabLimiter.js
+  function isTabLimitExcluded(tab) {
+    const url = typeof (tab == null ? void 0 : tab.url) === "string" ? tab.url : "";
+    return /^chrome-extension:\/\/mpognobbkildjkofajifpdfhcoklimli\/sidepanel\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/fcoeoabgfenejglbffodgkkbkcdhcgfn\/sidepanel\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/hehggadaopoacecdllhhajmbjkdcmajg\/codex-sidepanel\/index\.html(?:\?.*)?$/.test(url);
+  }
+  async function getAllTabs() {
+    const tabs = await chrome.tabs.query({});
+    return tabs.filter((tab) => !isTabLimitExcluded(tab));
+  }
+  function staleness(tab) {
+    return typeof tab.lastAccessed === "number" ? tab.lastAccessed : tab.id;
+  }
+  function byStalestFirst(tabs) {
+    return [...tabs].sort((a, b) => staleness(a) - staleness(b));
+  }
+  function selectTabsToClose(tabs, limit, method) {
+    if (!limit || limit <= 0) return [];
+    const excessCount = tabs.length - limit;
+    if (excessCount <= 0) return [];
+    if (method === "random") {
+      return [...tabs].sort(() => Math.random() - 0.5).slice(0, excessCount);
+    }
+    return byStalestFirst(tabs).slice(0, excessCount);
+  }
+  async function enforceTabLimit() {
+    try {
+      const result = await chrome.storage.sync.get(["tabLimit", "managementMethod"]);
+      setTabLimit(result.tabLimit !== void 0 ? result.tabLimit : 0);
+      setManagementMethod(result.managementMethod || "block");
+      if (tabLimit === 0) return;
+      const allTabs = await getAllTabs();
+      const tabsToClose = selectTabsToClose(allTabs, tabLimit, managementMethod);
+      try {
+        await saveClosingTabs(tabsToClose);
+      } catch (error) {
+      }
+      for (const tab of tabsToClose) {
+        try {
+          await chrome.tabs.remove(tab.id);
+        } catch (error) {
+        }
+      }
+    } catch (error) {
+    }
+  }
+  if (typeof chrome !== "undefined" && chrome.tabs && chrome.tabs.onCreated) {
+    chrome.tabs.onCreated.addListener(async (tab) => {
+      const result = await chrome.storage.sync.get(["tabLimit", "managementMethod"]);
+      setTabLimit(result.tabLimit !== void 0 ? result.tabLimit : 0);
+      setManagementMethod(result.managementMethod || "block");
+      if (tabLimit === 0) return;
+      const allTabs = await getAllTabs();
+      if (allTabs.length > tabLimit) {
+        if (managementMethod === "block") {
+          if (!isTabLimitExcluded(tab)) {
+            try {
+              await chrome.tabs.remove(tab.id);
+            } catch (error) {
+            }
+          }
+        } else if (managementMethod === "random") {
+          const oldestTab = byStalestFirst(allTabs)[0];
+          const victim = oldestTab && oldestTab.id !== tab.id ? oldestTab : tab;
+          try {
+            await saveClosingTabs([victim]);
+          } catch (error) {
+          }
+          try {
+            await chrome.tabs.remove(victim.id);
+          } catch (error) {
+          }
+        }
+      }
+    });
+  }
+
+  // src/background/searchInterception.js
+  function handleSearchInterception(tabId, url) {
+    if (searchDelayMs === 0) return;
+    if (url.startsWith("chrome://") || url.startsWith("chrome-extension://")) return;
+    if (url.includes("gate.html")) return;
+    if (!isSearchEngine(url, managedEngines)) return;
+    const stdUrl = standardiseUrl(url, managedEngines);
+    if (!stdUrl) return;
+    const now = Date.now();
+    if (activeDelays[stdUrl]) {
+      const delayInfo = activeDelays[stdUrl];
+      const elapsed = now - delayInfo.startTime;
+      if (elapsed < searchDelayMs) {
+        chrome.tabs.update(tabId, {
+          url: chrome.runtime.getURL("gate.html") + "?url=" + encodeURIComponent(url)
+        });
+      } else if (!delayInfo.completed) {
+        chrome.tabs.update(tabId, {
+          url: chrome.runtime.getURL("gate.html") + "?url=" + encodeURIComponent(url)
+        });
+      }
+    } else {
+      activeDelays[stdUrl] = {
+        startTime: now,
+        completed: false
+      };
+      chrome.storage.local.set({ activeDelays });
+      chrome.tabs.update(tabId, {
+        url: chrome.runtime.getURL("gate.html") + "?url=" + encodeURIComponent(url)
+      });
+    }
+  }
+  chrome.webNavigation.onBeforeNavigate.addListener(
+    (details) => {
+      if (details.frameId !== 0) return;
+      handleSearchInterception(details.tabId, details.url);
+    },
+    { url: [{ schemes: ["http", "https"] }] }
+  );
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.url) {
+      handleSearchInterception(tabId, changeInfo.url);
+      chrome.tabs.sendMessage(tabId, { action: "reapplyRules" }).catch(() => {
+      });
+      chrome.tabs.sendMessage(tabId, { action: "triggerFade" }).catch(() => {
+      });
+    }
+  });
+
+  // src/background/pendingChanges.js
+  var DELAY_TTL_MS = 24 * 60 * 60 * 1e3;
+  function pruneActiveDelays() {
+    const now = Date.now();
+    let changed = false;
+    for (const key of Object.keys(activeDelays)) {
+      if (now - activeDelays[key].startTime > DELAY_TTL_MS) {
+        delete activeDelays[key];
+        changed = true;
+      }
+    }
+    if (changed) chrome.storage.local.set({ activeDelays });
+  }
+  async function checkPendingIncrease() {
+    const result = await chrome.storage.sync.get(["pendingIncrease"]);
+    const pending = result.pendingIncrease;
+    if (pending && pending.targetLimit !== void 0 && pending.startTime) {
+      const elapsed = Date.now() - pending.startTime;
+      const duration = 30 * 60 * 1e3;
+      if (elapsed >= duration) {
+        await chrome.storage.sync.set({ tabLimit: pending.targetLimit });
+        await chrome.storage.sync.remove("pendingIncrease");
+        setTabLimit(pending.targetLimit);
+        enforceTabLimit();
+      } else {
+        setTimeout(checkPendingIncrease, Math.min(duration - elapsed, 6e4));
+      }
+    }
+  }
+  async function checkPendingDelayDecrease() {
+    const result = await chrome.storage.sync.get(["pendingDelayDecrease"]);
+    const pending = result.pendingDelayDecrease;
+    if (pending && pending.targetDelay !== void 0 && pending.startTime) {
+      const elapsed = Date.now() - pending.startTime;
+      const duration = 30 * 60 * 1e3;
+      if (elapsed >= duration) {
+        await chrome.storage.sync.set({ searchDelaySeconds: pending.targetDelay });
+        await chrome.storage.sync.remove("pendingDelayDecrease");
+        setSearchDelayMs(pending.targetDelay * 1e3);
+      } else {
+        setTimeout(checkPendingDelayDecrease, Math.min(duration - elapsed, 6e4));
+      }
+    }
+  }
+
+  // src/background/removerController.js
+  var STATE_KEY = "rheTabStates";
+  async function readStates() {
+    try {
+      const r = await chrome.storage.session.get(STATE_KEY);
+      return r[STATE_KEY] || {};
+    } catch (e) {
+      return {};
+    }
+  }
+  async function writeStates(states) {
+    try {
+      await chrome.storage.session.set({ [STATE_KEY]: states });
+    } catch (e) {
+    }
+  }
+  async function getTabState(tabId) {
+    if (tabId == null) return "OFF";
+    const s = await readStates();
+    return s[tabId] || "OFF";
+  }
+  async function setTabState(tabId, state) {
+    if (tabId == null) return;
+    const s = await readStates();
+    if (state === "ON") s[tabId] = "ON";
+    else delete s[tabId];
+    await writeStates(s);
+    try {
+      chrome.action.setTitle({ tabId, title: "Detractless Remover - " + state });
+    } catch (e) {
+    }
+  }
+  function injectElementRemover(tabId) {
+    chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["src/dist/inject.bundle.js"]
+    }, () => {
+      if (chrome.runtime.lastError) {
+        console.error(chrome.runtime.lastError);
+        return;
+      }
+      chrome.scripting.insertCSS({
+        target: { tabId },
+        files: ["src/content/elementRemover/inject.css"]
+      });
+      setTimeout(() => {
+        chrome.tabs.sendMessage(tabId, { method: "state", data: { state: "ON" }, path: "background-to-page" }, () => void chrome.runtime.lastError);
+      }, 100);
+    });
+  }
+  async function toggleRemoverForTab(tabId) {
+    const next = await getTabState(tabId) === "ON" ? "OFF" : "ON";
+    await setTabState(tabId, next);
+    chrome.tabs.sendMessage(tabId, { method: "state", data: { state: next }, path: "background-to-page" }, () => {
+      if (chrome.runtime.lastError && next === "ON") injectElementRemover(tabId);
+    });
+    return next;
+  }
+  async function getRemoverState(tabId) {
+    return getTabState(tabId);
+  }
+  chrome.action.onClicked.addListener(async (tab) => {
+    if (!tab || !tab.id || !tab.url || tab.url.startsWith("chrome://")) return;
+    await toggleRemoverForTab(tab.id);
+  });
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.status === "loading") setTabState(tabId, "OFF");
+  });
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    setTabState(tabId, "OFF");
+  });
+  function handleElementRemoverMessage(message, sender) {
+    const tabId = sender.tab && sender.tab.id;
+    if (tabId == null) return;
+    if (message.method === "state") {
+      getTabState(tabId).then((state) => {
+        chrome.tabs.sendMessage(tabId, { method: "state", data: { state }, path: "background-to-page" }, () => void chrome.runtime.lastError);
+      });
+    } else if (message.method === "store" && message.data && message.data.state) {
+      setTabState(tabId, message.data.state).then(() => {
+        chrome.tabs.sendMessage(tabId, { method: "state", data: { state: message.data.state }, path: "background-to-page" }, () => void chrome.runtime.lastError);
+      });
+    }
+  }
+
+  // src/background/messaging.js
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === "enforceLimit") {
+      enforceTabLimit().then(() => sendResponse({ success: true }));
+      return true;
+    }
+    if (message.action === "startIncrease") {
+      checkPendingIncrease();
+      sendResponse({ success: true });
+      return true;
+    }
+    if (message.action === "cancelIncrease") {
+      sendResponse({ success: true });
+      return true;
+    }
+    if (message.action === "updateSearchDelay") {
+      setSearchDelayMs(message.delaySeconds * 1e3);
+      sendResponse({ success: true });
+      return true;
+    }
+    if (message.action === "startDelayDecrease") {
+      checkPendingDelayDecrease();
+      sendResponse({ success: true });
+      return true;
+    }
+    if (message.action === "cancelDelayDecrease") {
+      sendResponse({ success: true });
+      return true;
+    }
+    if (message.action === "checkDelayStatus") {
+      const stdUrl = standardiseUrl(message.url);
+      const delayInfo = activeDelays[stdUrl];
+      if (!delayInfo) {
+        sendResponse({ inDelay: false });
+        return true;
+      }
+      const now = Date.now();
+      const elapsed = now - delayInfo.startTime;
+      const remaining = Math.max(0, searchDelayMs - elapsed);
+      sendResponse({
+        inDelay: true,
+        completed: delayInfo.completed,
+        remainingSeconds: Math.ceil(remaining / 1e3),
+        showRevealButton: remaining === 0 && !delayInfo.completed
+      });
+      return true;
+    }
+    if (message.action === "markDelayCompleted") {
+      const stdUrl = standardiseUrl(message.url);
+      if (activeDelays[stdUrl]) {
+        activeDelays[stdUrl].completed = true;
+        pruneActiveDelays();
+        chrome.storage.local.set({ activeDelays });
+      }
+      sendResponse({ success: true });
+      return true;
+    }
+    if (message.action === "toggleRemoverOnTab") {
+      toggleRemoverForTab(message.tabId).then((state) => sendResponse({ state }));
+      return true;
+    }
+    if (message.action === "getRemoverState") {
+      getRemoverState(message.tabId).then((state) => sendResponse({ state }));
+      return true;
+    }
+    if (message.path === "page-to-background") {
+      handleElementRemoverMessage(message, sender, sendResponse);
+      return true;
+    }
+    return false;
+  });
+
+  // src/background/stateSync.js
+  var initializeState = async () => {
+    try {
+      const result = await chrome.storage.sync.get(["tabLimit", "managementMethod", "searchDelaySeconds", "customSearchEngines"]);
+      if (result.tabLimit !== void 0) setTabLimit(result.tabLimit);
+      else setTabLimit(0);
+      if (result.managementMethod !== void 0) setManagementMethod(result.managementMethod);
+      if (result.searchDelaySeconds !== void 0) {
+        setSearchDelayMs(result.searchDelaySeconds * 1e3);
+      } else {
+        setSearchDelayMs(0);
+      }
+      if (result.customSearchEngines) {
+        setManagedEngines(result.customSearchEngines);
+      }
+      const localResult = await chrome.storage.local.get(["activeDelays"]);
+      setActiveDelays(localResult.activeDelays || {});
+      pruneActiveDelays();
+      enforceTabLimit();
+      setTimeout(() => enforceTabLimit(), 1e3);
+      checkPendingIncrease();
+      checkPendingDelayDecrease();
+      console.log("Detractless background state initialized");
+    } catch (e) {
+      console.error("Error initializing background state:", e);
+    }
+  };
+  initializeState();
+  chrome.runtime.onInstalled.addListener(() => {
+    chrome.storage.sync.get(["tabLimit", "managementMethod", "searchDelaySeconds", "showQueryOnDelay", "customSearchEngines"], (result) => {
+      if (result.tabLimit === void 0) chrome.storage.sync.set({ tabLimit: 0 });
+      if (result.managementMethod === void 0) chrome.storage.sync.set({ managementMethod: "block" });
+      if (result.searchDelaySeconds === void 0) chrome.storage.sync.set({ searchDelaySeconds: 0 });
+      if (result.showQueryOnDelay === void 0) chrome.storage.sync.set({ showQueryOnDelay: true });
+      if (result.customSearchEngines === void 0) chrome.storage.sync.set({ customSearchEngines: {} });
+    });
+    chrome.storage.local.set({ activeDelays: {} });
+  });
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === "sync") {
+      if (changes.tabLimit) {
+        setTabLimit(changes.tabLimit.newValue);
+        enforceTabLimit();
+      }
+      if (changes.managementMethod) {
+        setManagementMethod(changes.managementMethod.newValue);
+      }
+      if (changes.searchDelaySeconds) {
+        setSearchDelayMs(changes.searchDelaySeconds.newValue * 1e3);
+      }
+      if (changes.customSearchEngines) {
+        setManagedEngines(changes.customSearchEngines.newValue);
+      }
+    }
+  });
+
+  // src/pastekit/utils/messages.js
+  var MSG = {
+    // service-worker DB API (popup/options/content -> SW)
+    SNIPPET_LIST: "snippet.list",
+    SNIPPET_GET_BY_NAME: "snippet.getByName",
+    SNIPPET_SEARCH: "snippet.search",
+    // Content-script surface. SUGGEST returns {id, name} only — never snippet
+    // bodies — so a page's renderer never holds content it has no use for. GET
+    // pulls the single snippet the user actually chose, at commit time.
+    SNIPPET_SUGGEST: "snippet.suggest",
+    SNIPPET_GET: "snippet.get",
+    SNIPPET_SAVE: "snippet.save",
+    SNIPPET_DELETE: "snippet.delete",
+    FOLDER_LIST: "folder.list",
+    FOLDER_SAVE: "folder.save",
+    FOLDER_DELETE: "folder.delete",
+    TAG_LIST: "tag.list",
+    EXPORT_JSON: "export.json",
+    IMPORT_JSON: "import.json",
+    // broadcast (SW -> everyone, fire-and-forget)
+    SNIPPETS_CHANGED: "snippets.changed",
+    // fill mode (popup -> tab content script; CS -> SW)
+    FILL_START: "fill.start",
+    FILL_STATUS: "fill.status",
+    FILL_CANCEL: "fill.cancel",
+    FILL_ENDED: "fill.ended",
+    FILL_ADVANCE: "fill.advance",
+    // quick clip via context menu (SW <-> tab content script)
+    GET_SELECTION: "clip.getSelection",
+    CLIP_SAVED: "clip.saved"
+  };
+
+  // src/pastekit/utils/fuzzyMatch.js
+  function fuzzyScore(needle, hay) {
+    let hi = 0, score = 0, streak = 0;
+    for (let i = 0; i < needle.length; i++) {
+      const idx = hay.indexOf(needle[i], hi);
+      if (idx === -1) return 0;
+      streak = idx === hi ? streak + 1 : 0;
+      score += 1 + streak;
+      if (idx === 0) score += 2;
+      hi = idx + 1;
+    }
+    return score;
+  }
+
+  // src/pastekit/services/db.js
+  var DB_NAME = "pastekit";
+  var DB_VERSION = 2;
+  var _dbPromise = null;
+  function openDB() {
+    if (_dbPromise) return _dbPromise;
+    _dbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (event) => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains("snippets")) {
+          db.createObjectStore("snippets", { keyPath: "id", autoIncrement: true });
+        }
+        if (!db.objectStoreNames.contains("folders")) {
+          const f = db.createObjectStore("folders", { keyPath: "id", autoIncrement: true });
+          f.createIndex("name", "name");
+          f.createIndex("parentId", "parentId");
+        }
+        if (!db.objectStoreNames.contains("settings"))
+          db.createObjectStore("settings", { keyPath: "key" });
+        if (event.oldVersion >= 1 && event.oldVersion < 2) {
+          const s = req.transaction.objectStore("snippets");
+          for (const name of ["name", "folderId", "tags", "updatedAt"]) {
+            if (s.indexNames.contains(name)) s.deleteIndex(name);
+          }
+        }
+      };
+      req.onsuccess = () => {
+        const db = req.result;
+        db.onclose = () => {
+          _dbPromise = null;
+        };
+        resolve(db);
+      };
+      req.onerror = () => {
+        _dbPromise = null;
+        reject(req.error);
+      };
+    });
+    return _dbPromise;
+  }
+  var p = (req) => new Promise((res, rej) => {
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+  var txDone = (tx) => new Promise((res, rej) => {
+    tx.oncomplete = () => res(void 0);
+    tx.onerror = () => rej(tx.error);
+    tx.onabort = () => rej(tx.error || new Error("transaction aborted"));
+  });
+  async function store(name, mode) {
+    const db = await openDB();
+    const tx = db.transaction(name, mode || "readonly");
+    return { tx, os: tx.objectStore(name) };
+  }
+  async function readSnippetRows() {
+    const { os } = await store("snippets");
+    return p(os.getAll());
+  }
+  async function readAllSnippets() {
+    return readSnippetRows();
+  }
+  async function listSnippets(folderId) {
+    const all = await readAllSnippets();
+    if (folderId == null) return all;
+    return all.filter((s) => s.folderId === folderId);
+  }
+  async function getSnippetByName(name) {
+    const all = await readAllSnippets();
+    return all.find((s) => s.name === name) || null;
+  }
+  async function getSnippet(id) {
+    const { os } = await store("snippets");
+    const row = await p(os.get(id));
+    if (!row) return void 0;
+    return row;
+  }
+  async function suggestSnippets(query, limit) {
+    const all = await listSnippets(null);
+    const raw = String(query || "").trim().toLowerCase();
+    const max = Number(limit) > 0 ? Number(limit) : 8;
+    const scored = [];
+    for (const s of all) {
+      const name = s.name || "";
+      if (!raw) {
+        scored.push({ s, score: 0 });
+        continue;
+      }
+      const score = fuzzyScore(raw, name.toLowerCase());
+      if (score > 0) scored.push({ s, score });
+    }
+    scored.sort((a, b) => b.score - a.score || byName(a.s, b.s));
+    return scored.slice(0, max).map(({ s }) => ({ id: s.id, name: s.name, description: s.description }));
+  }
+  async function searchSnippets(query, folderId) {
+    const all = await (folderId == null ? listSnippets(null) : listSnippets(folderId));
+    const raw = String(query || "").trim().toLowerCase();
+    if (!raw) return all.slice().sort(byName);
+    const tagFilters = [];
+    const textQ = raw.replace(/#(\S+)/g, (_, t) => {
+      tagFilters.push(t);
+      return "";
+    }).trim();
+    const scored = [];
+    for (const s of all) {
+      const sTags = (s.tags || []).map((t) => t.toLowerCase());
+      if (tagFilters.length && !tagFilters.every((f) => sTags.some((t) => t === f || t.startsWith(f)))) continue;
+      if (!textQ) {
+        scored.push({ s, score: 0 });
+        continue;
+      }
+      const score = fuzzyScore(textQ, (s.name || "").toLowerCase());
+      const hay = (s.name + " " + (s.description || "") + " " + sTags.join(" ")).toLowerCase();
+      if (score > 0 || hay.indexOf(textQ) !== -1)
+        scored.push({ s, score: score || 0.1 });
+    }
+    scored.sort((a, b) => b.score - a.score || byName(a.s, b.s));
+    return scored.map((x) => x.s);
+  }
+  function byName(a, b) {
+    return (a.name || "").localeCompare(b.name || "");
+  }
+  async function saveSnippet(snippet) {
+    const now = Date.now();
+    const rec = Object.assign({}, snippet);
+    rec.name = String(rec.name || "").trim();
+    if (!rec.name) throw new Error("Snippet name is required");
+    rec.folderId = rec.folderId == null ? 0 : rec.folderId;
+    rec.tags = Array.isArray(rec.tags) ? rec.tags.filter(Boolean) : [];
+    rec.contentText = rec.contentText || "";
+    rec.contentHtml = rec.contentHtml || "";
+    rec.description = rec.description || "";
+    rec.updatedAt = now;
+    if (rec.id == null) rec.createdAt = now;
+    else if (rec.createdAt == null) rec.createdAt = now;
+    const existing = await getSnippetByName(rec.name);
+    if (existing && existing.id !== rec.id)
+      throw new Error("Token already in use: " + rec.name);
+    const { tx, os } = await store("snippets", "readwrite");
+    const key = await p(os.put(rec));
+    await txDone(tx);
+    return key;
+  }
+  async function deleteSnippet(id) {
+    const { tx, os } = await store("snippets", "readwrite");
+    os.delete(id);
+    await txDone(tx);
+    return true;
+  }
+  async function listFolders() {
+    const { os } = await store("folders");
+    const arr = await p(os.getAll());
+    return arr.sort(byName);
+  }
+  async function saveFolder(folder) {
+    const now = Date.now();
+    const rec = Object.assign({}, folder);
+    rec.name = String(rec.name || "").trim();
+    if (!rec.name) throw new Error("Folder name is required");
+    rec.parentId = rec.parentId == null ? 0 : rec.parentId;
+    if (rec.id == null) rec.createdAt = now;
+    const { tx, os } = await store("folders", "readwrite");
+    const key = await p(os.put(rec));
+    await txDone(tx);
+    return key;
+  }
+  async function deleteFolder(id) {
+    const all = await readAllSnippets();
+    const rows = all.filter((s) => s.folderId === id);
+    for (const s of rows) s.folderId = 0;
+    const db = await openDB();
+    const tx = db.transaction(["folders", "snippets"], "readwrite");
+    const sOs = tx.objectStore("snippets");
+    for (const row of rows) sOs.put(row);
+    tx.objectStore("folders").delete(id);
+    await txDone(tx);
+    return true;
+  }
+  async function listTags() {
+    const all = await listSnippets(null);
+    const set = /* @__PURE__ */ new Set();
+    for (const s of all) for (const t of s.tags || []) set.add(t);
+    return Array.from(set).sort();
+  }
+  var FORMAT = "pastekit-snippets";
+  var CURRENT_VERSION = 1;
+  async function buildExport() {
+    const [folders, snippets] = await Promise.all([listFolders(), listSnippets(null)]);
+    const folderXid = /* @__PURE__ */ new Map();
+    folders.forEach((f, i) => folderXid.set(f.id, "f" + (i + 1)));
+    return {
+      format: FORMAT,
+      version: CURRENT_VERSION,
+      createdBy: "Pastekit-v2-zerodep/0.1.0",
+      exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      folders: folders.map((f) => ({
+        xid: folderXid.get(f.id),
+        name: f.name,
+        parentXid: f.parentId && folderXid.get(f.parentId) ? folderXid.get(f.parentId) : null
+      })),
+      snippets: snippets.map((s) => ({
+        name: s.name,
+        description: s.description || "",
+        contentText: s.contentText || "",
+        contentHtml: s.contentHtml || "",
+        folderXid: s.folderId && folderXid.get(s.folderId) ? folderXid.get(s.folderId) : null,
+        tags: s.tags || [],
+        createdAt: new Date(s.createdAt || Date.now()).toISOString(),
+        updatedAt: new Date(s.updatedAt || Date.now()).toISOString()
+      }))
+    };
+  }
+  async function importJson(data, mode) {
+    mode = mode || "skip";
+    if (!data || data.format !== FORMAT) throw new Error("Not a Pastekit export file");
+    const v = parseInt(data.version, 10);
+    if (!Number.isFinite(v)) throw new Error("Missing/invalid version");
+    if (v > CURRENT_VERSION) throw new Error("File is from a newer Pastekit version (" + v + ")");
+    const report = { foldersAdded: 0, snippetsAdded: 0, skipped: 0, replaced: 0, renamed: 0 };
+    const existingSnippets = await readAllSnippets();
+    const snippetByName = new Map(existingSnippets.map((s) => [s.name, s]));
+    const inputFolders = Array.isArray(data.folders) ? data.folders : [];
+    const { tx: fTx, os: fOs } = await store("folders", "readwrite");
+    const existingFolders = await p(fOs.getAll());
+    const folderByName = new Map(existingFolders.map((f) => [f.name, f]));
+    const xidToId = await importFolders(fOs, inputFolders, folderByName, report);
+    await linkFolderParents(fOs, inputFolders, xidToId);
+    await txDone(fTx);
+    const inputSnippets = Array.isArray(data.snippets) ? data.snippets : [];
+    const rows = planSnippetImport(inputSnippets, xidToId, snippetByName, mode, report);
+    if (rows.length) {
+      const { tx, os } = await store("snippets", "readwrite");
+      for (const row of rows) row.id == null ? os.add(row) : os.put(row);
+      await txDone(tx);
+    }
+    return report;
+  }
+  function planSnippetImport(inputSnippets, xidToId, snippetByName, mode, report) {
+    const now = Date.now();
+    const out = [];
+    for (const s of inputSnippets) {
+      const base = buildSnippetRecord(s, xidToId, now);
+      if (!base.name) continue;
+      const clash = snippetByName.get(base.name);
+      if (clash && mode === "skip") {
+        report.skipped++;
+        continue;
+      }
+      if (clash && mode === "replace") {
+        base.id = clash.id;
+        base.createdAt = clash.createdAt || base.createdAt;
+        snippetByName.set(base.name, base);
+        report.replaced++;
+        out.push(base);
+        continue;
+      }
+      if (clash && mode === "rename") {
+        base.name = renamedCandidate(base.name, snippetByName);
+        report.renamed++;
+      }
+      snippetByName.set(base.name, base);
+      report.snippetsAdded++;
+      out.push(base);
+    }
+    return out;
+  }
+  async function importFolders(fOs, inputFolders, folderByName, report) {
+    const xidToId = /* @__PURE__ */ new Map();
+    for (const f of inputFolders) {
+      const name = String(f.name || "").trim();
+      if (!name) continue;
+      const existing = folderByName.get(name);
+      if (existing) {
+        xidToId.set(f.xid, existing.id);
+        continue;
+      }
+      const rec = { name, parentId: 0, createdAt: Date.now() };
+      const id = await p(fOs.add(rec));
+      xidToId.set(f.xid, id);
+      folderByName.set(name, Object.assign({ id }, rec));
+      report.foldersAdded++;
+    }
+    return xidToId;
+  }
+  async function linkFolderParents(fOs, inputFolders, xidToId) {
+    for (const f of inputFolders) {
+      if (!f.parentXid) continue;
+      const id = xidToId.get(f.xid), pid = xidToId.get(f.parentXid);
+      if (id != null && pid != null) {
+        const rec = await p(fOs.get(id));
+        if (rec) {
+          rec.parentId = pid;
+          fOs.put(rec);
+        }
+      }
+    }
+  }
+  function buildSnippetRecord(s, xidToId, now) {
+    const folderXid = s.folderXid;
+    const folderId = folderXid && xidToId.get(folderXid) != null ? xidToId.get(folderXid) : 0;
+    return {
+      name: String(s.name || "").trim(),
+      description: s.description || "",
+      contentText: s.contentText || "",
+      contentHtml: s.contentHtml || "",
+      folderId,
+      tags: Array.isArray(s.tags) ? s.tags.filter(Boolean) : [],
+      createdAt: s.createdAt ? Date.parse(s.createdAt) || now : now,
+      updatedAt: now
+    };
+  }
+  function renamedCandidate(name, snippetByName) {
+    let n = 2, candidate;
+    do {
+      candidate = name + "-" + n++;
+    } while (snippetByName.has(candidate));
+    return candidate;
+  }
+
+  // src/pastekit/services/broadcast.js
+  function broadcast() {
+    try {
+      chrome.runtime.sendMessage({ type: MSG.SNIPPETS_CHANGED }).catch(() => {
+      });
+    } catch (_) {
+    }
+    try {
+      chrome.tabs.query({}, (tabs) => {
+        for (const t of tabs) {
+          if (t.id == null) continue;
+          try {
+            chrome.tabs.sendMessage(t.id, { type: MSG.SNIPPETS_CHANGED }).catch(() => {
+            });
+          } catch (_) {
+          }
+        }
+      });
+    } catch (_) {
+    }
+  }
+
+  // src/pastekit/services/messageHub.js
+  function fromContentScript(sender) {
+    return !!(sender && sender.tab);
+  }
+  var SNIPPET_PAYLOAD_TYPES = /* @__PURE__ */ new Set([
+    MSG.SNIPPET_LIST,
+    MSG.SNIPPET_GET_BY_NAME,
+    MSG.SNIPPET_SEARCH,
+    MSG.SNIPPET_GET,
+    MSG.SNIPPET_SUGGEST
+  ]);
+  var LIST_TYPES = /* @__PURE__ */ new Set([MSG.SNIPPET_LIST, MSG.SNIPPET_SEARCH, MSG.SNIPPET_SUGGEST]);
+  function isListType(type) {
+    return LIST_TYPES.has(type);
+  }
+  var HANDLERS = {
+    [MSG.SNIPPET_LIST]: (m) => listSnippets(m.folderId == null ? null : m.folderId),
+    [MSG.SNIPPET_GET_BY_NAME]: (m) => getSnippetByName(m.name),
+    [MSG.SNIPPET_SEARCH]: (m) => searchSnippets(m.query, m.folderId),
+    [MSG.SNIPPET_SUGGEST]: (m) => suggestSnippets(m.query, m.limit),
+    [MSG.SNIPPET_GET]: (m) => getSnippet(m.id),
+    [MSG.SNIPPET_SAVE]: (m) => saveSnippet(m.snippet).then(broadcastAfter),
+    [MSG.SNIPPET_DELETE]: (m) => deleteSnippet(m.id).then(broadcastAfter),
+    [MSG.FOLDER_LIST]: () => listFolders(),
+    [MSG.FOLDER_SAVE]: (m) => saveFolder(m.folder).then(broadcastAfter),
+    [MSG.FOLDER_DELETE]: (m) => deleteFolder(m.id).then(broadcastAfter),
+    [MSG.TAG_LIST]: () => listTags(),
+    [MSG.EXPORT_JSON]: () => buildExport(),
+    [MSG.IMPORT_JSON]: (m) => importJson(m.json, m.mode).then((r) => {
+      broadcast();
+      return r;
+    })
+  };
+  function broadcastAfter(result) {
+    broadcast();
+    return result;
+  }
+  function initMessageHub() {
+    chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+      const handler = msg && HANDLERS[msg.type];
+      if (!handler) return;
+      if (!sender || sender.id !== chrome.runtime.id) return;
+      Promise.resolve(handler(msg, sender)).then((result) => sendResponse({ ok: true, result })).catch((err) => {
+        if (err && err.locked && fromContentScript(sender)) {
+          sendResponse({ ok: true, result: SNIPPET_PAYLOAD_TYPES.has(msg.type) && isListType(msg.type) ? [] : null });
+          return;
+        }
+        sendResponse({ ok: false, error: String(err && err.message ? err.message : err) });
+      });
+      return true;
+    });
+  }
+
+  // src/pastekit/utils/settings.js
+  var SETTINGS_KEY = "pastekit.settings";
+  var DEFAULT_SETTINGS = {
+    tokenSystem: true,
+    // master switch for @ token engine
+    tokenAutocomplete: true,
+    // show @ dropdown while typing
+    fieldDot: true,
+    // show the Grammarly-style field dot
+    smartDetect: true,
+    // detectFieldType-based ranking in the picker
+    pickerLimit: 10,
+    // max visible rows in the field-dot picker (1–15)
+    dotMode: "always"
+    // 'always' | 'hover' | 'focus'
+  };
+
+  // src/pastekit/services/install.js
+  function initInstall() {
+    chrome.runtime.onInstalled.addListener((details) => {
+      if (details.reason !== "install") return;
+      seed().catch((e) => console.error("[Pastekit] seed failed", e));
+    });
+  }
+  async function seed() {
+    try {
+      const existing = await chrome.storage.local.get(SETTINGS_KEY);
+      if (!existing || !existing[SETTINGS_KEY])
+        await chrome.storage.local.set({ [SETTINGS_KEY]: DEFAULT_SETTINGS });
+    } catch (_) {
+    }
+  }
+
+  // src/pastekit/services/action.js
+  function initAction() {
+    try {
+      chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((e) => console.error("[Pastekit] sidePanel behavior failed", e));
+    } catch (e) {
+      console.error("[Pastekit] sidePanel API unavailable", e);
+    }
+  }
+
+  // src/pastekit/services/clip.js
+  var MENU_ID = "pastekit-save-selection";
+  function initClipMenu() {
+    chrome.runtime.onInstalled.addListener(() => {
+      chrome.contextMenus.removeAll(() => {
+        chrome.contextMenus.create({
+          id: MENU_ID,
+          title: "Save to Pastekit",
+          contexts: ["selection"]
+        });
+      });
+    });
+    chrome.contextMenus.onClicked.addListener(onMenuClicked);
+  }
+  async function onMenuClicked(info, tab) {
+    if (info.menuItemId !== MENU_ID || !tab || tab.id == null) return;
+    let text = "", html = "";
+    try {
+      const res = await chrome.tabs.sendMessage(tab.id, { type: MSG.GET_SELECTION });
+      if (res && res.text) {
+        text = res.text;
+        html = res.html || "";
+      }
+    } catch (_) {
+    }
+    if (!text) text = (info.selectionText || "").trim();
+    if (!text) return;
+    try {
+      const name = await uniqueName(suggestName(text, tab.title || ""));
+      await saveSnippet({
+        name,
+        description: tab.title ? "Clipped from " + tab.title : "Clipped selection",
+        folderId: 0,
+        tags: ["clipped"],
+        contentText: text,
+        contentHtml: html
+      });
+      broadcast();
+      notify(tab.id, { ok: true, name });
+    } catch (e) {
+      console.error("[Pastekit] quick save failed", e);
+      notify(tab.id, { ok: false, error: String(e && e.message ? e.message : e) });
+    }
+  }
+  var STOPWORDS = /* @__PURE__ */ new Set([
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "but",
+    "if",
+    "of",
+    "to",
+    "in",
+    "on",
+    "at",
+    "for",
+    "with",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "it",
+    "its",
+    "this",
+    "that",
+    "these",
+    "those",
+    "i",
+    "you",
+    "we",
+    "they",
+    "he",
+    "she",
+    "my",
+    "your",
+    "our",
+    "as",
+    "by",
+    "from",
+    "so"
+  ]);
+  function suggestName(text, pageTitle) {
+    const t = text.trim();
+    if (/^https?:\/\/\S+$/i.test(t)) {
+      try {
+        return slug(new URL(t).hostname.replace(/^www\./, ""));
+      } catch (_) {
+      }
+    }
+    const email = t.match(/^([A-Za-z0-9._%+-]+)@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/);
+    if (email) return slug(email[1]);
+    let name = firstWordsSlug(t);
+    if (!name || /^[\d-]+$/.test(name)) name = firstWordsSlug(pageTitle);
+    return name || "clip";
+  }
+  function firstWordsSlug(s) {
+    const words = String(s || "").replace(/[^\p{L}\p{N}\s-]/gu, " ").split(/\s+/).filter(Boolean);
+    let picked = words.filter((w) => !STOPWORDS.has(w.toLowerCase())).slice(0, 3);
+    if (!picked.length) picked = words.slice(0, 3);
+    return slug(picked.join("-")).slice(0, 24).replace(/-+$/, "");
+  }
+  function slug(s) {
+    return String(s || "").toLowerCase().replace(/[^\p{L}\p{N}-]+/gu, "-").replace(/-{2,}/g, "-").replace(/^-|-$/g, "");
+  }
+  async function uniqueName(base) {
+    if (!base) base = "clip";
+    if (!await getSnippetByName(base)) return base;
+    for (let i = 2; i < 100; i++) {
+      const candidate = base + "-" + i;
+      if (!await getSnippetByName(candidate)) return candidate;
+    }
+    return base + "-" + Date.now();
+  }
+  function notify(tabId, payload) {
+    try {
+      chrome.tabs.sendMessage(tabId, Object.assign({ type: MSG.CLIP_SAVED }, payload)).catch(() => {
+      });
+    } catch (_) {
+    }
+  }
+
+  // src/background/serviceWorker.js
+  initMessageHub();
+  initInstall();
+  initAction();
+  initClipMenu();
+})();
+//# sourceMappingURL=serviceWorker.bundle.js.map

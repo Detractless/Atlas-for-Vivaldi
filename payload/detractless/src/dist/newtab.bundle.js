@@ -1,0 +1,5900 @@
+function sentenceCase(t) { t = String(t || ""); return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase(); }
+(() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __esm = (fn, res) => function __init() {
+    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+  };
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+
+  // src/services/mergeSync.js
+  var TOMBSTONE_WINDOW_MS;
+  var init_mergeSync = __esm({
+    "src/services/mergeSync.js"() {
+      TOMBSTONE_WINDOW_MS = 90 * 24 * 60 * 60 * 1e3;
+    }
+  });
+
+  // src/services/bookmarkSync.js
+  function newBookmarkId() {
+    return typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID() || `bm-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+  function dematerialize(nested, now = Date.now()) {
+    const records = [];
+    let sortIndex = 0;
+    for (const [pageKey, groups] of Object.entries(nested || {})) {
+      if (!pageKey.startsWith("page")) continue;
+      const page = Number(pageKey.slice(4));
+      if (Number.isNaN(page)) continue;
+      for (const [group, list] of Object.entries(groups || {})) {
+        for (const bm of list || []) {
+          if (!bm || bm.name === void 0 && bm.url === void 0) continue;
+          records.push({
+            id: newBookmarkId(),
+            page,
+            group,
+            name: bm.name,
+            url: bm.url,
+            sortIndex: sortIndex++,
+            updatedAt: now,
+            deletedAt: null
+          });
+        }
+      }
+    }
+    return records;
+  }
+  var init_bookmarkSync = __esm({
+    "src/services/bookmarkSync.js"() {
+      init_mergeSync();
+    }
+  });
+
+  // src/services/bookmarksDB.js
+  var BookmarkDB;
+  var init_bookmarksDB = __esm({
+    "src/services/bookmarksDB.js"() {
+      init_bookmarkSync();
+      BookmarkDB = {
+        dbName: "DetractlessBookmarks",
+        // v6 added the `notes` and `events` stores. Both features have been removed and
+        // nothing reads these any more.
+        // v7 adds `bookmarkRecords` (Phase 12): bookmarks as merge-owned records so an
+        // import merges instead of clobbering. The old nested `bookmarks` store is
+        // KEPT, not dropped — it is the backout snapshot until Phase 12 is proven.
+        version: 7,
+        db: null,
+        async init() {
+          // Atlas: each profile may own its bookmarks database (profilesCore.js).
+          if (!this.fixedName && window.AtlasProfiles) {
+            await window.AtlasProfiles.ready;
+            this.dbName = window.AtlasProfiles.dbName();
+          }
+          return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, this.version);
+            request.onerror = () => reject(request.error);
+            request.onblocked = () => {
+              console.warn("[BookmarkDB] init blocked by another open connection");
+              if (this.db) { try { this.db.close(); } catch (_) {} this.db = null; }
+              reject(new Error("BookmarkDB init blocked by open connection"));
+            };
+            request.onsuccess = () => {
+              this.db = request.result;
+              this.db.onversionchange = () => {
+                if (this.db) {
+                  try { this.db.close(); } catch (_) {}
+                  this.db = null;
+                }
+              };
+              resolve(this.db);
+            };
+            request.onupgradeneeded = (event) => {
+              const db = event.target.result;
+              db.onversionchange = () => {
+                try { db.close(); } catch (_) {}
+              };
+              if (!db.objectStoreNames.contains("bookmarks")) db.createObjectStore("bookmarks", { keyPath: "page" });
+              if (!db.objectStoreNames.contains("icons")) db.createObjectStore("icons");
+              if (!db.objectStoreNames.contains("usage")) db.createObjectStore("usage", { keyPath: "url" });
+              if (!db.objectStoreNames.contains("uiPrefs")) {
+                const store2 = db.createObjectStore("uiPrefs", { keyPath: "key" });
+                const themePref = localStorage.getItem("themePref");
+                const uiScaleStr = localStorage.getItem("uiScale");
+                if (themePref) store2.put({ key: "themePref", value: themePref });
+                if (uiScaleStr !== null) {
+                  const scale = parseFloat(uiScaleStr);
+                  if (!isNaN(scale)) store2.put({ key: "uiScale", value: scale });
+                }
+                localStorage.removeItem("themePref");
+                localStorage.removeItem("uiScale");
+              }
+              if (!db.objectStoreNames.contains("notes")) db.createObjectStore("notes", { keyPath: "id" });
+              if (!db.objectStoreNames.contains("events")) db.createObjectStore("events", { keyPath: "id" });
+              if (!db.objectStoreNames.contains("bookmarkRecords")) {
+                db.createObjectStore("bookmarkRecords", { keyPath: "id" });
+              }
+            };
+          });
+        },
+        async getUiPref(key) {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(["uiPrefs"], "readonly");
+            const req = tx.objectStore("uiPrefs").get(key);
+            req.onsuccess = () => resolve(req.result ? req.result.value : void 0);
+            req.onerror = () => reject(req.error);
+          });
+        },
+        async setUiPref(key, value) {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(["uiPrefs"], "readwrite");
+            const req = tx.objectStore("uiPrefs").put({ key, value });
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+          });
+        },
+        async clearUiPrefs() {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(["uiPrefs"], "readwrite");
+            const req = tx.objectStore("uiPrefs").clear();
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+          });
+        },
+        async getBookmarks(pageNumber) {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(["bookmarks"], "readonly");
+            const store2 = transaction.objectStore("bookmarks");
+            const request = store2.get(pageNumber);
+            request.onsuccess = () => resolve(request.result ? request.result.data : {});
+            request.onerror = () => reject(request.error);
+          });
+        },
+        async saveBookmarks(pageNumber, bookmarksData) {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(["bookmarks"], "readwrite");
+            const store2 = transaction.objectStore("bookmarks");
+            const request = store2.put({ page: pageNumber, data: bookmarksData });
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+          });
+        },
+        async saveIcon(id, data) {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(["icons"], "readwrite");
+            const store2 = transaction.objectStore("icons");
+            const request = store2.put(data, id);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+          });
+        },
+        async getIcon(id) {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(["icons"], "readonly");
+            const store2 = transaction.objectStore("icons");
+            const request = store2.get(id);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+        },
+        async deleteIcon(id) {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(["icons"], "readwrite");
+            const store2 = transaction.objectStore("icons");
+            const request = store2.delete(id);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+          });
+        },
+        async deleteBookmarks(pageNumber) {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(["bookmarks"], "readwrite");
+            const store2 = transaction.objectStore("bookmarks");
+            const request = store2.delete(pageNumber);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+          });
+        },
+        async getAllBookmarks() {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(["bookmarks"], "readonly");
+            const store2 = transaction.objectStore("bookmarks");
+            const request = store2.getAll();
+            request.onsuccess = () => {
+              const result = {};
+              request.result.forEach((item) => {
+                result[`page${item.page}`] = item.data;
+              });
+              resolve(result);
+            };
+            request.onerror = () => reject(request.error);
+          });
+        },
+        // ── Bookmark records (Phase 12) ──────────────────────────────────────────
+        //
+        // The nested `bookmarks` store above is the OLD form. Records are the new
+        // merge-owned form. During Phase 12 both exist; the nested store is the backout
+        // snapshot. `getAllBookmarks` still reads nested here (Landing A) and is
+        // repointed to materialise from records in Landing B — which is why the
+        // migration below uses its own raw reader rather than getAllBookmarks, so it
+        // keeps reading the ORIGINAL nested data whatever getAllBookmarks becomes.
+        /** Raw read of the nested `bookmarks` store, independent of getAllBookmarks. */
+        async _getAllNestedBookmarks() {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const request = this.db.transaction(["bookmarks"], "readonly").objectStore("bookmarks").getAll();
+            request.onsuccess = () => {
+              const result = {};
+              request.result.forEach((item) => {
+                result[`page${item.page}`] = item.data;
+              });
+              resolve(result);
+            };
+            request.onerror = () => reject(request.error);
+          });
+        },
+        /* ── Notes (side panel) ──────────────────────────────────────────────
+             Deliberately in THIS database rather than a new one, and deliberately in the
+             `notes` store v6 already created. Two consequences worth stating: reset
+             covers notes for free, because resetService deletes this database whole; and
+             notes are NOT in the pastekit database, so the whole-store lock that gates
+             snippets does not gate them. A note is not a secret and must not be
+             unreachable because the snippet store happens to be locked.
+        
+             A note: { id, title, body, updatedAt }. */
+        async listNotes() {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const request = this.db.transaction(["notes"], "readonly").objectStore("notes").getAll();
+            request.onsuccess = () => {
+              const notes = request.result || [];
+              notes.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+              resolve(notes);
+            };
+            request.onerror = () => reject(request.error);
+          });
+        },
+        async saveNote(note) {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const record = {
+              id: note.id || `note-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              title: note.title || "",
+              body: note.body || "",
+              updatedAt: Date.now()
+            };
+            const tx = this.db.transaction(["notes"], "readwrite");
+            const request = tx.objectStore("notes").put(record);
+            request.onsuccess = () => resolve(record);
+            request.onerror = () => reject(request.error);
+          });
+        },
+        async deleteNote(id) {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(["notes"], "readwrite");
+            const request = tx.objectStore("notes").delete(id);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+          });
+        },
+        async getBookmarkRecords() {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const request = this.db.transaction(["bookmarkRecords"], "readonly").objectStore("bookmarkRecords").getAll();
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = () => reject(request.error);
+          });
+        },
+        /** Rewrite the whole records set in one transaction (clear then put). */
+        async putBookmarkRecords(records) {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(["bookmarkRecords"], "readwrite");
+            const store2 = tx.objectStore("bookmarkRecords");
+            store2.clear();
+            for (const record of records) store2.put(record);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error);
+          });
+        },
+        /**
+         * One-time, NON-DESTRUCTIVE migration: dematerialise the nested bookmarks into
+         * records. The nested store is left untouched. Gated by a flag so it runs once;
+         * it also no-ops if records already exist, so a device that has synced records
+         * down before its own migration ran does not clobber them.
+         */
+        async migrateBookmarksToRecords() {
+          if (!this.db) await this.init();
+          if (await this.getUiPref("bookmarksMigratedToRecords")) return;
+          const existing = await this.getBookmarkRecords();
+          if (existing.length === 0) {
+            const nested = await this._getAllNestedBookmarks();
+            await this.putBookmarkRecords(dematerialize(nested, Date.now()));
+          }
+          await this.setUiPref("bookmarksMigratedToRecords", true);
+        },
+        async importAllBookmarks(data) {
+          if (!this.db) await this.init();
+          const promises = [];
+          Object.keys(data).forEach((key) => {
+            if (key.startsWith("page")) {
+              const pageNum = Number(key.replace("page", ""));
+              if (!isNaN(pageNum)) promises.push(this.saveBookmarks(pageNum, data[key]));
+            }
+          });
+          return Promise.all(promises);
+        },
+        async recordClick(url) {
+          if (!this.db) await this.init();
+          return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(["usage"], "readwrite");
+            const store2 = transaction.objectStore("usage");
+            const getReq = store2.get(url);
+            getReq.onsuccess = () => {
+              const existing = getReq.result ? getReq.result.timestamps : [];
+              const updated = [Date.now(), ...existing].slice(0, 30);
+              const putReq = store2.put({ url, timestamps: updated });
+              putReq.onsuccess = () => resolve();
+              putReq.onerror = () => reject(putReq.error);
+            };
+            getReq.onerror = () => reject(getReq.error);
+          });
+        },
+        async getAllUsageScores() {
+          if (!this.db) await this.init();
+          const HALF_LIFE_MS = 7 * 24 * 60 * 60 * 1e3;
+          return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(["usage"], "readonly");
+            const store2 = transaction.objectStore("usage");
+            const request = store2.getAll();
+            request.onsuccess = () => {
+              const now = Date.now();
+              const scores = /* @__PURE__ */ new Map();
+              request.result.forEach(({ url, timestamps }) => {
+                const score = timestamps.reduce((sum, ts) => sum + Math.exp(-(now - ts) / HALF_LIFE_MS), 0);
+                scores.set(url, score);
+              });
+              resolve(scores);
+            };
+            request.onerror = () => reject(request.error);
+          });
+        },
+        async migrateFromChromeStorage() {
+          return new Promise((resolve) => {
+            window.chrome.storage.sync.get(
+              ["bookmarks-page-1", "bookmarks-page-2", "bookmarks-page-3", "bookmarks-migrated"],
+              async (result) => {
+                if (result["bookmarks-migrated"]) {
+                  resolve(false);
+                  return;
+                }
+                let hasMigrated = false;
+                if (result["bookmarks-page-1"]) {
+                  await this.saveBookmarks(1, result["bookmarks-page-1"]);
+                  hasMigrated = true;
+                }
+                if (result["bookmarks-page-2"]) {
+                  await this.saveBookmarks(2, result["bookmarks-page-2"]);
+                  hasMigrated = true;
+                }
+                if (result["bookmarks-page-3"]) {
+                  await this.saveBookmarks(3, result["bookmarks-page-3"]);
+                  hasMigrated = true;
+                }
+                if (hasMigrated) {
+                  window.chrome.storage.sync.set({ "bookmarks-migrated": true });
+                  window.chrome.storage.sync.remove(["bookmarks-page-1", "bookmarks-page-2", "bookmarks-page-3"]);
+                }
+                resolve(hasMigrated);
+              }
+            );
+          });
+        }
+      };
+    }
+  });
+
+  // src/components/contextMenu/contextMenu.css
+  var init_contextMenu = __esm({
+    "src/components/contextMenu/contextMenu.css"() {
+    }
+  });
+
+  // src/components/contextMenu/contextMenu.js
+  var ContextMenu;
+  var init_contextMenu2 = __esm({
+    "src/components/contextMenu/contextMenu.js"() {
+      init_contextMenu();
+      ContextMenu = {
+        menu: null,
+        disabled: false,
+        init() {
+          this.menu = document.createElement("div");
+          this.menu.className = "context-menu";
+          document.body.appendChild(this.menu);
+          document.addEventListener("click", () => this.close());
+          document.addEventListener("contextmenu", (e) => {
+            if (this.disabled) return;
+            if (e.target.closest(".context-menu")) return;
+            if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable) {
+              this.close();
+              return;
+            }
+          });
+          window.addEventListener("blur", () => this.close());
+        },
+        show(event, items) {
+          event.preventDefault();
+          event.stopPropagation();
+          this._renderItems(items);
+          this.menu.classList.add("visible");
+          this._position(event.clientX, event.clientY);
+        },
+        showRename(currentName, onConfirm) {
+          this.menu.innerHTML = "";
+          const wrap = document.createElement("div");
+          wrap.className = "context-menu-inline";
+          wrap.onclick = (e) => e.stopPropagation();
+          const input = document.createElement("input");
+          input.type = "text";
+          input.className = "context-menu-input";
+          input.value = currentName;
+          const actions = document.createElement("div");
+          actions.className = "context-menu-actions";
+          const cancel = document.createElement("button");
+          cancel.className = "context-menu-action-btn";
+          cancel.textContent = "Cancel";
+          cancel.onclick = () => this.close();
+          const confirm2 = document.createElement("button");
+          confirm2.className = "context-menu-action-btn primary";
+          confirm2.textContent = "Rename";
+          confirm2.onclick = () => {
+            const val = input.value.trim();
+            if (val) {
+              onConfirm(val);
+              this.close();
+            }
+          };
+          input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+              const val = input.value.trim();
+              if (val) {
+                onConfirm(val);
+                this.close();
+              }
+            }
+            if (e.key === "Escape") this.close();
+          });
+          actions.appendChild(cancel);
+          actions.appendChild(confirm2);
+          wrap.appendChild(input);
+          wrap.appendChild(actions);
+          this.menu.appendChild(wrap);
+          requestAnimationFrame(() => {
+            input.focus();
+            input.select();
+          });
+        },
+        showInput(currentValue, buttonLabel, onConfirm) {
+          this.menu.innerHTML = "";
+          const wrap = document.createElement("div");
+          wrap.className = "context-menu-inline";
+          wrap.onclick = (e) => e.stopPropagation();
+          const input = document.createElement("input");
+          input.type = "text";
+          input.className = "context-menu-input";
+          input.value = currentValue;
+          const actions = document.createElement("div");
+          actions.className = "context-menu-actions";
+          const cancel = document.createElement("button");
+          cancel.className = "context-menu-action-btn";
+          cancel.textContent = "Cancel";
+          cancel.onclick = () => this.close();
+          const confirm2 = document.createElement("button");
+          confirm2.className = "context-menu-action-btn primary";
+          confirm2.textContent = buttonLabel;
+          confirm2.onclick = () => {
+            const val = input.value.trim();
+            if (val) {
+              onConfirm(val);
+              this.close();
+            }
+          };
+          input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+              const val = input.value.trim();
+              if (val) {
+                onConfirm(val);
+                this.close();
+              }
+            }
+            if (e.key === "Escape") this.close();
+          });
+          actions.appendChild(cancel);
+          actions.appendChild(confirm2);
+          wrap.appendChild(input);
+          wrap.appendChild(actions);
+          this.menu.appendChild(wrap);
+          requestAnimationFrame(() => {
+            input.focus();
+            input.select();
+          });
+        },
+        showSelect(options, onSelect) {
+          this.menu.innerHTML = "";
+          const ul = document.createElement("ul");
+          ul.className = "context-menu-list";
+          ul.onclick = (e) => e.stopPropagation();
+          options.forEach((opt) => {
+            const li = document.createElement("li");
+            li.className = "context-menu-item";
+            const btn = document.createElement("button");
+            btn.className = "context-menu-btn";
+            btn.textContent = opt.label;
+            btn.onclick = () => {
+              onSelect(opt.value);
+              this.close();
+            };
+            li.appendChild(btn);
+            ul.appendChild(li);
+          });
+          this.menu.appendChild(ul);
+        },
+        showConfirm(label, onConfirm) {
+          this.menu.innerHTML = "";
+          const wrap = document.createElement("div");
+          wrap.className = "context-menu-inline";
+          wrap.onclick = (e) => e.stopPropagation();
+          const msg = document.createElement("p");
+          msg.className = "context-menu-confirm-msg";
+          msg.textContent = `Delete "${label}"?`;
+          const actions = document.createElement("div");
+          actions.className = "context-menu-actions";
+          const cancel = document.createElement("button");
+          cancel.className = "context-menu-action-btn";
+          cancel.textContent = "Cancel";
+          cancel.onclick = () => this.close();
+          let confirmed = false;
+          const confirm2 = document.createElement("button");
+          confirm2.className = "context-menu-action-btn delete";
+          confirm2.textContent = "Delete";
+          confirm2.onclick = () => {
+            if (!confirmed) {
+              confirmed = true;
+              msg.textContent = `Are you sure you want to delete "${label}"?`;
+              confirm2.textContent = "Delete";
+              return;
+            }
+            onConfirm();
+            this.close();
+          };
+          actions.appendChild(cancel);
+          actions.appendChild(confirm2);
+          wrap.appendChild(msg);
+          wrap.appendChild(actions);
+          this.menu.appendChild(wrap);
+        },
+        _renderItems(items) {
+          this.menu.innerHTML = "";
+          const ul = document.createElement("ul");
+          ul.className = "context-menu-list";
+          items.forEach((item) => {
+            const li = document.createElement("li");
+            li.className = "context-menu-item";
+            if (item.divider) li.setAttribute("data-divider", item.divider);
+            const btn = document.createElement("button");
+            btn.className = `context-menu-btn ${item.type || ""}`;
+            btn.innerHTML = `${item.icon || ""} ${item.label}`;
+            btn.onclick = (e) => {
+              e.stopPropagation();
+              item.action();
+            };
+            li.appendChild(btn);
+            ul.appendChild(li);
+          });
+          this.menu.appendChild(ul);
+        },
+        _position(x, y) {
+          const { innerWidth: w, innerHeight: h } = window;
+          const { offsetWidth: mw, offsetHeight: mh } = this.menu;
+          this.menu.style.left = `${x + mw > w ? x - mw : x}px`;
+          this.menu.style.top = `${y + mh > h ? y - mh : y}px`;
+        },
+        close() {
+          if (this.menu) this.menu.classList.remove("visible");
+        }
+      };
+    }
+  });
+
+  // src/constants/icons.js
+  var Icons;
+  var init_icons = __esm({
+    "src/constants/icons.js"() {
+      Icons = {
+        plus: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
+        copy: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
+        edit: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
+        delete: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`,
+        move: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>`,
+        settings: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`,
+        list: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>`,
+        link: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`,
+        /* Empty-state glyphs (R-038). Same stroke grammar as the rest of the set; the
+           14px width/height attributes are overridden by .empty svg, which sizes them
+           up for the one place they appear large. */
+        search: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`,
+        note: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`,
+        eyeOff: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`,
+        /* Tool-identity glyphs (R-040): the ONE icon a tool wears everywhere — its home
+           tile AND its empty state — so "no snippets yet" shows the same mark as the
+           tile you tapped to reach it. Same stroke grammar as the rest of the set. */
+        clipboard: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg>`,
+        pencil: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path><path d="m15 5 4 4"></path></svg>`,
+        tabs: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="14" height="14" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>`,
+        eraser: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"></path><path d="M22 21H7"></path><path d="m5 11 9 9"></path></svg>`
+      };
+    }
+  });
+
+  // src/components/bookmarks/bookmarkDialog.js
+  var bookmarkDialog_exports = {};
+  __export(bookmarkDialog_exports, {
+    buildDialog: () => buildDialog,
+    openBookmarkItemDialog: () => openBookmarkItemDialog,
+    openGroupDialog: () => openGroupDialog,
+    openInputPicker: () => openInputPicker,
+    openListPicker: () => openListPicker,
+    openTabDialog: () => openTabDialog
+  });
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== void 0) node.textContent = text;
+    return node;
+  }
+  function buildDialog(spec) {
+    document.querySelectorAll(".bookmark-dialog").forEach((node) => node.remove());
+    const overlay = el("div", "modal show picker-modal bookmark-dialog");
+    const card = el("div", "picker-card");
+    const close = () => overlay.remove();
+    const panes = [];
+    const showPane = (pane) => {
+      panes.forEach((p2) => p2.classList.toggle("picker-pane--on", p2 === pane));
+      const field = pane.querySelector(".picker-field");
+      if (field) requestAnimationFrame(() => {
+        field.focus();
+        field.select();
+      });
+    };
+    const root = el("div", "picker-pane picker-pane--on");
+    panes.push(root);
+    root.appendChild(Object.assign(el("div", "picker-title"), { textContent: spec.title }));
+    if (spec.subtitle) root.appendChild(el("div", "picker-subtitle", spec.subtitle));
+    const rootHost = el("div", "picker-wellhost");
+    const rootWell = el("div", "picker-well");
+    spec.actions.forEach((action) => {
+      if (action.kind === "danger") {
+        rootWell.appendChild(dangerRow(action, close));
+        return;
+      }
+      const row = el("button", "picker-row");
+      row.type = "button";
+      row.appendChild(iconSpan(action.icon));
+      row.appendChild(el("span", null, action.label));
+      if (action.value) row.appendChild(el("span", "picker-row-value", action.value));
+      const pane = action.kind === "input" ? inputPane(action, close, () => showPane(root)) : listPane(action, close, () => showPane(root));
+      panes.push(pane);
+      row.addEventListener("click", () => showPane(pane));
+      rootWell.appendChild(row);
+    });
+    rootHost.appendChild(rootWell);
+    root.appendChild(rootHost);
+    panes.forEach((p2) => card.appendChild(p2));
+    const hiddenClose = el("button", "close-btn picker-hidden-close");
+    hiddenClose.type = "button";
+    hiddenClose.hidden = true;
+    hiddenClose.addEventListener("click", close);
+    card.appendChild(hiddenClose);
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close();
+    });
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    showPane(root);
+  }
+  function iconSpan(svg) {
+    const span = el("span", "picker-row-icon");
+    span.innerHTML = svg || "";
+    return span;
+  }
+  function dangerRow(action, close) {
+    const row = el("button", "picker-row picker-row--danger");
+    row.type = "button";
+    row.appendChild(iconSpan(action.icon));
+    const label = el("span", null, action.label);
+    row.appendChild(label);
+    let armed = false;
+    row.addEventListener("click", () => {
+      if (!armed) {
+        armed = true;
+        row.classList.add("picker-row--armed");
+        row.replaceChildren(el(
+          "span",
+          null,
+          action.count > 1 ? `Delete ${action.count} bookmarks?` : "Delete, are you sure?"
+        ));
+        return;
+      }
+      action.confirm();
+      close();
+    });
+    return row;
+  }
+  function paneShell(action, onBack) {
+    const pane = el("div", "picker-pane");
+    pane.appendChild(el("div", "picker-title", action.paneTitle || action.label));
+    return pane;
+  }
+  function inputPane(action, close, onBack) {
+    const pane = paneShell(action, onBack);
+    const wrap = el("div", "picker-fieldwrap");
+    const field = el("input", "picker-field" + (action.upper ? " picker-field--upper" : ""));
+    field.type = "text";
+    field.value = action.fieldValue || "";
+    if (action.placeholder) field.placeholder = action.placeholder;
+    const error = el("div", "picker-error");
+    wrap.append(field, error);
+    pane.appendChild(wrap);
+    const commit = async () => {
+      const result = await action.save(field.value);
+      if (typeof result === "string") {
+        error.textContent = result;
+        error.classList.add("picker-error--show");
+        field.focus();
+        return;
+      }
+      close();
+    };
+    field.addEventListener("input", () => error.classList.remove("picker-error--show"));
+    field.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commit();
+      }
+    });
+    const foot = el("div", "picker-foot");
+    const back = el("button", "picker-btn", "Back");
+    back.type = "button";
+    back.addEventListener("click", onBack);
+    const save = el("button", "picker-btn picker-btn--primary", "Save");
+    save.type = "button";
+    save.addEventListener("click", commit);
+    foot.append(back, save);
+    pane.appendChild(foot);
+    return pane;
+  }
+  function listPane(action, close, onBack) {
+    const pane = paneShell(action, onBack);
+    const host = el("div", "picker-wellhost");
+    const well = el("div", "picker-well");
+    action.options.forEach((option) => {
+      const row = el("button", "picker-row");
+      row.type = "button";
+      row.appendChild(el("span", null, option.label));
+      if (option.note) row.appendChild(el("span", "picker-row-value", option.note));
+      row.addEventListener("click", () => {
+        action.pick(option.value);
+        close();
+      });
+      well.appendChild(row);
+    });
+    if (!action.options.length) {
+      well.appendChild(el("div", "picker-empty", action.emptyText || "Nothing to choose"));
+    }
+    host.appendChild(well);
+    pane.appendChild(host);
+    const foot = el("div", "picker-foot");
+    const back = el("button", "picker-btn", "Back");
+    back.type = "button";
+    back.addEventListener("click", onBack);
+    foot.appendChild(back);
+    pane.appendChild(foot);
+    return pane;
+  }
+  function onePaneDialog(buildPane) {
+    document.querySelectorAll(".bookmark-dialog").forEach((node) => node.remove());
+    const overlay = el("div", "modal show picker-modal bookmark-dialog");
+    const card = el("div", "picker-card");
+    const close = () => overlay.remove();
+    const pane = buildPane(close);
+    pane.classList.add("picker-pane--on");
+    card.appendChild(pane);
+    const hiddenClose = el("button", "close-btn picker-hidden-close");
+    hiddenClose.type = "button";
+    hiddenClose.hidden = true;
+    hiddenClose.addEventListener("click", close);
+    card.appendChild(hiddenClose);
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close();
+    });
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    return close;
+  }
+  function openListPicker({ title, subtitle, options, emptyText, pick, back }) {
+    onePaneDialog((close) => {
+      const onBack = back ? () => {
+        close();
+        back();
+      } : close;
+      const pane = listPane({ paneTitle: title, options, emptyText, pick }, close, onBack);
+      if (subtitle) pane.insertBefore(el("div", "picker-subtitle", subtitle), pane.children[1]);
+      return pane;
+    });
+  }
+  function openInputPicker({ title, value, placeholder, upper, save, back }) {
+    onePaneDialog((close) => {
+      const onBack = back ? () => {
+        close();
+        back();
+      } : close;
+      const pane = inputPane(
+        { paneTitle: title, fieldValue: value, placeholder, upper, save },
+        close,
+        onBack
+      );
+      const field = pane.querySelector(".picker-field");
+      if (field) requestAnimationFrame(() => {
+        field.focus();
+        field.select();
+      });
+      return pane;
+    });
+  }
+  function openGroupDialog({ name, count, pages: pages2, currentPageLabel, onRename, onMove, onDelete }) {
+    buildDialog({
+      title: name,
+      subtitle: count === 1 ? "1 bookmark" : `${count} bookmarks`,
+      actions: [
+        {
+          kind: "input",
+          label: "Rename group",
+          paneTitle: "Rename group",
+          icon: Icons.edit,
+          fieldValue: name,
+          upper: true,
+          save: onRename
+        },
+        {
+          kind: "list",
+          label: "Move to page",
+          paneTitle: "Move to page",
+          icon: Icons.move,
+          value: currentPageLabel,
+          options: pages2,
+          emptyText: "There is only one page",
+          pick: onMove
+        },
+        { kind: "danger", label: "Delete group", icon: Icons.delete, count, confirm: onDelete }
+      ]
+    });
+  }
+  function openBookmarkItemDialog({ name, url, onRename, onEditUrl, onDelete }) {
+    buildDialog({
+      title: name,
+      subtitle: url,
+      actions: [
+        {
+          kind: "input",
+          label: "Rename",
+          paneTitle: "Rename bookmark",
+          icon: Icons.edit,
+          fieldValue: name,
+          save: onRename
+        },
+        {
+          kind: "input",
+          label: "Edit URL",
+          paneTitle: "Edit URL",
+          icon: Icons.link,
+          fieldValue: url,
+          placeholder: "https://example.com",
+          save: onEditUrl
+        },
+        { kind: "danger", label: "Delete bookmark", icon: Icons.delete, count: 1, confirm: onDelete }
+      ]
+    });
+  }
+  function openTabDialog({ name, onRename, onDelete }) {
+    buildDialog({
+      title: name,
+      subtitle: "Page",
+      actions: [
+        {
+          kind: "input",
+          label: "Rename page",
+          paneTitle: "Rename page",
+          icon: Icons.edit,
+          fieldValue: name,
+          save: onRename
+        },
+        { kind: "danger", label: "Delete page", icon: Icons.delete, count: 0, confirm: onDelete }
+      ]
+    });
+  }
+  var init_bookmarkDialog = __esm({
+    "src/components/bookmarks/bookmarkDialog.js"() {
+      init_icons();
+    }
+  });
+
+  // src/constants/defaults.js
+  var DEFAULT_THEME, DEFAULT_TABS;
+  var init_defaults = __esm({
+    "src/constants/defaults.js"() {
+      DEFAULT_THEME = {
+        "_comment": "Theme settings: 'system' <- Follows System settings (Light/Dark). 'dark' <- Forces standard Dark mode. 'light' <- Forces standard Light mode. 'custom' <- Uses the CustomColors mapped below. Note: To apply changes, reload the page.",
+        "Theme": "dark",
+        "CustomColors": {
+          "WindowBackground": "#1E1E1E",
+          "ControlBackground": "#2D2D2D",
+          "ControlHover": "#3A3A3A",
+          "BorderColor": "#444444",
+          "TextPrimary": "#FFFFFF",
+          "TextSecondary": "#999999",
+          "SelectionBackground": "#2A2A2A"
+        }
+      };
+      DEFAULT_TABS = [{ id: "search", label: "Dashboard", sub: "Everything at a glance", type: "search" }];
+    }
+  });
+
+  // src/pages/newtab/newtabState.js
+  function setAppThemeConfig(v) {
+    appThemeConfig = v;
+  }
+  function setCurrentTheme(v) {
+    currentTheme = v;
+  }
+  function setCurrentPage(v) {
+    currentPage = v;
+  }
+  function setCurrentBookmarkPage(v) {
+    currentBookmarkPage = v;
+  }
+  function setBookmarks(v) {
+    bookmarks = v;
+  }
+  function setFadeInEnabled(v) {
+    fadeInEnabled = v;
+  }
+  function setSpotlightVisible(v) {
+    spotlightVisible = v;
+  }
+  function setUiScale(v) {
+    uiScale = v;
+  }
+  function setSearchEngineBehavior(v) {
+    searchEngineBehavior = v;
+  }
+  function setBookmarkPillBehavior(v) {
+    bookmarkPillBehavior = v;
+  }
+  function getBookmarkPillBehavior() {
+    return bookmarkPillBehavior;
+  }
+  function setActiveTabs(v) {
+    activeTabs = v;
+  }
+  function setSearchEngines(v) {
+    searchEngines = v;
+  }
+  function setCurrentEngine(v) {
+    currentEngine = v;
+  }
+  function setDefaultEngineKey(v) {
+    defaultEngineKey = v;
+  }
+  function setSearchDelaySeconds(v) {
+    searchDelaySeconds = v;
+  }
+  function setDelayUpdateInterval(v) {
+    delayUpdateInterval = v;
+  }
+  function setAllCachedBookmarks(v) {
+    allCachedBookmarks = v;
+  }
+  function setAllCachedGroups(v) {
+    allCachedGroups = v;
+  }
+  function setUsageScores(v) {
+    usageScores = v;
+  }
+  function setSearchDropdownIndex(v) {
+    searchDropdownIndex = v;
+  }
+  function setLimiterUpdateInterval(v) {
+    limiterUpdateInterval = v;
+  }
+  var appThemeConfig, currentTheme, currentPage, currentBookmarkPage, bookmarks, fadeInEnabled, spotlightVisible, uiScale, searchEngineBehavior, bookmarkPillBehavior, activeTabs, searchEngines, currentEngine, defaultEngineKey, searchDelaySeconds, delayUpdateInterval, allCachedBookmarks, allCachedGroups, usageScores, searchDropdownIndex, limiterUpdateInterval;
+  var init_newtabState = __esm({
+    "src/pages/newtab/newtabState.js"() {
+      init_defaults();
+      appThemeConfig = DEFAULT_THEME;
+      currentTheme = "dark";
+      currentPage = "search";
+      currentBookmarkPage = 1;
+      bookmarks = {};
+      fadeInEnabled = true;
+      spotlightVisible = true;
+      uiScale = 1;
+      searchEngineBehavior = "remember";
+      bookmarkPillBehavior = "always";
+      activeTabs = [];
+      searchEngines = {};
+      currentEngine = "default";
+      defaultEngineKey = "default";
+      searchDelaySeconds = 0;
+      delayUpdateInterval = null;
+      allCachedBookmarks = [];
+      allCachedGroups = {};
+      usageScores = /* @__PURE__ */ new Map();
+      searchDropdownIndex = -1;
+      limiterUpdateInterval = null;
+    }
+  });
+
+  // src/components/shared/scrollAffordance.js
+  function make(tag, className) {
+    const el4 = document.createElement(tag);
+    el4.className = className;
+    return el4;
+  }
+  function attachScrollAffordance(scroller, options = {}) {
+    if (!scroller) return { refresh: () => {
+    }, host: null };
+    const p2 = options.prefix || "scroll";
+    let host = options.host;
+    if (!host) {
+      host = make("div", `${p2}-affordance`);
+      scroller.parentNode.insertBefore(host, scroller);
+      host.appendChild(scroller);
+    }
+    const fadeTop = make("div", `${p2}-fade ${p2}-fade-top hidden`);
+    const fadeBot = make("div", `${p2}-fade ${p2}-fade-bot hidden`);
+    const countTop = make("span", `${p2}-count ${p2}-count-top hidden`);
+    const countBot = make("span", `${p2}-count ${p2}-count-bot hidden`);
+    for (const pill of [countTop, countBot]) {
+      pill.appendChild(make("i", `${p2}-count-chev`));
+      pill.appendChild(document.createTextNode(""));
+    }
+    host.append(fadeTop, fadeBot, countTop, countBot);
+    const syncRadius = () => {
+      const cs = getComputedStyle(scroller);
+      fadeTop.style.borderRadius = `${cs.borderTopLeftRadius} ${cs.borderTopRightRadius} 0 0`;
+      fadeBot.style.borderRadius = `0 0 ${cs.borderBottomRightRadius} ${cs.borderBottomLeftRadius}`;
+    };
+    syncRadius();
+    const noun = options.noun ? " " + options.noun : "";
+    const items = () => options.items ? scroller.querySelectorAll(options.items) : scroller.children;
+    const setState = (above, below) => {
+      fadeTop.classList.toggle("hidden", above === 0);
+      fadeBot.classList.toggle("hidden", below === 0);
+      countTop.classList.toggle("hidden", above === 0);
+      countBot.classList.toggle("hidden", below === 0);
+      countTop.lastChild.textContent = above + noun + " above";
+      countBot.lastChild.textContent = below + noun + " below";
+    };
+    const refresh = () => {
+      const box = scroller.getBoundingClientRect();
+      if (box.height === 0) {
+        setState(0, 0);
+        return;
+      }
+      let above = 0, below = 0;
+      for (const el4 of items()) {
+        if (el4.offsetParent === null) continue;
+        const r = el4.getBoundingClientRect();
+        if (r.top < box.top - 2) above++;
+        else if (r.bottom > box.bottom + 2) below++;
+      }
+      setState(above, below);
+    };
+    let queued = false;
+    const schedule = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => {
+        queued = false;
+        refresh();
+      });
+    };
+    scroller.addEventListener("scroll", refresh, { passive: true });
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(() => {
+        syncRadius();
+        schedule();
+      });
+      ro.observe(scroller);
+      for (const child of scroller.children) ro.observe(child);
+    }
+    if (typeof MutationObserver !== "undefined") {
+      new MutationObserver(schedule).observe(scroller, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["hidden", "style", "class"]
+      });
+    }
+    schedule();
+    return { refresh, host };
+  }
+  var init_scrollAffordance = __esm({
+    "src/components/shared/scrollAffordance.js"() {
+    }
+  });
+
+  // src/components/tabs/tabs.css
+  var init_tabs = __esm({
+    "src/components/tabs/tabs.css"() {
+    }
+  });
+
+  // src/components/tabs/tabs.js
+  var tabs_exports = {};
+  __export(tabs_exports, {
+    addNewTab: () => addNewTab,
+    initializeTabs: () => initializeTabs,
+    renderTabs: () => renderTabs,
+    saveTabs: () => saveTabs,
+    selectSearchTab: () => selectSearchTab,
+    setTabNavigationCallbacks: () => setTabNavigationCallbacks
+  });
+  function setTabNavigationCallbacks({ onTabClick, onNavigateToSearch }) {
+    _onTabClick = onTabClick;
+    _onNavigateToSearch = onNavigateToSearch;
+  }
+  async function initializeTabs() {
+    return new Promise((resolve) => {
+      window.chrome.storage.sync.get(["activeTabs"], (result) => {
+        if (result.activeTabs && Array.isArray(result.activeTabs)) {
+          setActiveTabs(result.activeTabs);
+        } else {
+          setActiveTabs([...DEFAULT_TABS]);
+          saveTabs();
+        }
+        renderTabs();
+        resolve();
+      });
+    });
+  }
+  function saveTabs() {
+    window.chrome.storage.sync.set({ activeTabs });
+  }
+  function selectSearchTab() {
+    const home = activeTabs.find((t) => t.type === "search") || activeTabs[0];
+    if (home) {
+      selectedTabId = home.id;
+      syncSelection();
+    }
+  }
+  function el2(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== void 0) node.textContent = text;
+    return node;
+  }
+  const checkSVG = '<svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg>';
+  const chevSVG = '<svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>';
+
+  function buildShell(container) {
+    container.className = "switcher";
+    container.innerHTML = `
+      <button class="switcher-btn" aria-haspopup="listbox" aria-expanded="false">
+        <span class="switcher-label"></span>
+        ${chevSVG}
+      </button>
+      <ul class="switcher-menu" role="listbox" tabindex="-1"></ul>
+    `;
+    const btn = container.querySelector(".switcher-btn");
+    const label = container.querySelector(".switcher-label");
+    const menu = container.querySelector(".switcher-menu");
+    els = { container, btn, label, menu };
+
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setOpen(btn.getAttribute("aria-expanded") !== "true");
+    });
+
+    menu.addEventListener("click", (e) => {
+      const li = e.target.closest(".switcher-item");
+      if (li) {
+        const targetId = isNaN(Number(li.dataset.id)) ? li.dataset.id : Number(li.dataset.id);
+        const tab = activeTabs.find((t) => t.id === targetId || String(t.id) === li.dataset.id);
+        if (tab) {
+          selectedTabId = tab.id;
+          syncSelection();
+          setOpen(false);
+          btn.focus();
+          if (_onTabClick) _onTabClick(tab);
+        }
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!els || !container.contains(e.target)) setOpen(false);
+    });
+
+    menu.addEventListener("mousemove", (e) => {
+      const li = e.target.closest(".switcher-item");
+      if (li && document.activeElement !== li) li.focus();
+    });
+
+    menu.addEventListener("mouseleave", () => {
+      if (menu.classList.contains("open")) menu.focus();
+    });
+
+    menu.addEventListener("keydown", (e) => {
+      const items = [...menu.children].filter((el) => el.classList.contains("switcher-item"));
+      let i = items.indexOf(document.activeElement);
+      if (i === -1 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+        e.preventDefault();
+        (menu.querySelector('[aria-selected="true"]') || items[0])?.focus();
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        items[(i + 1) % items.length]?.focus();
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        items[(i - 1 + items.length) % items.length]?.focus();
+      }
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        if (i !== -1) items[i].click();
+      }
+      if (e.key === "Escape") {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+  }
+
+  function setOpen(open) {
+    if (!els) return;
+    els.btn.setAttribute("aria-expanded", String(open));
+    els.menu.classList.toggle("open", Boolean(open));
+    if (open) els.menu.focus();
+  }
+
+  function renderTabs() {
+    const container = document.getElementById("tabs-container") || document.getElementById("switcher");
+    if (!container) return;
+    if (!els || els.container !== container) buildShell(container);
+    if (!activeTabs.some((t) => t.id === selectedTabId)) {
+      const home = activeTabs.find((t) => t.type === "search") || activeTabs[0];
+      selectedTabId = home ? home.id : "search";
+    }
+    els.menu.innerHTML = "";
+    activeTabs.forEach((tab) => {
+      const li = document.createElement("li");
+      li.className = "switcher-item";
+      li.setAttribute("role", "option");
+      li.setAttribute("tabindex", "-1");
+      li.dataset.id = String(tab.id);
+      li.setAttribute("aria-selected", String(tab.id === selectedTabId));
+
+      const tabLabel = (tab.type === "search" && (!tab.label || tab.label === "Home")) ? "Dashboard" : sentenceCase(tab.label);
+      const tabSub = (tab.type === "search" && !tab.sub) ? "Everything at a glance" : (tab.sub || "");
+
+      const spanLabel = document.createElement("span");
+      spanLabel.className = "label";
+      spanLabel.textContent = tabLabel;
+      if (tabSub) {
+        const spanSub = document.createElement("span");
+        spanSub.className = "sub";
+        spanSub.textContent = tabSub;
+        spanLabel.appendChild(spanSub);
+      }
+
+      li.appendChild(spanLabel);
+      li.insertAdjacentHTML("beforeend", checkSVG);
+
+      if (tab.type !== "search") {
+        li.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          if (ContextMenu.disabled) return;
+          setOpen(false);
+          openTabDialog({
+            name: tab.label,
+            onRename: (newName) => {
+              const t = activeTabs.find((t2) => t2.id === tab.id);
+              if (t) {
+                t.label = newName;
+                saveTabs();
+                renderTabs();
+              }
+            },
+            onDelete: () => {
+              setActiveTabs(activeTabs.filter((t) => t.id !== tab.id));
+              if (currentBookmarkPage === tab.id) {
+                if (_onNavigateToSearch) _onNavigateToSearch();
+                selectSearchTab();
+              }
+              window.chrome.storage.sync.remove(`page${tab.id}`);
+              BookmarkDB.deleteBookmarks(tab.id);
+              saveTabs();
+              renderTabs();
+            }
+          });
+        });
+      }
+      els.menu.appendChild(li);
+    });
+    syncSelection();
+  }
+
+  function syncSelection() {
+    if (!els) return;
+    els.menu.querySelectorAll(".switcher-item").forEach((item) => {
+      item.setAttribute("aria-selected", String(item.dataset.id === String(selectedTabId)));
+    });
+    const index = activeTabs.findIndex((t) => t.id === selectedTabId);
+    const tab = index === -1 ? null : activeTabs[index];
+    const name = tab ? ((tab.type === "search" && (!tab.label || tab.label === "Home")) ? "Dashboard" : sentenceCase(tab.label)) : "Dashboard";
+    els.label.textContent = name;
+    els.btn.title = name;
+  }
+
+  async function addNewTab() {
+    const count = activeTabs.filter((t) => t.type !== "search").length + 1;
+    const { openInputPicker: openInputPicker2 } = await Promise.resolve().then(() => (init_bookmarkDialog(), bookmarkDialog_exports));
+    openInputPicker2({
+      title: "Page name",
+      value: "",
+      placeholder: `Page ${count}`,
+      save: (raw) => {
+        const label = raw.trim() || `Page ${count}`;
+        createPage(label);
+        return true;
+      }
+    });
+  }
+  function createPage(label) {
+    const newId = Date.now();
+    const newTab = { id: newId, label, type: "bookmarks" };
+    activeTabs.push(newTab);
+    saveTabs();
+    selectedTabId = newId;
+    renderTabs();
+    if (_onTabClick) _onTabClick(newTab);
+  }
+  var _onTabClick, _onNavigateToSearch, FILTER_THRESHOLD, selectedTabId, els, affordance, filterQuery;
+  var init_tabs2 = __esm({
+    "src/components/tabs/tabs.js"() {
+      init_tabs();
+      init_defaults();
+      init_contextMenu2();
+      init_bookmarkDialog();
+      init_bookmarksDB();
+      init_scrollAffordance();
+      init_newtabState();
+      _onTabClick = null;
+      _onNavigateToSearch = null;
+      FILTER_THRESHOLD = 3;
+      selectedTabId = "search";
+      els = null;
+      affordance = null;
+      filterQuery = "";
+    }
+  });
+
+  // src/pages/newtab/newtab.js
+  init_bookmarksDB();
+  init_contextMenu2();
+
+  // src/components/bookmarks/bookmarks.js
+  init_bookmarksDB();
+  init_contextMenu2();
+  init_bookmarkDialog();
+  init_newtabState();
+  init_scrollAffordance();
+
+  // src/components/bookmarks/bookmarkCache.js
+  init_bookmarksDB();
+  init_newtabState();
+  async function refreshBookmarkCache() {
+    try {
+      const [allBookmarksObj, scores] = await Promise.all([
+        BookmarkDB.getAllBookmarks(),
+        BookmarkDB.getAllUsageScores()
+      ]);
+      const _cachedBookmarks = [];
+      const _cachedGroups = {};
+      Object.values(allBookmarksObj).forEach((groups) => {
+        Object.entries(groups).forEach(([groupName, bookmarkList]) => {
+          bookmarkList.forEach((bm) => _cachedBookmarks.push(bm));
+          if (!_cachedGroups[groupName]) _cachedGroups[groupName] = [];
+          _cachedGroups[groupName].push(...bookmarkList);
+        });
+      });
+      setAllCachedBookmarks(_cachedBookmarks);
+      setAllCachedGroups(_cachedGroups);
+      setUsageScores(scores);
+    } catch (e) {
+      console.error("Failed to cache bookmarks", e);
+    }
+  }
+
+  // src/components/bookmarks/bookmarkSearch.js
+  init_bookmarksDB();
+  init_newtabState();
+
+  // src/utils/pillSelection.js
+  function initialSelectionIndex(matchCount) {
+    return !matchCount || matchCount <= 0 ? -1 : 0;
+  }
+  function resolveEnterAction(listVisible, selectedIndex, matchCount, forceSearch = false) {
+    if (forceSearch) return "search";
+    if (!listVisible) return "search";
+    if (!matchCount || matchCount <= 0) return "search";
+    if (selectedIndex < 0) return "search";
+    return "bookmark";
+  }
+  function searchTextFor(value) {
+    const raw = (value == null ? "" : String(value)).trim();
+    return raw.startsWith("./") ? raw.slice(2).trim() : raw;
+  }
+
+  // src/components/bookmarks/bookmarkSearch.js
+  function renderBookmarkSearchResults(matches) {
+    const resultsContainer = document.getElementById("bookmark-search-results");
+    if (!resultsContainer) return;
+    resultsContainer.innerHTML = "";
+    setSearchDropdownIndex(-1);
+    resultsContainer.style.animation = "none";
+    resultsContainer.offsetHeight;
+    resultsContainer.style.animation = "";
+    if (matches.length === 0) {
+      resultsContainer.innerHTML = "";
+      const emptyItem = document.createElement("div");
+      emptyItem.className = "bookmark-search-item empty";
+      emptyItem.textContent = "No matching bookmarks";
+      resultsContainer.appendChild(emptyItem);
+      resultsContainer.style.display = "flex";
+      return;
+    }
+    matches.forEach((bm, idx) => {
+      const item = document.createElement("div");
+      item.className = "bookmark-search-item";
+      item.dataset.url = bm.url;
+      item.dataset.index = idx;
+      item.style.animationDelay = `${idx * 0.05}s`;
+      const nameDiv = document.createElement("div");
+      nameDiv.className = "bookmark-search-item-name";
+      nameDiv.textContent = bm.name;
+      item.appendChild(nameDiv);
+      item.addEventListener("click", () => {
+        BookmarkDB.recordClick(bm.url).catch(() => {
+        });
+        window.location.href = bm.url;
+      });
+      resultsContainer.appendChild(item);
+    });
+    resultsContainer.style.display = "flex";
+    const initial = initialSelectionIndex(matches.length);
+    if (initial >= 0) updateSearchDropdownSelection(initial);
+    else setSearchDropdownIndex(-1);
+  }
+  function hideBookmarkSearchResults() {
+    const resultsContainer = document.getElementById("bookmark-search-results");
+    if (resultsContainer) resultsContainer.style.display = "none";
+    setSearchDropdownIndex(-1);
+  }
+  function updateSearchDropdownSelection(index) {
+    const resultsContainer = document.getElementById("bookmark-search-results");
+    if (!resultsContainer) return;
+    const items = resultsContainer.querySelectorAll(".bookmark-search-item:not(.empty)");
+    if (items.length === 0) return;
+    items.forEach((i) => i.classList.remove("selected"));
+    if (index >= items.length) index = items.length - 1;
+    if (index < 0) index = 0;
+    setSearchDropdownIndex(index);
+    if (items[searchDropdownIndex]) {
+      items[searchDropdownIndex].classList.add("selected");
+      items[searchDropdownIndex].scrollIntoView({ block: "nearest" });
+    }
+  }
+  function sortByUsage(list) {
+    return [...list].sort((a, b) => (usageScores.get(b.url) || 0) - (usageScores.get(a.url) || 0));
+  }
+
+  // src/components/bookmarks/bookmarks.js
+  var _loadFailedPage = null;
+  var loadFailed = () => _loadFailedPage !== null && _loadFailedPage === currentBookmarkPage;
+  function initializeBookmarks() {
+    loadBookmarks();
+  }
+  async function loadBookmarks() {
+    try {
+      const savedBookmarks = await BookmarkDB.getBookmarks(currentBookmarkPage);
+      if (_loadFailedPage === currentBookmarkPage) _loadFailedPage = null;
+      setBookmarks(savedBookmarks && Object.keys(savedBookmarks).length > 0 ? savedBookmarks : {});
+    } catch (error) {
+      _loadFailedPage = currentBookmarkPage;
+      console.error("Detractless: could not read bookmarks for page", currentBookmarkPage, error);
+    }
+    renderBookmarks();
+  }
+  async function saveBookmarks() {
+    if (loadFailed()) {
+      console.error(
+        "Detractless: refusing to save, the last read of page",
+        currentBookmarkPage,
+        "failed. Reload before changing anything."
+      );
+      return;
+    }
+    try {
+      await BookmarkDB.saveBookmarks(currentBookmarkPage, bookmarks);
+      await refreshBookmarkCache();
+    } catch (error) {
+      console.error("Error saving bookmarks:", error);
+    }
+  }
+  function rowMetrics() {
+    const cs = getComputedStyle(document.documentElement);
+    const num = (name, fallback) => parseFloat(cs.getPropertyValue(name)) || fallback;
+    return { pitch: num("--row-pitch", 34), gap: num("--row-gap", 2), pad: num("--well-padding", 8) };
+  }
+  function wellHeight(rows, m) {
+    return rows * m.pitch - m.gap + m.pad * 2;
+  }
+  function rowsThatFit(px, m) {
+    return Math.max(1, Math.floor((px - m.pad * 2 + m.gap) / m.pitch));
+  }
+  function renderBookmarks() {
+    const container = document.getElementById("bookmarks-content");
+    if (!container) return;
+    container.innerHTML = "";
+    const groups = Object.keys(bookmarks);
+    if (loadFailed()) {
+      container.innerHTML = `<div class="empty-bookmarks-message">
+      <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.24 3.957a2 2 0 0 1 3.52 0l8.03 14.06A2 2 0 0 1 20.06 21H3.94a2 2 0 0 1-1.73-2.983z"/></svg></div>
+      <p class="empty-state-title">Could not read your bookmarks</p>
+      <p class="empty-state-hint">They have not been changed. This page is not
+        showing them because the database did not answer, so nothing will be
+        saved over them until it does.</p>
+      <button class="save-btn" id="bookmarks-retry" type="button">Try again</button>
+    </div>`;
+      container.querySelector("#bookmarks-retry")?.addEventListener("click", loadBookmarks);
+      return;
+    }
+    if (groups.length === 0) {
+      container.innerHTML = `<div class="empty-bookmarks-message">
+      <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32"><path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"/></svg></div>
+      <p class="empty-state-title">No bookmarks yet</p>
+      <p class="empty-state-hint">Click <strong>+ Add</strong> to add your first bookmark to this page.</p>
+    </div>`;
+      return;
+    }
+    const columnsCount = Math.ceil(groups.length / Math.ceil(groups.length / 3));
+    const groupsPerColumn = Math.ceil(groups.length / columnsCount);
+    const allFadeChecks = [];
+    const metrics = rowMetrics();
+    for (let i = 0; i < columnsCount; i++) {
+      const startIndex = i * groupsPerColumn;
+      const endIndex = Math.min(startIndex + groupsPerColumn, groups.length);
+      const columnGroups = groups.slice(startIndex, endIndex);
+      const columnDiv = document.createElement("div");
+      columnDiv.className = "bookmark-column";
+      const _n = columnGroups.length;
+      const _avail = window.innerHeight - 160;
+      const perWell = Math.min(480, Math.max(48, Math.floor((_avail - _n * 54 - (_n - 1) * 24) / _n)));
+      const capacity = rowsThatFit(perWell, metrics);
+      columnGroups.forEach((groupName) => {
+        const groupDiv = document.createElement("div");
+        groupDiv.className = "bookmark-group";
+        const titleDiv = document.createElement("div");
+        titleDiv.className = "group-title";
+        const rowBookmarks = /* @__PURE__ */ new Map();
+        groupDiv.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          if (ContextMenu.disabled) return;
+          const row = e.target.closest?.(".bookmark-link");
+          const bookmark = row && rowBookmarks.get(row);
+          if (bookmark) {
+            openBookmarkMenu(groupName, bookmark);
+            return;
+          }
+          if (e.target.closest?.(".bookmark-well")) return;
+          openGroupMenu(groupName);
+        });
+        const titleText = document.createElement("span");
+        titleText.textContent = groupName;
+        titleDiv.appendChild(titleText);
+        const wellDiv = document.createElement("div");
+        wellDiv.className = "bookmark-well";
+        const listDiv = document.createElement("ul");
+        listDiv.className = "bookmark-list";
+        const _total = bookmarks[groupName].length;
+        const _rows = _total === capacity + 1 ? _total : Math.min(capacity, _total);
+        listDiv.style.maxHeight = wellHeight(_rows, metrics) + "px";
+        bookmarks[groupName].forEach((bookmark) => {
+          const listItem = document.createElement("li");
+          const itemDiv = document.createElement("div");
+          itemDiv.className = "bookmark-link";
+          rowBookmarks.set(itemDiv, bookmark);
+          const link = document.createElement("a");
+          link.href = bookmark.url;
+          link.target = "_self";
+          link.rel = "noopener noreferrer";
+          link.textContent = bookmark.name;
+          link.style.flex = "1";
+          link.style.textDecoration = "none";
+          link.style.color = "inherit";
+          itemDiv.appendChild(link);
+          listItem.appendChild(itemDiv);
+          listDiv.appendChild(listItem);
+        });
+        wellDiv.appendChild(listDiv);
+        allFadeChecks.push(attachScrollAffordance(listDiv, { host: wellDiv }).refresh);
+        groupDiv.appendChild(titleDiv);
+        groupDiv.appendChild(wellDiv);
+        columnDiv.appendChild(groupDiv);
+      });
+      container.appendChild(columnDiv);
+    }
+    requestAnimationFrame(() => allFadeChecks.forEach((fn) => fn()));
+  }
+  function openGroupMenu(groupName) {
+    const pages2 = activeTabs.filter((t) => t.type !== "search" && t.id !== currentBookmarkPage).map((t) => ({ label: t.label, value: t.id }));
+    openGroupDialog({
+      name: groupName,
+      count: bookmarks[groupName].length,
+      pages: pages2,
+      onRename: (raw) => {
+        const newName = raw.trim().toUpperCase();
+        if (!newName) return "Give the group a name.";
+        if (newName === groupName) return true;
+        if (bookmarks[newName]) return "A group called that already exists.";
+        const newBookmarks = {};
+        Object.keys(bookmarks).forEach((key) => {
+          if (key === groupName) newBookmarks[newName] = bookmarks[key];
+          else newBookmarks[key] = bookmarks[key];
+        });
+        setBookmarks(newBookmarks);
+        saveBookmarks();
+        renderBookmarks();
+        return true;
+      },
+      onMove: (targetPage) => moveGroupToPage(groupName, targetPage),
+      onDelete: () => {
+        delete bookmarks[groupName];
+        saveBookmarks();
+        renderBookmarks();
+      }
+    });
+  }
+  function openBookmarkMenu(groupName, bookmark) {
+    const indexOf = () => bookmarks[groupName].findIndex((b) => b.name === bookmark.name && b.url === bookmark.url);
+    openBookmarkItemDialog({
+      name: bookmark.name,
+      url: bookmark.url,
+      onRename: (raw) => {
+        const newName = raw.trim();
+        if (!newName) return "Give the bookmark a name.";
+        const idx = indexOf();
+        if (idx === -1) return true;
+        bookmarks[groupName][idx].name = newName;
+        bookmark.name = newName;
+        saveBookmarks();
+        renderBookmarks();
+        return true;
+      },
+      onEditUrl: (raw) => {
+        const value = raw.trim();
+        if (!value) return "Give the bookmark a URL.";
+        const idx = indexOf();
+        if (idx === -1) return true;
+        const finalUrl = value.match(/^https?:\/\//) ? value : "https://" + value;
+        bookmarks[groupName][idx].url = finalUrl;
+        bookmark.url = finalUrl;
+        saveBookmarks();
+        renderBookmarks();
+        return true;
+      },
+      onDelete: () => {
+        bookmarks[groupName] = bookmarks[groupName].filter((b) => b.name !== bookmark.name || b.url !== bookmark.url);
+        if (bookmarks[groupName].length === 0) delete bookmarks[groupName];
+        saveBookmarks();
+        renderBookmarks();
+      }
+    });
+  }
+  async function addBookmark(form) {
+    if (!form || form.error) return;
+    const { name, group: targetGroup, page: targetPage } = form;
+    const finalUrl = form.url.match(/^https?:\/\//) ? form.url : "https://" + form.url;
+    try {
+      const targetBookmarks = await BookmarkDB.getBookmarks(targetPage) || {};
+      if (!targetBookmarks[targetGroup]) targetBookmarks[targetGroup] = [];
+      targetBookmarks[targetGroup].push({ name, url: finalUrl });
+      await BookmarkDB.saveBookmarks(targetPage, targetBookmarks);
+      await refreshBookmarkCache();
+      if (targetPage === currentBookmarkPage) {
+        if (_loadFailedPage === currentBookmarkPage) _loadFailedPage = null;
+        setBookmarks(targetBookmarks);
+        renderBookmarks();
+      }
+    } catch (error) {
+      console.error("[Detractless] could not save the bookmark", error);
+    }
+  }
+  async function moveGroupToPage(groupName, targetPage) {
+    if (targetPage === currentBookmarkPage) return;
+    const groupData = bookmarks[groupName];
+    if (!groupData) return;
+    delete bookmarks[groupName];
+    await saveBookmarks();
+    try {
+      const targetBookmarks = await BookmarkDB.getBookmarks(targetPage) || {};
+      targetBookmarks[groupName] = groupData;
+      await BookmarkDB.saveBookmarks(targetPage, targetBookmarks);
+      await refreshBookmarkCache();
+      renderBookmarks();
+    } catch (error) {
+      alert("Error moving group.");
+    }
+  }
+
+  // src/components/bookmarks/bookmarkModal.js
+  init_bookmarksDB();
+  init_bookmarkDialog();
+
+  // src/utils/addBookmarkFlow.js
+  var STEPS = ["name", "url", "page", "group"];
+  var NEW_GROUP = "new-group ";
+  function createFlowState(defaultPage = null) {
+    return {
+      stepIndex: 0,
+      name: "",
+      url: "",
+      page: defaultPage,
+      group: null,
+      newGroupName: ""
+    };
+  }
+  function currentStep(state) {
+    return STEPS[state.stepIndex] || null;
+  }
+  function setValue(state, key, value) {
+    const next = { ...state, [key]: value };
+    if (key === "page" && String(value) !== String(state.page)) {
+      next.group = null;
+      next.newGroupName = "";
+    }
+    if (key === "group" && value !== NEW_GROUP) {
+      next.newGroupName = "";
+    }
+    return next;
+  }
+  function goNext(state) {
+    return { ...state, stepIndex: Math.min(state.stepIndex + 1, STEPS.length) };
+  }
+  function goBack(state) {
+    return { ...state, stepIndex: Math.max(state.stepIndex - 1, 0) };
+  }
+  function validateStep(state, step = currentStep(state)) {
+    switch (step) {
+      case "name":
+        return state.name.trim() ? null : "Give the bookmark a name.";
+      case "url":
+        return state.url.trim() ? null : "Give the bookmark a URL.";
+      case "page":
+        return state.page === null || state.page === void 0 ? "Choose a page." : null;
+      case "group":
+        if (state.group === null) return "Choose a group.";
+        if (state.group === NEW_GROUP && !state.newGroupName.trim()) {
+          return "Give the new group a name.";
+        }
+        return null;
+      default:
+        return null;
+    }
+  }
+  function resolveFlow(state) {
+    for (const step of STEPS) {
+      const error = validateStep(state, step);
+      if (error) return { error };
+    }
+    const isNew = state.group === NEW_GROUP;
+    return {
+      name: state.name.trim(),
+      url: state.url.trim(),
+      group: isNew ? state.newGroupName.trim() : state.group,
+      page: state.page
+    };
+  }
+
+  // src/components/bookmarks/bookmarkModal.js
+  init_newtabState();
+  var byId = (id) => document.getElementById(id);
+  var pages = () => activeTabs.filter((t) => t.type !== "search");
+  var pageLabel = (id) => pages().find((t) => String(t.id) === String(id))?.label || "";
+  var _flow = null;
+  function openStep(fn) {
+    requestAnimationFrame(fn);
+  }
+  function startAddBookmarkFlow() {
+    _flow = createFlowState(currentBookmarkPage);
+    stepName();
+  }
+  function stepName() {
+    openInputPicker({
+      /* FIELD NAMES, not task names, across all four steps (R-022). "Add bookmark"
+         here with "URL" and "Page" after it named the task once and the field three
+         times, so the set did not read as one flow. The row you just clicked
+         already said Add bookmark. */
+      title: "Bookmark name",
+      value: _flow.name,
+      placeholder: "e.g. GitHub",
+      /* No `back` on the first step. There is nowhere behind it, so the foot's
+         Back button keeps its leaf meaning and closes. */
+      save: (raw) => {
+        const next = setValue(_flow, "name", raw);
+        const error = validateStep(next, "name");
+        if (error) return error;
+        _flow = goNext(next);
+        openStep(stepUrl);
+        return true;
+      }
+    });
+  }
+  function stepUrl() {
+    openInputPicker({
+      title: "Bookmark URL",
+      value: _flow.url,
+      placeholder: "https://example.com",
+      back: () => {
+        _flow = goBack(_flow);
+        openStep(stepName);
+      },
+      save: (raw) => {
+        const next = setValue(_flow, "url", raw);
+        const error = validateStep(next, "url");
+        if (error) return error;
+        _flow = goNext(next);
+        openStep(stepPage);
+        return true;
+      }
+    });
+  }
+  function stepPage() {
+    openListPicker({
+      title: "Bookmark page",
+      options: pages().map((t) => ({ label: t.label, value: t.id })),
+      emptyText: "There are no bookmark pages",
+      back: () => {
+        _flow = goBack(_flow);
+        openStep(stepUrl);
+      },
+      pick: (value) => {
+        _flow = goNext(setValue(_flow, "page", value));
+        openStep(stepGroup);
+      }
+    });
+  }
+  async function groupsOnPage(pageId) {
+    const pageBookmarks = await BookmarkDB.getBookmarks(pageId);
+    return pageBookmarks ? Object.keys(pageBookmarks).sort() : [];
+  }
+  async function stepGroup() {
+    const groups = await groupsOnPage(_flow.page);
+    openListPicker({
+      title: "Bookmark group",
+      subtitle: `on ${pageLabel(_flow.page)}`,
+      options: [
+        ...groups.map((name) => ({ label: name, value: name })),
+        { label: "New group", value: NEW_GROUP }
+      ],
+      back: () => {
+        _flow = goBack(_flow);
+        openStep(stepPage);
+      },
+      pick: (value) => {
+        if (value === NEW_GROUP) {
+          _flow = setValue(_flow, "group", NEW_GROUP);
+          openStep(stepNewGroupName);
+          return;
+        }
+        _flow = goNext(setValue(_flow, "group", value));
+        openStep(finish);
+      }
+    });
+  }
+  function stepNewGroupName() {
+    openInputPicker({
+      title: "New group",
+      value: _flow.newGroupName,
+      placeholder: "e.g. WORK",
+      upper: true,
+      back: () => openStep(stepGroup),
+      save: async (raw) => {
+        const name = raw.trim().toUpperCase();
+        if (!name) return "Give the group a name.";
+        const existing = await groupsOnPage(_flow.page);
+        if (existing.includes(name)) return `${name} already exists on this page.`;
+        _flow = goNext(setValue(_flow, "newGroupName", name));
+        openStep(finish);
+        return true;
+      }
+    });
+  }
+  async function finish() {
+    const resolved = resolveFlow(_flow);
+    if (resolved.error) {
+      _flow = createFlowState(currentBookmarkPage);
+      stepName();
+      return;
+    }
+    await addBookmark(resolved);
+    _flow = null;
+  }
+  function setMenuOpen(open) {
+    const panel = byId("add-menu-panel");
+    const scrim = byId("add-menu-scrim");
+    const trigger = byId("global-add-btn");
+    if (!panel || !scrim) return;
+    panel.hidden = !open;
+    scrim.hidden = !open;
+    trigger?.setAttribute("aria-expanded", String(open));
+    if (open) {
+      requestAnimationFrame(() => panel.querySelector(".picker-row")?.focus());
+    }
+  }
+  var menuOpen = () => !byId("add-menu-panel")?.hidden;
+  function initAddMenu() {
+    const trigger = byId("global-add-btn");
+    const panel = byId("add-menu-panel");
+    if (!trigger || !panel) return;
+    trigger.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setMenuOpen(!menuOpen());
+    });
+    document.addEventListener("click", (event) => {
+      if (!menuOpen()) return;
+      const bar = byId("global-actions");
+      if (event.target === byId("add-menu-scrim") || !bar?.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (!menuOpen()) return;
+      if (event.key === "Escape") {
+        if (document.querySelector(".modal.show")) return;
+        event.preventDefault();
+        setMenuOpen(false);
+        byId("global-add-btn")?.focus();
+        return;
+      }
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      const rows = Array.from(panel.querySelectorAll(".picker-row"));
+      const at = rows.indexOf(document.activeElement);
+      const next = rows[at + (event.key === "ArrowDown" ? 1 : -1)];
+      if (next) {
+        event.preventDefault();
+        next.focus();
+      }
+    });
+  }
+  function initBookmarkAddModal() {
+    initAddMenu();
+    byId("add-row-bookmark")?.addEventListener("click", () => {
+      setMenuOpen(false);
+      openStep(startAddBookmarkFlow);
+    });
+    byId("add-row-page")?.addEventListener("click", () => {
+      setMenuOpen(false);
+      Promise.resolve().then(() => (init_tabs2(), tabs_exports)).then((m) => m.addNewTab());
+    });
+  }
+
+  // src/utils/themeResolver.js
+  function resolveActiveTheme(cfg) {
+    let active = cfg && cfg.Theme || "dark";
+    if (active === "system") {
+      active = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    return active;
+  }
+
+  // src/utils/colorFormat.js
+  function formatColorForWeb(hex) {
+    if (typeof hex === "string" && hex.length === 9 && hex.startsWith("#")) {
+      return "#" + hex.substring(3, 9) + hex.substring(1, 3);
+    }
+    return hex;
+  }
+  function hexMix(a, b, t) {
+    const parse = (h) => {
+      h = String(h).replace("#", "");
+      return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+    };
+    const ca = parse(a), cb = parse(b);
+    if (ca.some(isNaN) || cb.some(isNaN)) return a;
+    const mixed = ca.map((v, i) => Math.round(v + (cb[i] - v) * t));
+    return "#" + mixed.map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join("");
+  }
+
+  // src/pages/newtab/theme.js
+  init_defaults();
+
+  // src/constants/themeVars.js
+  var CUSTOM_THEME_VARS = [
+    "--surface-canvas",
+    "--surface-card",
+    "--surface-muted",
+    "--surface-hover",
+    "--text-primary",
+    "--text-secondary",
+    "--text-tertiary",
+    "--line-hairline",
+    "--line-strong",
+    "--accent",
+    "--accent-text",
+    "--accent-hover",
+    "--accent-press",
+    "--select-bg"
+  ];
+
+  // src/pages/newtab/theme.js
+  init_newtabState();
+  init_bookmarksDB();
+  function applyThemeDOM(theme) {
+    document.documentElement.dataset.theme = theme;
+    document.body.className = "theme-" + theme;
+  }
+  function initializeTheme() {
+    window.chrome.storage.sync.get(["Theme"], (result) => {
+      setAppThemeConfig(result.Theme || DEFAULT_THEME);
+      applyThemeConfig(appThemeConfig);
+      syncThemePicker();
+    });
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      if (appThemeConfig && appThemeConfig.Theme === "system") {
+        applyThemeConfig(appThemeConfig);
+      }
+    });
+  }
+  function syncThemePicker() {
+    const active = appThemeConfig && appThemeConfig.Theme ? appThemeConfig.Theme : "dark";
+    document.querySelectorAll('input[name="theme-choice"]').forEach((radio) => {
+      radio.checked = radio.value === active;
+    });
+  }
+  function initThemePicker() {
+    document.querySelectorAll('input[name="theme-choice"]').forEach((radio) => {
+      radio.addEventListener("change", (e) => {
+        if (!e.target.checked) return;
+        setAppThemeConfig(Object.assign({}, appThemeConfig || DEFAULT_THEME, { Theme: e.target.value }));
+        applyThemeConfig(appThemeConfig);
+        try { chrome.storage.sync.set({ Theme: appThemeConfig }); } catch (err) {}
+      });
+    });
+    syncThemePicker();
+  }
+  function applyThemeConfig(config) {
+    const rawPref = config.Theme || "dark";
+    BookmarkDB.setUiPref("themePref", rawPref).catch(() => {
+    });
+    try {
+      localStorage.setItem("_themeCache", rawPref);
+    } catch (e) {
+    }
+    try {
+      chrome.storage.local.set({ _themeCache: rawPref });
+    } catch (e) {
+    }
+    const activeTheme = resolveActiveTheme(config);
+    const root = document.documentElement;
+    setCurrentTheme(activeTheme);
+    CUSTOM_THEME_VARS.forEach((v) => root.style.removeProperty(v));
+    if (activeTheme === "custom" && config.CustomColors) {
+      const c = config.CustomColors;
+      const f = formatColorForWeb;
+      root.dataset.theme = "dark";
+      const canvas = f(c.WindowBackground);
+      const card = f(c.ControlBackground);
+      root.style.setProperty("--surface-canvas", canvas);
+      root.style.setProperty("--surface-card", card);
+      root.style.setProperty("--surface-muted", hexMix(card, canvas, 0.5));
+      root.style.setProperty("--surface-hover", f(c.ControlHover));
+      root.style.setProperty("--line-hairline", f(c.BorderColor));
+      root.style.setProperty("--text-primary", f(c.TextPrimary));
+      root.style.setProperty("--text-secondary", f(c.TextSecondary));
+      root.style.setProperty("--select-bg", f(c.SelectionBackground));
+      root.style.setProperty("--text-tertiary", hexMix(f(c.TextSecondary), canvas, 0.45));
+      root.style.setProperty("--line-strong", f(c.TextPrimary));
+      root.style.setProperty("--accent", f(c.TextPrimary));
+      root.style.setProperty("--accent-text", canvas);
+      root.style.setProperty("--accent-hover", hexMix(f(c.TextPrimary), canvas, 0.12));
+      root.style.setProperty("--accent-press", hexMix(f(c.TextPrimary), canvas, 0.22));
+    }
+    applyThemeDOM(activeTheme);
+  }
+
+  // src/pages/newtab/displayEffects.js
+  init_newtabState();
+  function initializeFadeIn() {
+    window.chrome.storage.sync.get(["fadeInEnabled"], (result) => {
+      setFadeInEnabled(result.fadeInEnabled !== void 0 ? result.fadeInEnabled : true);
+      applyFadeIn();
+    });
+  }
+  function applyFadeIn() {
+    const bookmarksContent = document.querySelector(".bookmarks-content");
+    if (bookmarksContent) {
+      if (fadeInEnabled) {
+        bookmarksContent.classList.add("fade-in");
+        bookmarksContent.style.animationDuration = "";
+      } else {
+        bookmarksContent.classList.remove("fade-in");
+        bookmarksContent.style.animationDuration = "";
+      }
+    }
+  }
+  function initializeSpotlightVisibility() {
+    window.chrome.storage.sync.get(["spotlightVisible"], (result) => {
+      setSpotlightVisible(result.spotlightVisible !== void 0 ? result.spotlightVisible : true);
+      applySpotlightVisibility();
+    });
+  }
+  function applySpotlightVisibility() {
+    const searchPage = document.getElementById("search-page");
+    if (searchPage) {
+      spotlightVisible ? searchPage.classList.remove("hide-spotlight") : searchPage.classList.add("hide-spotlight");
+    }
+    const spotlightCheckbox = document.getElementById("spotlight-checkbox");
+    if (spotlightCheckbox) spotlightCheckbox.checked = spotlightVisible;
+  }
+  function initializeScale() {
+    window.chrome.storage.sync.get(["uiScale"], (result) => {
+      const syncScale = result.uiScale !== void 0 ? result.uiScale : 1;
+      applyScale(syncScale);
+    });
+  }
+  function applyScale(value) {
+    const preScale = document.getElementById("pre-scale");
+    if (preScale) preScale.remove();
+    setUiScale(value);
+    try {
+      localStorage.setItem("_scaleCache", String(value));
+    } catch (e) {
+    }
+    if (value === 1) {
+      document.body.style.zoom = "";
+      document.body.style.marginLeft = "";
+      document.body.style.marginTop = "";
+    } else {
+      document.body.style.zoom = value;
+      const pct = (1 / value - 1) * 50;
+      document.body.style.marginLeft = `${pct}vw`;
+      document.body.style.marginTop = `${pct}vh`;
+    }
+    document.querySelectorAll(".scale-btn").forEach((btn) => {
+      btn.classList.toggle("active", parseFloat(btn.dataset.value) === value);
+    });
+  }
+  function toggleScale(value) {
+    setUiScale(value);
+    applyScale(value);
+  }
+  function showPage(pageName) {
+    document.querySelectorAll(".page").forEach((page) => page.classList.remove("active"));
+    const targetPage = document.getElementById(`${pageName}-page`);
+    if (targetPage) {
+      targetPage.classList.add("active");
+      setCurrentPage(pageName);
+      if (pageName === "search") {
+        const searchInput = document.getElementById("search-input");
+        if (searchInput && spotlightVisible) setTimeout(() => searchInput.focus(), 50);
+      }
+      if (pageName === "bookmarks") {
+        if (fadeInEnabled) {
+          const bookmarksContent = document.querySelector(".bookmarks-content");
+          if (bookmarksContent) {
+            bookmarksContent.classList.remove("fade-in");
+            void bookmarksContent.offsetWidth;
+            bookmarksContent.classList.add("fade-in");
+          }
+        }
+      }
+    }
+  }
+
+  // src/pages/newtab/newtab.js
+  init_tabs2();
+
+  // src/pages/newtab/modalVisibility.js
+  init_newtabState();
+
+  // src/utils/formatDuration.js
+  function formatTimeRemaining(ms) {
+    const totalSeconds = Math.floor(ms / 1e3);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor(totalSeconds % 3600 / 60);
+    const seconds = totalSeconds % 60;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
+  }
+
+  // src/services/tabService.js
+  async function getTabCount() {
+    const tabs = await chrome.tabs.query({});
+    return tabs.length;
+  }
+
+  // src/services/backgroundMessenger.js
+  async function sendToBackground(message) {
+    try {
+      return await chrome.runtime.sendMessage(message);
+    } catch (e) {
+    }
+  }
+
+  // src/components/tabLimiter/tabLimiterUI.js
+  init_newtabState();
+  function initializeTabLimiter() {
+    updateLimiterUI();
+    setLimiterUpdateInterval(setInterval(updateLimiterUI, 1e3));
+    initLimitButtons();
+  }
+  async function updateLimiterUI() {
+    const result = await window.chrome.storage.sync.get(["tabLimit", "managementMethod", "pendingIncrease"]);
+    const tabLimit = result.tabLimit !== void 0 ? result.tabLimit : 0;
+    const managementMethod = result.managementMethod || "block";
+    const tabCount = await getTabCount();
+    const limitDisplay = document.getElementById("current-limit");
+    const countDisplay = document.getElementById("current-tabs");
+    if (limitDisplay) limitDisplay.textContent = tabLimit === 0 ? "Off" : tabLimit;
+    if (countDisplay) countDisplay.textContent = tabCount;
+    const buttons = document.querySelectorAll(".limit-btn");
+    buttons.forEach((btn) => {
+      if (btn.classList.contains("delay-btn")) return;
+      const btnLimit = parseInt(btn.dataset.limit, 10);
+      if (btnLimit === tabLimit) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+      if (result.pendingIncrease && result.pendingIncrease.targetLimit === btnLimit) {
+        btn.classList.add("pending");
+      } else {
+        btn.classList.remove("pending");
+      }
+    });
+    const radios = document.querySelectorAll('input[name="management-method"]');
+    radios.forEach((radio) => {
+      if (radio.value === managementMethod) radio.checked = true;
+    });
+    updatePendingDisplay(result.pendingIncrease);
+  }
+  function initLimitButtons() {
+    const limitButtons = document.querySelectorAll(".limit-btn");
+    limitButtons.forEach((btn) => {
+      if (btn.classList.contains("delay-btn")) return;
+      if (btn.classList.contains("scale-btn")) return;
+      btn.addEventListener("click", async () => {
+        const newLimit = parseInt(btn.dataset.limit, 10);
+        if (isNaN(newLimit)) return;
+        try {
+          const { tabLimit } = await window.chrome.storage.sync.get("tabLimit");
+          const currentLimit = tabLimit !== void 0 ? tabLimit : 0;
+          if (newLimit === currentLimit) return;
+          const effectiveCurrent = currentLimit === 0 ? 9999 : currentLimit;
+          const effectiveNew = newLimit === 0 ? 9999 : newLimit;
+          if (effectiveNew < effectiveCurrent) {
+            await window.chrome.storage.sync.set({ tabLimit: newLimit });
+            await window.chrome.storage.sync.remove("pendingIncrease");
+            updateLimiterUI();
+            if (newLimit !== 0) {
+              const tabCount = await getTabCount();
+              if (tabCount > newLimit) {
+                await sendToBackground({ action: "enforceLimit" });
+              }
+            }
+          } else {
+            const startTime = Date.now();
+            await window.chrome.storage.sync.set({ pendingIncrease: { targetLimit: newLimit, startTime } });
+            await sendToBackground({ action: "startIncrease", targetLimit: newLimit, startTime });
+            updateLimiterUI();
+          }
+        } catch (error) {
+        }
+      });
+    });
+    const methodRadios = document.querySelectorAll('input[name="management-method"]');
+    methodRadios.forEach((radio) => {
+      radio.addEventListener("change", async (event) => {
+        const method = event.target.value;
+        if (method) {
+          await window.chrome.storage.sync.set({ managementMethod: method });
+          updateLimiterUI();
+        }
+      });
+    });
+    const cancelIncreaseBtn = document.getElementById("cancel-increase");
+    if (cancelIncreaseBtn) cancelIncreaseBtn.addEventListener("click", async () => {
+      await window.chrome.storage.sync.remove("pendingIncrease");
+      await sendToBackground({ action: "cancelIncrease" });
+      updateLimiterUI();
+    });
+  }
+  function updatePendingDisplay(pendingIncrease) {
+    const pendingBox = document.getElementById("limiter-pending-box");
+    if (!pendingBox) return;
+    if (pendingIncrease && pendingIncrease.targetLimit !== void 0 && pendingIncrease.startTime) {
+      const elapsed = Date.now() - pendingIncrease.startTime;
+      const remaining = Math.max(0, 30 * 60 * 1e3 - elapsed);
+      if (remaining > 0) {
+        pendingBox.style.display = "block";
+        const targetElement = document.getElementById("pending-target");
+        const timeElement = document.getElementById("time-remaining");
+        if (targetElement) targetElement.textContent = pendingIncrease.targetLimit === 0 ? "Off" : pendingIncrease.targetLimit;
+        if (timeElement) timeElement.textContent = formatTimeRemaining(remaining);
+        return;
+      }
+    }
+    pendingBox.style.display = "none";
+  }
+
+  // src/services/delayStorage.js
+  async function loadDelaySettings() {
+    return chrome.storage.sync.get(["searchDelaySeconds", "showQueryOnDelay"]);
+  }
+  async function getDelaySeconds() {
+    const result = await chrome.storage.sync.get("searchDelaySeconds");
+    return result.searchDelaySeconds;
+  }
+  async function saveDelaySeconds(seconds) {
+    return chrome.storage.sync.set({ searchDelaySeconds: seconds });
+  }
+  async function clearPendingDecrease() {
+    return chrome.storage.sync.remove("pendingDelayDecrease");
+  }
+  async function savePendingDecrease(targetDelay, startTime) {
+    return chrome.storage.sync.set({ pendingDelayDecrease: { targetDelay, startTime } });
+  }
+  async function getPendingDecrease() {
+    const result = await chrome.storage.sync.get("pendingDelayDecrease");
+    return result.pendingDelayDecrease;
+  }
+
+  // src/components/searchDelay/searchDelay.js
+  init_newtabState();
+  function initializeSearchDelaySettings() {
+    const delayButtons = document.querySelectorAll(".delay-btn");
+    const showQueryCheck = document.getElementById("show-query-checkbox");
+    loadDelaySettings().then((res) => {
+      setSearchDelaySeconds(res.searchDelaySeconds !== void 0 ? res.searchDelaySeconds : 0);
+      if (showQueryCheck) showQueryCheck.checked = res.showQueryOnDelay !== void 0 ? res.showQueryOnDelay : true;
+      updateDelayPendingUI();
+    });
+    delayButtons.forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        const newDelay = parseInt(e.target.dataset.value);
+        const currentDelay = await getDelaySeconds();
+        const actualCurrent = currentDelay !== void 0 ? currentDelay : 0;
+        if (newDelay === actualCurrent) return;
+        if (newDelay > actualCurrent) {
+          await saveDelaySeconds(newDelay);
+          await clearPendingDecrease();
+          setSearchDelaySeconds(newDelay);
+          await sendToBackground({ action: "updateSearchDelay", delaySeconds: newDelay });
+          updateDelayPendingUI();
+        } else if (newDelay < actualCurrent) {
+          const startTime = Date.now();
+          await savePendingDecrease(newDelay, startTime);
+          await sendToBackground({ action: "startDelayDecrease" });
+          updateDelayPendingUI();
+        }
+      });
+    });
+    const cancelBtn = document.getElementById("cancel-delay-decrease");
+    if (cancelBtn) {
+      cancelBtn.addEventListener("click", async () => {
+        await clearPendingDecrease();
+        await sendToBackground({ action: "cancelDelayDecrease" });
+        updateDelayPendingUI();
+      });
+    }
+    if (delayUpdateInterval) clearInterval(delayUpdateInterval);
+    setDelayUpdateInterval(setInterval(updateDelayPendingUI, 1e3));
+    if (showQueryCheck) {
+      showQueryCheck.addEventListener("change", () => {
+        window.chrome.storage.sync.set({ showQueryOnDelay: showQueryCheck.checked });
+      });
+    }
+  }
+  async function updateDelayPendingUI() {
+    const box = document.getElementById("delay-pending-box");
+    const targetSpan = document.getElementById("delay-target-time");
+    const timeSpan = document.getElementById("delay-time-remaining");
+    const delayButtons = document.querySelectorAll(".delay-btn");
+    const pendingDelayDecrease = await getPendingDecrease();
+    delayButtons.forEach((btn) => {
+      const val = parseInt(btn.dataset.value);
+      btn.classList.remove("active", "pending");
+      if (val === searchDelaySeconds) btn.classList.add("active");
+    });
+    if (pendingDelayDecrease && pendingDelayDecrease.startTime) {
+      const elapsed = Date.now() - pendingDelayDecrease.startTime;
+      const remaining = Math.max(0, 30 * 60 * 1e3 - elapsed);
+      if (remaining > 0) {
+        if (box) box.style.display = "block";
+        if (targetSpan) targetSpan.textContent = pendingDelayDecrease.targetDelay + "s";
+        if (timeSpan) timeSpan.textContent = formatTimeRemaining(remaining);
+        delayButtons.forEach((btn) => {
+          if (parseInt(btn.dataset.value) === pendingDelayDecrease.targetDelay) {
+            btn.classList.add("pending");
+          }
+        });
+        return;
+      }
+    }
+    if (box) box.style.display = "none";
+  }
+
+  // src/components/engines/engineModal.js
+  init_bookmarksDB();
+
+  // src/components/shared/acronymBadge.js
+  function generateAcronymSvg(text, color) {
+    const acronym = text.trim().toUpperCase().substring(0, 2);
+    const textColor = color || "#3b82f6";
+    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 32 32"><text x="50%" y="50%" dy=".36em" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="16" fill="${textColor}">${acronym}</text></svg>`;
+    return "data:image/svg+xml;base64," + btoa(svgString);
+  }
+
+  // src/utils/file.js
+  function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // src/components/engines/engineModal.js
+  init_scrollAffordance();
+
+  // src/components/shared/subpageNav.js
+  var BACK_GLYPH = "\u2039";
+  var CLOSE_GLYPH = "\xD7";
+  function createSubpageNav(spec) {
+    const {
+      panels,
+      home,
+      title,
+      closeBtn,
+      homeTitle,
+      panelAttr = "data-subpage",
+      titleAttr = "subpageTitle"
+    } = spec;
+    const q = (sel) => document.querySelector(sel);
+    const qa = (sel) => document.querySelectorAll(sel);
+    function setChrome(text, mode) {
+      const titleEl = q(title);
+      const btn = q(closeBtn);
+      if (titleEl) titleEl.textContent = text;
+      if (!btn) return;
+      if (mode === "back") {
+        btn.textContent = BACK_GLYPH;
+        btn.title = "Back";
+        btn.dataset.navMode = "back";
+      } else {
+        btn.textContent = CLOSE_GLYPH;
+        btn.title = "Close";
+        delete btn.dataset.navMode;
+      }
+    }
+    function open(name, customTitle) {
+      const page = q(`${panels}[${panelAttr}="${name}"]`);
+      const homeEl = q(home);
+      if (!page || !homeEl) return false;
+      homeEl.hidden = true;
+      qa(panels).forEach((p2) => {
+        p2.hidden = true;
+      });
+      page.hidden = false;
+      setChrome(customTitle || page.dataset[titleAttr] || homeTitle, "back");
+      const body = page.closest(".settings-body");
+      if (body) body.scrollTop = 0;
+      return true;
+    }
+    function close() {
+      const homeEl = q(home);
+      if (!homeEl) return;
+      qa(panels).forEach((p2) => {
+        p2.hidden = true;
+      });
+      homeEl.hidden = false;
+      setChrome(homeTitle, "close");
+    }
+    const isSubpage = () => q(closeBtn)?.dataset.navMode === "back";
+    return { open, close, isSubpage };
+  }
+
+  // src/components/engines/engineModal.js
+  init_contextMenu2();
+  init_bookmarkDialog();
+  init_icons();
+  init_newtabState();
+
+  // src/components/engines/engineIcons.js
+  init_bookmarksDB();
+  async function setEngineIconSrc(imgElement, engine, engineId) {
+    const defaultIcon = "src/assets/svg/default.api.svg";
+    if (engine.isCustomIcon) {
+      try {
+        const iconData = await BookmarkDB.getIcon(engineId);
+        if (iconData) {
+          imgElement.src = iconData;
+        } else {
+          imgElement.src = defaultIcon;
+        }
+      } catch (e) {
+        imgElement.src = defaultIcon;
+      }
+    } else {
+      imgElement.src = engine.icon || defaultIcon;
+    }
+  }
+
+  // src/constants/engines.js
+  var DEFAULT_ENGINES = {
+    default: { name: "Browser Default", url: null, icon: "src/assets/svg/default.api.svg", isDefault: true },
+    google: { name: "Google", url: "https://www.google.com/search?q=", icon: "src/assets/svg/google.com.svg", isDefault: true },
+    bing: { name: "Bing", url: "https://www.bing.com/search?q=", icon: "src/assets/svg/bing.com.svg", isDefault: true },
+    duckduckgo: { name: "DuckDuckGo", url: "https://duckduckgo.com/?q=", icon: "src/assets/svg/duckduckgo.com.svg", isDefault: true },
+    youtube: { name: "YouTube", url: "https://www.youtube.com/results?search_query=", icon: "src/assets/svg/youtube.com.svg", isDefault: true },
+    reddit: { name: "Reddit", url: "https://www.reddit.com/search/?q=", icon: "src/assets/svg/reddit.com.svg", isDefault: true },
+    yandex: { name: "Yandex", url: "https://yandex.com/search/?text=", icon: "src/assets/svg/yandex.com.svg", isDefault: true },
+    yahoo: { name: "Yahoo", url: "https://search.yahoo.com/search?p=", icon: "src/assets/svg/yahoo.com.svg", isDefault: true },
+    mojeek: { name: "Mojeek", url: "https://www.mojeek.com/search?q=", icon: "src/assets/svg/mojeek.com.svg", isDefault: true }
+  };
+
+  // src/services/engineStorage.js
+  async function loadEngines() {
+    return new Promise((resolve) => {
+      if (window.chrome && window.chrome.storage) {
+        window.chrome.storage.sync.get(["customSearchEngines"], (result) => {
+          if (result.customSearchEngines && Object.keys(result.customSearchEngines).length > 0) {
+            resolve(result.customSearchEngines);
+          } else {
+            const defaults = JSON.parse(JSON.stringify(DEFAULT_ENGINES));
+            window.chrome.storage.sync.set({ customSearchEngines: defaults }, () => resolve(defaults));
+          }
+        });
+      } else {
+        resolve(JSON.parse(JSON.stringify(DEFAULT_ENGINES)));
+      }
+    });
+  }
+  function saveEngines(engines, callback) {
+    if (window.chrome && window.chrome.storage) {
+      window.chrome.storage.sync.set({ customSearchEngines: engines }, callback);
+    }
+  }
+
+  // src/components/engines/enginesUI.js
+  init_icons();
+  init_newtabState();
+  var _onManageEngines = null;
+  function setManageEnginesCallback(cb) {
+    _onManageEngines = cb;
+  }
+  async function loadSearchEngines() {
+    setSearchEngines(await loadEngines());
+  }
+  function saveSearchEngines() {
+    saveEngines(searchEngines, () => {
+      renderEngineDropdown();
+      renderEngineListInModal();
+    });
+  }
+  function renderEngineDropdown() {
+    const container = document.getElementById("engine-links");
+    if (!container) return;
+    container.innerHTML = "";
+    Object.keys(searchEngines).sort((a, b) => a === "default" ? -1 : b === "default" ? 1 : 0).forEach((key) => {
+      const engine = searchEngines[key];
+      if (engine.isHidden) return;
+      const a = document.createElement("a");
+      a.href = "#";
+      a.className = "plus__link";
+      a.dataset.engine = key;
+      a.title = engine.name;
+      const img = document.createElement("img");
+      img.alt = "";
+      img.width = 14;
+      img.height = 14;
+      img.style.cssText = "width:14px;height:14px;object-fit:contain;flex-shrink:0;";
+      img.onerror = () => {
+        img.style.display = "none";
+      };
+      setEngineIconSrc(img, engine, key);
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = engine.name;
+      a.appendChild(img);
+      a.appendChild(nameSpan);
+      container.appendChild(a);
+    });
+    const manageBtn = document.createElement("button");
+    manageBtn.className = "plus__link plus__manage";
+    manageBtn.innerHTML = `${Icons.list} Engine Lists`;
+    manageBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const plusEl = document.getElementById("plus");
+      if (plusEl) plusEl.classList.remove("plus--active");
+      const linksEl = document.getElementById("engine-links");
+      if (linksEl) linksEl.classList.remove("active");
+      if (_onManageEngines) _onManageEngines();
+    });
+    container.appendChild(manageBtn);
+  }
+  function updateCurrentEngine(engineKey) {
+    const engine = searchEngines[engineKey];
+    const iconDisplay = document.getElementById("current-engine-icon-display");
+    if (iconDisplay && engine) {
+      iconDisplay.innerHTML = "";
+      const img = document.createElement("img");
+      setEngineIconSrc(img, engine, engineKey);
+      img.alt = engine.name;
+      img.onerror = () => {
+        img.src = "src/assets/svg/default.api.svg";
+      };
+      iconDisplay.appendChild(img);
+      setCurrentEngine(engineKey);
+      saveSelectedEngine(engineKey);
+    }
+  }
+  function loadSavedEngine() {
+    try {
+      if (window.chrome && window.chrome.storage) {
+        window.chrome.storage.sync.get(["selectedSearchEngine", "searchEngineBehavior", "defaultEngineKey"], (result) => {
+          setSearchEngineBehavior(result.searchEngineBehavior || "remember");
+          setDefaultEngineKey(result.defaultEngineKey || "default");
+          if (searchEngineBehavior === "always-default") {
+            setCurrentEngine(defaultEngineKey);
+            updateCurrentEngine(defaultEngineKey);
+          } else if (result.selectedSearchEngine && searchEngines[result.selectedSearchEngine]) {
+            setCurrentEngine(result.selectedSearchEngine);
+            updateCurrentEngine(currentEngine);
+          } else {
+            updateCurrentEngine(defaultEngineKey);
+          }
+          renderEngineDropdown();
+        });
+      }
+    } catch (error) {
+      console.log("Failed to load saved engine");
+    }
+  }
+  function saveSelectedEngine(engineKey) {
+    try {
+      if (window.chrome && window.chrome.storage) {
+        window.chrome.storage.sync.set({ selectedSearchEngine: engineKey });
+      }
+    } catch (error) {
+    }
+  }
+
+  // src/components/engines/engineModal.js
+  var _iconType = "file";
+  var _iconFile = null;
+  var _iconAcronym = { text: "", color: "#3b82f6" };
+  var nav = createSubpageNav({
+    panels: ".engine-subpage",
+    home: "#engine-home",
+    title: "#engine-modal-title",
+    closeBtn: "#close-engine-modal",
+    homeTitle: "Search Engines",
+    panelAttr: "data-engine-panel",
+    titleAttr: "engineTitle"
+  });
+  var openEngineSubpage = (name, customTitle) => nav.open(name, customTitle);
+  var closeEngineSubpage = () => nav.close();
+  var DIALOG_CLASS = "engine-popup-dialog";
+  function closeAllEngineDialogs() {
+    document.querySelectorAll("." + DIALOG_CLASS).forEach((n) => n.remove());
+  }
+  function el3(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== void 0) e.textContent = text;
+    return e;
+  }
+  function buildEngineDialog({ title, subtitle, body, foot }) {
+    closeAllEngineDialogs();
+    const overlay = el3("div", `modal show ${DIALOG_CLASS}`);
+    const card = el3("div", "picker-card");
+    card.appendChild(el3("div", "picker-title", title));
+    if (subtitle) card.appendChild(el3("div", "picker-subtitle", subtitle));
+    if (body) card.appendChild(body);
+    if (foot && foot.length) {
+      const footEl = el3("div", "picker-foot");
+      foot.forEach(({ label, primary, onClick }) => {
+        const btn = el3("button", "picker-btn" + (primary ? " picker-btn--primary" : ""), label);
+        btn.type = "button";
+        btn.addEventListener("click", onClick);
+        footEl.appendChild(btn);
+      });
+      card.appendChild(footEl);
+    }
+    overlay.appendChild(card);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeAllEngineDialogs();
+    });
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+  function openIconTypePicker() {
+    const body = el3("div", "picker-pane picker-pane--on");
+    const host = el3("div", "picker-wellhost");
+    const well = el3("div", "picker-well");
+    [{ type: "file", label: "Upload SVG" }, { type: "acronym", label: "Acronym" }].forEach(({ type, label }) => {
+      const row = el3("button", "picker-row" + (_iconType === type ? " is-current" : ""));
+      row.type = "button";
+      row.appendChild(el3("span", "picker-check"));
+      const span = el3("span", "", label);
+      span.style.flex = "1";
+      row.append(span);
+      row.addEventListener("click", () => {
+        _iconType = type;
+        const labelEl = document.getElementById("engine-add-icon-label");
+        if (labelEl) labelEl.textContent = type === "file" ? "Upload SVG" : "Acronym";
+        closeAllEngineDialogs();
+        setTimeout(() => openIconInputPicker(type), 80);
+      });
+      well.appendChild(row);
+    });
+    host.appendChild(well);
+    body.appendChild(host);
+    buildEngineDialog({ title: "Icon type", subtitle: "How the engine icon is provided", body, foot: [] });
+  }
+  function openIconInputPicker(type) {
+    const body = el3("div", "picker-fieldwrap");
+    let inputEl;
+    if (type === "file") {
+      inputEl = document.createElement("input");
+      inputEl.type = "file";
+      inputEl.accept = ".svg";
+      inputEl.style.display = "none";
+      const proxyBtn = document.createElement("button");
+      proxyBtn.className = "picker-btn";
+      proxyBtn.type = "button";
+      proxyBtn.style.width = "100%";
+      proxyBtn.textContent = "Select SVG File";
+      proxyBtn.addEventListener("click", () => inputEl.click());
+      inputEl.addEventListener("change", () => {
+        const file = inputEl.files?.[0];
+        proxyBtn.textContent = file ? file.name : "Select SVG File";
+      });
+      body.append(inputEl, proxyBtn);
+    } else {
+      const row = el3("div");
+      row.style.cssText = "display:flex;gap:10px;align-items:center;";
+      inputEl = document.createElement("input");
+      inputEl.type = "text";
+      inputEl.maxLength = 2;
+      inputEl.placeholder = "e.g. YT";
+      inputEl.className = "picker-field";
+      inputEl.value = _iconAcronym.text;
+      inputEl.style.flex = "1";
+      const colorInput = document.createElement("input");
+      colorInput.type = "color";
+      colorInput.value = _iconAcronym.color;
+      colorInput.className = "color-picker-circle";
+      colorInput.style.flexShrink = "0";
+      colorInput.addEventListener("input", () => {
+        _iconAcronym.color = colorInput.value;
+      });
+      row.append(inputEl, colorInput);
+      body.appendChild(row);
+    }
+    buildEngineDialog({
+      title: type === "file" ? "Upload SVG" : "Acronym",
+      subtitle: type === "acronym" ? "Up to 2 letters and a colour" : void 0,
+      body,
+      foot: [
+        { label: "Back", onClick: () => {
+          closeAllEngineDialogs();
+          setTimeout(() => openIconTypePicker(), 80);
+        } },
+        { label: "Done", primary: true, onClick: () => {
+          if (type === "file") {
+            _iconFile = inputEl.files?.[0] || null;
+          } else {
+            _iconAcronym.text = inputEl.value.trim();
+          }
+          closeAllEngineDialogs();
+        } }
+      ]
+    });
+    if (type === "acronym") requestAnimationFrame(() => {
+      inputEl.focus();
+      inputEl.select();
+    });
+  }
+  function makeStarSvg(filled) {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", "16");
+    svg.setAttribute("height", "16");
+    svg.setAttribute("fill", filled ? "currentColor" : "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "2");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z");
+    svg.appendChild(path);
+    return svg;
+  }
+  function renderEngineListInModal() {
+    closeEngineSubpage();
+    const listContainer = document.getElementById("engine-list-container");
+    if (!listContainer) return;
+    listContainer.innerHTML = "";
+    const keys = Object.keys(searchEngines);
+    keys.forEach((key, i) => {
+      const engine = searchEngines[key];
+      const first = i === 0, last = i === keys.length - 1;
+      const row = document.createElement("div");
+      row.className = "settings-row engine-list-row";
+      row.style.cursor = "default";
+      if (first && last) row.style.borderRadius = "16px";
+      else if (first) row.style.borderRadius = "16px 16px 4px 4px";
+      else if (last) row.style.borderRadius = "4px 4px 16px 16px";
+      else row.style.borderRadius = "4px";
+      if (engine.isHidden) row.style.opacity = "0.5";
+      const iconWrap = document.createElement("div");
+      iconWrap.className = "engine-row-icon";
+      const img = document.createElement("img");
+      setEngineIconSrc(img, engine, key);
+      img.width = 16;
+      img.height = 16;
+      img.onerror = () => {
+        img.src = "src/assets/svg/default.api.svg";
+      };
+      iconWrap.appendChild(img);
+      row.appendChild(iconWrap);
+      const textWrap = document.createElement("span");
+      textWrap.className = "settings-row-text";
+      const nameEl = document.createElement("span");
+      nameEl.className = "settings-row-title";
+      nameEl.textContent = engine.name;
+      const urlEl = document.createElement("span");
+      urlEl.className = "settings-row-value";
+      urlEl.textContent = engine.url || "Default Browser Search";
+      textWrap.append(nameEl, urlEl);
+      row.appendChild(textWrap);
+      const controls = document.createElement("div");
+      controls.className = "engine-row-controls";
+      const starBtn = document.createElement("button");
+      starBtn.className = "engine-star-btn";
+      starBtn.type = "button";
+      starBtn.title = "Set as default";
+      const isDefault = key === defaultEngineKey;
+      starBtn.classList.toggle("active", isDefault);
+      starBtn.appendChild(makeStarSvg(isDefault));
+      starBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        setDefaultEngine(key);
+      });
+      const toggleLabel = document.createElement("label");
+      toggleLabel.className = "toggle-switch small-switch";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = !engine.isHidden;
+      checkbox.addEventListener("change", (e) => {
+        e.stopPropagation();
+        toggleEngineVisibility(key, e.target.checked);
+      });
+      const slider = document.createElement("span");
+      slider.className = "toggle-slider";
+      toggleLabel.append(checkbox, slider);
+      controls.append(toggleLabel, starBtn);
+      row.appendChild(controls);
+      row.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        if (ContextMenu.disabled) return;
+        openEngineItemDialog(key);
+      });
+      listContainer.appendChild(row);
+    });
+  }
+  function openEngineItemDialog(key) {
+    const engine = searchEngines[key];
+    if (!engine) return;
+    buildDialog({
+      title: engine.name,
+      subtitle: engine.url || "Default Browser Search",
+      actions: [
+        {
+          kind: "input",
+          label: "Rename",
+          paneTitle: "Rename engine",
+          icon: Icons.edit,
+          fieldValue: engine.name,
+          save: (newName) => {
+            if (!newName.trim()) return;
+            searchEngines[key].name = newName.trim();
+            saveSearchEngines();
+            renderEngineListInModal();
+            if (currentEngine === key) updateCurrentEngine(key);
+          }
+        },
+        {
+          kind: "input",
+          label: "Edit URL",
+          paneTitle: "Edit URL",
+          icon: Icons.link,
+          fieldValue: engine.url || "",
+          placeholder: "https://example.com/search?q=",
+          save: (newUrl) => {
+            searchEngines[key].url = newUrl.trim();
+            saveSearchEngines();
+            renderEngineListInModal();
+            if (currentEngine === key) updateCurrentEngine(key);
+          }
+        },
+        {
+          kind: "danger",
+          label: "Delete engine",
+          icon: Icons.delete,
+          count: 1,
+          confirm: async () => {
+            await doDeleteEngine(key);
+          }
+        }
+      ]
+    });
+  }
+  function setDefaultEngine(key) {
+    setDefaultEngineKey(key);
+    window.chrome.storage.sync.set({ defaultEngineKey: key }, () => {
+      renderEngineListInModal();
+    });
+  }
+  function toggleEngineVisibility(key, isVisible) {
+    if (!searchEngines[key]) return;
+    searchEngines[key].isHidden = !isVisible;
+    if (!isVisible && currentEngine === key) {
+      if (searchEngines["default"]) searchEngines["default"].isHidden = false;
+      updateCurrentEngine("default");
+    }
+    saveSearchEngines();
+    renderEngineListInModal();
+  }
+  async function doDeleteEngine(key) {
+    if (currentEngine === key) {
+      setCurrentEngine("default");
+      updateCurrentEngine("default");
+    }
+    if (searchEngines[key]?.isCustomIcon) await BookmarkDB.deleteIcon(key);
+    delete searchEngines[key];
+    saveSearchEngines();
+    renderEngineListInModal();
+  }
+  function initEngineModal() {
+    const body = document.querySelector("#engine-modal .settings-body");
+    if (body) {
+      const affordance2 = attachScrollAffordance(body, {
+        items: ".settings-section-header, .settings-row",
+        noun: ""
+      });
+      document.addEventListener("engine-modal-opened", () => {
+        requestAnimationFrame(affordance2.refresh);
+      });
+    }
+    const closeBtn = document.getElementById("close-engine-modal");
+    if (closeBtn) closeBtn.addEventListener("click", () => {
+      if (nav.isSubpage()) closeEngineSubpage();
+      else document.getElementById("engine-modal").classList.remove("show");
+    });
+    const saveBtn = document.getElementById("save-engines");
+    if (saveBtn) saveBtn.addEventListener("click", () => {
+      document.getElementById("engine-modal").classList.remove("show");
+    });
+    const addEngineBtn = document.getElementById("add-engine-btn");
+    if (addEngineBtn) addEngineBtn.addEventListener("click", () => {
+      resetAddForm();
+      openEngineSubpage("add");
+      requestAnimationFrame(() => {
+        document.getElementById("engine-add-name")?.focus();
+      });
+    });
+    const iconRow = document.getElementById("engine-add-icon-row");
+    if (iconRow) iconRow.addEventListener("click", openIconTypePicker);
+    const addSubmit = document.getElementById("engine-add-submit");
+    if (addSubmit) addSubmit.addEventListener("click", handleAddEngine);
+  }
+  function resetAddForm() {
+    _iconType = "file";
+    _iconFile = null;
+    _iconAcronym = { text: "", color: "#3b82f6" };
+    const nameField = document.getElementById("engine-add-name");
+    const urlField = document.getElementById("engine-add-url");
+    const iconLabel = document.getElementById("engine-add-icon-label");
+    const errEl = document.getElementById("engine-add-error");
+    if (nameField) nameField.value = "";
+    if (urlField) urlField.value = "";
+    if (iconLabel) iconLabel.textContent = "Upload SVG";
+    if (errEl) {
+      errEl.textContent = "";
+      errEl.classList.remove("picker-error--show");
+    }
+  }
+  async function handleAddEngine() {
+    const nameVal = (document.getElementById("engine-add-name")?.value || "").trim();
+    const urlVal = (document.getElementById("engine-add-url")?.value || "").trim();
+    const errEl = document.getElementById("engine-add-error");
+    if (!nameVal || !urlVal) {
+      if (errEl) {
+        errEl.textContent = "Name and URL are required.";
+        errEl.classList.add("picker-error--show");
+      }
+      return;
+    }
+    const id = "custom_" + Date.now();
+    let isCustomIcon = false;
+    let iconData = null;
+    try {
+      if (_iconType === "acronym") {
+        if (!_iconAcronym.text) {
+          if (errEl) {
+            errEl.textContent = 'Click "Icon type" to set an acronym first.';
+            errEl.classList.add("picker-error--show");
+          }
+          return;
+        }
+        iconData = generateAcronymSvg(_iconAcronym.text, _iconAcronym.color);
+        isCustomIcon = true;
+      } else if (_iconFile) {
+        iconData = await readFileAsDataURL(_iconFile);
+        isCustomIcon = true;
+      }
+      if (isCustomIcon && iconData) await BookmarkDB.saveIcon(id, iconData);
+    } catch (_) {
+      if (errEl) {
+        errEl.textContent = "Failed to process the icon.";
+        errEl.classList.add("picker-error--show");
+      }
+      return;
+    }
+    searchEngines[id] = { name: nameVal, url: urlVal, isCustomIcon, icon: isCustomIcon ? null : "src/assets/svg/default.api.svg", isDefault: false };
+    saveSearchEngines();
+    renderEngineListInModal();
+  }
+
+  // src/pages/newtab/modalVisibility.js
+  var _settingsSnapshotTheme = null;
+  var _settingsSnapshotScale = null;
+  function _revertSettingsModal() {
+    if (_settingsSnapshotTheme !== null) {
+      setAppThemeConfig(_settingsSnapshotTheme);
+      applyThemeConfig(appThemeConfig);
+      try { chrome.storage.sync.set({ Theme: appThemeConfig }); } catch (err) {}
+      syncThemePicker();
+    }
+    if (_settingsSnapshotScale !== null) {
+      setUiScale(_settingsSnapshotScale);
+      applyScale(uiScale);
+    }
+    const resetConfirmBox = document.getElementById("reset-confirm-box");
+    const resetAllBtn = document.getElementById("reset-all-btn");
+    if (resetConfirmBox) resetConfirmBox.style.display = "none";
+    if (resetAllBtn) resetAllBtn.style.display = "";
+  }
+  async function showModal(modalId) {
+    if (modalId === "engine-modal") {
+      renderEngineListInModal();
+      document.dispatchEvent(new CustomEvent("engine-modal-opened"));
+    }
+    if (modalId === "settings-modal") {
+      _settingsSnapshotTheme = appThemeConfig ? Object.assign({}, appThemeConfig) : null;
+      _settingsSnapshotScale = uiScale;
+      const spotlightCheckbox = document.getElementById("spotlight-checkbox");
+      if (spotlightCheckbox) spotlightCheckbox.checked = spotlightVisible;
+      syncThemePicker();
+      const behaviorRadios = document.querySelectorAll('input[name="search-behavior"]');
+      behaviorRadios.forEach((radio) => {
+        if (radio.value === searchEngineBehavior) radio.checked = true;
+      });
+      const pillBehaviorRadios = document.querySelectorAll('input[name="bookmark-pill-behavior"]');
+      pillBehaviorRadios.forEach((radio) => {
+        if (radio.value === bookmarkPillBehavior) radio.checked = true;
+      });
+      closeSettingsSubpage();
+      document.dispatchEvent(new CustomEvent("settings-modal-opened"));
+    }
+    const modal = document.getElementById(modalId);
+    if (modal) modal.classList.add("show");
+  }
+  function hideModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.classList.remove("show");
+    if (modalId === "settings-modal" && (location.hash === "#settings" || location.hash === "")) {
+      try {
+        history.replaceState(null, "", location.pathname + location.search);
+      } catch (e) {}
+    }
+  }
+  function openSettingsSubpage(name) {
+    const page = document.querySelector(`.settings-subpage[data-panel="${name}"]`);
+    const home = document.getElementById("settings-home");
+    if (!page || !home) return;
+    document.querySelectorAll(".settings-subpage").forEach((p2) => {
+      p2.hidden = true;
+    });
+    home.hidden = true;
+    page.hidden = false;
+    const title = document.getElementById("settings-title");
+    if (title) title.textContent = page.dataset.subpageTitle || "Settings";
+    const closeBtn = document.getElementById("close-settings-modal");
+    if (closeBtn) {
+      closeBtn.textContent = "\u2039";
+      closeBtn.title = "Back";
+      closeBtn.dataset.mode = "back";
+    }
+    const body = page.closest(".settings-body");
+    if (body) body.scrollTop = 0;
+    if (name === "limiter") updateLimiterUI();
+    if (name === "delay") updateDelayPendingUI();
+  }
+  function closeSettingsSubpage() {
+    const home = document.getElementById("settings-home");
+    if (!home) return;
+    document.querySelectorAll(".settings-subpage").forEach((p2) => {
+      p2.hidden = true;
+    });
+    home.hidden = false;
+    const title = document.getElementById("settings-title");
+    if (title) title.textContent = "Settings";
+    const closeBtn = document.getElementById("close-settings-modal");
+    if (closeBtn) {
+      closeBtn.textContent = "\xD7";
+      closeBtn.title = "Close";
+      closeBtn.dataset.mode = "close";
+    }
+  }
+  function settingsSubpageOpen() {
+    return !!document.querySelector(".settings-subpage:not([hidden])");
+  }
+  function topmostOpenModal() {
+    let best = null;
+    let bestZ = -Infinity;
+    for (const modal of document.querySelectorAll(".modal.show")) {
+      const z = parseInt(getComputedStyle(modal).zIndex, 10) || 0;
+      if (z >= bestZ) {
+        bestZ = z;
+        best = modal;
+      }
+    }
+    return best;
+  }
+  function dismissModal(modal) {
+    if (!modal) return;
+    const closeBtn = modal.querySelector(".close-btn");
+    if (closeBtn) closeBtn.click();
+    else modal.classList.remove("show");
+  }
+  function initModalDismissal() {
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      const modal = topmostOpenModal();
+      if (!modal) return;
+      event.preventDefault();
+      dismissModal(modal);
+    });
+    document.querySelectorAll(".modal").forEach((modal) => {
+      if (modal.hasAttribute("data-no-backdrop-close")) return;
+      modal.addEventListener("click", (event) => {
+        if (event.target !== modal) return;
+        dismissModal(modal);
+      });
+    });
+  }
+  function initModalBehaviour() {
+    initModalDismissal();
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initModalBehaviour);
+  } else {
+    initModalBehaviour();
+  }
+
+  // src/utils/url.js
+  var KNOWN_TLDS = /* @__PURE__ */ new Set([
+    // generic
+    "com",
+    "org",
+    "net",
+    "edu",
+    "gov",
+    "mil",
+    "int",
+    "info",
+    "biz",
+    "name",
+    "pro",
+    "mobi",
+    "asia",
+    "tel",
+    "travel",
+    "jobs",
+    "aero",
+    "coop",
+    "museum",
+    // common modern generics
+    "app",
+    "dev",
+    "io",
+    "ai",
+    "co",
+    "me",
+    "tv",
+    "cc",
+    "xyz",
+    "online",
+    "site",
+    "tech",
+    "store",
+    "blog",
+    "cloud",
+    "page",
+    "live",
+    "shop",
+    "wiki",
+    "design",
+    "art",
+    "fun",
+    "space",
+    "world",
+    "today",
+    "news",
+    "media",
+    "email",
+    "link",
+    "click",
+    "host",
+    "press",
+    "club",
+    "life",
+    "vip",
+    "top",
+    "one",
+    "run",
+    "fm",
+    "gg",
+    "sh",
+    "ly",
+    "to",
+    "is",
+    "am",
+    "so",
+    "st",
+    "md",
+    "ms",
+    "im",
+    "ws",
+    // country codes in common use
+    "uk",
+    "de",
+    "fr",
+    "jp",
+    "cn",
+    "ru",
+    "br",
+    "in",
+    "au",
+    "ca",
+    "us",
+    "es",
+    "it",
+    "nl",
+    "se",
+    "no",
+    "fi",
+    "dk",
+    "pl",
+    "ch",
+    "at",
+    "be",
+    "cz",
+    "gr",
+    "pt",
+    "ro",
+    "hu",
+    "ie",
+    "nz",
+    "mx",
+    "kr",
+    "tw",
+    "hk",
+    "sg",
+    "za",
+    "il",
+    "tr",
+    "ua",
+    "ar",
+    "cl",
+    "pe",
+    "ph",
+    "th",
+    "vn",
+    "id",
+    "my",
+    "eu"
+  ]);
+  var HOSTNAME_PATTERN = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+$/;
+  function isUrl(input) {
+    input = input.trim();
+    if (!input) return false;
+    if (input.match(/^https?:\/\//i)) return true;
+    if (input.match(/^(ftp|ftps|file):\/\//i)) return true;
+    if (isFilePath(input)) return true;
+    if (input.match(/^(localhost|(\d{1,3}\.){3}\d{1,3})(:\d+)?([/?#].*)?$/i)) return true;
+    if (input.includes(" ")) return false;
+    if (!input.includes(".")) return false;
+    const hostname = input.split(/[/?#]/)[0].split(":")[0];
+    if (!HOSTNAME_PATTERN.test(hostname)) return false;
+    const tld = hostname.slice(hostname.lastIndexOf(".") + 1).toLowerCase();
+    return KNOWN_TLDS.has(tld);
+  }
+  function isFilePath(input) {
+    input = input.trim();
+    if (input.match(/^file:\/\//i)) return false;
+    if (input.match(/^[a-zA-Z]:[/\\]/)) return true;
+    if (input.startsWith("\\\\")) return true;
+    if (input.match(/^\/[^/]/)) return true;
+    return false;
+  }
+  function filePathToUrl(input) {
+    input = input.trim().replace(/\\/g, "/");
+    if (input.startsWith("//")) return "file:" + input;
+    if (input.match(/^[a-zA-Z]:\//)) return "file:///" + input;
+    return "file://" + input;
+  }
+  function formatUrl(input) {
+    input = input.trim();
+    if (input.match(/^https?:\/\//i)) return input;
+    if (input.match(/^(ftp|ftps|file):\/\//i)) return input;
+    if (isFilePath(input)) return filePathToUrl(input);
+    return "https://" + input;
+  }
+
+  // src/components/search/search.js
+  init_newtabState();
+  init_scrollAffordance();
+  function initializeSearch() {
+    const searchInput = document.getElementById("search-input");
+    const plus = document.getElementById("plus");
+    const resultsContainer = document.getElementById("bookmark-search-results");
+    if (!searchInput) return;
+    searchInput.addEventListener("input", (e) => {
+      const val = searchInput.value;
+      if (val.startsWith("./")) {
+        const raw = val.substring(2);
+        const query = raw.trim().toLowerCase();
+        if (raw === " ") {
+          plus.classList.remove("plus--active");
+          renderBookmarkSearchResults(sortByUsage(allCachedBookmarks));
+        } else if (query.length > 0) {
+          const matched = allCachedBookmarks.filter(
+            (bm) => bm.name.toLowerCase().includes(query)
+          );
+          plus.classList.remove("plus--active");
+          renderBookmarkSearchResults(sortByUsage(matched));
+        } else {
+          hideBookmarkSearchResults();
+        }
+      } else if (getBookmarkPillBehavior() === "always" && val.trim().length > 0) {
+        const query = val.trim().toLowerCase();
+        const matched = allCachedBookmarks.filter(
+          (bm) => bm.name.toLowerCase().includes(query)
+        );
+        if (matched.length > 0) {
+          plus.classList.remove("plus--active");
+          renderBookmarkSearchResults(sortByUsage(matched));
+        } else {
+          hideBookmarkSearchResults();
+        }
+      } else {
+        hideBookmarkSearchResults();
+      }
+    });
+    searchInput.addEventListener("focus", () => {
+      const v = searchInput.value;
+      if (v.startsWith("./") || getBookmarkPillBehavior() === "always" && v.trim().length > 0) {
+        searchInput.dispatchEvent(new Event("input"));
+      }
+    });
+    if (resultsContainer) {
+      attachScrollAffordance(resultsContainer, { items: ".bookmark-search-item:not(.empty)" });
+    }
+    const searchCard = searchInput.closest(".spotlight-search-container");
+    document.addEventListener("click", (e) => {
+      const wrapper = document.getElementById("bookmark-pills-wrapper");
+      const inSearch = searchCard && searchCard.contains(e.target);
+      const inPills = resultsContainer && resultsContainer.contains(e.target) || wrapper && wrapper.contains(e.target);
+      if (resultsContainer && !inSearch && !inPills) {
+        hideBookmarkSearchResults();
+      }
+    });
+    searchInput.addEventListener("keydown", async (e) => {
+      const isSearchActive = (searchInput.value.startsWith("./") || getBookmarkPillBehavior() === "always") && resultsContainer && resultsContainer.style.display === "flex";
+      if (e.key === "ArrowDown" && isSearchActive) {
+        e.preventDefault();
+        updateSearchDropdownSelection(searchDropdownIndex + 1);
+        return;
+      }
+      if (e.key === "ArrowUp" && isSearchActive) {
+        e.preventDefault();
+        updateSearchDropdownSelection(searchDropdownIndex - 1);
+        return;
+      }
+      if (e.key === "Tab" && isSearchActive && searchDropdownIndex < 0) {
+        const items = resultsContainer.querySelectorAll(".bookmark-search-item:not(.empty)");
+        if (items.length > 0) {
+          e.preventDefault();
+          updateSearchDropdownSelection(0);
+          return;
+        }
+      }
+      if (e.key === "Enter") {
+        const items = isSearchActive ? resultsContainer.querySelectorAll(".bookmark-search-item:not(.empty)") : [];
+        const forceSearch = e.shiftKey;
+        if (resolveEnterAction(isSearchActive, searchDropdownIndex, items.length, forceSearch) === "bookmark") {
+          window.location.href = items[searchDropdownIndex].dataset.url;
+          return;
+        }
+        const query = searchTextFor(searchInput.value);
+        if (query) {
+          let targetUrl;
+          if (!forceSearch && isUrl(query)) {
+            targetUrl = formatUrl(query);
+            if (targetUrl.startsWith("file://") || isFilePath(query)) {
+              if (!targetUrl.startsWith("file://")) targetUrl = filePathToUrl(query);
+              try {
+                const allowed = await new Promise(
+                  (resolve) => chrome.extension.isAllowedFileSchemeAccess(resolve)
+                );
+                if (!allowed) {
+                  showFileAccessWarning();
+                  return;
+                }
+              } catch (_) {
+              }
+            }
+          } else {
+            if (currentEngine === "default" && window.chrome && window.chrome.search) {
+              try {
+                chrome.search.query({ text: query, disposition: "CURRENT_TAB" });
+                searchInput.value = "";
+                return;
+              } catch (error) {
+                targetUrl = "https://www.google.com/search?q=" + encodeURIComponent(query);
+              }
+            } else {
+              const engine = searchEngines[currentEngine];
+              if (engine) targetUrl = engine.url + encodeURIComponent(query);
+              else {
+                const defaultEngine = searchEngines[defaultEngineKey];
+                if (defaultEngine) targetUrl = defaultEngine.url + encodeURIComponent(query);
+                else targetUrl = "https://www.google.com/search?q=" + encodeURIComponent(query);
+              }
+            }
+          }
+          window.location.href = targetUrl;
+          searchInput.value = "";
+        }
+      }
+    });
+    if (plus) {
+      const engineLinks = document.getElementById("engine-links");
+      plus.addEventListener("click", (e) => {
+        e.stopPropagation();
+        hideBookmarkSearchResults();
+        plus.classList.toggle("plus--active");
+        if (engineLinks) engineLinks.classList.toggle("active", plus.classList.contains("plus--active"));
+      });
+      if (engineLinks) engineLinks.addEventListener("click", function(e) {
+        const link = e.target.closest(".plus__link");
+        if (link && link.dataset.engine) {
+          e.preventDefault();
+          e.stopPropagation();
+          updateCurrentEngine(link.dataset.engine);
+          plus.classList.remove("plus--active");
+          engineLinks.classList.remove("active");
+        }
+      });
+      document.addEventListener("click", (e) => {
+        if (!plus.contains(e.target) && (!engineLinks || !engineLinks.contains(e.target))) {
+          plus.classList.remove("plus--active");
+          if (engineLinks) engineLinks.classList.remove("active");
+        }
+      });
+    }
+  }
+  function showFileAccessWarning() {
+    document.querySelectorAll(".file-access-warning").forEach((n) => n.remove());
+    const overlay = document.createElement("div");
+    overlay.className = "modal show file-access-warning";
+    overlay.style.zIndex = "500";
+    const card = document.createElement("div");
+    card.className = "picker-card";
+    card.style.cssText = "max-width: 340px; padding: 24px;";
+    const title = document.createElement("div");
+    title.className = "picker-title";
+    title.style.cssText = "padding: 0 0 8px; font-size: 16px;";
+    title.textContent = "File access not enabled";
+    const body = document.createElement("div");
+    body.style.cssText = "font-size: 13px; color: var(--text-secondary); line-height: 1.55; padding: 0 0 20px;";
+    body.innerHTML = `This extension doesn't have permission to open local files.<br><br>To enable it, open <strong>chrome://extensions</strong> in your browser, find <strong>Detractless New Tab</strong>, click <strong>Details</strong>, and turn on <strong>"Allow access to file URLs"</strong>.`;
+    const dismissBtn = document.createElement("button");
+    dismissBtn.className = "picker-btn picker-btn--primary";
+    dismissBtn.style.cssText = "width: 100%;";
+    dismissBtn.textContent = "Dismiss";
+    dismissBtn.type = "button";
+    dismissBtn.addEventListener("click", () => overlay.remove());
+    card.append(title, body, dismissBtn);
+    overlay.appendChild(card);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+    document.body.appendChild(overlay);
+  }
+
+  // src/pages/newtab/settingsModal.js
+  init_bookmarksDB();
+
+  // src/services/dataExport.js
+  init_bookmarksDB();
+  init_defaults();
+  // Atlas: the backup also carries every profile (list, settings, bookmark databases).
+  async function generateExportData(activeTabsList) {
+    const data = await generateExportDataCore(activeTabsList);
+    if (window.AtlasProfiles) {
+      try { data.atlasProfiles = await window.AtlasProfiles.exportAll(BookmarkDB); } catch (e) { console.error("[Atlas] profiles export failed", e); }
+    }
+    return data;
+  }
+  async function generateExportDataCore(activeTabsList) {
+    const allBookmarks = await BookmarkDB.getAllBookmarks();
+    const [syncData, localData] = await Promise.all([
+      new Promise((resolve) => {
+        window.chrome.storage.sync.get([
+          "tabLimit",
+          "managementMethod",
+          "searchDelaySeconds",
+          "showQueryOnDelay",
+          "grayscale",
+          "customSearchEngines",
+          "defaultEngineKey",
+          "selectedSearchEngine",
+          "fadeInEnabled",
+          "spotlightVisible",
+          "searchEngineBehavior",
+          "bookmarkPillBehavior",
+          "Theme"
+        ], (items) => resolve(items || {}));
+      }),
+      // Only `rhe_rules` is read from local storage. A leftover `githubSync` key
+      // may still exist from before sync was removed; it held a GitHub token, so
+      // it must never be copied into config.json, which goes into export files.
+      new Promise((resolve) => {
+        window.chrome.storage.local.get(["rhe_rules"], (items) => resolve(items || {}));
+      })
+    ]);
+    const customEngineIcons = {};
+    if (syncData.customSearchEngines) {
+      const keys = Object.keys(syncData.customSearchEngines);
+      await Promise.all(keys.map(async (key) => {
+        const engine = syncData.customSearchEngines[key];
+        if (engine.isCustomIcon) {
+          try {
+            const iconData = await BookmarkDB.getIcon(key);
+            if (iconData) customEngineIcons[key] = iconData;
+          } catch (e) {
+            console.error("Failed to export icon for", key, e);
+          }
+        }
+      }));
+    }
+    return {
+      ...allBookmarks,
+      activeTabs: activeTabsList,
+      Theme: syncData.Theme || DEFAULT_THEME,
+      tabLimit: syncData.tabLimit,
+      managementMethod: syncData.managementMethod,
+      searchDelaySeconds: syncData.searchDelaySeconds,
+      showQueryOnDelay: syncData.showQueryOnDelay,
+      grayscale: syncData.grayscale,
+      customSearchEngines: syncData.customSearchEngines,
+      customEngineIcons,
+      defaultEngineKey: syncData.defaultEngineKey,
+      selectedSearchEngine: syncData.selectedSearchEngine,
+      fadeInEnabled: syncData.fadeInEnabled,
+      spotlightVisible: syncData.spotlightVisible,
+      searchEngineBehavior: syncData.searchEngineBehavior,
+      bookmarkPillBehavior: syncData.bookmarkPillBehavior,
+      rhe_rules: localData.rhe_rules
+    };
+  }
+
+  // src/services/dataImport.js
+  init_bookmarksDB();
+
+  // src/services/orphanCleanup.js
+  init_bookmarksDB();
+  var ORPHAN_REPAIR_FLAG = "hasRepairedOrphanPages";
+  function findOrphanPages(storedPageIds, activeTabs2) {
+    if (!Array.isArray(activeTabs2) || activeTabs2.length === 0) return [];
+    if (!Array.isArray(storedPageIds) || storedPageIds.length === 0) return [];
+    const live = new Set(
+      activeTabs2.filter((tab) => tab && tab.id !== void 0 && tab.id !== null).map((tab) => String(tab.id))
+    );
+    return storedPageIds.filter((pageId) => !live.has(String(pageId)));
+  }
+  async function pruneOrphanedPages(activeTabs2) {
+    const all = await BookmarkDB.getAllBookmarks();
+    const storedPageIds = Object.keys(all).filter((key) => key.startsWith("page")).map((key) => Number(key.slice(4))).filter((n) => !Number.isNaN(n));
+    const orphans = findOrphanPages(storedPageIds, activeTabs2);
+    if (orphans.length === 0) return [];
+    console.log("[Detractless] removing orphaned bookmark pages:", orphans);
+    for (const pageId of orphans) {
+      try {
+        await BookmarkDB.deleteBookmarks(pageId);
+      } catch (err2) {
+        console.error("[Detractless] could not remove orphaned page", pageId, err2);
+      }
+    }
+    await pruneOrphanedRecords(orphans);
+    return orphans;
+  }
+  async function pruneOrphanedRecords(orphanPageIds) {
+    if (typeof BookmarkDB.getBookmarkRecords !== "function") return;
+    if (typeof BookmarkDB.putBookmarkRecords !== "function") return;
+    try {
+      const records = await BookmarkDB.getBookmarkRecords();
+      if (!Array.isArray(records) || records.length === 0) return;
+      const doomed = new Set(orphanPageIds.map(String));
+      const keep = records.filter((r) => !doomed.has(String(r.page)));
+      if (keep.length !== records.length) {
+        await BookmarkDB.putBookmarkRecords(keep);
+      }
+    } catch (err2) {
+      console.error("[Detractless] could not prune orphaned bookmark records", err2);
+    }
+  }
+  async function runOrphanRepairOnce(activeTabs2) {
+    if (!Array.isArray(activeTabs2) || activeTabs2.length === 0) return [];
+    const flagged = await new Promise(
+      (resolve) => chrome.storage.local.get([ORPHAN_REPAIR_FLAG], (res) => resolve(res || {}))
+    );
+    if (flagged[ORPHAN_REPAIR_FLAG]) return [];
+    const removed = await pruneOrphanedPages(activeTabs2);
+    await new Promise(
+      (resolve) => chrome.storage.local.set({ [ORPHAN_REPAIR_FLAG]: true }, resolve)
+    );
+    return removed;
+  }
+
+  // src/services/dataImport.js
+  // Atlas: restore the backup's profiles first, then the usual import fills the active one.
+  async function persistImportData(importData) {
+    const ap = window.AtlasProfiles;
+    if (!(ap && importData && importData.atlasProfiles)) return persistImportDataCore(importData);
+    ap.holdReload(true);
+    try {
+      await ap.importAll(BookmarkDB, importData.atlasProfiles);
+      await persistImportDataCore(importData);
+    } finally {
+      ap.holdReload(false);
+    }
+  }
+  async function persistImportDataCore(importData) {
+    await BookmarkDB.importAllBookmarks(importData);
+    if (Array.isArray(importData.activeTabs) && importData.activeTabs.length > 0) {
+      await pruneOrphanedPages(importData.activeTabs);
+    }
+    if (importData.customEngineIcons) {
+      const keys = Object.keys(importData.customEngineIcons);
+      await Promise.all(keys.map(async (key) => {
+        await BookmarkDB.saveIcon(key, importData.customEngineIcons[key]);
+      }));
+    }
+    const storageData = {};
+    if (importData.fadeInEnabled !== void 0) storageData.fadeInEnabled = importData.fadeInEnabled;
+    if (importData.spotlightVisible !== void 0) storageData.spotlightVisible = importData.spotlightVisible;
+    if (importData.searchEngineBehavior !== void 0) storageData.searchEngineBehavior = importData.searchEngineBehavior;
+    if (importData.bookmarkPillBehavior !== void 0) storageData.bookmarkPillBehavior = importData.bookmarkPillBehavior;
+    if (importData.activeTabs) storageData.activeTabs = importData.activeTabs;
+    if (importData.customSearchEngines) {
+      storageData.customSearchEngines = importData.customSearchEngines;
+      // Legacy backups stored base64 icons directly in the customSearchEngines object.
+      // Passing these to chrome.storage.sync causes massive IPC payloads that freeze
+      // the Vivaldi browser process. Migrate them to IndexedDB here.
+      const keys = Object.keys(storageData.customSearchEngines);
+      for (const key of keys) {
+        const engine = storageData.customSearchEngines[key];
+        if (engine.icon && engine.icon.startsWith("data:")) {
+          await BookmarkDB.saveIcon(key, engine.icon);
+          engine.isCustomIcon = true;
+          engine.icon = null;
+        }
+      }
+    }
+    if (importData.defaultEngineKey) storageData.defaultEngineKey = importData.defaultEngineKey;
+    if (importData.selectedSearchEngine) storageData.selectedSearchEngine = importData.selectedSearchEngine;
+    if (importData.tabLimit !== void 0) storageData.tabLimit = importData.tabLimit;
+    if (importData.managementMethod) storageData.managementMethod = importData.managementMethod;
+    if (importData.searchDelaySeconds !== void 0) storageData.searchDelaySeconds = importData.searchDelaySeconds;
+    if (importData.showQueryOnDelay !== void 0) storageData.showQueryOnDelay = importData.showQueryOnDelay;
+    if (importData.grayscale !== void 0) storageData.grayscale = importData.grayscale;
+    if (importData.Theme) {
+      storageData.Theme = importData.Theme;
+      if (typeof storageData.Theme === "object" && storageData.Theme !== null) {
+        if (storageData.Theme.customBg && typeof storageData.Theme.customBg === "string" && storageData.Theme.customBg.length > 1000) {
+          try {
+            await BookmarkDB.saveIcon("theme_custom_bg", storageData.Theme.customBg);
+            storageData.Theme = { ...storageData.Theme, customBg: "idb:theme_custom_bg" };
+          } catch (_) {}
+        }
+      }
+    }
+    // Failsafe: Deep sanitize to prevent Chromium IPC freezes from any other massive strings
+    const sanitizeHugeStrings = (obj) => {
+      if (typeof obj === 'string' && obj.length > 8192) return undefined;
+      if (Array.isArray(obj)) return obj.map(sanitizeHugeStrings).filter(x => x !== undefined);
+      if (typeof obj === 'object' && obj !== null) {
+        const newObj = {};
+        for (const k of Object.keys(obj)) {
+          const val = sanitizeHugeStrings(obj[k]);
+          if (val !== undefined) newObj[k] = val;
+        }
+        return newObj;
+      }
+      return obj;
+    };
+    const safeStorageData = sanitizeHugeStrings(storageData);
+    await new Promise((resolve) => window.chrome.storage.sync.set(safeStorageData, resolve));
+    if (importData.rhe_rules) {
+      const safeRules = sanitizeHugeStrings(importData.rhe_rules);
+      await new Promise((resolve) => window.chrome.storage.local.set({ rhe_rules: safeRules }, resolve));
+    }
+  }
+
+  // node_modules/fflate/esm/browser.js
+  var u8 = Uint8Array;
+  var u16 = Uint16Array;
+  var i32 = Int32Array;
+  var fleb = new u8([
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    2,
+    3,
+    3,
+    3,
+    3,
+    4,
+    4,
+    4,
+    4,
+    5,
+    5,
+    5,
+    5,
+    0,
+    /* unused */
+    0,
+    0,
+    /* impossible */
+    0
+  ]);
+  var fdeb = new u8([
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    2,
+    2,
+    3,
+    3,
+    4,
+    4,
+    5,
+    5,
+    6,
+    6,
+    7,
+    7,
+    8,
+    8,
+    9,
+    9,
+    10,
+    10,
+    11,
+    11,
+    12,
+    12,
+    13,
+    13,
+    /* unused */
+    0,
+    0
+  ]);
+  var clim = new u8([16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]);
+  var freb = function(eb, start) {
+    var b = new u16(31);
+    for (var i = 0; i < 31; ++i) {
+      b[i] = start += 1 << eb[i - 1];
+    }
+    var r = new i32(b[30]);
+    for (var i = 1; i < 30; ++i) {
+      for (var j = b[i]; j < b[i + 1]; ++j) {
+        r[j] = j - b[i] << 5 | i;
+      }
+    }
+    return { b, r };
+  };
+  var _a = freb(fleb, 2);
+  var fl = _a.b;
+  var revfl = _a.r;
+  fl[28] = 258, revfl[258] = 28;
+  var _b = freb(fdeb, 0);
+  var fd = _b.b;
+  var revfd = _b.r;
+  var rev = new u16(32768);
+  for (i = 0; i < 32768; ++i) {
+    x = (i & 43690) >> 1 | (i & 21845) << 1;
+    x = (x & 52428) >> 2 | (x & 13107) << 2;
+    x = (x & 61680) >> 4 | (x & 3855) << 4;
+    rev[i] = ((x & 65280) >> 8 | (x & 255) << 8) >> 1;
+  }
+  var x;
+  var i;
+  var hMap = (function(cd, mb, r) {
+    var s = cd.length;
+    var i = 0;
+    var l = new u16(mb);
+    for (; i < s; ++i) {
+      if (cd[i])
+        ++l[cd[i] - 1];
+    }
+    var le = new u16(mb);
+    for (i = 1; i < mb; ++i) {
+      le[i] = le[i - 1] + l[i - 1] << 1;
+    }
+    var co;
+    if (r) {
+      co = new u16(1 << mb);
+      var rvb = 15 - mb;
+      for (i = 0; i < s; ++i) {
+        if (cd[i]) {
+          var sv = i << 4 | cd[i];
+          var r_1 = mb - cd[i];
+          var v = le[cd[i] - 1]++ << r_1;
+          for (var m = v | (1 << r_1) - 1; v <= m; ++v) {
+            co[rev[v] >> rvb] = sv;
+          }
+        }
+      }
+    } else {
+      co = new u16(s);
+      for (i = 0; i < s; ++i) {
+        if (cd[i]) {
+          co[i] = rev[le[cd[i] - 1]++] >> 15 - cd[i];
+        }
+      }
+    }
+    return co;
+  });
+  var flt = new u8(288);
+  for (i = 0; i < 144; ++i)
+    flt[i] = 8;
+  var i;
+  for (i = 144; i < 256; ++i)
+    flt[i] = 9;
+  var i;
+  for (i = 256; i < 280; ++i)
+    flt[i] = 7;
+  var i;
+  for (i = 280; i < 288; ++i)
+    flt[i] = 8;
+  var i;
+  var fdt = new u8(32);
+  for (i = 0; i < 32; ++i)
+    fdt[i] = 5;
+  var i;
+  var flm = /* @__PURE__ */ hMap(flt, 9, 0);
+  var flrm = /* @__PURE__ */ hMap(flt, 9, 1);
+  var fdm = /* @__PURE__ */ hMap(fdt, 5, 0);
+  var fdrm = /* @__PURE__ */ hMap(fdt, 5, 1);
+  var max = function(a) {
+    var m = a[0];
+    for (var i = 1; i < a.length; ++i) {
+      if (a[i] > m)
+        m = a[i];
+    }
+    return m;
+  };
+  var bits = function(d, p2, m) {
+    var o = p2 / 8 | 0;
+    return (d[o] | d[o + 1] << 8) >> (p2 & 7) & m;
+  };
+  var bits16 = function(d, p2) {
+    var o = p2 / 8 | 0;
+    return (d[o] | d[o + 1] << 8 | d[o + 2] << 16) >> (p2 & 7);
+  };
+  var shft = function(p2) {
+    return (p2 + 7) / 8 | 0;
+  };
+  var slc = function(v, s, e) {
+    if (s == null || s < 0)
+      s = 0;
+    if (e == null || e > v.length)
+      e = v.length;
+    return new u8(v.subarray(s, e));
+  };
+  var ec = [
+    "unexpected EOF",
+    "invalid block type",
+    "invalid length/literal",
+    "invalid distance",
+    "stream finished",
+    "no stream handler",
+    ,
+    // determined by compression function
+    "no callback",
+    "invalid UTF-8 data",
+    "extra field too long",
+    "date not in range 1980-2099",
+    "filename too long",
+    "stream finishing",
+    "invalid zip data"
+    // determined by unknown compression method
+  ];
+  var err = function(ind, msg, nt) {
+    var e = new Error(msg || ec[ind]);
+    e.code = ind;
+    if (Error.captureStackTrace)
+      Error.captureStackTrace(e, err);
+    if (!nt)
+      throw e;
+    return e;
+  };
+  var inflt = function(dat, st, buf, dict) {
+    var sl = dat.length, dl = dict ? dict.length : 0;
+    if (!sl || st.f && !st.l)
+      return buf || new u8(0);
+    var noBuf = !buf;
+    var resize = noBuf || st.i != 2;
+    var noSt = st.i;
+    if (noBuf)
+      buf = new u8(sl * 3);
+    var cbuf = function(l2) {
+      var bl = buf.length;
+      if (l2 > bl) {
+        var nbuf = new u8(Math.max(bl * 2, l2));
+        nbuf.set(buf);
+        buf = nbuf;
+      }
+    };
+    var final = st.f || 0, pos = st.p || 0, bt = st.b || 0, lm = st.l, dm = st.d, lbt = st.m, dbt = st.n;
+    var tbts = sl * 8;
+    do {
+      if (!lm) {
+        final = bits(dat, pos, 1);
+        var type = bits(dat, pos + 1, 3);
+        pos += 3;
+        if (!type) {
+          var s = shft(pos) + 4, l = dat[s - 4] | dat[s - 3] << 8, t = s + l;
+          if (t > sl) {
+            if (noSt)
+              err(0);
+            break;
+          }
+          if (resize)
+            cbuf(bt + l);
+          buf.set(dat.subarray(s, t), bt);
+          st.b = bt += l, st.p = pos = t * 8, st.f = final;
+          continue;
+        } else if (type == 1)
+          lm = flrm, dm = fdrm, lbt = 9, dbt = 5;
+        else if (type == 2) {
+          var hLit = bits(dat, pos, 31) + 257, hcLen = bits(dat, pos + 10, 15) + 4;
+          var tl = hLit + bits(dat, pos + 5, 31) + 1;
+          pos += 14;
+          var ldt = new u8(tl);
+          var clt = new u8(19);
+          for (var i = 0; i < hcLen; ++i) {
+            clt[clim[i]] = bits(dat, pos + i * 3, 7);
+          }
+          pos += hcLen * 3;
+          var clb = max(clt), clbmsk = (1 << clb) - 1;
+          var clm = hMap(clt, clb, 1);
+          for (var i = 0; i < tl; ) {
+            var r = clm[bits(dat, pos, clbmsk)];
+            pos += r & 15;
+            var s = r >> 4;
+            if (s < 16) {
+              ldt[i++] = s;
+            } else {
+              var c = 0, n = 0;
+              if (s == 16)
+                n = 3 + bits(dat, pos, 3), pos += 2, c = ldt[i - 1];
+              else if (s == 17)
+                n = 3 + bits(dat, pos, 7), pos += 3;
+              else if (s == 18)
+                n = 11 + bits(dat, pos, 127), pos += 7;
+              while (n--)
+                ldt[i++] = c;
+            }
+          }
+          var lt = ldt.subarray(0, hLit), dt = ldt.subarray(hLit);
+          lbt = max(lt);
+          dbt = max(dt);
+          lm = hMap(lt, lbt, 1);
+          dm = hMap(dt, dbt, 1);
+        } else
+          err(1);
+        if (pos > tbts) {
+          if (noSt)
+            err(0);
+          break;
+        }
+      }
+      if (resize)
+        cbuf(bt + 131072);
+      var lms = (1 << lbt) - 1, dms = (1 << dbt) - 1;
+      var lpos = pos;
+      for (; ; lpos = pos) {
+        var c = lm[bits16(dat, pos) & lms], sym = c >> 4;
+        pos += c & 15;
+        if (pos > tbts) {
+          if (noSt)
+            err(0);
+          break;
+        }
+        if (!c)
+          err(2);
+        if (sym < 256)
+          buf[bt++] = sym;
+        else if (sym == 256) {
+          lpos = pos, lm = null;
+          break;
+        } else {
+          var add = sym - 254;
+          if (sym > 264) {
+            var i = sym - 257, b = fleb[i];
+            add = bits(dat, pos, (1 << b) - 1) + fl[i];
+            pos += b;
+          }
+          var d = dm[bits16(dat, pos) & dms], dsym = d >> 4;
+          if (!d)
+            err(3);
+          pos += d & 15;
+          var dt = fd[dsym];
+          if (dsym > 3) {
+            var b = fdeb[dsym];
+            dt += bits16(dat, pos) & (1 << b) - 1, pos += b;
+          }
+          if (pos > tbts) {
+            if (noSt)
+              err(0);
+            break;
+          }
+          if (resize)
+            cbuf(bt + 131072);
+          var end = bt + add;
+          if (bt < dt) {
+            var shift = dl - dt, dend = Math.min(dt, end);
+            if (shift + bt < 0)
+              err(3);
+            for (; bt < dend; ++bt)
+              buf[bt] = dict[shift + bt];
+          }
+          for (; bt < end; ++bt)
+            buf[bt] = buf[bt - dt];
+        }
+      }
+      st.l = lm, st.p = lpos, st.b = bt, st.f = final;
+      if (lm)
+        final = 1, st.m = lbt, st.d = dm, st.n = dbt;
+    } while (!final);
+    return bt != buf.length && noBuf ? slc(buf, 0, bt) : buf.subarray(0, bt);
+  };
+  var wbits = function(d, p2, v) {
+    v <<= p2 & 7;
+    var o = p2 / 8 | 0;
+    d[o] |= v;
+    d[o + 1] |= v >> 8;
+  };
+  var wbits16 = function(d, p2, v) {
+    v <<= p2 & 7;
+    var o = p2 / 8 | 0;
+    d[o] |= v;
+    d[o + 1] |= v >> 8;
+    d[o + 2] |= v >> 16;
+  };
+  var hTree = function(d, mb) {
+    var t = [];
+    for (var i = 0; i < d.length; ++i) {
+      if (d[i])
+        t.push({ s: i, f: d[i] });
+    }
+    var s = t.length;
+    var t2 = t.slice();
+    if (!s)
+      return { t: et, l: 0 };
+    if (s == 1) {
+      var v = new u8(t[0].s + 1);
+      v[t[0].s] = 1;
+      return { t: v, l: 1 };
+    }
+    t.sort(function(a, b) {
+      return a.f - b.f;
+    });
+    t.push({ s: -1, f: 25001 });
+    var l = t[0], r = t[1], i0 = 0, i1 = 1, i2 = 2;
+    t[0] = { s: -1, f: l.f + r.f, l, r };
+    while (i1 != s - 1) {
+      l = t[t[i0].f < t[i2].f ? i0++ : i2++];
+      r = t[i0 != i1 && t[i0].f < t[i2].f ? i0++ : i2++];
+      t[i1++] = { s: -1, f: l.f + r.f, l, r };
+    }
+    var maxSym = t2[0].s;
+    for (var i = 1; i < s; ++i) {
+      if (t2[i].s > maxSym)
+        maxSym = t2[i].s;
+    }
+    var tr = new u16(maxSym + 1);
+    var mbt = ln(t[i1 - 1], tr, 0);
+    if (mbt > mb) {
+      var i = 0, dt = 0;
+      var lft = mbt - mb, cst = 1 << lft;
+      t2.sort(function(a, b) {
+        return tr[b.s] - tr[a.s] || a.f - b.f;
+      });
+      for (; i < s; ++i) {
+        var i2_1 = t2[i].s;
+        if (tr[i2_1] > mb) {
+          dt += cst - (1 << mbt - tr[i2_1]);
+          tr[i2_1] = mb;
+        } else
+          break;
+      }
+      dt >>= lft;
+      while (dt > 0) {
+        var i2_2 = t2[i].s;
+        if (tr[i2_2] < mb)
+          dt -= 1 << mb - tr[i2_2]++ - 1;
+        else
+          ++i;
+      }
+      for (; i >= 0 && dt; --i) {
+        var i2_3 = t2[i].s;
+        if (tr[i2_3] == mb) {
+          --tr[i2_3];
+          ++dt;
+        }
+      }
+      mbt = mb;
+    }
+    return { t: new u8(tr), l: mbt };
+  };
+  var ln = function(n, l, d) {
+    return n.s == -1 ? Math.max(ln(n.l, l, d + 1), ln(n.r, l, d + 1)) : l[n.s] = d;
+  };
+  var lc = function(c) {
+    var s = c.length;
+    while (s && !c[--s])
+      ;
+    var cl = new u16(++s);
+    var cli = 0, cln = c[0], cls = 1;
+    var w = function(v) {
+      cl[cli++] = v;
+    };
+    for (var i = 1; i <= s; ++i) {
+      if (c[i] == cln && i != s)
+        ++cls;
+      else {
+        if (!cln && cls > 2) {
+          for (; cls > 138; cls -= 138)
+            w(32754);
+          if (cls > 2) {
+            w(cls > 10 ? cls - 11 << 5 | 28690 : cls - 3 << 5 | 12305);
+            cls = 0;
+          }
+        } else if (cls > 3) {
+          w(cln), --cls;
+          for (; cls > 6; cls -= 6)
+            w(8304);
+          if (cls > 2)
+            w(cls - 3 << 5 | 8208), cls = 0;
+        }
+        while (cls--)
+          w(cln);
+        cls = 1;
+        cln = c[i];
+      }
+    }
+    return { c: cl.subarray(0, cli), n: s };
+  };
+  var clen = function(cf, cl) {
+    var l = 0;
+    for (var i = 0; i < cl.length; ++i)
+      l += cf[i] * cl[i];
+    return l;
+  };
+  var wfblk = function(out, pos, dat) {
+    var s = dat.length;
+    var o = shft(pos + 2);
+    out[o] = s & 255;
+    out[o + 1] = s >> 8;
+    out[o + 2] = out[o] ^ 255;
+    out[o + 3] = out[o + 1] ^ 255;
+    for (var i = 0; i < s; ++i)
+      out[o + i + 4] = dat[i];
+    return (o + 4 + s) * 8;
+  };
+  var wblk = function(dat, out, final, syms, lf, df, eb, li, bs, bl, p2) {
+    wbits(out, p2++, final);
+    ++lf[256];
+    var _a2 = hTree(lf, 15), dlt = _a2.t, mlb = _a2.l;
+    var _b2 = hTree(df, 15), ddt = _b2.t, mdb = _b2.l;
+    var _c = lc(dlt), lclt = _c.c, nlc = _c.n;
+    var _d = lc(ddt), lcdt = _d.c, ndc = _d.n;
+    var lcfreq = new u16(19);
+    for (var i = 0; i < lclt.length; ++i)
+      ++lcfreq[lclt[i] & 31];
+    for (var i = 0; i < lcdt.length; ++i)
+      ++lcfreq[lcdt[i] & 31];
+    var _e = hTree(lcfreq, 7), lct = _e.t, mlcb = _e.l;
+    var nlcc = 19;
+    for (; nlcc > 4 && !lct[clim[nlcc - 1]]; --nlcc)
+      ;
+    var flen = bl + 5 << 3;
+    var ftlen = clen(lf, flt) + clen(df, fdt) + eb;
+    var dtlen = clen(lf, dlt) + clen(df, ddt) + eb + 14 + 3 * nlcc + clen(lcfreq, lct) + 2 * lcfreq[16] + 3 * lcfreq[17] + 7 * lcfreq[18];
+    if (bs >= 0 && flen <= ftlen && flen <= dtlen)
+      return wfblk(out, p2, dat.subarray(bs, bs + bl));
+    var lm, ll, dm, dl;
+    wbits(out, p2, 1 + (dtlen < ftlen)), p2 += 2;
+    if (dtlen < ftlen) {
+      lm = hMap(dlt, mlb, 0), ll = dlt, dm = hMap(ddt, mdb, 0), dl = ddt;
+      var llm = hMap(lct, mlcb, 0);
+      wbits(out, p2, nlc - 257);
+      wbits(out, p2 + 5, ndc - 1);
+      wbits(out, p2 + 10, nlcc - 4);
+      p2 += 14;
+      for (var i = 0; i < nlcc; ++i)
+        wbits(out, p2 + 3 * i, lct[clim[i]]);
+      p2 += 3 * nlcc;
+      var lcts = [lclt, lcdt];
+      for (var it = 0; it < 2; ++it) {
+        var clct = lcts[it];
+        for (var i = 0; i < clct.length; ++i) {
+          var len = clct[i] & 31;
+          wbits(out, p2, llm[len]), p2 += lct[len];
+          if (len > 15)
+            wbits(out, p2, clct[i] >> 5 & 127), p2 += clct[i] >> 12;
+        }
+      }
+    } else {
+      lm = flm, ll = flt, dm = fdm, dl = fdt;
+    }
+    for (var i = 0; i < li; ++i) {
+      var sym = syms[i];
+      if (sym > 255) {
+        var len = sym >> 18 & 31;
+        wbits16(out, p2, lm[len + 257]), p2 += ll[len + 257];
+        if (len > 7)
+          wbits(out, p2, sym >> 23 & 31), p2 += fleb[len];
+        var dst = sym & 31;
+        wbits16(out, p2, dm[dst]), p2 += dl[dst];
+        if (dst > 3)
+          wbits16(out, p2, sym >> 5 & 8191), p2 += fdeb[dst];
+      } else {
+        wbits16(out, p2, lm[sym]), p2 += ll[sym];
+      }
+    }
+    wbits16(out, p2, lm[256]);
+    return p2 + ll[256];
+  };
+  var deo = /* @__PURE__ */ new i32([65540, 131080, 131088, 131104, 262176, 1048704, 1048832, 2114560, 2117632]);
+  var et = /* @__PURE__ */ new u8(0);
+  var dflt = function(dat, lvl, plvl, pre, post, st) {
+    var s = st.z || dat.length;
+    var o = new u8(pre + s + 5 * (1 + Math.ceil(s / 7e3)) + post);
+    var w = o.subarray(pre, o.length - post);
+    var lst = st.l;
+    var pos = (st.r || 0) & 7;
+    if (lvl) {
+      if (pos)
+        w[0] = st.r >> 3;
+      var opt = deo[lvl - 1];
+      var n = opt >> 13, c = opt & 8191;
+      var msk_1 = (1 << plvl) - 1;
+      var prev = st.p || new u16(32768), head = st.h || new u16(msk_1 + 1);
+      var bs1_1 = Math.ceil(plvl / 3), bs2_1 = 2 * bs1_1;
+      var hsh = function(i2) {
+        return (dat[i2] ^ dat[i2 + 1] << bs1_1 ^ dat[i2 + 2] << bs2_1) & msk_1;
+      };
+      var syms = new i32(25e3);
+      var lf = new u16(288), df = new u16(32);
+      var lc_1 = 0, eb = 0, i = st.i || 0, li = 0, wi = st.w || 0, bs = 0;
+      for (; i + 2 < s; ++i) {
+        var hv = hsh(i);
+        var imod = i & 32767, pimod = head[hv];
+        prev[imod] = pimod;
+        head[hv] = imod;
+        if (wi <= i) {
+          var rem = s - i;
+          if ((lc_1 > 7e3 || li > 24576) && (rem > 423 || !lst)) {
+            pos = wblk(dat, w, 0, syms, lf, df, eb, li, bs, i - bs, pos);
+            li = lc_1 = eb = 0, bs = i;
+            for (var j = 0; j < 286; ++j)
+              lf[j] = 0;
+            for (var j = 0; j < 30; ++j)
+              df[j] = 0;
+          }
+          var l = 2, d = 0, ch_1 = c, dif = imod - pimod & 32767;
+          if (rem > 2 && hv == hsh(i - dif)) {
+            var maxn = Math.min(n, rem) - 1;
+            var maxd = Math.min(32767, i);
+            var ml = Math.min(258, rem);
+            while (dif <= maxd && --ch_1 && imod != pimod) {
+              if (dat[i + l] == dat[i + l - dif]) {
+                var nl = 0;
+                for (; nl < ml && dat[i + nl] == dat[i + nl - dif]; ++nl)
+                  ;
+                if (nl > l) {
+                  l = nl, d = dif;
+                  if (nl > maxn)
+                    break;
+                  var mmd = Math.min(dif, nl - 2);
+                  var md = 0;
+                  for (var j = 0; j < mmd; ++j) {
+                    var ti = i - dif + j & 32767;
+                    var pti = prev[ti];
+                    var cd = ti - pti & 32767;
+                    if (cd > md)
+                      md = cd, pimod = ti;
+                  }
+                }
+              }
+              imod = pimod, pimod = prev[imod];
+              dif += imod - pimod & 32767;
+            }
+          }
+          if (d) {
+            syms[li++] = 268435456 | revfl[l] << 18 | revfd[d];
+            var lin = revfl[l] & 31, din = revfd[d] & 31;
+            eb += fleb[lin] + fdeb[din];
+            ++lf[257 + lin];
+            ++df[din];
+            wi = i + l;
+            ++lc_1;
+          } else {
+            syms[li++] = dat[i];
+            ++lf[dat[i]];
+          }
+        }
+      }
+      for (i = Math.max(i, wi); i < s; ++i) {
+        syms[li++] = dat[i];
+        ++lf[dat[i]];
+      }
+      pos = wblk(dat, w, lst, syms, lf, df, eb, li, bs, i - bs, pos);
+      if (!lst) {
+        st.r = pos & 7 | w[pos / 8 | 0] << 3;
+        pos -= 7;
+        st.h = head, st.p = prev, st.i = i, st.w = wi;
+      }
+    } else {
+      for (var i = st.w || 0; i < s + lst; i += 65535) {
+        var e = i + 65535;
+        if (e >= s) {
+          w[pos / 8 | 0] = lst;
+          e = s;
+        }
+        pos = wfblk(w, pos + 1, dat.subarray(i, e));
+      }
+      st.i = s;
+    }
+    return slc(o, 0, pre + shft(pos) + post);
+  };
+  var crct = /* @__PURE__ */ (function() {
+    var t = new Int32Array(256);
+    for (var i = 0; i < 256; ++i) {
+      var c = i, k = 9;
+      while (--k)
+        c = (c & 1 && -306674912) ^ c >>> 1;
+      t[i] = c;
+    }
+    return t;
+  })();
+  var crc = function() {
+    var c = -1;
+    return {
+      p: function(d) {
+        var cr = c;
+        for (var i = 0; i < d.length; ++i)
+          cr = crct[cr & 255 ^ d[i]] ^ cr >>> 8;
+        c = cr;
+      },
+      d: function() {
+        return ~c;
+      }
+    };
+  };
+  var dopt = function(dat, opt, pre, post, st) {
+    if (!st) {
+      st = { l: 1 };
+      if (opt.dictionary) {
+        var dict = opt.dictionary.subarray(-32768);
+        var newDat = new u8(dict.length + dat.length);
+        newDat.set(dict);
+        newDat.set(dat, dict.length);
+        dat = newDat;
+        st.w = dict.length;
+      }
+    }
+    return dflt(dat, opt.level == null ? 6 : opt.level, opt.mem == null ? st.l ? Math.ceil(Math.max(8, Math.min(13, Math.log(dat.length))) * 1.5) : 20 : 12 + opt.mem, pre, post, st);
+  };
+  var mrg = function(a, b) {
+    var o = {};
+    for (var k in a)
+      o[k] = a[k];
+    for (var k in b)
+      o[k] = b[k];
+    return o;
+  };
+  var b2 = function(d, b) {
+    return d[b] | d[b + 1] << 8;
+  };
+  var b4 = function(d, b) {
+    return (d[b] | d[b + 1] << 8 | d[b + 2] << 16 | d[b + 3] << 24) >>> 0;
+  };
+  var b8 = function(d, b) {
+    return b4(d, b) + b4(d, b + 4) * 4294967296;
+  };
+  var wbytes = function(d, b, v) {
+    for (; v; ++b)
+      d[b] = v, v >>>= 8;
+  };
+  function deflateSync(data, opts) {
+    return dopt(data, opts || {}, 0, 0);
+  }
+  function inflateSync(data, opts) {
+    return inflt(data, { i: 2 }, opts && opts.out, opts && opts.dictionary);
+  }
+  var fltn = function(d, p2, t, o) {
+    for (var k in d) {
+      var val = d[k], n = p2 + k, op = o;
+      if (Array.isArray(val))
+        op = mrg(o, val[1]), val = val[0];
+      if (ArrayBuffer.isView(val))
+        t[n] = [val, op];
+      else {
+        t[n += "/"] = [new u8(0), op];
+        fltn(val, n, t, o);
+      }
+    }
+  };
+  var te = typeof TextEncoder != "undefined" && /* @__PURE__ */ new TextEncoder();
+  var td = typeof TextDecoder != "undefined" && /* @__PURE__ */ new TextDecoder();
+  var tds = 0;
+  try {
+    td.decode(et, { stream: true });
+    tds = 1;
+  } catch (e) {
+  }
+  var dutf8 = function(d) {
+    for (var r = "", i = 0; ; ) {
+      var c = d[i++];
+      var eb = (c > 127) + (c > 223) + (c > 239);
+      if (i + eb > d.length)
+        return { s: r, r: slc(d, i - 1) };
+      if (!eb)
+        r += String.fromCharCode(c);
+      else if (eb == 3) {
+        c = ((c & 15) << 18 | (d[i++] & 63) << 12 | (d[i++] & 63) << 6 | d[i++] & 63) - 65536, r += String.fromCharCode(55296 | c >> 10, 56320 | c & 1023);
+      } else if (eb & 1)
+        r += String.fromCharCode((c & 31) << 6 | d[i++] & 63);
+      else
+        r += String.fromCharCode((c & 15) << 12 | (d[i++] & 63) << 6 | d[i++] & 63);
+    }
+  };
+  function strToU8(str, latin1) {
+    if (latin1) {
+      var ar_1 = new u8(str.length);
+      for (var i = 0; i < str.length; ++i)
+        ar_1[i] = str.charCodeAt(i);
+      return ar_1;
+    }
+    if (te)
+      return te.encode(str);
+    var l = str.length;
+    var ar = new u8(str.length + (str.length >> 1));
+    var ai = 0;
+    var w = function(v) {
+      ar[ai++] = v;
+    };
+    for (var i = 0; i < l; ++i) {
+      if (ai + 5 > ar.length) {
+        var n = new u8(ai + 8 + (l - i << 1));
+        n.set(ar);
+        ar = n;
+      }
+      var c = str.charCodeAt(i);
+      if (c < 128 || latin1)
+        w(c);
+      else if (c < 2048)
+        w(192 | c >> 6), w(128 | c & 63);
+      else if (c > 55295 && c < 57344)
+        c = 65536 + (c & 1023 << 10) | str.charCodeAt(++i) & 1023, w(240 | c >> 18), w(128 | c >> 12 & 63), w(128 | c >> 6 & 63), w(128 | c & 63);
+      else
+        w(224 | c >> 12), w(128 | c >> 6 & 63), w(128 | c & 63);
+    }
+    return slc(ar, 0, ai);
+  }
+  function strFromU8(dat, latin1) {
+    if (latin1) {
+      var r = "";
+      for (var i = 0; i < dat.length; i += 16384)
+        r += String.fromCharCode.apply(null, dat.subarray(i, i + 16384));
+      return r;
+    } else if (td) {
+      return td.decode(dat);
+    } else {
+      var _a2 = dutf8(dat), s = _a2.s, r = _a2.r;
+      if (r.length)
+        err(8);
+      return s;
+    }
+  }
+  var slzh = function(d, b) {
+    return b + 30 + b2(d, b + 26) + b2(d, b + 28);
+  };
+  var zh = function(d, b, z) {
+    var fnl = b2(d, b + 28), efl = b2(d, b + 30), fn = strFromU8(d.subarray(b + 46, b + 46 + fnl), !(b2(d, b + 8) & 2048)), es = b + 46 + fnl;
+    var _a2 = z64hs(d, es, efl, z, b4(d, b + 20), b4(d, b + 24), b4(d, b + 42)), sc = _a2[0], su = _a2[1], off = _a2[2];
+    return [b2(d, b + 10), sc, su, fn, es + efl + b2(d, b + 32), off];
+  };
+  var z64hs = function(d, b, l, z, sc, su, off) {
+    var nsc = sc == 4294967295, nsu = su == 4294967295, noff = off == 4294967295, e = b + l;
+    var nf = nsc + nsu + noff;
+    if (z && nf) {
+      for (; b + 4 < e; b += 4 + b2(d, b + 2)) {
+        if (b2(d, b) == 1) {
+          return [
+            nsc ? b8(d, b + 4 + 8 * nsu) : sc,
+            nsu ? b8(d, b + 4) : su,
+            noff ? b8(d, b + 4 + 8 * (nsu + nsc)) : off,
+            1
+          ];
+        }
+      }
+      if (z < 2)
+        err(13);
+    }
+    return [sc, su, off, 0];
+  };
+  var exfl = function(ex) {
+    var le = 0;
+    if (ex) {
+      for (var k in ex) {
+        var l = ex[k].length;
+        if (l > 65535)
+          err(9);
+        le += l + 4;
+      }
+    }
+    return le;
+  };
+  var wzh = function(d, b, f, fn, u, c, ce, co) {
+    var fl2 = fn.length, ex = f.extra, col = co && co.length;
+    var exl = exfl(ex);
+    wbytes(d, b, ce != null ? 33639248 : 67324752), b += 4;
+    if (ce != null)
+      d[b++] = 20, d[b++] = f.os;
+    d[b] = 20, b += 2;
+    d[b++] = f.flag << 1 | (c < 0 && 8), d[b++] = u && 8;
+    d[b++] = f.compression & 255, d[b++] = f.compression >> 8;
+    var dt = new Date(f.mtime == null ? Date.now() : f.mtime), y = dt.getFullYear() - 1980;
+    if (y < 0 || y > 119)
+      err(10);
+    wbytes(d, b, y << 25 | dt.getMonth() + 1 << 21 | dt.getDate() << 16 | dt.getHours() << 11 | dt.getMinutes() << 5 | dt.getSeconds() >> 1), b += 4;
+    if (c != -1) {
+      wbytes(d, b, f.crc);
+      wbytes(d, b + 4, c < 0 ? -c - 2 : c);
+      wbytes(d, b + 8, f.size);
+    }
+    wbytes(d, b + 12, fl2);
+    wbytes(d, b + 14, exl), b += 16;
+    if (ce != null) {
+      wbytes(d, b, col);
+      wbytes(d, b + 6, f.attrs);
+      wbytes(d, b + 10, ce), b += 14;
+    }
+    d.set(fn, b);
+    b += fl2;
+    if (exl) {
+      for (var k in ex) {
+        var exf = ex[k], l = exf.length;
+        wbytes(d, b, +k);
+        wbytes(d, b + 2, l);
+        d.set(exf, b + 4), b += 4 + l;
+      }
+    }
+    if (col)
+      d.set(co, b), b += col;
+    return b;
+  };
+  var wzf = function(o, b, c, d, e) {
+    wbytes(o, b, 101010256);
+    wbytes(o, b + 8, c);
+    wbytes(o, b + 10, c);
+    wbytes(o, b + 12, d);
+    wbytes(o, b + 16, e);
+  };
+  function zipSync(data, opts) {
+    if (!opts)
+      opts = {};
+    var r = {};
+    var files = [];
+    fltn(data, "", r, opts);
+    var o = 0;
+    var tot = 0;
+    for (var fn in r) {
+      var _a2 = r[fn], file = _a2[0], p2 = _a2[1];
+      var compression = p2.level == 0 ? 0 : 8;
+      var f = strToU8(fn), s = f.length;
+      var com = p2.comment, m = com && strToU8(com), ms = m && m.length;
+      var exl = exfl(p2.extra);
+      if (s > 65535)
+        err(11);
+      var d = compression ? deflateSync(file, p2) : file, l = d.length;
+      var c = crc();
+      c.p(file);
+      files.push(mrg(p2, {
+        size: file.length,
+        crc: c.d(),
+        c: d,
+        f,
+        m,
+        u: s != fn.length || m && com.length != ms,
+        o,
+        compression
+      }));
+      o += 30 + s + exl + l;
+      tot += 76 + 2 * (s + exl) + (ms || 0) + l;
+    }
+    var out = new u8(tot + 22), oe = o, cdl = tot - o;
+    for (var i = 0; i < files.length; ++i) {
+      var f = files[i];
+      wzh(out, f.o, f, f.f, f.u, f.c.length);
+      var badd = 30 + f.f.length + exfl(f.extra);
+      out.set(f.c, f.o + badd);
+      wzh(out, o, f, f.f, f.u, f.c.length, f.o, f.m), o += 16 + badd + (f.m ? f.m.length : 0);
+    }
+    wzf(out, o, files.length, cdl, oe);
+    return out;
+  }
+  function unzipSync(data, opts) {
+    var files = {};
+    var e = data.length - 22;
+    for (; b4(data, e) != 101010256; --e) {
+      if (!e || data.length - e > 65558)
+        err(13);
+    }
+    ;
+    var c = b2(data, e + 8);
+    if (!c)
+      return {};
+    var o = b4(data, e + 16);
+    var z = b4(data, e - 20) == 117853008;
+    if (z) {
+      var ze = b4(data, e - 12);
+      z = b4(data, ze) == 101075792;
+      if (z) {
+        c = b4(data, ze + 32);
+        o = b4(data, ze + 48);
+      }
+    }
+    var fltr = opts && opts.filter;
+    for (var i = 0; i < c; ++i) {
+      var _a2 = zh(data, o, z), c_2 = _a2[0], sc = _a2[1], su = _a2[2], fn = _a2[3], no = _a2[4], off = _a2[5], b = slzh(data, off);
+      o = no;
+      if (!fltr || fltr({
+        name: fn,
+        size: sc,
+        originalSize: su,
+        compression: c_2
+      })) {
+        if (!c_2)
+          files[fn] = slc(data, b, b + sc);
+        else if (c_2 == 8)
+          files[fn] = inflateSync(data.subarray(b, b + sc), { out: new u8(su) });
+        else
+          err(14, "unknown compression type " + c_2);
+      }
+    }
+    return files;
+  }
+
+  // src/services/detractlessFormat.js
+  var FORMAT = "detractless";
+  var FORMAT_VERSION = 2;
+  var CREATOR = "Detractless/3.0.0";
+  var PRODUCER = "newtab/3.0.0";
+  var FILE_MANIFEST = "manifest.json";
+  var NEWTAB_CONFIG = "newtab/config.json";
+  var SHARED_PK_MANIFEST = "shared/pastekit/manifest.json";
+  var SHARED_PK_CSV = "shared/pastekit/lists/snippets.csv";
+  var V1_CONFIG = "config.json";
+  var V1_PK_MANIFEST = "pastekit/manifest.json";
+  var V1_PK_CSV = "pastekit/lists/snippets.csv";
+  var OWNED_PREFIXES = ["newtab/", "shared/pastekit/"];
+  var SYNC_PREFIX = "sync/";
+  function isOwnedEntry(path) {
+    return path === FILE_MANIFEST || OWNED_PREFIXES.some((p2) => path.startsWith(p2));
+  }
+  var CSV_COLS = ["name", "description", "contentText", "contentHtml", "tags", "folderXid", "createdAt", "updatedAt"];
+  function csvEscape(val) {
+    const s = String(val == null ? "" : val);
+    if (s.includes('"') || s.includes(",") || s.includes("\n") || s.includes("\r"))
+      return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+  function toCsv(rows) {
+    const lines = [CSV_COLS.map(csvEscape).join(",")];
+    for (const row of rows) lines.push(CSV_COLS.map((h) => csvEscape(row[h])).join(","));
+    return lines.join("\r\n");
+  }
+  function advanceQuoted(state, text, i) {
+    const ch = text[i];
+    if (ch !== '"') {
+      state.field += ch;
+      return i + 1;
+    }
+    if (text[i + 1] === '"') {
+      state.field += '"';
+      return i + 2;
+    }
+    state.inQuote = false;
+    return i + 1;
+  }
+  function flushRow(state, rows, text, i) {
+    state.row.push(state.field);
+    state.field = "";
+    let next = i + 1;
+    if (text[i] === "\r" && text[i + 1] === "\n") next++;
+    if (state.row.some((c) => c !== "")) rows.push(state.row);
+    state.row = [];
+    return next;
+  }
+  function parseCsv(text) {
+    const rows = [];
+    const state = { row: [], field: "", inQuote: false };
+    let i = 0;
+    while (i < text.length) {
+      const ch = text[i];
+      if (state.inQuote) {
+        i = advanceQuoted(state, text, i);
+        continue;
+      }
+      if (ch === '"') {
+        state.inQuote = true;
+        i++;
+        continue;
+      }
+      if (ch === ",") {
+        state.row.push(state.field);
+        state.field = "";
+        i++;
+        continue;
+      }
+      if (ch === "\r" || ch === "\n") {
+        i = flushRow(state, rows, text, i);
+        continue;
+      }
+      state.field += ch;
+      i++;
+    }
+    if (state.field || state.row.length) {
+      state.row.push(state.field);
+      if (state.row.some((c) => c !== "")) rows.push(state.row);
+    }
+    return rows;
+  }
+  function mergeProducers(previousManifest) {
+    const prior = Array.isArray(previousManifest && previousManifest.producers) ? previousManifest.producers.filter((p2) => typeof p2 === "string" && p2 !== PRODUCER) : [];
+    return [...prior, PRODUCER];
+  }
+  function exportDetractless({ detractlessConfig, pastekitExport, passthrough }) {
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    let previousManifest = null;
+    if (passthrough && passthrough[FILE_MANIFEST]) {
+      try {
+        previousManifest = JSON.parse(strFromU8(passthrough[FILE_MANIFEST]));
+      } catch (_) {
+      }
+    }
+    const outerManifest = {
+      format: FORMAT,
+      version: FORMAT_VERSION,
+      createdBy: CREATOR,
+      exportedAt: now,
+      producers: mergeProducers(previousManifest)
+    };
+    const pkFolders = (pastekitExport.folders || []).map((f) => ({
+      xid: f.xid,
+      name: f.name,
+      parentXid: f.parentXid || null
+    }));
+    const pkManifest = {
+      format: "pastekit",
+      version: 1,
+      createdBy: CREATOR,
+      exportedAt: now,
+      folders: pkFolders
+    };
+    const csvRows = (pastekitExport.snippets || []).map((s) => ({
+      name: s.name || "",
+      description: s.description || "",
+      contentText: s.contentText || "",
+      contentHtml: s.contentHtml || "",
+      tags: (s.tags || []).join(";"),
+      folderXid: s.folderXid || "",
+      createdAt: s.createdAt || "",
+      updatedAt: s.updatedAt || ""
+    }));
+    const entries = {};
+    if (passthrough) {
+      for (const [path, bytes] of Object.entries(passthrough)) {
+        if (isOwnedEntry(path)) continue;
+        if (path === V1_CONFIG || path.startsWith("pastekit/")) continue;
+        if (path === SYNC_PREFIX.slice(0, -1) || path.startsWith(SYNC_PREFIX)) continue;
+        entries[path] = bytes;
+      }
+    }
+    entries[FILE_MANIFEST] = strToU8(JSON.stringify(outerManifest, null, 2));
+    entries[NEWTAB_CONFIG] = strToU8(JSON.stringify(detractlessConfig, null, 2));
+    entries[SHARED_PK_MANIFEST] = strToU8(JSON.stringify(pkManifest, null, 2));
+    entries[SHARED_PK_CSV] = strToU8(toCsv(csvRows));
+    return zipSync(entries);
+  }
+  function parsePastekit(manifestBytes, csvBytes) {
+    let pkManifest;
+    try {
+      pkManifest = JSON.parse(strFromU8(manifestBytes));
+    } catch (_) {
+      throw new Error(".detractless: pastekit manifest is not valid JSON");
+    }
+    const folders = (pkManifest.folders || []).map((f) => ({
+      xid: f.xid,
+      name: f.name,
+      parentXid: f.parentXid || null
+    }));
+    const rows = parseCsv(strFromU8(csvBytes));
+    let snippets = [];
+    if (rows.length >= 2) {
+      const headers = rows[0].map((h) => h.trim().toLowerCase());
+      const col = (row, name) => {
+        const idx = headers.indexOf(name);
+        return idx === -1 ? "" : row[idx] || "";
+      };
+      snippets = rows.slice(1).map((row) => ({
+        name: col(row, "name"),
+        description: col(row, "description"),
+        contentText: col(row, "contenttext"),
+        contentHtml: col(row, "contenthtml"),
+        tags: col(row, "tags").split(";").map((t) => t.trim()).filter(Boolean),
+        folderXid: col(row, "folderxid") || null,
+        createdAt: col(row, "createdat") || null,
+        updatedAt: col(row, "updatedat") || null
+      })).filter((s) => s.name);
+    }
+    return { folders, snippets };
+  }
+  function detectLayout(entries, version) {
+    if (version >= 2) return "v2";
+    if (entries[V1_CONFIG]) return "v1-newtab";
+    if (entries["settings.json"] || entries["notes.json"] || entries["events.json"]) return "v1-launcher";
+    return "unknown";
+  }
+  function importDetractless(rawEntries) {
+    // rawEntries is a {filename: Uint8Array} map, produced by openArchive's
+    // async chunked inflate. Normalize path separators then proceed.
+    let entries;
+    entries = rawEntries;
+    const normalizedEntries = {};
+    for (const [path, bytes] of Object.entries(entries)) {
+      normalizedEntries[path.replace(/\\/g, "/")] = bytes;
+    }
+    entries = normalizedEntries;
+    if (!entries[FILE_MANIFEST]) throw new Error(".detractless: manifest.json missing");
+    let outerManifest;
+    try {
+      outerManifest = JSON.parse(strFromU8(entries[FILE_MANIFEST]));
+    } catch (_) {
+      throw new Error(".detractless: manifest.json is not valid JSON");
+    }
+    if (outerManifest.format !== FORMAT) throw new Error("Not a Detractless archive");
+    const version = parseInt(outerManifest.version, 10);
+    if (!Number.isFinite(version)) throw new Error(".detractless: missing version");
+    if (version > FORMAT_VERSION) {
+      throw new Error(`.detractless: file is from a newer version (${version}) \u2014 update Detractless to open it`);
+    }
+    const layout = detectLayout(entries, version);
+    if (layout === "unknown") {
+      throw new Error(".detractless: unrecognised archive layout (no newtab or launcher data)");
+    }
+    const configPath = layout === "v2" ? NEWTAB_CONFIG : V1_CONFIG;
+    let detractlessConfig = null;
+    if (entries[configPath]) {
+      try {
+        detractlessConfig = JSON.parse(strFromU8(entries[configPath]));
+      } catch (_) {
+        throw new Error(`.detractless: ${configPath} is not valid JSON`);
+      }
+    }
+    const pkManifestBytes = entries[SHARED_PK_MANIFEST] || entries[V1_PK_MANIFEST];
+    const pkCsvBytes = entries[SHARED_PK_CSV] || entries[V1_PK_CSV];
+    const pastekitData = pkManifestBytes && pkCsvBytes ? parsePastekit(pkManifestBytes, pkCsvBytes) : null;
+    return { version, layout, detractlessConfig, pastekitData, entries };
+  }
+  async function packageArchive({ detractlessConfig, pastekitExport, passthrough }) {
+    return exportDetractless({ detractlessConfig, pastekitExport, passthrough });
+  }
+  async function openArchive(buffer) {
+    // Decompress the ZIP entries one at a time, yielding between each inflate
+    // call so the main thread stays responsive. A .detractless archive only
+    // contains 3-5 small files so the loop completes quickly.
+    const input = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+
+    // Step 1: Parse the ZIP central directory (fast, no decompression)
+    const data = input;
+    let e = data.length - 22;
+    for (; b4(data, e) !== 101010256; --e) {
+      if (!e || data.length - e > 65558) throw new Error("Not a valid .detractless file (could not unzip)");
+    }
+    let c = b2(data, e + 8);
+    if (!c) return importDetractless({});
+    let o = b4(data, e + 16);
+    const z = b4(data, e - 20) === 117853008 && (() => {
+      const ze = b4(data, e - 12);
+      if (b4(data, ze) === 101075792) { c = b4(data, ze + 32); o = b4(data, ze + 48); return true; }
+      return false;
+    })();
+
+    // Step 2: Collect file descriptors (no decompression yet)
+    const fileDescs = [];
+    let pos = o;
+    for (let i = 0; i < c; ++i) {
+      const [c_2, sc, su, fn, no, off] = zh(data, pos, z);
+      const b = slzh(data, off);
+      fileDescs.push({ c_2, sc, su, fn, b });
+      pos = no;
+    }
+
+    // Step 3: Inflate each file with an event-loop yield between each
+    const entries = {};
+    for (const { c_2, sc, su, fn, b } of fileDescs) {
+      if (!c_2) {
+        entries[fn] = slc(data, b, b + sc);
+      } else if (c_2 === 8) {
+        if (typeof DecompressionStream !== "undefined") {
+          try {
+            const ds = new DecompressionStream("deflate-raw");
+            const writer = ds.writable.getWriter();
+            writer.write(data.subarray(b, b + sc));
+            writer.close();
+            const response = new Response(ds.readable);
+            entries[fn] = new Uint8Array(await response.arrayBuffer());
+          } catch (e) {
+            await new Promise((r) => setTimeout(r, 0));
+            entries[fn] = inflateSync(data.subarray(b, b + sc), { out: new u8(su) });
+          }
+        } else {
+          // Yield so the UI can paint / respond before blocking inflate call
+          await new Promise((r) => setTimeout(r, 0));
+          entries[fn] = inflateSync(data.subarray(b, b + sc), { out: new u8(su) });
+        }
+      }
+    }
+
+    return importDetractless(entries);
+  }
+  function isDetractlessArchive(buffer) {
+    const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+    return bytes[0] === 80 && bytes[1] === 75;
+  }
+  function isDetractlessFile(buffer) {
+    return isDetractlessArchive(buffer);
+  }
+
+  // src/pastekit/services/db.js
+  var DB_NAME = "pastekit";
+  var DB_VERSION = 2;
+  var _dbPromise = null;
+  function openDB() {
+    if (_dbPromise) return _dbPromise;
+    _dbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (event) => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains("snippets")) {
+          db.createObjectStore("snippets", { keyPath: "id", autoIncrement: true });
+        }
+        if (!db.objectStoreNames.contains("folders")) {
+          const f = db.createObjectStore("folders", { keyPath: "id", autoIncrement: true });
+          f.createIndex("name", "name");
+          f.createIndex("parentId", "parentId");
+        }
+        if (!db.objectStoreNames.contains("settings"))
+          db.createObjectStore("settings", { keyPath: "key" });
+        if (event.oldVersion >= 1 && event.oldVersion < 2) {
+          const s = req.transaction.objectStore("snippets");
+          for (const name of ["name", "folderId", "tags", "updatedAt"]) {
+            if (s.indexNames.contains(name)) s.deleteIndex(name);
+          }
+        }
+      };
+      req.onblocked = () => {
+        _dbPromise = null;
+        console.warn("[PasteKit DB] open blocked by another open connection");
+        reject(new Error("PasteKit DB open blocked"));
+      };
+      req.onsuccess = () => {
+        const db = req.result;
+        db.onclose = () => {
+          _dbPromise = null;
+        };
+        db.onversionchange = () => {
+          try { db.close(); } catch (_) {}
+          _dbPromise = null;
+        };
+        resolve(db);
+      };
+      req.onerror = () => {
+        _dbPromise = null;
+        reject(req.error);
+      };
+    });
+    return _dbPromise;
+  }
+  async function closeDB() {
+    if (!_dbPromise) return;
+    const pending = _dbPromise;
+    _dbPromise = null;
+    try {
+      (await pending).close();
+    } catch (_) {
+    }
+  }
+  var p = (req) => new Promise((res, rej) => {
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+  var txDone = (tx) => new Promise((res, rej) => {
+    tx.oncomplete = () => res(void 0);
+    tx.onerror = () => rej(tx.error);
+    tx.onabort = () => rej(tx.error || new Error("transaction aborted"));
+  });
+  async function store(name, mode) {
+    const db = await openDB();
+    const tx = db.transaction(name, mode || "readonly");
+    return { tx, os: tx.objectStore(name) };
+  }
+  async function readSnippetRows() {
+    const { os } = await store("snippets");
+    return p(os.getAll());
+  }
+  async function readAllSnippets() {
+    return readSnippetRows();
+  }
+  async function listSnippets(folderId) {
+    const all = await readAllSnippets();
+    if (folderId == null) return all;
+    return all.filter((s) => s.folderId === folderId);
+  }
+  function byName(a, b) {
+    return (a.name || "").localeCompare(b.name || "");
+  }
+  async function listFolders() {
+    const { os } = await store("folders");
+    const arr = await p(os.getAll());
+    return arr.sort(byName);
+  }
+  var FORMAT2 = "pastekit-snippets";
+  var CURRENT_VERSION = 1;
+  async function buildExport() {
+    const [folders, snippets] = await Promise.all([listFolders(), listSnippets(null)]);
+    const folderXid = /* @__PURE__ */ new Map();
+    folders.forEach((f, i) => folderXid.set(f.id, "f" + (i + 1)));
+    return {
+      format: FORMAT2,
+      version: CURRENT_VERSION,
+      createdBy: "Pastekit-v2-zerodep/0.1.0",
+      exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      folders: folders.map((f) => ({
+        xid: folderXid.get(f.id),
+        name: f.name,
+        parentXid: f.parentId && folderXid.get(f.parentId) ? folderXid.get(f.parentId) : null
+      })),
+      snippets: snippets.map((s) => ({
+        name: s.name,
+        description: s.description || "",
+        contentText: s.contentText || "",
+        contentHtml: s.contentHtml || "",
+        folderXid: s.folderId && folderXid.get(s.folderId) ? folderXid.get(s.folderId) : null,
+        tags: s.tags || [],
+        createdAt: new Date(s.createdAt || Date.now()).toISOString(),
+        updatedAt: new Date(s.updatedAt || Date.now()).toISOString()
+      }))
+    };
+  }
+  async function importJson(data, mode) {
+    mode = mode || "skip";
+    if (!data || data.format !== FORMAT2) throw new Error("Not a Pastekit export file");
+    const v = parseInt(data.version, 10);
+    if (!Number.isFinite(v)) throw new Error("Missing/invalid version");
+    if (v > CURRENT_VERSION) throw new Error("File is from a newer Pastekit version (" + v + ")");
+    const report = { foldersAdded: 0, snippetsAdded: 0, skipped: 0, replaced: 0, renamed: 0 };
+    const existingSnippets = await readAllSnippets();
+    const snippetByName = new Map(existingSnippets.map((s) => [s.name, s]));
+    const inputFolders = Array.isArray(data.folders) ? data.folders : [];
+    const { tx: fTx, os: fOs } = await store("folders", "readwrite");
+    const existingFolders = await p(fOs.getAll());
+    const folderByName = new Map(existingFolders.map((f) => [f.name, f]));
+    const xidToId = await importFolders(fOs, inputFolders, folderByName, report);
+    await linkFolderParents(fOs, inputFolders, xidToId);
+    await txDone(fTx);
+    const inputSnippets = Array.isArray(data.snippets) ? data.snippets : [];
+    const rows = planSnippetImport(inputSnippets, xidToId, snippetByName, mode, report);
+    if (rows.length) {
+      const { tx, os } = await store("snippets", "readwrite");
+      for (const row of rows) row.id == null ? os.add(row) : os.put(row);
+      await txDone(tx);
+    }
+    return report;
+  }
+  function planSnippetImport(inputSnippets, xidToId, snippetByName, mode, report) {
+    const now = Date.now();
+    const out = [];
+    for (const s of inputSnippets) {
+      const base = buildSnippetRecord(s, xidToId, now);
+      if (!base.name) continue;
+      const clash = snippetByName.get(base.name);
+      if (clash && mode === "skip") {
+        report.skipped++;
+        continue;
+      }
+      if (clash && mode === "replace") {
+        base.id = clash.id;
+        base.createdAt = clash.createdAt || base.createdAt;
+        snippetByName.set(base.name, base);
+        report.replaced++;
+        out.push(base);
+        continue;
+      }
+      if (clash && mode === "rename") {
+        base.name = renamedCandidate(base.name, snippetByName);
+        report.renamed++;
+      }
+      snippetByName.set(base.name, base);
+      report.snippetsAdded++;
+      out.push(base);
+    }
+    return out;
+  }
+  async function importFolders(fOs, inputFolders, folderByName, report) {
+    const xidToId = /* @__PURE__ */ new Map();
+    for (const f of inputFolders) {
+      const name = String(f.name || "").trim();
+      if (!name) continue;
+      const existing = folderByName.get(name);
+      if (existing) {
+        xidToId.set(f.xid, existing.id);
+        continue;
+      }
+      const rec = { name, parentId: 0, createdAt: Date.now() };
+      const id = await p(fOs.add(rec));
+      xidToId.set(f.xid, id);
+      folderByName.set(name, Object.assign({ id }, rec));
+      report.foldersAdded++;
+    }
+    return xidToId;
+  }
+  async function linkFolderParents(fOs, inputFolders, xidToId) {
+    for (const f of inputFolders) {
+      if (!f.parentXid) continue;
+      const id = xidToId.get(f.xid), pid = xidToId.get(f.parentXid);
+      if (id != null && pid != null) {
+        const rec = await p(fOs.get(id));
+        if (rec) {
+          rec.parentId = pid;
+          fOs.put(rec);
+        }
+      }
+    }
+  }
+  function buildSnippetRecord(s, xidToId, now) {
+    const folderXid = s.folderXid;
+    const folderId = folderXid && xidToId.get(folderXid) != null ? xidToId.get(folderXid) : 0;
+    return {
+      name: String(s.name || "").trim(),
+      description: s.description || "",
+      contentText: s.contentText || "",
+      contentHtml: s.contentHtml || "",
+      folderId,
+      tags: Array.isArray(s.tags) ? s.tags.filter(Boolean) : [],
+      createdAt: s.createdAt ? Date.parse(s.createdAt) || now : now,
+      updatedAt: now
+    };
+  }
+  function renamedCandidate(name, snippetByName) {
+    let n = 2, candidate;
+    do {
+      candidate = name + "-" + n++;
+    } while (snippetByName.has(candidate));
+    return candidate;
+  }
+
+  // src/pastekit/utils/messages.js
+  var MSG = {
+    // service-worker DB API (popup/options/content -> SW)
+    SNIPPET_LIST: "snippet.list",
+    SNIPPET_GET_BY_NAME: "snippet.getByName",
+    SNIPPET_SEARCH: "snippet.search",
+    // Content-script surface. SUGGEST returns {id, name} only — never snippet
+    // bodies — so a page's renderer never holds content it has no use for. GET
+    // pulls the single snippet the user actually chose, at commit time.
+    SNIPPET_SUGGEST: "snippet.suggest",
+    SNIPPET_GET: "snippet.get",
+    SNIPPET_SAVE: "snippet.save",
+    SNIPPET_DELETE: "snippet.delete",
+    FOLDER_LIST: "folder.list",
+    FOLDER_SAVE: "folder.save",
+    FOLDER_DELETE: "folder.delete",
+    TAG_LIST: "tag.list",
+    EXPORT_JSON: "export.json",
+    IMPORT_JSON: "import.json",
+    // broadcast (SW -> everyone, fire-and-forget)
+    SNIPPETS_CHANGED: "snippets.changed",
+    // fill mode (popup -> tab content script; CS -> SW)
+    FILL_START: "fill.start",
+    FILL_STATUS: "fill.status",
+    FILL_CANCEL: "fill.cancel",
+    FILL_ENDED: "fill.ended",
+    FILL_ADVANCE: "fill.advance",
+    // quick clip via context menu (SW <-> tab content script)
+    GET_SELECTION: "clip.getSelection",
+    CLIP_SAVED: "clip.saved"
+  };
+
+  // src/pastekit/services/broadcast.js
+  function broadcast() {
+    try {
+      chrome.runtime.sendMessage({ type: MSG.SNIPPETS_CHANGED }).catch(() => {
+      });
+    } catch (_) {
+    }
+    try {
+      chrome.tabs.query({}, (tabs) => {
+        for (const t of tabs) {
+          if (t.id == null) continue;
+          try {
+            chrome.tabs.sendMessage(t.id, { type: MSG.SNIPPETS_CHANGED }).catch(() => {
+            });
+          } catch (_) {
+          }
+        }
+      });
+    } catch (_) {
+    }
+  }
+
+  // src/pages/newtab/importExport.js
+  init_newtabState();
+  var _onImportComplete = null;
+  function setImportCompleteCallback(cb) {
+    _onImportComplete = cb;
+  }
+  async function applyImportData(importData) {
+    await persistImportData(importData);
+    await refreshBookmarkCache();
+    if (importData.activeTabs) setActiveTabs(importData.activeTabs);
+    if (importData.customSearchEngines) setSearchEngines(importData.customSearchEngines);
+    if (importData.defaultEngineKey) setDefaultEngineKey(importData.defaultEngineKey);
+    if (importData.selectedSearchEngine) setCurrentEngine(importData.selectedSearchEngine);
+    if (importData.Theme) setAppThemeConfig(importData.Theme);
+    if (importData.fadeInEnabled !== void 0) setFadeInEnabled(importData.fadeInEnabled);
+    if (importData.spotlightVisible !== void 0) setSpotlightVisible(importData.spotlightVisible);
+    if (importData.searchEngineBehavior !== void 0) setSearchEngineBehavior(importData.searchEngineBehavior);
+    if (importData.bookmarkPillBehavior !== void 0) setBookmarkPillBehavior(importData.bookmarkPillBehavior);
+    if (_onImportComplete) await _onImportComplete(importData);
+  }
+  async function applyArchiveBuffer(buffer) {
+    const { layout, detractlessConfig, pastekitData } = await openArchive(buffer);
+    let appliedConfig = false;
+    if (detractlessConfig) {
+      await applyImportData(detractlessConfig);
+      appliedConfig = true;
+    }
+    let appliedSnippets = false;
+    if (pastekitData) {
+      await importJson({ format: "pastekit-snippets", version: 1, ...pastekitData }, "replace");
+      broadcast();
+      appliedSnippets = true;
+    }
+    return { layout, appliedConfig, appliedSnippets };
+  }
+  function describeApplied({ appliedConfig, appliedSnippets }) {
+    const parts = [];
+    if (appliedConfig) parts.push("bookmarks and settings");
+    if (appliedSnippets) parts.push("snippets");
+    return parts.length ? parts.join(", ") : "";
+  }
+  async function exportBookmarks() {
+    try {
+      const [detractlessConfig, pastekitExport] = await Promise.all([
+        generateExportData(activeTabs),
+        buildExport()
+      ]);
+      const archive = await packageArchive({ detractlessConfig, pastekitExport });
+      const dateStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+      const blob = new Blob([archive], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${dateStr}.detractless`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert(error && error.locked ? 'Your snippets are locked. Unlock them first \u2014 click "Locked" at the top of the page \u2014 then export again.' : "Error exporting data.");
+    }
+  }
+  async function importBookmarks(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const importBtn = document.getElementById("import-btn");
+    const originalLabel = importBtn ? importBtn.textContent : null;
+    if (importBtn) { importBtn.disabled = true; importBtn.textContent = "Importing\u2026"; }
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      let pendingAlert = null;
+      try {
+        const buffer = (
+          /** @type {ArrayBuffer} */
+          e.target.result
+        );
+        await new Promise((r) => setTimeout(r, 0));
+        let applied = null;
+        if (isDetractlessFile(buffer)) {
+          applied = await applyArchiveBuffer(buffer);
+        } else if (file.name.endsWith(".pastekit")) {
+          const pastekitData = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer)));
+          await importJson(pastekitData, "replace");
+          broadcast();
+          pendingAlert = "Import successful! Snippets restored.";
+        } else {
+          const importData = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer)));
+          await applyImportData(importData);
+        }
+        if (!pendingAlert) {
+          if (applied && !applied.appliedConfig && !applied.appliedSnippets) {
+            pendingAlert =
+              "That archive was read successfully but contained no recognisable data \u2014 nothing was changed.\n\nIf you created or modified this file outside of Detractless (e.g. with a ZIP tool on Windows), make sure it was re-zipped with a tool that stores paths using forward slashes. Some tools, like PowerShell\u2019s Compress-Archive, use backslashes internally, which prevents Detractless from finding the files inside.";
+          } else if (applied) {
+            pendingAlert = `Import successful! Restored ${describeApplied(applied)}.`;
+          } else {
+            pendingAlert = "Import successful! Bookmarks, settings, and snippets restored.";
+          }
+        }
+      } catch (error) {
+        console.error(error);
+        pendingAlert = "Error importing file. Please ensure it is a valid Detractless export.";
+      } finally {
+        if (importBtn) { importBtn.disabled = false; importBtn.textContent = originalLabel; }
+        if (pendingAlert) {
+          const msg = pendingAlert;
+          // NOTE: alert() inside Vivaldi's browser UI extension deadlocks the entire
+          // Vivaldi window. Use an in-page toast instead — never call window.alert() here.
+          setTimeout(() => {
+            const isError = msg.toLowerCase().startsWith('error');
+            const toast = document.createElement('div');
+            toast.textContent = msg;
+            toast.setAttribute('role', 'status');
+            Object.assign(toast.style, {
+              position: 'fixed', bottom: '24px', left: '50%',
+              transform: 'translateX(-50%)',
+              background: isError ? '#b91c1c' : '#166534',
+              color: '#fff', padding: '10px 20px',
+              borderRadius: '8px', fontSize: '14px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              zIndex: '999999', maxWidth: '480px',
+              textAlign: 'center', lineHeight: '1.4',
+              opacity: '0', transition: 'opacity 0.2s ease',
+            });
+            document.body.appendChild(toast);
+            requestAnimationFrame(() => { toast.style.opacity = '1'; });
+            setTimeout(() => {
+              toast.style.opacity = '0';
+              setTimeout(() => toast.remove(), 300);
+            }, isError ? 6000 : 3500);
+          }, 50);
+        }
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    event.target.value = "";
+  }
+
+  // src/services/resetService.js
+  init_bookmarksDB();
+  function deleteDatabase(name) {
+    return new Promise((resolve) => {
+      const req = indexedDB.deleteDatabase(name);
+      req.onsuccess = () => resolve();
+      req.onerror = () => resolve();
+      req.onblocked = () => resolve();
+    });
+  }
+  async function resetAllData() {
+    if (BookmarkDB.db) {
+      BookmarkDB.db.close();
+      BookmarkDB.db = null;
+    }
+    for (const name of window.AtlasProfiles ? window.AtlasProfiles.allDbNames() : [BookmarkDB.dbName]) {
+      await deleteDatabase(name);
+    }
+    await closeDB();
+    await deleteDatabase("pastekit");
+    await new Promise((resolve) => chrome.storage.sync.clear(resolve));
+    await new Promise((resolve) => chrome.storage.local.clear(resolve));
+    if (chrome.storage.session) {
+      await new Promise((resolve) => chrome.storage.session.clear(resolve));
+    }
+    window.location.reload();
+  }
+
+  // src/pages/newtab/settingsModal.js
+  init_tabs2();
+  init_scrollAffordance();
+  init_newtabState();
+  function initSettingsModal() {
+    const closeSettingsModal = document.getElementById("close-settings-modal");
+    const saveSettings = document.getElementById("save-settings");
+    const cancelSettings = document.getElementById("cancel-settings");
+    const importBtn = document.getElementById("import-btn");
+    const importFile = document.getElementById("import-file");
+    const exportBtn = document.getElementById("export-btn");
+    const openLimiterBtn = document.getElementById("open-limiter-modal");
+    const closeLimiterBtn = document.getElementById("close-limiter-modal");
+    const openDelayBtn = document.getElementById("open-delay-modal");
+    if (openDelayBtn) {
+      openDelayBtn.addEventListener("click", () => {
+        hideModal("settings-modal");
+        showModal("delay-modal");
+        updateDelayPendingUI();
+      });
+    }
+    if (closeSettingsModal) closeSettingsModal.addEventListener("click", () => {
+      if (settingsSubpageOpen()) {
+        closeSettingsSubpage();
+        return;
+      }
+      _revertSettingsModal();
+      hideModal("settings-modal");
+    });
+    if (saveSettings) saveSettings.addEventListener("click", async () => {
+      const spotlightCheckbox = document.getElementById("spotlight-checkbox");
+      const behaviorRadio = document.querySelector('input[name="search-behavior"]:checked');
+      const pillBehaviorRadio = document.querySelector('input[name="bookmark-pill-behavior"]:checked');
+      const newSpotlightVisible = spotlightCheckbox ? spotlightCheckbox.checked : spotlightVisible;
+      const newBehavior = behaviorRadio ? behaviorRadio.value : searchEngineBehavior;
+      const newPillBehavior = pillBehaviorRadio ? pillBehaviorRadio.value : bookmarkPillBehavior;
+      setSpotlightVisible(newSpotlightVisible);
+      setSearchEngineBehavior(newBehavior);
+      setBookmarkPillBehavior(newPillBehavior);
+      const settingsToSave = {
+        fadeInEnabled,
+        spotlightVisible: newSpotlightVisible,
+        searchEngineBehavior: newBehavior,
+        bookmarkPillBehavior: newPillBehavior,
+        Theme: appThemeConfig,
+        uiScale
+      };
+      BookmarkDB.setUiPref("uiScale", uiScale).catch(() => {
+      });
+      window.chrome.storage.sync.set(settingsToSave, () => {
+        applyFadeIn();
+        applySpotlightVisibility();
+        applyThemeConfig(appThemeConfig);
+        if (searchEngineBehavior === "always-default") updateCurrentEngine("default");
+        hideModal("settings-modal");
+      });
+    });
+    if (cancelSettings) cancelSettings.addEventListener("click", () => {
+      _revertSettingsModal();
+      hideModal("settings-modal");
+      const spotlightCheckbox = document.getElementById("spotlight-checkbox");
+      if (spotlightCheckbox) spotlightCheckbox.checked = spotlightVisible;
+    });
+    if (importBtn) importBtn.addEventListener("click", () => importFile && importFile.click());
+    if (importFile) importFile.addEventListener("change", importBookmarks);
+    if (exportBtn) exportBtn.addEventListener("click", exportBookmarks);
+    if (openLimiterBtn) openLimiterBtn.addEventListener("click", () => {
+      hideModal("settings-modal");
+      showModal("limiter-modal");
+      updateLimiterUI();
+    });
+    if (closeLimiterBtn) closeLimiterBtn.addEventListener("click", () => hideModal("limiter-modal"));
+    document.querySelectorAll(".scale-btn").forEach((btn) => {
+      btn.addEventListener("click", () => toggleScale(parseFloat(btn.dataset.value)));
+    });
+    initSettingsRows();
+    const resetAllBtn = document.getElementById("reset-all-btn");
+    const resetConfirmBox = document.getElementById("reset-confirm-box");
+    const resetCancelBtn = document.getElementById("reset-cancel-btn");
+    const resetConfirmBtn = document.getElementById("reset-confirm-btn");
+    if (resetAllBtn) {
+      resetAllBtn.addEventListener("click", () => {
+        resetAllBtn.style.display = "none";
+        if (resetConfirmBox) resetConfirmBox.style.display = "block";
+      });
+    }
+    if (resetCancelBtn) {
+      resetCancelBtn.addEventListener("click", () => {
+        if (resetConfirmBox) resetConfirmBox.style.display = "none";
+        if (resetAllBtn) resetAllBtn.style.display = "";
+      });
+    }
+    if (resetConfirmBtn) {
+      resetConfirmBtn.addEventListener("click", async () => {
+        resetConfirmBtn.disabled = true;
+        resetConfirmBtn.textContent = "Resetting...";
+        await resetAllData();
+      });
+    }
+  }
+  var PICKERS = {
+    "search-behavior": {
+      kind: "radio",
+      name: "search-behavior",
+      labels: { "remember": "Remember last selected", "always-default": "Always reset to default" }
+    },
+    "bookmark-pill-behavior": {
+      kind: "radio",
+      name: "bookmark-pill-behavior",
+      labels: { "prefix": "When typing ./ (default)", "always": "Always" }
+    },
+    "management-method": {
+      kind: "radio",
+      name: "management-method",
+      labels: { "random": "Close a random tab", "block": "Block the new tab" }
+    },
+    "theme-choice": {
+      kind: "radio",
+      name: "theme-choice",
+      labels: { "system": "System", "light": "Light", "dark": "Dark", "custom": "Custom" }
+    },
+    "ui-scale": {
+      kind: "scale",
+      labels: { "0.75": "75%", "0.9": "90%", "1": "100%", "1.1": "110%", "1.25": "125%" }
+    }
+  };
+  function pickerCurrentValue(cfg) {
+    if (cfg.kind === "scale") return String(uiScale);
+    const checked = document.querySelector(`input[name="${cfg.name}"]:checked`);
+    return checked ? checked.value : null;
+  }
+  function pickerSelect(cfg, value) {
+    if (cfg.kind === "scale") {
+      const btn = document.querySelector(`.scale-btn[data-value="${value}"]`);
+      if (btn) btn.click();
+      return;
+    }
+    const radio = document.querySelector(`input[name="${cfg.name}"][value="${value}"]`);
+    if (radio) {
+      radio.checked = true;
+      radio.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+  function refreshSettingsRowValues() {
+    document.querySelectorAll("[data-picker-value]").forEach((span) => {
+      const cfg = PICKERS[span.dataset.pickerValue];
+      if (!cfg) return;
+      const value = pickerCurrentValue(cfg);
+      span.textContent = value !== null && cfg.labels[value] ? cfg.labels[value] : "";
+    });
+  }
+  function openPickerDialog(title, cfg) {
+    const current = pickerCurrentValue(cfg);
+    const overlay = document.createElement("div");
+    overlay.className = "modal show picker-modal";
+    const close = () => overlay.remove();
+    const card = document.createElement("div");
+    card.className = "picker-card";
+    const heading = document.createElement("div");
+    heading.className = "picker-title";
+    heading.textContent = title;
+    card.appendChild(heading);
+    const host = document.createElement("div");
+    host.className = "picker-wellhost";
+    const well = document.createElement("div");
+    well.className = "picker-well";
+    Object.entries(cfg.labels).forEach(([value, label]) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "picker-row" + (value === current ? " is-current" : "");
+      const mark = document.createElement("span");
+      mark.className = "picker-check";
+      const text = document.createElement("span");
+      text.textContent = label;
+      row.append(mark, text);
+      row.addEventListener("click", () => {
+        pickerSelect(cfg, value);
+        refreshSettingsRowValues();
+        close();
+      });
+      well.appendChild(row);
+    });
+    host.appendChild(well);
+    requestAnimationFrame(function() {
+      if (well.scrollHeight > well.clientHeight + 1) {
+        attachScrollAffordance(well, { host, items: ".picker-row" });
+      }
+    });
+    card.appendChild(host);
+    const hiddenClose = document.createElement("button");
+    hiddenClose.type = "button";
+    hiddenClose.className = "close-btn picker-hidden-close";
+    hiddenClose.hidden = true;
+    hiddenClose.addEventListener("click", close);
+    card.appendChild(hiddenClose);
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close();
+    });
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+  }
+  function initSettingsRows() {
+    document.querySelectorAll("[data-picker]").forEach((row) => {
+      row.addEventListener("click", () => {
+        const cfg = PICKERS[row.dataset.picker];
+        if (cfg) openPickerDialog(row.dataset.pickerTitle || "", cfg);
+      });
+    });
+    document.querySelectorAll("[data-subpage]").forEach((row) => {
+      row.addEventListener("click", () => openSettingsSubpage(row.dataset.subpage));
+    });
+    document.addEventListener("settings-modal-opened", refreshSettingsRowValues);
+    refreshSettingsRowValues();
+    initSettingsScrollAffordance();
+  }
+  function initSettingsScrollAffordance() {
+    const body = document.querySelector("#settings-modal .settings-body");
+    if (!body) return;
+    const affordance2 = attachScrollAffordance(body, {
+      items: ".settings-section-header, .settings-row, .setting-item"
+    });
+    document.addEventListener("settings-modal-opened", () => {
+      requestAnimationFrame(affordance2.refresh);
+    });
+  }
+
+  // src/services/starterContent.js
+  init_bookmarksDB();
+  var STARTER_PAGES = [
+    {
+      label: "Essentials",
+      groups: {
+        "PRODUCTIVITY": [
+          { name: "Notion", url: "https://notion.so" },
+          { name: "Google Calendar", url: "https://calendar.google.com" },
+          { name: "Todoist", url: "https://todoist.com" }
+        ],
+        "COMMUNICATION": [
+          { name: "Gmail", url: "https://mail.google.com" },
+          { name: "Slack", url: "https://slack.com" },
+          { name: "Discord", url: "https://discord.com" }
+        ]
+      }
+    },
+    {
+      label: "AI Tools",
+      groups: {
+        "AI": [
+          { name: "Claude", url: "https://claude.ai" },
+          { name: "Perplexity", url: "https://perplexity.ai" },
+          { name: "Gemini", url: "https://gemini.google.com" },
+          { name: "Copilot", url: "https://copilot.microsoft.com" },
+          { name: "NotebookLM", url: "https://notebooklm.google.com" }
+        ]
+      }
+    }
+  ];
+  async function seedStarterContent() {
+    const localData = await new Promise(
+      (resolve) => chrome.storage.local.get(["hasSeededDefaults"], resolve)
+    );
+    if (localData.hasSeededDefaults) return false;
+    const syncData = await new Promise(
+      (resolve) => chrome.storage.sync.get(["activeTabs"], resolve)
+    );
+    if (syncData.activeTabs && syncData.activeTabs.some((t) => t.type === "bookmarks")) return false;
+    const existing = await BookmarkDB.getAllBookmarks();
+    if (Object.keys(existing).length > 0) return false;
+    const baseId = Date.now();
+    const activeTabs2 = [{ id: "search", label: "Home", type: "search" }];
+    for (let i = 0; i < STARTER_PAGES.length; i++) {
+      const page = STARTER_PAGES[i];
+      const pageId = baseId + i;
+      activeTabs2.push({ id: pageId, label: page.label, type: "bookmarks" });
+      await BookmarkDB.saveBookmarks(pageId, page.groups);
+    }
+    await new Promise((resolve) => chrome.storage.sync.set({ activeTabs: activeTabs2 }, resolve));
+    await new Promise((resolve) => chrome.storage.local.set({ hasSeededDefaults: true }, resolve));
+    return true;
+  }
+
+  // src/pages/newtab/newtab.js
+  init_newtabState();
+  document.addEventListener("DOMContentLoaded", async () => {
+    await BookmarkDB.init();
+    await BookmarkDB.migrateFromChromeStorage();
+    await BookmarkDB.migrateBookmarksToRecords();
+    await refreshBookmarkCache();
+    const didSeed = await seedStarterContent();
+    if (didSeed) await refreshBookmarkCache();
+    ContextMenu.init();
+    const versionEl = document.getElementById("version-trigger");
+    if (versionEl) versionEl.textContent = "v" + chrome.runtime.getManifest().version;
+    initializeTheme();
+    initializeFadeIn();
+    initializeSpotlightVisibility();
+    initializeScale();
+    window.chrome.storage.sync.get(["bookmarkPillBehavior"], (res) => {
+      if (res && res.bookmarkPillBehavior) setBookmarkPillBehavior(res.bookmarkPillBehavior);
+    });
+    await initializeTabs();
+    const removedPages = await runOrphanRepairOnce(activeTabs);
+    if (removedPages.length > 0) await refreshBookmarkCache();
+    setTabNavigationCallbacks({
+      onTabClick: (tab) => {
+        if (tab.type === "search") {
+          showPage("search");
+        } else {
+          setCurrentBookmarkPage(tab.id);
+          showPage("bookmarks");
+          loadBookmarks();
+        }
+      },
+      onNavigateToSearch: () => showPage("search")
+    });
+    setManageEnginesCallback(() => showModal("engine-modal"));
+    setImportCompleteCallback(async (importData) => {
+      renderTabs();
+      loadBookmarks();
+      if (importData.fadeInEnabled !== void 0) applyFadeIn();
+      if (importData.spotlightVisible !== void 0) applySpotlightVisibility();
+      if (importData.Theme) applyThemeConfig(appThemeConfig);
+      if (importData.searchEngineBehavior !== void 0) {
+        const behaviorRadios = document.querySelectorAll('input[name="search-behavior"]');
+        behaviorRadios.forEach((radio) => {
+          if (radio.value === searchEngineBehavior) radio.checked = true;
+        });
+      }
+      if (importData.bookmarkPillBehavior !== void 0) {
+        const pillRadios = document.querySelectorAll('input[name="bookmark-pill-behavior"]');
+        pillRadios.forEach((radio) => {
+          if (radio.value === bookmarkPillBehavior) radio.checked = true;
+        });
+      }
+      if (importData.selectedSearchEngine) updateCurrentEngine(currentEngine);
+      renderEngineDropdown();
+    });
+    initializeBookmarks();
+    initBookmarkAddModal();
+    initEngineModal();
+    initSettingsModal();
+    initializeTabLimiter();
+    initThemePicker();
+    initializeSearchDelaySettings();
+    const globalSettingsBtn = document.getElementById("global-settings-btn");
+    if (globalSettingsBtn) globalSettingsBtn.addEventListener("click", () => showModal("settings-modal"));
+    const checkSettingsHash = () => {
+      if (location.hash === "#settings" || location.search.includes("settings")) {
+        showModal("settings-modal");
+      }
+    };
+    checkSettingsHash();
+    setTimeout(checkSettingsHash, 100);
+    window.addEventListener("hashchange", checkSettingsHash);
+    if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
+      chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+        if (msg && msg.atlas && msg.atlas.act === "open-settings") {
+          showModal("settings-modal");
+          if (sendResponse) sendResponse({ ok: true });
+        }
+      });
+    }
+    document.querySelectorAll(".modal").forEach((modal) => modal.addEventListener("click", (e) => e.stopPropagation()));
+    await loadSearchEngines();
+    initializeSearch();
+    loadSavedEngine();
+    showPage("search");
+    const isSettingsTarget = location.hash === "#settings" || location.search.includes("settings");
+    const searchInput = document.getElementById("search-input");
+    if (searchInput && spotlightVisible && !isSettingsTarget) setTimeout(() => searchInput.focus(), 100);
+    if (isSettingsTarget) setTimeout(checkSettingsHash, 50);
+  });
+  window.addEventListener("pageshow", () => {
+    selectSearchTab();
+    showPage("search");
+    const isSettingsTarget = location.hash === "#settings" || location.search.includes("settings");
+    const searchInput = document.getElementById("search-input");
+    if (isSettingsTarget) {
+      checkSettingsHash();
+    } else if (searchInput && spotlightVisible) {
+      setTimeout(() => searchInput.focus(), 100);
+    }
+  });
+})();
+//# sourceMappingURL=newtab.bundle.js.map
