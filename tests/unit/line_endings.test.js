@@ -13,7 +13,7 @@ const git = (...args) => execFileSync("git", args, { cwd: ROOT, encoding: "utf8"
 
 test("tracked text files use the line endings .gitattributes asks for", () => {
   const files = git("ls-files", "--cached", "--others", "--exclude-standard").split("\n").filter(Boolean)
-    .filter((f) => fs.existsSync(path.join(ROOT, f)));
+    .filter((f) => { try { return fs.statSync(path.join(ROOT, f)).isFile(); } catch (e) { return false; /* deleted since listing */ } });
   // eol/text attributes for every file in one call: "path: attr: value" lines.
   const attrs = {};
   for (const line of execFileSync("git", ["check-attr", "--stdin", "text", "eol"], { cwd: ROOT, input: files.join("\n"), encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).split("\n")) {
