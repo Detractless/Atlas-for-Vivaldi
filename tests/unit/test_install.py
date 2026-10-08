@@ -141,6 +141,20 @@ class InstallerTest(unittest.TestCase):
         self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
         self.assertIn("Done.  (dry run - nothing was changed)", out.stdout)
 
+    def test_harper_payload_is_complete(self):
+        """The Harper extension's manifest parses and every file it names is shipped."""
+        harper = PAYLOAD / "extensions" / "harper"
+        manifest = json.loads((harper / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest.get("manifest_version"), 3)
+        named = [manifest.get("background", {}).get("service_worker")]
+        for cs in manifest.get("content_scripts", []):
+            named += cs.get("js", []) + cs.get("css", [])
+        named += list((manifest.get("icons") or {}).values())
+        for rel in filter(None, named):
+            self.assertTrue((harper / rel).is_file(), f"Harper manifest names a missing file: {rel}")
+        self.assertTrue((harper / "harper.crx").is_file(), "the signed .crx is shipped")
+        self.assertFalse((harper / "harper.pem").exists(), "the signing key is never in the payload")
+
     def test_dmg_app_holds_a_working_installer(self):
         """The app build_dmg.py assembles can dry-run on its own (no repo around it)."""
         sys.path.insert(0, str(ROOT / "scripts"))

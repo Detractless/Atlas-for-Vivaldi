@@ -109,3 +109,24 @@ test("Shift+right-click and pages that handle the click keep the native menu", (
   rightClick(p, p.document.getElementById("own"));
   assert.equal(host(p), null);
 });
+
+test("Open link in this tab navigates through Atlas", () => {
+  const p = openPage("<a id='l' href='https://other.test/x'>link</a>");
+  rightClick(p, p.document.getElementById("l"));
+  pick(p, "Open link in this tab");
+  assert.deepEqual(plain(p.control.sentMessages.at(-1)), { atlas: { act: "opentab-current", url: "https://other.test/x" } });
+});
+
+test("right-clicks on Harper's tooltip are left to Harper", () => {
+  const p = openPage("<div class='harper-tooltip'><span id='h'>suggestion</span></div>");
+  rightClick(p, p.document.getElementById("h"));
+  assert.equal(host(p), null);
+});
+
+test("the browser can close the page menu", () => {
+  const p = openPage("<p id='x'>Hello</p>");
+  rightClick(p, p.document.getElementById("x"));
+  assert.ok(host(p));
+  p.control.deliver({ atlas: "closeContextMenu" });
+  assert.equal(host(p), null);
+});

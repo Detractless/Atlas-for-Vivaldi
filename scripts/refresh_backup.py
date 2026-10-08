@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
 scripts/refresh_backup.py
-Refreshes C:\\Users\\Calibro1\\Downloads\\atlas-installer-backup-2026-09-08.zip with
-current repository files. Stores clean root-relative paths and strictly excludes
-.agents/, .git/, build/, *.spec, and ORIGINAL_REQUEST.md.
+Writes a zip backup of the repository (default: ~/Downloads/atlas-installer-backup.zip,
+or the path given as the first argument). Stores clean root-relative paths and
+excludes .agents/, .git/, build/, node_modules/, .scratch/, *.spec and
+ORIGINAL_REQUEST.md. Git history is the main record now; this is an extra copy.
 """
 
 import os
@@ -13,7 +14,7 @@ from pathlib import Path
 
 # Paths
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_BACKUP_PATH = Path(r"C:\Users\Calibro1\Downloads\atlas-installer-backup-2026-09-08.zip")
+DEFAULT_BACKUP_PATH = Path.home() / "Downloads" / "atlas-installer-backup.zip"
 
 EXCLUDE_DIRS = {
     ".agents",
@@ -24,6 +25,7 @@ EXCLUDE_DIRS = {
     ".vscode",
     ".idea",
     "node_modules",
+    ".scratch",
 }
 
 EXCLUDE_FILES = {

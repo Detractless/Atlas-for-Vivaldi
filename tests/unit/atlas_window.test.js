@@ -81,7 +81,10 @@ test("right-clicking a tab shows the tab menu", async () => {
   const w = await start();
   const doc = w.window.document;
   doc.getElementById("browser").insertAdjacentHTML("beforeend", '<div class="tab-position"><div class="tab" id="tab-12">Page</div></div>');
+  let hoverCardDismissed = false;
+  doc.querySelector(".tab-position").addEventListener("mouseleave", () => { hoverCardDismissed = true; });
   rightClick(w, doc.getElementById("tab-12"));
+  assert.ok(hoverCardDismissed, "the tab's hover card is dismissed");
   answer(w, "chrome.tabs.get", { id: 12, pinned: false, url: "https://a.test/", mutedInfo: { muted: false } });
   assert.deepEqual(menuLabels(w), ["Reload", "Duplicate", "Pin", "Mute", "Copy address", "Close"]);
   assert.ok(doc.querySelector(".tab.atlas-tab-context-active"), "the tab is marked while its menu is open");
@@ -179,4 +182,67 @@ test("typing in the popover search filters the list", { todo: "search field rese
   search.dispatchEvent(new w.window.Event("input", { bubbles: true }));
   const again = w.window.document.querySelector(".atlas-ext-pop");
   assert.deepEqual([...again.querySelectorAll(".aep-name")].map((n) => n.textContent), ["Ext 10"]);
+});
+
+/* ── Corner avatar menu (07-profile-menu.js) and menus closing each other ── */
+
+async function openProfileMenu(w) {
+  const doc = w.window.document;
+  doc.getElementById("browser").insertAdjacentHTML("beforeend",
+    '<div class="toolbar-mainbar"><button data-name="AccountButton">P</button></div>');
+  doc.querySelector('[data-name="AccountButton"]').dispatchEvent(new w.window.MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }));
+  return waitFor(() => doc.querySelector(".atlas-nosurf-menu .apm-strip") && doc.querySelector(".atlas-nosurf-menu"), "profile menu with profiles");
+}
+
+async function waitFor(fn, what, ms = 2000) {
+  const start = Date.now();
+  for (;;) {
+    const v = fn();
+    if (v) return v;
+    if (Date.now() - start > ms) throw new Error(`timed out: ${what}`);
+    await new Promise((r) => setTimeout(r, 20));
+  }
+}
+
+test("the avatar button opens the profile menu: profiles, then shortcuts", async () => {
+  const w = await start();
+  const menu = await openProfileMenu(w);
+  const rows = [...menu.querySelectorAll(".apm-item .apm-row-label")].map((s) => s.textContent);
+  assert.deepEqual(rows, ["Add page or bookmark", "History", "Downloads", "Extension settings", "Browser settings"]);
+  assert.ok(menu.querySelectorAll(".apm-pick[data-pick]").length >= 2, "one avatar per profile");
+  assert.ok(menu.querySelector(".apm-addbtn"), "+ to add or edit profiles");
+  [...menu.querySelectorAll(".apm-item")].find((b) => b.textContent.includes("History"))
+    .dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
+  assert.ok(w.calls.some((c) => c.name === "chrome.tabs.create" && plain(c.args[0]).url === "vivaldi://history"));
+  assert.equal(w.window.document.querySelector(".atlas-nosurf-menu"), null, "the menu closes");
+});
+
+test("a web-page menu opening closes the browser's own menus", async () => {
+  const w = await start();
+  const doc = w.window.document;
+  doc.getElementById("browser").insertAdjacentHTML("beforeend", '<div class="tab-position"><div class="tab" id="tab-5">T</div></div>');
+  rightClick(w, doc.getElementById("tab-5"));
+  answer(w, "chrome.tabs.get", { id: 5, url: "https://a.test/" });
+  assert.ok(doc.querySelector(".atlas-profile-menu"), "tab menu open");
+  w.control.deliver({ atlas: { act: "ctxmenu-open" } });
+  assert.equal(doc.querySelector(".atlas-profile-menu"), null, "closed when the page menu opens");
+});
+
+test("opening a browser menu tells the page to close its menu", async () => {
+  const w = await start();
+  const doc = w.window.document;
+  doc.getElementById("browser").insertAdjacentHTML("beforeend", '<div class="UrlBar-AddressField"><input value=""></div>');
+  rightClick(w, doc.querySelector(".UrlBar-AddressField input"));
+  answer(w, "chrome.tabs.query", [{ id: 9, url: "https://b.test/" }]);
+  const sent = w.calls.find((c) => c.name === "chrome.tabs.sendMessage" && c.args[0] === 9);
+  assert.ok(sent, "a message went to the active tab");
+  assert.deepEqual(plain(sent.args[1]), { atlas: "closeContextMenu" });
+});
+
+test("the page menu script is registered together with the spelling engine", async () => {
+  const w = await start();
+  const reg = w.calls.find((c) => c.name === "chrome.scripting.registerContentScripts");
+  const cs = plain(reg.args[0])[0];
+  assert.deepEqual(cs.js, ["components/atlas/atlas-spelling.js", "components/atlas/atlas-ctxmenu.js"]);
+  assert.equal(cs.runAt, "document_start");
 });

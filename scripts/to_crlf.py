@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 KEEP_LF = {".sh"}
 # Files other tools own and rewrite in their own format.
-SKIP_NAMES = {"package-lock.json", "project.json", "cleanup-autopilot-prompt.md"}
+SKIP_NAMES = {"package-lock.json", "project.json"}
 SKIP_DIRS = {".claude", ".agents", "node_modules"}
 
 

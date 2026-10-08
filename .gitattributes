@@ -1,0 +1,20 @@
+# Line endings: CRLF in every working tree (the repo convention), except shell
+# scripts, which bash cannot run with CRLF. Git stores text normalised to LF.
+* text=auto eol=crlf
+*.sh text eol=lf
+
+# Files other tools write in their own format: left exactly as they are.
+package-lock.json -text
+.claude/** -text
+.agents/** -text
+
+# Binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.icns binary
+*.woff2 binary
+*.crx binary
+*.gz binary
+*.zip binary
+*.dmg binary

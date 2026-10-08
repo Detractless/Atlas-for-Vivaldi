@@ -1,70 +1,66 @@
-# Atlas for Vivaldi - installer (Python)
+# Atlas for Vivaldi
+_project: atlas · created 2026-10-08_
 
-One script, `install.py`, that installs the Atlas UI into an existing Vivaldi on
-this machine. Replaces the old PowerShell `install.ps1` (which broke on
-PowerShell 5.1's JSON serializer).
+Atlas restyles Vivaldi and replaces its new tab with the Detractless dashboard.
+`install.py` puts it into an existing Vivaldi on this machine.
 
-## Run from source
+## Install from source
 
-**Windows**:
-```bat
-py -3 install.py --dry-run      # show every change, touch nothing
-py -3 install.py                # real install (prompts, closes + reopens Vivaldi)
-py -3 install.py --yes --no-launch
-```
-
-**macOS**:
 ```bash
-python3 install.py --dry-run    # show every change, touch nothing
-python3 install.py              # real install (prompts, closes + reopens Vivaldi)
+python3 install.py --dry-run    # print every change, touch nothing
+python3 install.py              # real install (asks, closes and reopens Vivaldi)
 python3 install.py --yes --no-launch
 ```
 
-Flags: `--yes` skip prompt, `--no-launch` don't reopen Vivaldi,
-`--skip-detractless`, `--dry-run`.
+On Windows use `py -3` instead of `python3`. Flags: `--yes` skip the prompt,
+`--no-launch` don't reopen Vivaldi, `--skip-detractless`, `--dry-run`.
 
-## Build Standalone Installers
+Vivaldi replaces its program folder on update, so re-run the installer after a
+Vivaldi update. The CSS mods and the Preferences edits survive updates.
 
-### Windows (`dist\AtlasSetup.exe`)
-```bat
-build.cmd
-```
-Produces `dist\AtlasSetup.exe` — a single file with the Python runtime and the `payload\` folder baked in.
-
-### macOS (`dist/AtlasSetup.dmg`)
-```bash
-./build.sh
-```
-Produces `dist/AtlasSetup.dmg` — a compressed macOS disk image containing `Install Atlas.app`.
-Double-click the DMG and open `Install Atlas.app` to run with a native GUI confirmation dialog, or invoke via CLI from Terminal:
-```bash
-"/Volumes/Atlas for Vivaldi/Install Atlas.app/Contents/MacOS/AtlasSetup" --yes
-```
-
-## Profile switcher (new tab)
-
-The new tab's top-right avatar opens an avatar-strip menu: click an avatar to
-switch profile, the dashed + adds one, and Add page or bookmark and Settings
-sit below. Phase 1 saves only the profile list and the active profile
-(`atlasProfiles`); bookmarks, pages and settings are shared by every profile.
-It ships in `payload/detractless/src/pages/newtab/profileMenu.js` and
-`newtab.css`, which `install.py` already copies. To install it (closes and
-reopens Vivaldi, so run it yourself):
+## Build
 
 ```bash
-python3 install.py --yes
+npm install        # once: esbuild, jsdom and the other dev tools
+./build.sh         # macOS: dist/AtlasSetup.dmg; Windows: build.cmd -> dist\AtlasSetup.exe
 ```
 
-## What it does (ported 1:1 from install.ps1)
+Both scripts run `scripts/build.py`: bundle `src/modules` into `atlas.js`, build
+the new-tab bundles (`npm run build`), then package for the platform.
 
-1. Copy Atlas files into `...\Vivaldi\Application\<newest>\resources\vivaldi\`.
-2. Add `<script src="atlas.js">` to `window.html`.
-3. Install + shim Detractless (`index/gate/sidepanel.html` + `src/*`).
-4. Copy `css-mods` to `...\Vivaldi\Atlas\css-mods` (survives Vivaldi updates).
-5. Prune `menus\contextmenu.json` to the Atlas menu set.
-6. Edit `User Data\Default\Preferences`: custom-CSS dir, Tools side panel,
-   panel bar, and merge the Atlas themes. Backs up to `Preferences.atlas-bak`
-   once.
+## Test
 
-Steps 1-3 and 5 live inside the Vivaldi program folder, which Vivaldi replaces
-on update - re-run the installer after a Vivaldi update. Steps 4 and 6 persist.
+```bash
+npm test           # node --test tests/unit/*.test.js && python3 -m unittest discover tests/unit
+```
+
+The node tests load the real new tab, browser-window code, page menu and
+service worker in jsdom/vm with stand-in `chrome.*` APIs. Nothing touches
+Vivaldi. Size, line-ending, storage-key and error-handling rules are tests too.
+
+## Layout
+
+| Path | What it is |
+|---|---|
+| `install.py`, `installer/` | The installer: entry point, then one module per step (files, menus, preferences, Harper, updates, signing). |
+| `src/modules/NN-*.js` | Browser-window code (menus, toolbar, profile menu, extensions popover, spelling). `scripts/bundle.py` joins them into `payload/install-files/atlas.js`. |
+| `payload/detractless/src/` | New-tab extension source. `npm run build` writes `src/dist/` (never edit dist by hand). |
+| `payload/detractless/src/constants/atlasKeys.json` | The one list of storage keys, defaults, database names and the extension id. |
+| `payload/detractless/src/settings/` | Settings registry (every setting saves at once and syncs across tabs) and the Settings page. |
+| `payload/css-mods/` | The restyling CSS, copied to `Vivaldi/Atlas/css-mods`. |
+| `payload/extensions/harper/` | The Harper grammar-checker extension (pre-signed `.crx`; the signing key lives in `keys/`, git-ignored). |
+| `tests/unit/` | All tests. |
+| `_old/` | Archived features, retired tests and old notes, each with a README or RESTORE.md. |
+
+## What the installer does
+
+1. Copies the Atlas files and the page-menu content scripts into Vivaldi's `resources/vivaldi`.
+2. Adds `atlas.js` (and `profilesCore.js`) to `window.html`.
+3. Installs the Detractless new tab: only the files its pages load.
+4. Copies `css-mods` to `Vivaldi/Atlas/css-mods`.
+5. Prunes Vivaldi's page context menus.
+6. Edits `Default/Preferences`: CSS-mods folder, toolbar layout, new-tab page, Atlas themes.
+   Stops without writing if Preferences cannot be read; backs it up before every write.
+7. Registers the Harper extension.
+8. Turns off Vivaldi auto-updates.
+9. macOS: re-signs the app ad hoc; stops if signing fails.
