@@ -4,12 +4,6 @@
 (function () {
   'use strict';
 
-  /* A window that had the old Tools button keeps it until reload; drop it. */
-  function dropLeftoverToolsButton() {
-    var old = document.querySelectorAll('.atlas-sidebar-toggle');
-    for (var i = 0; i < old.length; i++) old[i].remove();
-  }
-
   function ensureExtDocked() {
     var field = document.querySelector('.toolbar-mainbar > .UrlBar-AddressField');
     if (!field) return;
@@ -53,7 +47,6 @@
     if (_dockMutating) return;
     _dockMutating = true;
     try {
-      dropLeftoverToolsButton();
       ensureExtDocked();
     } finally {
       _dockMutating = false;

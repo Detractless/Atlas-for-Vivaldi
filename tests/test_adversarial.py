@@ -1,6 +1,6 @@
 """
-Adversarial Stress-Testing Suite for Offline Spelling Engine (12-spelling.js)
-and Address Bar Context Menu (03-contextmenu.js).
+Adversarial Stress-Testing Suite for Offline Spelling Engine (13-spelling.js)
+and Address Bar Context Menu (05-contextmenu.js).
 
 Challenger 1 Verification Suite.
 """
@@ -13,8 +13,8 @@ import subprocess
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SPELLING_JS = PROJECT_ROOT / "src" / "modules" / "12-spelling.js"
-CONTEXTMENU_JS = PROJECT_ROOT / "src" / "modules" / "03-contextmenu.js"
+SPELLING_JS = PROJECT_ROOT / "src" / "modules" / "13-spelling.js"
+CONTEXTMENU_JS = PROJECT_ROOT / "src" / "modules" / "05-contextmenu.js"
 ATLAS_JS = PROJECT_ROOT / "payload" / "install-files" / "atlas.js"
 
 
@@ -262,7 +262,7 @@ class TestAdversarialSpellingEngine(unittest.TestCase):
 
 
 class TestAdversarialContextMenuIntegration(unittest.TestCase):
-    """Adversarial stress-testing of 03-contextmenu.js address bar interactions."""
+    """Adversarial stress-testing of 05-contextmenu.js address bar interactions."""
 
     def _exec_contextmenu_test(self, test_body: str) -> dict:
         harness = f"""

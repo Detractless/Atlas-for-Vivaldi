@@ -42,16 +42,16 @@ EXPECTED_CSS_FILES = [
 
 EXPECTED_JS_MODULES = [
     "01-addressbar.js",
-    "02-detractless-bridge.js",
-    "03-contextmenu.js",
-    "04-toolbar.js",
+    "02-bridge-setup.js",
+    "05-contextmenu.js",
+    "06-toolbar.js",
     "05-profile-menu.js",
     "06-reload-helper.js",
-    "07-extensions-popover.js",
+    "09-extensions-popover.js",
     "08-theme-sync.js",
     "09-ext-dock.js",
     "11-page-progress.js",
-    "12-spelling.js",
+    "13-spelling.js",
 ]
 
 MAX_MODULE_LINES = 350

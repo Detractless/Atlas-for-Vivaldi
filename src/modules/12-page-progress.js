@@ -53,7 +53,7 @@
     if (!url) return true;
     var u = url.toLowerCase();
     return u.indexOf('atlas-blank.html') !== -1 ||
-           u.indexOf('mpognobbkildjkofajifpdfhcoklimli') !== -1 ||
+           u.indexOf(ATLAS_EXT_ID) !== -1 ||
            u.indexOf('chrome://newtab') !== -1 ||
            u.indexOf('vivaldi://newtab') !== -1 ||
            u.indexOf('startpage') !== -1 ||
@@ -92,6 +92,4 @@
     });
   }
 
-  Atlas.setBrowserLoading = setBrowserLoading;
-  Atlas.isNewTabUrl = isNewTabUrl;
 })();

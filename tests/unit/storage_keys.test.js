@@ -24,7 +24,7 @@ const DYNAMIC_OK = {
   "payload/detractless/src/background/stateSync.js": "SEEDED_KEYS, each checked by syncDefault()",
   "payload/detractless/src/components/tabs/tabs.js": "legacy page<id> key (syncPatterns)",
   "payload/detractless/src/pastekit/services/install.js": "SETTINGS_KEY = 'pastekit.settings' from pastekit/utils/settings.js",
-  "src/modules/02-detractless-bridge.js": "seeds the defaults (see the seeding test below)",
+  "src/modules/02-bridge-setup.js": "seeds the service-worker defaults (atlas_window.test.js checks the values)",
 };
 
 function sourceFiles() {

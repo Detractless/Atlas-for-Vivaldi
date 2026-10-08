@@ -66,7 +66,7 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
     if (homeBtn) {
       e.preventDefault();
       e.stopPropagation();
-      var homeUrl = (typeof Atlas !== 'undefined' && Atlas.EXT) ? (Atlas.EXT + 'index.html') : 'chrome-extension://mpognobbkildjkofajifpdfhcoklimli/index.html';
+      var homeUrl = ATLAS_NEWTAB_URL;
       if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
         chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
           if (ts && ts[0]) chrome.tabs.update(ts[0].id, { url: homeUrl });
@@ -88,7 +88,7 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
     if (val === 'home' || val === 'home/' || val === '') {
       e.preventDefault();
       e.stopPropagation();
-      var homeUrl = (typeof Atlas !== 'undefined' && Atlas.EXT) ? (Atlas.EXT + 'index.html') : 'chrome-extension://mpognobbkildjkofajifpdfhcoklimli/index.html';
+      var homeUrl = ATLAS_NEWTAB_URL;
       if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
         chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
           if (ts && ts[0]) chrome.tabs.update(ts[0].id, { url: homeUrl });
@@ -100,4 +100,3 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
   }, true);
 }
 
-Atlas.activateSpellcheck = activateSpellcheck;

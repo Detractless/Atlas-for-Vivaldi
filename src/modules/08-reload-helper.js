@@ -38,4 +38,3 @@ document.addEventListener('click', function (e) {
   });
 }, true);
 
-Atlas.reloadTarget = reloadTarget;

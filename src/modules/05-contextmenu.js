@@ -344,5 +344,3 @@ if (chrome.tabs && chrome.tabs.onActivated) chrome.tabs.onActivated.addListener(
 
 Atlas.showUiMenu = showUiMenu;
 Atlas.closeUiMenu = closeUiMenu;
-Atlas.pasteAndGo = pasteAndGo;
-Atlas.dismissPageMenu = dismissPageMenu;

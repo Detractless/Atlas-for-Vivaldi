@@ -339,5 +339,3 @@ var extBtnLast = 0;
 });
 
 Atlas.closeExtPop = closeExtPop;
-Atlas.renderExtPop = renderExtPop;
-Atlas.refreshExtPop = refreshExtPop;

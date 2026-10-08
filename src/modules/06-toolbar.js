@@ -47,9 +47,6 @@ document.addEventListener('contextmenu', function (e) {
         var innerBtn = btnWrap.querySelector('button[data-name], [data-name]');
         if (innerBtn) btnName = innerBtn.getAttribute('data-name');
       }
-      if (!btnName && btnWrap.classList.contains('atlas-sidebar-toggle')) {
-        btnName = 'atlas-sidebar-toggle';
-      }
       if (!btnName && btnWrap.classList.contains('atlas-home-toggle')) {
         btnName = 'atlas-home-toggle';
       }
@@ -60,11 +57,6 @@ document.addEventListener('contextmenu', function (e) {
       items.push({
         label: 'Remove from toolbar',
         run: function () {
-          if (btnName === 'atlas-sidebar-toggle') {
-            btnWrap.style.display = 'none';
-            try { sessionStorage.setItem('atlas_sidebar_toggle_hidden', '1'); } catch (x) {}
-            return;
-          }
           if (btnName === 'atlas-home-toggle') {
             btnWrap.style.display = 'none';
             try { sessionStorage.setItem('atlas_home_toggle_hidden', '1'); } catch (x) {}
@@ -158,7 +150,7 @@ function ensureHomeButton() {
       btn.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
-        var homeUrl = (typeof Atlas !== 'undefined' && Atlas.EXT) ? (Atlas.EXT + 'index.html') : 'chrome-extension://mpognobbkildjkofajifpdfhcoklimli/index.html';
+        var homeUrl = ATLAS_NEWTAB_URL;
         if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
           chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
             if (ts && ts[0]) chrome.tabs.update(ts[0].id, { url: homeUrl });
@@ -202,5 +194,3 @@ function ensureHomeButton() {
     }).observe(_mainbarForHome, { childList: true });
   }
 
-Atlas.getToolbarInstance = getToolbarInstance;
-Atlas.ensureHomeButton = ensureHomeButton;

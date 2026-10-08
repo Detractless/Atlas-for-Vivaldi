@@ -29,7 +29,7 @@ var menu = null;
 /* Ask the new tab to do something. On a new tab already, message it; otherwise
    open one and message it once loaded. Settings can name a page (Profiles). */
 function toNewTab(act, page) {
-  var extUrl = (typeof Atlas !== 'undefined' && Atlas.EXT) ? Atlas.EXT : 'chrome-extension://mpognobbkildjkofajifpdfhcoklimli/';
+  var extUrl = 'chrome-extension://' + ATLAS_EXT_ID + '/';
   var targetUrl = extUrl + 'index.html' + (act === 'open-add' ? '?add=1' : (page ? '?settings=' + page : '') + '#settings');
   var msg = { atlas: { act: act } };
   if (page) msg.atlas.page = page;
@@ -257,9 +257,4 @@ if (typeof document !== 'undefined') {
 Atlas.addDropTail = addDropTail;
 Atlas.setPanelBlur = setPanelBlur;
 Atlas.closeMenu = closeMenu;
-Atlas.openMenu = openMenu;
-Atlas.syncAccountTitle = syncAccountTitle;
-Atlas.observeAccountButton = observeAccountButton;
-Atlas.openNewTabSettings = openNewTabSettings;
-Atlas.openNewTabAdd = openNewTabAdd;
 

@@ -282,10 +282,10 @@ class TestTier3CrossFeatureInteractions(unittest.TestCase):
 
     def test_04_addressbar_context_menu_spelling_integration(self):
         """
-        Verify that 03-contextmenu.js queries the spelling engine and prepends
+        Verify that 05-contextmenu.js queries the spelling engine and prepends
         spelling candidates before standard clipboard operations when a misspelled word is targeted.
         """
-        target_file = JS_MODULES_DIR / "03-contextmenu.js"
+        target_file = JS_MODULES_DIR / "05-contextmenu.js"
         if not target_file.is_file():
             target_file = ATLAS_JS
 
@@ -409,22 +409,22 @@ class TestTier3CrossFeatureInteractions(unittest.TestCase):
 
     def test_06_content_script_registration_includes_spelling(self):
         """
-        Verify that 02-detractless-bridge.js registers atlas-spelling.js alongside atlas-ctxmenu.js
+        Verify that 02-bridge-setup.js registers atlas-spelling.js alongside atlas-ctxmenu.js
         for all_urls content scripts and in injectCtxMenu.
         """
-        bridge_file = JS_MODULES_DIR / "02-detractless-bridge.js"
+        bridge_file = JS_MODULES_DIR / "02-bridge-setup.js"
         self.assertTrue(bridge_file.is_file(), f"Missing {bridge_file}")
         content = bridge_file.read_text(encoding="utf-8", errors="replace")
 
         self.assertRegex(
             content,
             r"components/atlas/atlas-spelling\.js",
-            "02-detractless-bridge.js must register components/atlas/atlas-spelling.js"
+            "02-bridge-setup.js must register components/atlas/atlas-spelling.js"
         )
         self.assertRegex(
             content,
             r"components/atlas/atlas-ctxmenu\.js",
-            "02-detractless-bridge.js must register components/atlas/atlas-ctxmenu.js"
+            "02-bridge-setup.js must register components/atlas/atlas-ctxmenu.js"
         )
 
 

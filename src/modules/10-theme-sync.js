@@ -117,6 +117,4 @@
   if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('focus', reconcile);
   if (window.AtlasProfiles && window.AtlasProfiles.onChange) window.AtlasProfiles.onChange(reconcile);
 
-  Atlas.resolveDark = resolveDark;
-  Atlas.applyChromeTheme = applyChromeTheme;
 })();

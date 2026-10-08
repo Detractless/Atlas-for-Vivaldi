@@ -33,3 +33,9 @@ test("dist matches a fresh build of src", async () => {
     fs.rmSync(out, { recursive: true, force: true });
   }
 });
+
+test("atlas.js and atlas-spelling.js match a fresh bundle of src/modules", () => {
+  const { execFileSync } = require("child_process");
+  // --check builds into a temp folder and compares; it never writes to the payload.
+  execFileSync("python3", ["scripts/bundle.py", "--check"], { cwd: ROOT, stdio: "pipe" });
+});

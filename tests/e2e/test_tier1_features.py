@@ -178,14 +178,14 @@ class TestTier1FeatureCoverage(unittest.TestCase):
         Verify address bar context menu has no 'Undo' or 'Redo',
         and strictly retains 'Cut', 'Copy', 'Paste', 'Paste and go', and 'Select all'.
         """
-        # Module 03-contextmenu.js is authoritative source; fallback to bundled atlas.js
-        target_file = JS_MODULES_DIR / "03-contextmenu.js"
+        # Module 05-contextmenu.js is authoritative source; fallback to bundled atlas.js
+        target_file = JS_MODULES_DIR / "05-contextmenu.js"
         if not target_file.is_file():
             target_file = ATLAS_JS
 
         self.assertTrue(
             target_file.is_file(),
-            f"Cannot find context menu implementation in {JS_MODULES_DIR / '03-contextmenu.js'} or {ATLAS_JS}"
+            f"Cannot find context menu implementation in {JS_MODULES_DIR / '05-contextmenu.js'} or {ATLAS_JS}"
         )
 
         content = target_file.read_text(encoding="utf-8", errors="replace")
@@ -259,13 +259,13 @@ class TestTier1FeatureCoverage(unittest.TestCase):
         """
         Verify offline spelling candidate generator produces expected corrections for common misspellings.
         """
-        target_file = JS_MODULES_DIR / "12-spelling.js"
+        target_file = JS_MODULES_DIR / "13-spelling.js"
         if not target_file.is_file():
             target_file = ATLAS_JS
 
         self.assertTrue(
             target_file.is_file(),
-            f"Cannot find spelling module at {JS_MODULES_DIR / '12-spelling.js'} or {ATLAS_JS}"
+            f"Cannot find spelling module at {JS_MODULES_DIR / '13-spelling.js'} or {ATLAS_JS}"
         )
 
         # Test common typographical errors
@@ -431,13 +431,13 @@ class TestTier1FeatureCoverage(unittest.TestCase):
 
     def test_13_context_menu_cut_copy_clipboard_support(self):
         """
-        Verify that Cut and Copy actions in atlas-ctxmenu.js and 03-contextmenu.js:
+        Verify that Cut and Copy actions in atlas-ctxmenu.js and 05-contextmenu.js:
         1. Capture active selection and write to clipboard via modern Clipboard API.
         2. Prevent focus loss on mousedown to preserve field selection range.
         3. Support input.setRangeText for seamless deletion on Google Search and web inputs.
         """
         ctx_file = INSTALL_FILES_DIR / "components" / "atlas" / "atlas-ctxmenu.js"
-        mod_file = JS_MODULES_DIR / "03-contextmenu.js"
+        mod_file = JS_MODULES_DIR / "05-contextmenu.js"
         self.assertTrue(ctx_file.is_file(), f"Missing {ctx_file}")
         self.assertTrue(mod_file.is_file(), f"Missing {mod_file}")
 
@@ -449,10 +449,10 @@ class TestTier1FeatureCoverage(unittest.TestCase):
         self.assertRegex(ctx_content, r"function\s+copyField\b", "atlas-ctxmenu.js must define copyField")
         self.assertRegex(ctx_content, r"menu\.addEventListener\('mousedown'", "atlas-ctxmenu.js must preventDefault on menu mousedown")
 
-        # Check cut/copy helpers in 03-contextmenu.js
-        self.assertRegex(mod_content, r"function\s+cutFieldEl\b", "03-contextmenu.js must define cutFieldEl")
-        self.assertRegex(mod_content, r"function\s+copyFieldEl\b", "03-contextmenu.js must define copyFieldEl")
-        self.assertRegex(mod_content, r"uiMenu\.addEventListener\('mousedown'", "03-contextmenu.js must preventDefault on uiMenu mousedown")
+        # Check cut/copy helpers in 05-contextmenu.js
+        self.assertRegex(mod_content, r"function\s+cutFieldEl\b", "05-contextmenu.js must define cutFieldEl")
+        self.assertRegex(mod_content, r"function\s+copyFieldEl\b", "05-contextmenu.js must define copyFieldEl")
+        self.assertRegex(mod_content, r"uiMenu\.addEventListener\('mousedown'", "05-contextmenu.js must preventDefault on uiMenu mousedown")
 
         # Verify Node execution of cutField logic
         test_script = """
@@ -496,12 +496,12 @@ class TestTier1FeatureCoverage(unittest.TestCase):
         Verify that opening the tab right-click context menu dismisses the hover
         preview/RAM tooltip (#vivaldi-tooltip) so both cannot be displayed together:
         1. 02-tabs.css contains rules hiding #vivaldi-tooltip when menu or active tab is present.
-        2. 03-contextmenu.js toggles atlas-menu-open class on #browser.
-        3. 03-contextmenu.js dispatches mouseleave on tabEl on contextmenu.
+        2. 05-contextmenu.js toggles atlas-menu-open class on #browser.
+        3. 05-contextmenu.js dispatches mouseleave on tabEl on contextmenu.
         4. Strict line boundaries (<= 350 lines) are preserved.
         """
         tabs_css = CSS_MODS_DIR / "02-tabs.css"
-        mod_file = JS_MODULES_DIR / "03-contextmenu.js"
+        mod_file = JS_MODULES_DIR / "05-contextmenu.js"
         self.assertTrue(tabs_css.is_file(), f"Missing {tabs_css}")
         self.assertTrue(mod_file.is_file(), f"Missing {mod_file}")
 
@@ -514,8 +514,8 @@ class TestTier1FeatureCoverage(unittest.TestCase):
         self.assertRegex(css_content, r"atlas-tab-context-active", "02-tabs.css must hide tooltip when atlas-tab-context-active is matched")
 
         # JS checks
-        self.assertRegex(mod_content, r"atlas-menu-open", "03-contextmenu.js must toggle atlas-menu-open on #browser")
-        self.assertRegex(mod_content, r"mouseleave", "03-contextmenu.js must dispatch mouseleave on tabEl")
+        self.assertRegex(mod_content, r"atlas-menu-open", "05-contextmenu.js must toggle atlas-menu-open on #browser")
+        self.assertRegex(mod_content, r"mouseleave", "05-contextmenu.js must dispatch mouseleave on tabEl")
 
         # Line count checks
         self.assertLessEqual(count_lines(tabs_css), MAX_MODULE_LINES)
@@ -576,13 +576,13 @@ class TestTier1FeatureCoverage(unittest.TestCase):
         Verify mutual exclusivity between website context menus and chrome/tab context menus:
         1. atlas-ctxmenu.js listens for 'closeContextMenu' runtime message and closes its host.
         2. atlas-ctxmenu.js sends 'ctxmenu-open' message when opened.
-        3. 02-detractless-bridge.js handles 'ctxmenu-open' and closes Atlas UI menus.
-        4. 03-contextmenu.js implements dismissPageMenu() and invokes it when opening UI menus or on chrome mousedown.
+        3. 02-bridge-setup.js handles 'ctxmenu-open' and closes Atlas UI menus.
+        4. 05-contextmenu.js implements dismissPageMenu() and invokes it when opening UI menus or on chrome mousedown.
         5. Strict line boundaries (<= 350 lines) and CRLF line endings are maintained.
         """
         ctx_file = INSTALL_FILES_DIR / "components" / "atlas" / "atlas-ctxmenu.js"
-        mod_file = JS_MODULES_DIR / "03-contextmenu.js"
-        bridge_file = JS_MODULES_DIR / "02-detractless-bridge.js"
+        mod_file = JS_MODULES_DIR / "05-contextmenu.js"
+        bridge_file = JS_MODULES_DIR / "02-bridge-setup.js"
         bundle_file = ATLAS_JS
 
         for f in [ctx_file, mod_file, bridge_file, bundle_file]:
@@ -598,13 +598,13 @@ class TestTier1FeatureCoverage(unittest.TestCase):
         self.assertIn("chrome.runtime.onMessage", ctx_content, "atlas-ctxmenu.js must listen to runtime messages")
         self.assertIn("ctxmenu-open", ctx_content, "atlas-ctxmenu.js must notify on menu open")
 
-        # 2. Check 02-detractless-bridge.js
-        self.assertIn("ctxmenu-open", bridge_content, "02-detractless-bridge.js must handle ctxmenu-open")
-        self.assertIn("closeUiMenu", bridge_content, "02-detractless-bridge.js must close UI menu on ctxmenu-open")
+        # 2. Check 02-bridge-setup.js
+        self.assertIn("ctxmenu-open", bridge_content, "02-bridge-setup.js must handle ctxmenu-open")
+        self.assertIn("closeUiMenu", bridge_content, "02-bridge-setup.js must close UI menu on ctxmenu-open")
 
-        # 3. Check 03-contextmenu.js
-        self.assertIn("dismissPageMenu", mod_content, "03-contextmenu.js must declare dismissPageMenu")
-        self.assertIn("closeContextMenu", mod_content, "03-contextmenu.js must send closeContextMenu")
+        # 3. Check 05-contextmenu.js
+        self.assertIn("dismissPageMenu", mod_content, "05-contextmenu.js must declare dismissPageMenu")
+        self.assertIn("closeContextMenu", mod_content, "05-contextmenu.js must send closeContextMenu")
         self.assertIn("dismissPageMenu", bundle_content, "bundle must include dismissPageMenu")
 
         # 4. Check line counts
@@ -660,11 +660,11 @@ class TestTier1FeatureCoverage(unittest.TestCase):
         """
         Verify that the in-page context menu includes "Open link in this tab":
         1. atlas-ctxmenu.js defines "Open link in this tab" and dispatches "opentab-current".
-        2. 02-detractless-bridge.js handles "opentab-current" via chrome.tabs.update.
+        2. 02-bridge-setup.js handles "opentab-current" via chrome.tabs.update.
         3. atlas-ctxmenu.js respects line limit <= 350 lines.
         """
         ctx_file = INSTALL_FILES_DIR / "components" / "atlas" / "atlas-ctxmenu.js"
-        bridge_mod = JS_MODULES_DIR / "02-detractless-bridge.js"
+        bridge_mod = JS_MODULES_DIR / "02-bridge-setup.js"
         bundle_file = ATLAS_JS
 
         for f in [ctx_file, bridge_mod, bundle_file]:
