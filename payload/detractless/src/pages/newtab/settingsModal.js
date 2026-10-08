@@ -41,7 +41,7 @@ export function initSettingsModal() {
     // it closes and reverts, exactly as before.
     if (settingsSubpageOpen()) { closeSettingsSubpage(); return; }
     _revertSettingsModal();
-    document.getElementById("settings-modal").classList.remove("show");
+    hideModal("settings-modal");
   });
 
   if (saveSettings) saveSettings.addEventListener("click", async () => {
@@ -74,13 +74,13 @@ export function initSettingsModal() {
       applyThemeConfig(appThemeConfig);
       if (searchEngineBehavior === "always-default") updateCurrentEngine("default");
 
-      document.getElementById("settings-modal").classList.remove("show");
+      hideModal("settings-modal");
     });
   });
 
   if (cancelSettings) cancelSettings.addEventListener("click", () => {
     _revertSettingsModal();
-    document.getElementById("settings-modal").classList.remove("show");
+    hideModal("settings-modal");
     const spotlightCheckbox = document.getElementById("spotlight-checkbox");
     if (spotlightCheckbox) spotlightCheckbox.checked = spotlightVisible;
   });

@@ -1,0 +1,93 @@
+/* ══════════════════════════════════════════════════════════════════════
+   TAB LIMITER, and by inheritance SEARCH DELAY (R-011)
+
+   The delay modal has no stylesheet of its own and never had one: it
+   renders .limit-btn, .choice-grid and the row classes from here. That is
+   deliberate now rather than accidental, and it is why the two screens
+   cannot drift apart. Restyle one and you have restyled both.
+
+   WHAT CHANGED AND WHY. Everything here used to be --surface-muted sitting
+   on the canvas well, while every other object on a canvas in this
+   extension is --surface-card: settings rows, bookmark rows, the tab rail,
+   the spotlight. That is a different figure and ground, which is why the
+   panels read as another app despite their radii and type being in range.
+   The old .limit-btn also carried a 1px hairline frame and switched it to
+   dashed while a change was queued; lines are banned and the guard blocks
+   both patterns.
+
+   The layout classes are gone entirely, not restyled: .limiter-section,
+   .section-header, .status-grid, .status-item, .status-label, .status-value,
+   .setting-description, .limit-button-grid, .pending-notice and .no-pending
+   were used by these two modals and nowhere else. Both now build from
+   .settings-group and .settings-row in newtab.css, so there is one row
+   implementation rather than a second one that merely looks similar.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Value chooser ───────────────────────────────────────────────────────
+   Six columns, wrapping. The limiter offers Off and every value from 1 to
+   10, so it fills two rows; the delay offers six and fills one. A fixed
+   column count keeps every pill the same width across rows, which an
+   auto-fit track does not once the last row is short. */
+.choice-grid {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-2);
+  padding: var(--space-2) 0 0;
+}
+.limit-btn {
+  padding: 10px 0; border: none; border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  font-family: var(--font-sans); font-size: 13px; font-weight: var(--weight-medium);
+  color: var(--text-secondary); cursor: pointer; text-align: center;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+/* ADR-1: these pills sit on the canvas well, so hover steps AWAY from the
+   canvas tone. --surface-hover resolves to the on-card step and would sink
+   into the well instead, which is the defect fixed on the search pills. */
+.limit-btn:hover { background: var(--hover-on-canvas); }
+.limit-btn.active {
+  background: var(--accent); color: var(--accent-text); font-weight: var(--weight-semibold);
+}
+.limit-btn.active:hover { background: var(--accent-hover); }
+/* A queued value is a STATE OF THIS CHOOSER, which is why the old pending
+   section was deleted rather than restyled. It sits one step below the
+   selected pill: clearly marked, clearly not in force yet. Declared after
+   .active so a value that is somehow both reads as queued. */
+.limit-btn.pending {
+  background: var(--surface-muted); color: var(--text-primary); font-weight: var(--weight-semibold);
+}
+.limit-btn.pending:hover { background: var(--surface-hover); }
+
+/* ── Notes under a chooser ───────────────────────────────────────────── */
+.choice-note {
+  font: var(--text-caption); color: var(--text-tertiary);
+  padding: var(--space-3) var(--space-4) 0; margin: 0;
+}
+/* The queued line. tabLimiterUI.js and searchDelay.js reveal this with an
+   inline display:block, so it has to read correctly as a block. */
+.choice-note.queued { color: var(--text-secondary); }
+.choice-note.queued strong { color: var(--text-primary); font-weight: var(--weight-semibold); }
+.link-btn {
+  border: none; background: transparent; cursor: pointer;
+  font: var(--text-caption); font-weight: var(--weight-semibold);
+  color: var(--color-error); padding: 0; margin-left: var(--space-2);
+}
+.link-btn:hover { text-decoration: underline; }
+
+/* ── Rows that only report a number ──────────────────────────────────── */
+.settings-row.stat-row { cursor: default; }
+.settings-row.stat-row:hover { background: var(--surface-card); }
+.stat-value {
+  font-family: var(--font-sans); font-size: 26px; font-weight: var(--weight-bold);
+  line-height: 1; color: var(--text-primary); flex: none;
+}
+
+/* ── Rows that pick one of several ───────────────────────────────────────
+   The native radio is hidden and the row itself is the target, matching how
+   the settings list behaves. Selection is a checkmark rather than a ring,
+   so it needs no line and introduces no new shape. */
+.choice-row input { display: none; }
+.choice-check {
+  flex: none; font-size: 15px; color: var(--text-primary);
+  opacity: 0; transition: opacity var(--dur-fast) var(--ease-out);
+}
+.choice-row input:checked ~ .choice-check { opacity: 1; }

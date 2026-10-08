@@ -37,6 +37,7 @@ export function initThemePicker() {
       if (!e.target.checked) return;
       setAppThemeConfig(Object.assign({}, appThemeConfig || DEFAULT_THEME, { Theme: e.target.value }));
       applyThemeConfig(appThemeConfig);
+      try { chrome.storage.sync.set({ Theme: appThemeConfig }); } catch (err) {}
     });
   });
   syncThemePicker();

@@ -1,0 +1,86 @@
+/* ══════════════════════════════════════════════════════════════════════
+   BOOKMARKS
+   Each group is a card holding a canvas coloured well, and the well is
+   that group's own scroll region. This is .settings-body's structure
+   (newtab.css:166) scoped to one group instead of a whole page, which is
+   what keeps the multi column layout the page has always had.
+
+   WHY THE WELL IS CANVAS AND THE ROWS ARE CARD: it is the same figure and
+   ground as the settings list. Rows are objects on a recessed surface,
+   separated by 2px gaps that show the well through them (UI-RULES 5.2),
+   so nothing here needs a line. That also retires the old .group-title
+   bottom rule, which was the only full ink line in the extension.
+   ══════════════════════════════════════════════════════════════════════ */
+
+.bookmarks-content {
+  display: flex; gap: var(--space-6); width: 100%; max-width: 1080px;
+  align-items: flex-start;
+}
+.bookmarks-content.fade-in { animation: fadeUp 0.3s var(--ease-out); }
+.bookmark-column {
+  flex: 1; min-width: 180px;
+  display: flex; flex-direction: column; gap: var(--space-6);
+}
+
+/* ── The group card ──────────────────────────────────────────────────── */
+.bookmark-group {
+  background: var(--surface-card); border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-3);
+}
+.group-title {
+  font-family: var(--font-sans); font-size: 10px; font-weight: var(--weight-black);
+  line-height: 1; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 0 var(--space-2);
+}
+
+/* ── The well ────────────────────────────────────────────────────────── */
+.bookmark-well {
+  position: relative;
+}
+/* Geometry comes from the row tokens, not from literals, because renderBookmarks
+   reads the same tokens to snap this well to a whole number of rows (R-008). */
+.bookmark-list {
+  list-style: none; overflow-y: auto;
+  background: var(--surface-canvas); border-radius: var(--radius-md);
+  padding: var(--well-padding);
+  display: flex; flex-direction: column; gap: var(--row-gap);
+}
+
+/* ── Rows ────────────────────────────────────────────────────────────── */
+.bookmark-link, .bookmark-list a {
+  display: flex; align-items: center; width: 100%; min-height: var(--row-height);
+  padding: 6px var(--space-3); border-radius: 3px;
+  background: var(--surface-card);
+  font-family: var(--font-sans); font-size: 13px; line-height: 1.3;
+  color: var(--text-primary);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+/* The <a> is the full bleed hit area inside the row, so it must not repaint
+   the row's surface or the hover would never show through it. */
+.bookmark-list a { background: transparent; padding: 0; min-height: 0; border-radius: 0; }
+/* Grouped corners: the run of rows reads as one object, the way
+   .settings-group does. Keyed off the li, since the row is its only child. */
+.bookmark-list li:first-child .bookmark-link { border-radius: 11px 11px 3px 3px; }
+.bookmark-list li:last-child .bookmark-link { border-radius: 3px 3px 11px 11px; }
+.bookmark-list li:only-child .bookmark-link { border-radius: 11px; }
+/* ADR-1: rows sit on the well's canvas, so hover moves AWAY from canvas tone. */
+.bookmark-link:hover { background: var(--hover-on-canvas); }
+
+/* ── Scroll chrome ───────────────────────────────────────────────────────
+   The fade and the count pills live in components.css as one shared control
+   (R-010), since settings and the search pills use them too. Nothing is
+   configured from here: the fade copies its corners off .bookmark-list at
+   runtime, so the well's radius is the only thing this screen has to state
+   and it already states it above. */
+
+/* ── Empty state ─────────────────────────────────────────────────────── */
+.empty-bookmarks-message {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-3);
+  width: 100%; padding: var(--space-10) 0; text-align: center;
+}
+.empty-state-icon { color: var(--text-tertiary); opacity: 0.5; margin-bottom: var(--space-2); }
+.empty-state-title { font: var(--text-body); font-weight: 500; color: var(--text-secondary); margin: 0; }
+.empty-state-hint { font: var(--text-body-sm); color: var(--text-tertiary); max-width: 280px; margin: 0; }
+.empty-state-hint strong { color: var(--text-secondary); font-weight: 600; }

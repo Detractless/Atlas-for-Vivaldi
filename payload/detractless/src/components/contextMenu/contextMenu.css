@@ -1,0 +1,43 @@
+.context-menu {
+  position: fixed; z-index: 300; min-width: 170px;
+  background: var(--surface-card); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg); padding: 6px; display: none;
+  animation: fadeUp 0.14s var(--ease-out);
+}
+.context-menu.visible { display: block; }
+/* ADR-2: inset hover fills are separated by 4 so two lit rows never abut.
+   4 is the inner corner radius, so it is a value the scale already carries. */
+.context-menu-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.context-menu-item { list-style: none; }
+.context-menu-btn {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border: none; background: transparent; cursor: pointer;
+  border-radius: var(--radius-xs); font: var(--text-body-sm); color: var(--text-primary); text-align: left;
+}
+.context-menu-btn:hover { background: var(--surface-muted); }
+.context-menu-btn.delete { color: var(--color-error); }
+.context-menu-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+.context-menu-inline { display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; }
+.context-menu-confirm-msg { margin: 0; padding: 4px 10px 0; font: var(--text-body-sm); color: var(--text-primary); }
+.context-menu-input {
+  /* Input geometry (UI-RULES 4, amended by R-005): borderless, CONSTANT fill.
+     Focus does not change it; the caret marks focus. The old rule set focus to
+     surface-card, which is also .context-menu's own background, so a focused
+     rename box became the exact colour of the menu behind it and vanished. */
+  width: 100%; box-sizing: border-box;
+  padding: 8px 12px; border: none;
+  border-radius: var(--radius-lg); background: var(--surface-muted);
+  font: var(--text-body-sm); color: var(--text-primary); outline: none;
+}
+.context-menu-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.context-menu-action-btn {
+  padding: 8px 0; border: none; border-radius: var(--radius-pill);
+  background: var(--surface-muted); font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+  color: var(--text-secondary); cursor: pointer; text-align: center;
+  transition: all var(--dur-base) var(--ease-out); flex: 1;
+}
+.context-menu-action-btn:hover { background: var(--surface-hover); }
+.context-menu-action-btn.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 600; }
+.context-menu-action-btn.primary:hover { background: var(--accent-hover); }
+.context-menu-action-btn.delete { background: var(--color-error); color: #fff; border-color: transparent; font-weight: 600; }
+.context-menu-action-btn.delete:hover { opacity: 0.85; }

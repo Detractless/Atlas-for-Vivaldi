@@ -12,6 +12,7 @@ export function _revertSettingsModal() {
   if (_settingsSnapshotTheme !== null) {
     setAppThemeConfig(_settingsSnapshotTheme);
     applyThemeConfig(appThemeConfig);
+    try { chrome.storage.sync.set({ Theme: appThemeConfig }); } catch (err) {}
     syncThemePicker();
   }
   if (_settingsSnapshotScale !== null) {

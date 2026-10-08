@@ -1,0 +1,55 @@
+/* Subpage form: inputs need top margin since they follow a section header */
+.engine-field { margin-top: 0; }
+
+/* Icon-type chooser: 2-column grid (overrides the limiter's 6-column default) */
+.engine-icon-type-grid { grid-template-columns: 1fr 1fr !important; }
+
+/* Engine list: settings-group rows */
+
+.engine-list-row { position: relative; }
+
+/* Icon badge — same circle treatment as the old .engine-icon */
+.engine-row-icon {
+  width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%;
+  background: var(--surface-muted); box-shadow: var(--shadow-sm);
+  display: flex; align-items: center; justify-content: center;
+}
+.engine-row-icon img { width: 16px; height: 16px; object-fit: contain; }
+
+/* Controls cluster (toggle + star) */
+.engine-row-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+/* Star button */
+.engine-star-btn {
+  width: 28px; height: 28px; border: none; background: transparent; cursor: pointer;
+  border-radius: 50%; color: var(--text-tertiary);
+  display: flex; align-items: center; justify-content: center;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.engine-star-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+.engine-star-btn.active { color: var(--text-primary); }
+
+/* Color picker circle (add engine dialog) */
+.color-picker-circle {
+  width: 38px; height: 38px; padding: 0; border: 1px solid var(--line-hairline);
+  border-radius: 50%; background: none; cursor: pointer;
+}
+.color-picker-circle::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.color-picker-circle::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+/* Icon type chips in the add-engine dialog */
+.engine-icon-chip {
+  flex: 1; padding: 9px 0; border: none; border-radius: var(--radius-md);
+  background: var(--surface-muted); cursor: pointer;
+  font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+  color: var(--text-secondary);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.engine-icon-chip:hover { background: var(--surface-hover); color: var(--text-primary); }
+.engine-icon-chip--on { background: var(--accent); color: var(--accent-text); }
+.engine-icon-chip--on:hover { background: var(--accent-hover); }

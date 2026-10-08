@@ -1,0 +1,12 @@
+{
+  "name": "atlas",
+  "group": "Atlas",
+  "summary": "Atlas, a customized Vivaldi browser for Mac: a new-tab dashboard extension, browser UI and CSS changes, and the DMG installer. It changes the browser itself, unlike the D2L extension (one site) or harness (Claude tooling).",
+  "keywords": [
+    "atlas",
+    "vivaldi",
+    "detractless",
+    "newtab",
+    "installer"
+  ]
+}

@@ -26,6 +26,9 @@ import {
   spotlightVisible, setCurrentBookmarkPage, activeTabs,
   appThemeConfig, currentEngine, searchEngineBehavior, bookmarkPillBehavior, setBookmarkPillBehavior
 } from './newtabState.js';
+// Styles for the full-page Settings UI (settingsPage.js loads outside the bundle).
+// Imported last so these rules land at the end of newtab.bundle.css.
+import './settingsPage.css';
 
 /* R-015: initOptionsModal stood here, wiring the two tiles of the separate
    "What would you like to add?" modal. Both destinations are rows on the Add
@@ -96,11 +99,11 @@ document.addEventListener("DOMContentLoaded", async () => {
      wires it. Nothing here binds it any more. */
   if (globalSettingsBtn) globalSettingsBtn.addEventListener('click', () => showModal('settings-modal'));
 
-  function checkSettingsHash() {
-    if (location.hash === '#settings' || location.search.indexOf('settings') !== -1) {
+  const checkSettingsHash = () => {
+    if (location.hash === '#settings' || location.search.includes('settings')) {
       showModal('settings-modal');
     }
-  }
+  };
   checkSettingsHash();
   setTimeout(checkSettingsHash, 100);
   window.addEventListener('hashchange', checkSettingsHash);
@@ -118,7 +121,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadSearchEngines(); initializeSearch(); loadSavedEngine();
 
   showPage("search");
-  const isSettingsTarget = location.hash === '#settings' || location.search.indexOf('settings') !== -1;
+  const isSettingsTarget = location.hash === '#settings' || location.search.includes('settings');
   const searchInput = document.getElementById("search-input");
   if (searchInput && spotlightVisible && !isSettingsTarget) setTimeout(() => searchInput.focus(), 100);
   if (isSettingsTarget) setTimeout(checkSettingsHash, 50);
@@ -130,7 +133,7 @@ window.addEventListener("pageshow", () => {
   // call rather than a poke at a hidden radio that no longer exists.
   selectSearchTab();
   showPage("search");
-  const isSettingsTarget = location.hash === '#settings' || location.search.indexOf('settings') !== -1;
+  const isSettingsTarget = location.hash === '#settings' || location.search.includes('settings');
   const searchInput = document.getElementById("search-input");
   if (isSettingsTarget) {
     checkSettingsHash();
