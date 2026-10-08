@@ -1506,99 +1506,6 @@ textarea.form-input {
   visibility: visible;
 }
 
-/* src/components/tabLimiter/tabLimiterUI.css */
-.choice-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: var(--space-2);
-  padding: var(--space-2) 0 0;
-}
-.limit-btn {
-  padding: 10px 0;
-  border: none;
-  border-radius: var(--radius-pill);
-  background: var(--surface-card);
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: var(--weight-medium);
-  color: var(--text-secondary);
-  cursor: pointer;
-  text-align: center;
-  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
-}
-.limit-btn:hover {
-  background: var(--hover-on-canvas);
-}
-.limit-btn.active {
-  background: var(--accent);
-  color: var(--accent-text);
-  font-weight: var(--weight-semibold);
-}
-.limit-btn.active:hover {
-  background: var(--accent-hover);
-}
-.limit-btn.pending {
-  background: var(--surface-muted);
-  color: var(--text-primary);
-  font-weight: var(--weight-semibold);
-}
-.limit-btn.pending:hover {
-  background: var(--surface-hover);
-}
-.choice-note {
-  font: var(--text-caption);
-  color: var(--text-tertiary);
-  padding: var(--space-3) var(--space-4) 0;
-  margin: 0;
-}
-.choice-note.queued {
-  color: var(--text-secondary);
-}
-.choice-note.queued strong {
-  color: var(--text-primary);
-  font-weight: var(--weight-semibold);
-}
-.link-btn {
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font: var(--text-caption);
-  font-weight: var(--weight-semibold);
-  color: var(--color-error);
-  padding: 0;
-  margin-left: var(--space-2);
-}
-.link-btn:hover {
-  text-decoration: underline;
-}
-.settings-row.stat-row {
-  cursor: default;
-}
-.settings-row.stat-row:hover {
-  background: var(--surface-card);
-}
-.stat-value {
-  font-family: var(--font-sans);
-  font-size: 26px;
-  font-weight: var(--weight-bold);
-  line-height: 1;
-  color: var(--text-primary);
-  flex: none;
-}
-.choice-row input {
-  display: none;
-}
-.choice-check {
-  flex: none;
-  font-size: 15px;
-  color: var(--text-primary);
-  opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease-out);
-}
-.choice-row input:checked ~ .choice-check {
-  opacity: 1;
-}
-
 /* src/components/engines/enginesUI.css */
 .engine-field {
   margin-top: 0;
@@ -1693,10 +1600,6 @@ textarea.form-input {
 }
 
 /* src/pages/newtab/settingsPage.css */
-#settings-modal.modal {
-  visibility: hidden;
-  pointer-events: none;
-}
 #sp-root {
   --sp-bg: var(--surface-canvas);
   --sp-card: var(--surface-card);
@@ -2095,4 +1998,43 @@ textarea.form-input {
 }
 html.grayscale {
   filter: grayscale(1);
+}
+.sp-scale-preview {
+  padding: 4px 16px 16px;
+  overflow: hidden;
+}
+.sp-scale-sample {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: max-content;
+  max-width: 100%;
+}
+.sp-scale-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 260px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 20px;
+  background: var(--sp-pill);
+  color: var(--sp-text-3);
+  font-size: 14px;
+}
+.sp-scale-bar svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.sp-scale-pills {
+  display: flex;
+  gap: 6px;
+}
+.sp-scale-pills span {
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: var(--sp-pill);
+  color: var(--sp-text-2);
+  font-size: 12px;
 }

@@ -328,20 +328,27 @@
   }
 
   /* ---------- New tab only: follow a profile change made anywhere ---------- */
-  var held = false, pending = false, shown = null;
+  var held = false, pending = false, shown = null, switchHandler = null;
   function reload() {
     var u = new URL(location.href);
-    var m = document.getElementById('settings-modal');
-    if (m && m.classList.contains('show')) {
+    var sp = document.getElementById('sp-root');
+    if (sp && !sp.hidden) {
       u.searchParams.set('settings', (window.AtlasSettingsUI && window.AtlasSettingsUI.current()) || 'profiles');
       history.replaceState(null, '', u.pathname + u.search);
     }
     location.reload();
   }
+  /* The new tab registers a handler that swaps profiles in place (no reload, so
+     an open Settings page stays put). Without one, or if it fails, reload. */
   function maybeReload() {
     if (!shown || !state) return;
     if (state.active === shown.active && dbName() === shown.db) return;
     if (held) { pending = true; return; }
+    if (switchHandler) {
+      shown = { active: state.active, db: dbName() };
+      Promise.resolve().then(switchHandler).catch(function () { reload(); });
+      return;
+    }
     reload();
   }
   if (/\/index\.html$/.test(location.pathname)) {
@@ -358,6 +365,7 @@
     switchTo: switchTo, add: add, update: update, remove: remove, setShare: setShare,
     dbName: dbName, allDbNames: allDbNames, exportAll: exportAll, importAll: importAll,
     holdReload: function (on) { held = !!on; if (!held && pending) { pending = false; maybeReload(); } },
+    setSwitchHandler: function (fn) { switchHandler = fn; },
     avatar: avatar, cornerUrl: cornerUrl, initials: initials, colorOf: colorOf, esc: esc
   };
 })();

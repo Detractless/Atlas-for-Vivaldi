@@ -1,8 +1,7 @@
 import { resolveActiveTheme } from '../../utils/themeResolver.js';
 import { formatColorForWeb, hexMix } from '../../utils/colorFormat.js';
-import { DEFAULT_THEME } from '../../constants/defaults.js';
 import { CUSTOM_THEME_VARS } from '../../constants/themeVars.js';
-import { appThemeConfig, setAppThemeConfig, setCurrentTheme } from './newtabState.js';
+import { appThemeConfig, setCurrentTheme } from './newtabState.js';
 import { BookmarkDB } from '../../services/bookmarksDB.js';
 
 function applyThemeDOM(theme) {
@@ -10,37 +9,13 @@ function applyThemeDOM(theme) {
   document.body.className = 'theme-' + theme;
 }
 
-export function initializeTheme() {
-  window.chrome.storage.sync.get(["Theme"], (result) => {
-    setAppThemeConfig(result.Theme || DEFAULT_THEME);
-    applyThemeConfig(appThemeConfig);
-    syncThemePicker();
-  });
-
+/** A "system" theme follows the OS light/dark switch while the page is open. */
+export function watchSystemTheme() {
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (appThemeConfig && appThemeConfig.Theme === 'system') {
       applyThemeConfig(appThemeConfig);
     }
   });
-}
-
-export function syncThemePicker() {
-  const active = (appThemeConfig && appThemeConfig.Theme) ? appThemeConfig.Theme : 'dark';
-  document.querySelectorAll('input[name="theme-choice"]').forEach(radio => {
-    radio.checked = (radio.value === active);
-  });
-}
-
-export function initThemePicker() {
-  document.querySelectorAll('input[name="theme-choice"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      if (!e.target.checked) return;
-      setAppThemeConfig(Object.assign({}, appThemeConfig || DEFAULT_THEME, { Theme: e.target.value }));
-      applyThemeConfig(appThemeConfig);
-      try { chrome.storage.sync.set({ Theme: appThemeConfig }); } catch (err) {}
-    });
-  });
-  syncThemePicker();
 }
 
 export function applyThemeConfig(config) {

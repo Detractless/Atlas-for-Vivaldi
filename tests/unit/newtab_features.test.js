@@ -120,9 +120,13 @@ test("a bookmarks page shows its groups and bookmarks", async () => {
   win.close();
 });
 
+/** Settings > Backup > Export, the way a user does it. */
 async function exportArchive(t) {
   const { window: win, document: doc } = t;
-  click(win, doc.getElementById("export-btn"));
+  click(win, doc.getElementById("global-settings-btn"));
+  const nav = await waitFor(() => doc.querySelector('#sp-nav [data-page="backup"]'), 2000, "Backup in the settings menu");
+  click(win, nav);
+  click(win, await waitFor(() => doc.querySelector('#sp-content [data-action="export"]'), 2000, "Export button"));
   const blob = await waitFor(() => win.__blobs[0], 4000, "export download");
   return new Uint8Array(await blob.arrayBuffer());
 }

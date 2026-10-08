@@ -1,6 +1,4 @@
 /* ---------- Settings page (values from the reference settings page) ---------- */
-/* The original pop-up stays in the DOM as the engine behind the page, but is never seen. */
-#settings-modal.modal { visibility: hidden; pointer-events: none; }
 
 #sp-root {
   --sp-bg: var(--surface-canvas);
@@ -120,3 +118,14 @@
 }
 
 html.grayscale { filter: grayscale(1); }
+
+/* UI scale sample: Settings itself stays at 100%, so this shows the chosen size. */
+.sp-scale-preview { padding: 4px 16px 16px; overflow: hidden; }
+.sp-scale-sample { display: flex; flex-direction: column; gap: 8px; width: max-content; max-width: 100%; }
+.sp-scale-bar {
+  display: flex; align-items: center; gap: 8px; width: 260px; height: 40px; padding: 0 14px;
+  border-radius: 20px; background: var(--sp-pill); color: var(--sp-text-3); font-size: 14px;
+}
+.sp-scale-bar svg { width: 16px; height: 16px; flex-shrink: 0; }
+.sp-scale-pills { display: flex; gap: 6px; }
+.sp-scale-pills span { padding: 4px 10px; border-radius: 12px; background: var(--sp-pill); color: var(--sp-text-2); font-size: 12px; }

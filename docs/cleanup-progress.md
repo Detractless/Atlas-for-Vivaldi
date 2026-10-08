@@ -33,3 +33,15 @@ Per-phase gate: `node --test tests/unit/*.test.js`, `python3 -m unittest discove
 - Left over the limits on purpose: `settingsPage.js` 424, `initSettingsModal` 106, `index.html` 449 (Phase 4); `pastekit/services/db.js` 462 (Phase 6).
 - Tests: node 30/30, python 7/7. Dry run OK. node --check 0 failures.
 
+## Phase 4: one owner per setting; the 3 settings bugs fixed
+- `src/constants/atlasKeys.json`: the one list of storage keys (with defaults, backup and profile flags), database names and the extension id. Used by the bundles (`constants/storageKeys.js`, `defaults.js`, bookmarksDB, reset, export/import, service-worker seeds) and by `install.py` (`newtab_url()`).
+- Plain scripts can't import it (profilesCore.js, preinit.js, themePreinit.js), so `tests/unit/storage_keys.test.js` pins their copies: every key the code names is listed, every listed key is used, profile categories match, DB names match, install.py's URL matches.
+- Settings registry (`src/settings/registry.js` + `definitions.js`): every setting saves the moment it changes; `chrome.storage.onChanged` applies changes from other tabs live. Tab limit and search delay keep their 30-minute queue rules (`requestTabLimit`, `requestSearchDelay`).
+- Settings page moved into the bundle (`src/settings/{shell,pages,controls,menu,markup}.js`), bound to the registry. Deleted: `settingsPage.js` (drove hidden controls), `settingsModal.js`, the hidden #settings-modal markup (index.html 449 -> 191 lines), the Discard button. `window.AtlasSettingsUI` kept for profilesPage.js.
+- Bug fixes: (1) search bar and every other toggle save at once; (2) UI scale saves at once, `_scaleCache` is written only from the saved value, and Settings shows a size sample (Settings itself stays at 100%); (3) profile switch swaps in place (`pages/newtab/profileSwitch.js` via `AtlasProfiles.setSwitchHandler`), reloading only if that fails. Also fixed: `pageshow` with ?settings threw a ReferenceError.
+- Backups now include `uiScale` (export and import).
+- Moved to Phase 5: merging the theme resolvers and generating atlas-pages.css tokens (those files belong to the window.html side that Phase 5 restructures).
+- Not removed: `tabLimiterUI.css` rules for the deleted limiter buttons (dead CSS, harmless).
+- New tests: `settings_page.test.js` (10; 6 of them fail on the Phase 3 code, i.e. they catch the bugs), `storage_keys.test.js` (5). Feature test export now goes through Settings > Backup.
+- Tests: node 45/45, python 7/7. Dry run OK. node --check 0 failures.
+

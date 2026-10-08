@@ -15,6 +15,219 @@
       __defProp(target, name, { get: all[name], enumerable: true });
   };
 
+  // src/components/contextMenu/contextMenu.css
+  var init_contextMenu = __esm({
+    "src/components/contextMenu/contextMenu.css"() {
+    }
+  });
+
+  // src/components/contextMenu/contextMenu.js
+  var ContextMenu;
+  var init_contextMenu2 = __esm({
+    "src/components/contextMenu/contextMenu.js"() {
+      init_contextMenu();
+      ContextMenu = {
+        menu: null,
+        disabled: false,
+        init() {
+          this.menu = document.createElement("div");
+          this.menu.className = "context-menu";
+          document.body.appendChild(this.menu);
+          document.addEventListener("click", () => this.close());
+          document.addEventListener("contextmenu", (e) => {
+            if (this.disabled) return;
+            if (e.target.closest(".context-menu")) return;
+            if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable) {
+              this.close();
+              return;
+            }
+          });
+          window.addEventListener("blur", () => this.close());
+        },
+        show(event, items) {
+          event.preventDefault();
+          event.stopPropagation();
+          this._renderItems(items);
+          this.menu.classList.add("visible");
+          this._position(event.clientX, event.clientY);
+        },
+        showRename(currentName, onConfirm) {
+          this.menu.innerHTML = "";
+          const wrap = document.createElement("div");
+          wrap.className = "context-menu-inline";
+          wrap.onclick = (e) => e.stopPropagation();
+          const input = document.createElement("input");
+          input.type = "text";
+          input.className = "context-menu-input";
+          input.value = currentName;
+          const actions = document.createElement("div");
+          actions.className = "context-menu-actions";
+          const cancel = document.createElement("button");
+          cancel.className = "context-menu-action-btn";
+          cancel.textContent = "Cancel";
+          cancel.onclick = () => this.close();
+          const confirm2 = document.createElement("button");
+          confirm2.className = "context-menu-action-btn primary";
+          confirm2.textContent = "Rename";
+          confirm2.onclick = () => {
+            const val = input.value.trim();
+            if (val) {
+              onConfirm(val);
+              this.close();
+            }
+          };
+          input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+              const val = input.value.trim();
+              if (val) {
+                onConfirm(val);
+                this.close();
+              }
+            }
+            if (e.key === "Escape") this.close();
+          });
+          actions.appendChild(cancel);
+          actions.appendChild(confirm2);
+          wrap.appendChild(input);
+          wrap.appendChild(actions);
+          this.menu.appendChild(wrap);
+          requestAnimationFrame(() => {
+            input.focus();
+            input.select();
+          });
+        },
+        showInput(currentValue, buttonLabel, onConfirm) {
+          this.menu.innerHTML = "";
+          const wrap = document.createElement("div");
+          wrap.className = "context-menu-inline";
+          wrap.onclick = (e) => e.stopPropagation();
+          const input = document.createElement("input");
+          input.type = "text";
+          input.className = "context-menu-input";
+          input.value = currentValue;
+          const actions = document.createElement("div");
+          actions.className = "context-menu-actions";
+          const cancel = document.createElement("button");
+          cancel.className = "context-menu-action-btn";
+          cancel.textContent = "Cancel";
+          cancel.onclick = () => this.close();
+          const confirm2 = document.createElement("button");
+          confirm2.className = "context-menu-action-btn primary";
+          confirm2.textContent = buttonLabel;
+          confirm2.onclick = () => {
+            const val = input.value.trim();
+            if (val) {
+              onConfirm(val);
+              this.close();
+            }
+          };
+          input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+              const val = input.value.trim();
+              if (val) {
+                onConfirm(val);
+                this.close();
+              }
+            }
+            if (e.key === "Escape") this.close();
+          });
+          actions.appendChild(cancel);
+          actions.appendChild(confirm2);
+          wrap.appendChild(input);
+          wrap.appendChild(actions);
+          this.menu.appendChild(wrap);
+          requestAnimationFrame(() => {
+            input.focus();
+            input.select();
+          });
+        },
+        showSelect(options2, onSelect) {
+          this.menu.innerHTML = "";
+          const ul = document.createElement("ul");
+          ul.className = "context-menu-list";
+          ul.onclick = (e) => e.stopPropagation();
+          options2.forEach((opt) => {
+            const li = document.createElement("li");
+            li.className = "context-menu-item";
+            const btn = document.createElement("button");
+            btn.className = "context-menu-btn";
+            btn.textContent = opt.label;
+            btn.onclick = () => {
+              onSelect(opt.value);
+              this.close();
+            };
+            li.appendChild(btn);
+            ul.appendChild(li);
+          });
+          this.menu.appendChild(ul);
+        },
+        showConfirm(label, onConfirm) {
+          this.menu.innerHTML = "";
+          const wrap = document.createElement("div");
+          wrap.className = "context-menu-inline";
+          wrap.onclick = (e) => e.stopPropagation();
+          const msg = document.createElement("p");
+          msg.className = "context-menu-confirm-msg";
+          msg.textContent = `Delete "${label}"?`;
+          const actions = document.createElement("div");
+          actions.className = "context-menu-actions";
+          const cancel = document.createElement("button");
+          cancel.className = "context-menu-action-btn";
+          cancel.textContent = "Cancel";
+          cancel.onclick = () => this.close();
+          let confirmed = false;
+          const confirm2 = document.createElement("button");
+          confirm2.className = "context-menu-action-btn delete";
+          confirm2.textContent = "Delete";
+          confirm2.onclick = () => {
+            if (!confirmed) {
+              confirmed = true;
+              msg.textContent = `Are you sure you want to delete "${label}"?`;
+              confirm2.textContent = "Delete";
+              return;
+            }
+            onConfirm();
+            this.close();
+          };
+          actions.appendChild(cancel);
+          actions.appendChild(confirm2);
+          wrap.appendChild(msg);
+          wrap.appendChild(actions);
+          this.menu.appendChild(wrap);
+        },
+        _renderItems(items) {
+          this.menu.innerHTML = "";
+          const ul = document.createElement("ul");
+          ul.className = "context-menu-list";
+          items.forEach((item) => {
+            const li = document.createElement("li");
+            li.className = "context-menu-item";
+            if (item.divider) li.setAttribute("data-divider", item.divider);
+            const btn = document.createElement("button");
+            btn.className = `context-menu-btn ${item.type || ""}`;
+            btn.innerHTML = `${item.icon || ""} ${item.label}`;
+            btn.onclick = (e) => {
+              e.stopPropagation();
+              item.action();
+            };
+            li.appendChild(btn);
+            ul.appendChild(li);
+          });
+          this.menu.appendChild(ul);
+        },
+        _position(x2, y) {
+          const { innerWidth: w, innerHeight: h } = window;
+          const { offsetWidth: mw, offsetHeight: mh } = this.menu;
+          this.menu.style.left = `${x2 + mw > w ? x2 - mw : x2}px`;
+          this.menu.style.top = `${y + mh > h ? y - mh : y}px`;
+        },
+        close() {
+          if (this.menu) this.menu.classList.remove("visible");
+        }
+      };
+    }
+  });
+
   // src/services/mergeSync.js
   var TOMBSTONE_WINDOW_MS;
   var init_mergeSync = __esm({
@@ -58,13 +271,110 @@
     }
   });
 
+  // src/constants/atlasKeys.json
+  var atlasKeys_default;
+  var init_atlasKeys = __esm({
+    "src/constants/atlasKeys.json"() {
+      atlasKeys_default = {
+        _about: "The one list of Atlas storage keys, databases and ids. The bundles import it, install.py reads it, and tests/unit/storage_keys.test.js checks that code and this file agree. Never rename a key: stored user data uses these names. default: value when the key is absent. backup: carried by Export/Import. importWhen: 'defined' restores any value that is not undefined, 'truthy' only a truthy one. profile: the profilesCore.js category that owns it when profiles keep separate settings.",
+        extensionId: "mpognobbkildjkofajifpdfhcoklimli",
+        newTabPath: "index.html",
+        databases: {
+          bookmarks: "DetractlessBookmarks",
+          pastekit: "pastekit"
+        },
+        sync: {
+          activeTabs: { default: null, backup: true, importWhen: "truthy", profile: "bookmarks", note: "Pages list. Export takes it from memory, not storage." },
+          Theme: {
+            default: {
+              _comment: "Theme settings: 'system' <- Follows System settings (Light/Dark). 'dark' <- Forces standard Dark mode. 'light' <- Forces standard Light mode. 'custom' <- Uses the CustomColors mapped below. Note: To apply changes, reload the page.",
+              Theme: "dark",
+              CustomColors: {
+                WindowBackground: "#1E1E1E",
+                ControlBackground: "#2D2D2D",
+                ControlHover: "#3A3A3A",
+                BorderColor: "#444444",
+                TextPrimary: "#FFFFFF",
+                TextSecondary: "#999999",
+                SelectionBackground: "#2A2A2A"
+              }
+            },
+            backup: true,
+            importWhen: "truthy",
+            profile: "theme"
+          },
+          uiScale: { default: 1, backup: true, importWhen: "defined", profile: "appearance" },
+          fadeInEnabled: { default: true, backup: true, importWhen: "defined", profile: "appearance" },
+          spotlightVisible: { default: true, backup: true, importWhen: "defined", profile: "search" },
+          searchEngineBehavior: { default: "remember", backup: true, importWhen: "defined", profile: "search" },
+          bookmarkPillBehavior: { default: "always", backup: true, importWhen: "defined", profile: "search" },
+          customSearchEngines: { default: {}, backup: true, importWhen: "truthy", profile: "search" },
+          defaultEngineKey: { default: "default", backup: true, importWhen: "truthy", profile: "search" },
+          selectedSearchEngine: { default: null, backup: true, importWhen: "truthy", profile: "search" },
+          tabLimit: { default: 0, backup: true, importWhen: "defined", profile: "focus" },
+          managementMethod: { default: "block", backup: true, importWhen: "truthy", profile: "focus" },
+          pendingIncrease: { default: null, backup: false, profile: "focus", note: "A tab-limit increase waiting out its 30 minutes." },
+          searchDelaySeconds: { default: 0, backup: true, importWhen: "defined", profile: "focus" },
+          pendingDelayDecrease: { default: null, backup: false, note: "A search-delay decrease waiting out its 30 minutes." },
+          showQueryOnDelay: { default: true, backup: true, importWhen: "defined", profile: "focus" },
+          grayscale: { default: false, backup: true, importWhen: "defined", profile: "focus" },
+          "bookmarks-migrated": { default: null, backup: false, note: "Legacy: set once bookmarks moved from sync storage to IndexedDB." },
+          "bookmarks-page-1": { default: null, backup: false, note: "Legacy bookmark storage, read once by migrateFromChromeStorage." },
+          "bookmarks-page-2": { default: null, backup: false, note: "Legacy, as bookmarks-page-1." },
+          "bookmarks-page-3": { default: null, backup: false, note: "Legacy, as bookmarks-page-1." }
+        },
+        syncPatterns: {
+          "page<id>": "Legacy per-page bookmark key, removed when a page is deleted (tabs.js)."
+        },
+        local: {
+          hasSeededDefaults: { default: false, note: "Starter pages were added once." },
+          hasRepairedOrphanPages: { default: false, note: "Orphan-page repair ran once." },
+          _themeCache: { default: null, note: "Theme preference copy for first paint in other pages." },
+          rhe_rules: { default: null, backup: true, note: "Element Remover rules (archived feature); still carried by backups." },
+          activeDelays: { default: {}, note: "Service worker: search delays in progress." },
+          atlasProfilesV2: { default: null, note: "Profiles state (profilesCore.js)." },
+          __atlas_localstorage__: { default: {}, note: "Backing store of the localStorage shim (atlas-localstorage-shim.js)." },
+          "pastekit.settings": { default: null, note: "PasteKit (archived feature)." },
+          savedTabGroups: { default: null, note: "Tab saver (service worker)." }
+        },
+        session: {
+          rheTabStates: { default: null, note: "Element Remover per-tab state (archived feature)." }
+        },
+        localStorage: {
+          _themeCache: "Theme preference for the first paint (themePreinit.js).",
+          _scaleCache: "UI scale for the first paint (preinit.js). Always the stored uiScale.",
+          uiScale: "Legacy scale value, read only as a last fallback by preinit.js.",
+          themePref: "Legacy theme value, migrated into IndexedDB uiPrefs."
+        }
+      };
+    }
+  });
+
+  // src/constants/storageKeys.js
+  function syncDefault(key) {
+    const entry = atlasKeys_default.sync[key];
+    if (!entry) throw new Error(`Unknown sync key: ${key}`);
+    return entry.default === void 0 ? void 0 : JSON.parse(JSON.stringify(entry.default));
+  }
+  var EXTENSION_ID, BOOKMARKS_DB, PASTEKIT_DB, BACKUP_SYNC_KEYS;
+  var init_storageKeys = __esm({
+    "src/constants/storageKeys.js"() {
+      init_atlasKeys();
+      EXTENSION_ID = atlasKeys_default.extensionId;
+      BOOKMARKS_DB = atlasKeys_default.databases.bookmarks;
+      PASTEKIT_DB = atlasKeys_default.databases.pastekit;
+      BACKUP_SYNC_KEYS = Object.keys(atlasKeys_default.sync).filter((k) => atlasKeys_default.sync[k].backup).map((k) => ({ key: k, importWhen: atlasKeys_default.sync[k].importWhen || "defined" }));
+    }
+  });
+
   // src/services/bookmarksDB.js
   var BookmarkDB;
   var init_bookmarksDB = __esm({
     "src/services/bookmarksDB.js"() {
       init_bookmarkSync();
+      init_storageKeys();
       BookmarkDB = {
-        dbName: "DetractlessBookmarks",
+        dbName: BOOKMARKS_DB,
         // v6 added the `notes` and `events` stores. Both features have been removed and
         // nothing reads these any more.
         // v7 adds `bookmarkRecords` (Phase 12): bookmarks as merge-owned records so an
@@ -424,219 +734,6 @@
     }
   });
 
-  // src/components/contextMenu/contextMenu.css
-  var init_contextMenu = __esm({
-    "src/components/contextMenu/contextMenu.css"() {
-    }
-  });
-
-  // src/components/contextMenu/contextMenu.js
-  var ContextMenu;
-  var init_contextMenu2 = __esm({
-    "src/components/contextMenu/contextMenu.js"() {
-      init_contextMenu();
-      ContextMenu = {
-        menu: null,
-        disabled: false,
-        init() {
-          this.menu = document.createElement("div");
-          this.menu.className = "context-menu";
-          document.body.appendChild(this.menu);
-          document.addEventListener("click", () => this.close());
-          document.addEventListener("contextmenu", (e) => {
-            if (this.disabled) return;
-            if (e.target.closest(".context-menu")) return;
-            if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable) {
-              this.close();
-              return;
-            }
-          });
-          window.addEventListener("blur", () => this.close());
-        },
-        show(event, items) {
-          event.preventDefault();
-          event.stopPropagation();
-          this._renderItems(items);
-          this.menu.classList.add("visible");
-          this._position(event.clientX, event.clientY);
-        },
-        showRename(currentName, onConfirm) {
-          this.menu.innerHTML = "";
-          const wrap = document.createElement("div");
-          wrap.className = "context-menu-inline";
-          wrap.onclick = (e) => e.stopPropagation();
-          const input = document.createElement("input");
-          input.type = "text";
-          input.className = "context-menu-input";
-          input.value = currentName;
-          const actions = document.createElement("div");
-          actions.className = "context-menu-actions";
-          const cancel = document.createElement("button");
-          cancel.className = "context-menu-action-btn";
-          cancel.textContent = "Cancel";
-          cancel.onclick = () => this.close();
-          const confirm2 = document.createElement("button");
-          confirm2.className = "context-menu-action-btn primary";
-          confirm2.textContent = "Rename";
-          confirm2.onclick = () => {
-            const val = input.value.trim();
-            if (val) {
-              onConfirm(val);
-              this.close();
-            }
-          };
-          input.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-              const val = input.value.trim();
-              if (val) {
-                onConfirm(val);
-                this.close();
-              }
-            }
-            if (e.key === "Escape") this.close();
-          });
-          actions.appendChild(cancel);
-          actions.appendChild(confirm2);
-          wrap.appendChild(input);
-          wrap.appendChild(actions);
-          this.menu.appendChild(wrap);
-          requestAnimationFrame(() => {
-            input.focus();
-            input.select();
-          });
-        },
-        showInput(currentValue, buttonLabel, onConfirm) {
-          this.menu.innerHTML = "";
-          const wrap = document.createElement("div");
-          wrap.className = "context-menu-inline";
-          wrap.onclick = (e) => e.stopPropagation();
-          const input = document.createElement("input");
-          input.type = "text";
-          input.className = "context-menu-input";
-          input.value = currentValue;
-          const actions = document.createElement("div");
-          actions.className = "context-menu-actions";
-          const cancel = document.createElement("button");
-          cancel.className = "context-menu-action-btn";
-          cancel.textContent = "Cancel";
-          cancel.onclick = () => this.close();
-          const confirm2 = document.createElement("button");
-          confirm2.className = "context-menu-action-btn primary";
-          confirm2.textContent = buttonLabel;
-          confirm2.onclick = () => {
-            const val = input.value.trim();
-            if (val) {
-              onConfirm(val);
-              this.close();
-            }
-          };
-          input.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-              const val = input.value.trim();
-              if (val) {
-                onConfirm(val);
-                this.close();
-              }
-            }
-            if (e.key === "Escape") this.close();
-          });
-          actions.appendChild(cancel);
-          actions.appendChild(confirm2);
-          wrap.appendChild(input);
-          wrap.appendChild(actions);
-          this.menu.appendChild(wrap);
-          requestAnimationFrame(() => {
-            input.focus();
-            input.select();
-          });
-        },
-        showSelect(options, onSelect) {
-          this.menu.innerHTML = "";
-          const ul = document.createElement("ul");
-          ul.className = "context-menu-list";
-          ul.onclick = (e) => e.stopPropagation();
-          options.forEach((opt) => {
-            const li = document.createElement("li");
-            li.className = "context-menu-item";
-            const btn = document.createElement("button");
-            btn.className = "context-menu-btn";
-            btn.textContent = opt.label;
-            btn.onclick = () => {
-              onSelect(opt.value);
-              this.close();
-            };
-            li.appendChild(btn);
-            ul.appendChild(li);
-          });
-          this.menu.appendChild(ul);
-        },
-        showConfirm(label, onConfirm) {
-          this.menu.innerHTML = "";
-          const wrap = document.createElement("div");
-          wrap.className = "context-menu-inline";
-          wrap.onclick = (e) => e.stopPropagation();
-          const msg = document.createElement("p");
-          msg.className = "context-menu-confirm-msg";
-          msg.textContent = `Delete "${label}"?`;
-          const actions = document.createElement("div");
-          actions.className = "context-menu-actions";
-          const cancel = document.createElement("button");
-          cancel.className = "context-menu-action-btn";
-          cancel.textContent = "Cancel";
-          cancel.onclick = () => this.close();
-          let confirmed = false;
-          const confirm2 = document.createElement("button");
-          confirm2.className = "context-menu-action-btn delete";
-          confirm2.textContent = "Delete";
-          confirm2.onclick = () => {
-            if (!confirmed) {
-              confirmed = true;
-              msg.textContent = `Are you sure you want to delete "${label}"?`;
-              confirm2.textContent = "Delete";
-              return;
-            }
-            onConfirm();
-            this.close();
-          };
-          actions.appendChild(cancel);
-          actions.appendChild(confirm2);
-          wrap.appendChild(msg);
-          wrap.appendChild(actions);
-          this.menu.appendChild(wrap);
-        },
-        _renderItems(items) {
-          this.menu.innerHTML = "";
-          const ul = document.createElement("ul");
-          ul.className = "context-menu-list";
-          items.forEach((item) => {
-            const li = document.createElement("li");
-            li.className = "context-menu-item";
-            if (item.divider) li.setAttribute("data-divider", item.divider);
-            const btn = document.createElement("button");
-            btn.className = `context-menu-btn ${item.type || ""}`;
-            btn.innerHTML = `${item.icon || ""} ${item.label}`;
-            btn.onclick = (e) => {
-              e.stopPropagation();
-              item.action();
-            };
-            li.appendChild(btn);
-            ul.appendChild(li);
-          });
-          this.menu.appendChild(ul);
-        },
-        _position(x2, y) {
-          const { innerWidth: w, innerHeight: h } = window;
-          const { offsetWidth: mw, offsetHeight: mh } = this.menu;
-          this.menu.style.left = `${x2 + mw > w ? x2 - mw : x2}px`;
-          this.menu.style.top = `${y + mh > h ? y - mh : y}px`;
-        },
-        close() {
-          if (this.menu) this.menu.classList.remove("visible");
-        }
-      };
-    }
-  });
-
   // src/constants/icons.js
   var Icons;
   var init_icons = __esm({
@@ -686,7 +783,7 @@
   function buildDialog(spec) {
     document.querySelectorAll(".bookmark-dialog").forEach((node) => node.remove());
     const overlay = el("div", "modal show picker-modal bookmark-dialog");
-    const card = el("div", "picker-card");
+    const card2 = el("div", "picker-card");
     const close = () => overlay.remove();
     const panes = [];
     const showPane = (pane) => {
@@ -697,10 +794,10 @@
         field.select();
       });
     };
-    const root = el("div", "picker-pane picker-pane--on");
-    panes.push(root);
-    root.appendChild(Object.assign(el("div", "picker-title"), { textContent: spec.title }));
-    if (spec.subtitle) root.appendChild(el("div", "picker-subtitle", spec.subtitle));
+    const root2 = el("div", "picker-pane picker-pane--on");
+    panes.push(root2);
+    root2.appendChild(Object.assign(el("div", "picker-title"), { textContent: spec.title }));
+    if (spec.subtitle) root2.appendChild(el("div", "picker-subtitle", spec.subtitle));
     const rootHost = el("div", "picker-wellhost");
     const rootWell = el("div", "picker-well");
     spec.actions.forEach((action) => {
@@ -708,48 +805,48 @@
         rootWell.appendChild(dangerRow(action, close));
         return;
       }
-      const row = el("button", "picker-row");
-      row.type = "button";
-      row.appendChild(iconSpan(action.icon));
-      row.appendChild(el("span", null, action.label));
-      if (action.value) row.appendChild(el("span", "picker-row-value", action.value));
-      const pane = action.kind === "input" ? inputPane(action, close, () => showPane(root)) : listPane(action, close, () => showPane(root));
+      const row2 = el("button", "picker-row");
+      row2.type = "button";
+      row2.appendChild(iconSpan(action.icon));
+      row2.appendChild(el("span", null, action.label));
+      if (action.value) row2.appendChild(el("span", "picker-row-value", action.value));
+      const pane = action.kind === "input" ? inputPane(action, close, () => showPane(root2)) : listPane(action, close, () => showPane(root2));
       panes.push(pane);
-      row.addEventListener("click", () => showPane(pane));
-      rootWell.appendChild(row);
+      row2.addEventListener("click", () => showPane(pane));
+      rootWell.appendChild(row2);
     });
     rootHost.appendChild(rootWell);
-    root.appendChild(rootHost);
-    panes.forEach((p2) => card.appendChild(p2));
+    root2.appendChild(rootHost);
+    panes.forEach((p2) => card2.appendChild(p2));
     const hiddenClose = el("button", "close-btn picker-hidden-close");
     hiddenClose.type = "button";
     hiddenClose.hidden = true;
     hiddenClose.addEventListener("click", close);
-    card.appendChild(hiddenClose);
+    card2.appendChild(hiddenClose);
     overlay.addEventListener("click", (event) => {
       if (event.target === overlay) close();
     });
-    overlay.appendChild(card);
+    overlay.appendChild(card2);
     document.body.appendChild(overlay);
-    showPane(root);
+    showPane(root2);
   }
-  function iconSpan(svg) {
+  function iconSpan(svg2) {
     const span = el("span", "picker-row-icon");
-    span.innerHTML = svg || "";
+    span.innerHTML = svg2 || "";
     return span;
   }
   function dangerRow(action, close) {
-    const row = el("button", "picker-row picker-row--danger");
-    row.type = "button";
-    row.appendChild(iconSpan(action.icon));
+    const row2 = el("button", "picker-row picker-row--danger");
+    row2.type = "button";
+    row2.appendChild(iconSpan(action.icon));
     const label = el("span", null, action.label);
-    row.appendChild(label);
+    row2.appendChild(label);
     let armed = false;
-    row.addEventListener("click", () => {
+    row2.addEventListener("click", () => {
       if (!armed) {
         armed = true;
-        row.classList.add("picker-row--armed");
-        row.replaceChildren(el(
+        row2.classList.add("picker-row--armed");
+        row2.replaceChildren(el(
           "span",
           null,
           action.count > 1 ? `Delete ${action.count} bookmarks?` : "Delete, are you sure?"
@@ -759,7 +856,7 @@
       action.confirm();
       close();
     });
-    return row;
+    return row2;
   }
   function paneShell(action, onBack) {
     const pane = el("div", "picker-pane");
@@ -809,15 +906,15 @@
     const host = el("div", "picker-wellhost");
     const well = el("div", "picker-well");
     action.options.forEach((option) => {
-      const row = el("button", "picker-row");
-      row.type = "button";
-      row.appendChild(el("span", null, option.label));
-      if (option.note) row.appendChild(el("span", "picker-row-value", option.note));
-      row.addEventListener("click", () => {
+      const row2 = el("button", "picker-row");
+      row2.type = "button";
+      row2.appendChild(el("span", null, option.label));
+      if (option.note) row2.appendChild(el("span", "picker-row-value", option.note));
+      row2.addEventListener("click", () => {
         action.pick(option.value);
         close();
       });
-      well.appendChild(row);
+      well.appendChild(row2);
     });
     if (!action.options.length) {
       well.appendChild(el("div", "picker-empty", action.emptyText || "Nothing to choose"));
@@ -835,30 +932,30 @@
   function onePaneDialog(buildPane) {
     document.querySelectorAll(".bookmark-dialog").forEach((node) => node.remove());
     const overlay = el("div", "modal show picker-modal bookmark-dialog");
-    const card = el("div", "picker-card");
+    const card2 = el("div", "picker-card");
     const close = () => overlay.remove();
     const pane = buildPane(close);
     pane.classList.add("picker-pane--on");
-    card.appendChild(pane);
+    card2.appendChild(pane);
     const hiddenClose = el("button", "close-btn picker-hidden-close");
     hiddenClose.type = "button";
     hiddenClose.hidden = true;
     hiddenClose.addEventListener("click", close);
-    card.appendChild(hiddenClose);
+    card2.appendChild(hiddenClose);
     overlay.addEventListener("click", (event) => {
       if (event.target === overlay) close();
     });
-    overlay.appendChild(card);
+    overlay.appendChild(card2);
     document.body.appendChild(overlay);
     return close;
   }
-  function openListPicker({ title, subtitle, options, emptyText, pick, back }) {
+  function openListPicker({ title, subtitle, options: options2, emptyText, pick: pick2, back }) {
     onePaneDialog((close) => {
       const onBack = back ? () => {
         close();
         back();
       } : close;
-      const pane = listPane({ paneTitle: title, options, emptyText, pick }, close, onBack);
+      const pane = listPane({ paneTitle: title, options: options2, emptyText, pick: pick2 }, close, onBack);
       if (subtitle) pane.insertBefore(el("div", "picker-subtitle", subtitle), pane.children[1]);
       return pane;
     });
@@ -963,19 +1060,8 @@
   var DEFAULT_THEME, DEFAULT_TABS;
   var init_defaults = __esm({
     "src/constants/defaults.js"() {
-      DEFAULT_THEME = {
-        "_comment": "Theme settings: 'system' <- Follows System settings (Light/Dark). 'dark' <- Forces standard Dark mode. 'light' <- Forces standard Light mode. 'custom' <- Uses the CustomColors mapped below. Note: To apply changes, reload the page.",
-        "Theme": "dark",
-        "CustomColors": {
-          "WindowBackground": "#1E1E1E",
-          "ControlBackground": "#2D2D2D",
-          "ControlHover": "#3A3A3A",
-          "BorderColor": "#444444",
-          "TextPrimary": "#FFFFFF",
-          "TextSecondary": "#999999",
-          "SelectionBackground": "#2A2A2A"
-        }
-      };
+      init_atlasKeys();
+      DEFAULT_THEME = atlasKeys_default.sync.Theme.default;
       DEFAULT_TABS = [{ id: "search", label: "Dashboard", sub: "Everything at a glance", type: "search" }];
     }
   });
@@ -1029,9 +1115,6 @@
   function setSearchDelaySeconds(v) {
     searchDelaySeconds = v;
   }
-  function setDelayUpdateInterval(v) {
-    delayUpdateInterval = v;
-  }
   function setAllCachedBookmarks(v) {
     allCachedBookmarks = v;
   }
@@ -1044,10 +1127,7 @@
   function setSearchDropdownIndex(v) {
     searchDropdownIndex = v;
   }
-  function setLimiterUpdateInterval(v) {
-    limiterUpdateInterval = v;
-  }
-  var appThemeConfig, currentTheme, currentPage, currentBookmarkPage, bookmarks, fadeInEnabled, spotlightVisible, uiScale, searchEngineBehavior, bookmarkPillBehavior, activeTabs, searchEngines, currentEngine, defaultEngineKey, searchDelaySeconds, delayUpdateInterval, allCachedBookmarks, allCachedGroups, usageScores, searchDropdownIndex, limiterUpdateInterval;
+  var appThemeConfig, currentTheme, currentPage, currentBookmarkPage, bookmarks, fadeInEnabled, spotlightVisible, uiScale, searchEngineBehavior, bookmarkPillBehavior, activeTabs, searchEngines, currentEngine, defaultEngineKey, searchDelaySeconds, allCachedBookmarks, allCachedGroups, usageScores, searchDropdownIndex;
   var init_newtabState = __esm({
     "src/pages/newtab/newtabState.js"() {
       init_defaults();
@@ -1066,12 +1146,10 @@
       currentEngine = "default";
       defaultEngineKey = "default";
       searchDelaySeconds = 0;
-      delayUpdateInterval = null;
       allCachedBookmarks = [];
       allCachedGroups = {};
       usageScores = /* @__PURE__ */ new Map();
       searchDropdownIndex = -1;
-      limiterUpdateInterval = null;
     }
   });
 
@@ -1081,11 +1159,11 @@
     el3.className = className;
     return el3;
   }
-  function attachScrollAffordance(scroller, options = {}) {
+  function attachScrollAffordance(scroller, options2 = {}) {
     if (!scroller) return { refresh: () => {
     }, host: null };
-    const p2 = options.prefix || "scroll";
-    let host = options.host;
+    const p2 = options2.prefix || "scroll";
+    let host = options2.host;
     if (!host) {
       host = make("div", `${p2}-affordance`);
       scroller.parentNode.insertBefore(host, scroller);
@@ -1094,8 +1172,8 @@
     const ui = buildIndicators(host, p2);
     const syncRadius = () => matchScrollerCorners(scroller, ui);
     syncRadius();
-    const noun = options.noun ? " " + options.noun : "";
-    const items = () => options.items ? scroller.querySelectorAll(options.items) : scroller.children;
+    const noun = options2.noun ? " " + options2.noun : "";
+    const items = () => options2.items ? scroller.querySelectorAll(options2.items) : scroller.children;
     const refresh = () => {
       const { above, below } = countHidden(scroller, items());
       showCounts(ui, above, below, noun);
@@ -1236,24 +1314,24 @@
     `;
     const btn = container.querySelector(".switcher-btn");
     const label = container.querySelector(".switcher-label");
-    const menu = container.querySelector(".switcher-menu");
-    els = { container, btn, label, menu };
+    const menu2 = container.querySelector(".switcher-menu");
+    els = { container, btn, label, menu: menu2 };
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       setOpen(btn.getAttribute("aria-expanded") !== "true");
     });
-    menu.addEventListener("click", (e) => onMenuClick(e, btn));
+    menu2.addEventListener("click", (e) => onMenuClick(e, btn));
     document.addEventListener("click", (e) => {
       if (!els || !container.contains(e.target)) setOpen(false);
     });
-    menu.addEventListener("mousemove", (e) => {
+    menu2.addEventListener("mousemove", (e) => {
       const li = e.target.closest(".switcher-item");
       if (li && document.activeElement !== li) li.focus();
     });
-    menu.addEventListener("mouseleave", () => {
-      if (menu.classList.contains("open")) menu.focus();
+    menu2.addEventListener("mouseleave", () => {
+      if (menu2.classList.contains("open")) menu2.focus();
     });
-    menu.addEventListener("keydown", (e) => onMenuKey(e, menu, btn));
+    menu2.addEventListener("keydown", (e) => onMenuKey(e, menu2, btn));
   }
   function onMenuClick(e, btn) {
     const li = e.target.closest(".switcher-item");
@@ -1267,12 +1345,12 @@
     btn.focus();
     if (_onTabClick) _onTabClick(tab);
   }
-  function onMenuKey(e, menu, btn) {
-    const items = [...menu.children].filter((el3) => el3.classList.contains("switcher-item"));
+  function onMenuKey(e, menu2, btn) {
+    const items = [...menu2.children].filter((el3) => el3.classList.contains("switcher-item"));
     let i2 = items.indexOf(document.activeElement);
     if (i2 === -1 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
       e.preventDefault();
-      (menu.querySelector('[aria-selected="true"]') || items[0])?.focus();
+      (menu2.querySelector('[aria-selected="true"]') || items[0])?.focus();
       return;
     }
     if (e.key === "ArrowDown") {
@@ -1417,7 +1495,6 @@
   });
 
   // src/pages/newtab/newtab.js
-  init_bookmarksDB();
   init_contextMenu2();
 
   // src/components/bookmarks/bookmarks.js
@@ -1679,8 +1756,8 @@
   function onGroupContextMenu(e, groupName, rowBookmarks) {
     e.preventDefault();
     if (ContextMenu.disabled) return;
-    const row = e.target.closest?.(".bookmark-link");
-    const bookmark = row && rowBookmarks.get(row);
+    const row2 = e.target.closest?.(".bookmark-link");
+    const bookmark = row2 && rowBookmarks.get(row2);
     if (bookmark) {
       openBookmarkMenu(groupName, bookmark);
       return;
@@ -2068,9 +2145,6 @@
     return "#" + mixed.map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join("");
   }
 
-  // src/pages/newtab/theme.js
-  init_defaults();
-
   // src/constants/themeVars.js
   var CUSTOM_THEME_VARS = [
     "--surface-canvas",
@@ -2092,41 +2166,16 @@
   // src/pages/newtab/theme.js
   init_newtabState();
   init_bookmarksDB();
-  function applyThemeDOM(theme) {
-    document.documentElement.dataset.theme = theme;
-    document.body.className = "theme-" + theme;
+  function applyThemeDOM(theme2) {
+    document.documentElement.dataset.theme = theme2;
+    document.body.className = "theme-" + theme2;
   }
-  function initializeTheme() {
-    window.chrome.storage.sync.get(["Theme"], (result) => {
-      setAppThemeConfig(result.Theme || DEFAULT_THEME);
-      applyThemeConfig(appThemeConfig);
-      syncThemePicker();
-    });
+  function watchSystemTheme() {
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
       if (appThemeConfig && appThemeConfig.Theme === "system") {
         applyThemeConfig(appThemeConfig);
       }
     });
-  }
-  function syncThemePicker() {
-    const active = appThemeConfig && appThemeConfig.Theme ? appThemeConfig.Theme : "dark";
-    document.querySelectorAll('input[name="theme-choice"]').forEach((radio) => {
-      radio.checked = radio.value === active;
-    });
-  }
-  function initThemePicker() {
-    document.querySelectorAll('input[name="theme-choice"]').forEach((radio) => {
-      radio.addEventListener("change", (e) => {
-        if (!e.target.checked) return;
-        setAppThemeConfig(Object.assign({}, appThemeConfig || DEFAULT_THEME, { Theme: e.target.value }));
-        applyThemeConfig(appThemeConfig);
-        try {
-          chrome.storage.sync.set({ Theme: appThemeConfig });
-        } catch (err2) {
-        }
-      });
-    });
-    syncThemePicker();
   }
   function applyThemeConfig(config) {
     const rawPref = config.Theme || "dark";
@@ -2141,41 +2190,35 @@
     } catch (e) {
     }
     const activeTheme = resolveActiveTheme(config);
-    const root = document.documentElement;
+    const root2 = document.documentElement;
     setCurrentTheme(activeTheme);
-    CUSTOM_THEME_VARS.forEach((v) => root.style.removeProperty(v));
+    CUSTOM_THEME_VARS.forEach((v) => root2.style.removeProperty(v));
     if (activeTheme === "custom" && config.CustomColors) {
       const c = config.CustomColors;
       const f = formatColorForWeb;
-      root.dataset.theme = "dark";
+      root2.dataset.theme = "dark";
       const canvas = f(c.WindowBackground);
-      const card = f(c.ControlBackground);
-      root.style.setProperty("--surface-canvas", canvas);
-      root.style.setProperty("--surface-card", card);
-      root.style.setProperty("--surface-muted", hexMix(card, canvas, 0.5));
-      root.style.setProperty("--surface-hover", f(c.ControlHover));
-      root.style.setProperty("--line-hairline", f(c.BorderColor));
-      root.style.setProperty("--text-primary", f(c.TextPrimary));
-      root.style.setProperty("--text-secondary", f(c.TextSecondary));
-      root.style.setProperty("--select-bg", f(c.SelectionBackground));
-      root.style.setProperty("--text-tertiary", hexMix(f(c.TextSecondary), canvas, 0.45));
-      root.style.setProperty("--line-strong", f(c.TextPrimary));
-      root.style.setProperty("--accent", f(c.TextPrimary));
-      root.style.setProperty("--accent-text", canvas);
-      root.style.setProperty("--accent-hover", hexMix(f(c.TextPrimary), canvas, 0.12));
-      root.style.setProperty("--accent-press", hexMix(f(c.TextPrimary), canvas, 0.22));
+      const card2 = f(c.ControlBackground);
+      root2.style.setProperty("--surface-canvas", canvas);
+      root2.style.setProperty("--surface-card", card2);
+      root2.style.setProperty("--surface-muted", hexMix(card2, canvas, 0.5));
+      root2.style.setProperty("--surface-hover", f(c.ControlHover));
+      root2.style.setProperty("--line-hairline", f(c.BorderColor));
+      root2.style.setProperty("--text-primary", f(c.TextPrimary));
+      root2.style.setProperty("--text-secondary", f(c.TextSecondary));
+      root2.style.setProperty("--select-bg", f(c.SelectionBackground));
+      root2.style.setProperty("--text-tertiary", hexMix(f(c.TextSecondary), canvas, 0.45));
+      root2.style.setProperty("--line-strong", f(c.TextPrimary));
+      root2.style.setProperty("--accent", f(c.TextPrimary));
+      root2.style.setProperty("--accent-text", canvas);
+      root2.style.setProperty("--accent-hover", hexMix(f(c.TextPrimary), canvas, 0.12));
+      root2.style.setProperty("--accent-press", hexMix(f(c.TextPrimary), canvas, 0.22));
     }
     applyThemeDOM(activeTheme);
   }
 
   // src/pages/newtab/displayEffects.js
   init_newtabState();
-  function initializeFadeIn() {
-    window.chrome.storage.sync.get(["fadeInEnabled"], (result) => {
-      setFadeInEnabled(result.fadeInEnabled !== void 0 ? result.fadeInEnabled : true);
-      applyFadeIn();
-    });
-  }
   function applyFadeIn() {
     const bookmarksContent = document.querySelector(".bookmarks-content");
     if (bookmarksContent) {
@@ -2188,25 +2231,9 @@
       }
     }
   }
-  function initializeSpotlightVisibility() {
-    window.chrome.storage.sync.get(["spotlightVisible"], (result) => {
-      setSpotlightVisible(result.spotlightVisible !== void 0 ? result.spotlightVisible : true);
-      applySpotlightVisibility();
-    });
-  }
   function applySpotlightVisibility() {
-    const searchPage = document.getElementById("search-page");
-    if (searchPage) {
-      spotlightVisible ? searchPage.classList.remove("hide-spotlight") : searchPage.classList.add("hide-spotlight");
-    }
-    const spotlightCheckbox = document.getElementById("spotlight-checkbox");
-    if (spotlightCheckbox) spotlightCheckbox.checked = spotlightVisible;
-  }
-  function initializeScale() {
-    window.chrome.storage.sync.get(["uiScale"], (result) => {
-      const syncScale = result.uiScale !== void 0 ? result.uiScale : 1;
-      applyScale(syncScale);
-    });
+    const searchPage2 = document.getElementById("search-page");
+    if (searchPage2) searchPage2.classList.toggle("hide-spotlight", !spotlightVisible);
   }
   function applyScale(value) {
     const preScale = document.getElementById("pre-scale");
@@ -2226,270 +2253,32 @@
       document.body.style.marginLeft = `${pct}vw`;
       document.body.style.marginTop = `${pct}vh`;
     }
-    document.querySelectorAll(".scale-btn").forEach((btn) => {
-      btn.classList.toggle("active", parseFloat(btn.dataset.value) === value);
-    });
   }
-  function toggleScale(value) {
-    setUiScale(value);
-    applyScale(value);
+  function applyGrayscale(on) {
+    document.documentElement.classList.toggle("grayscale", !!on);
   }
   function showPage(pageName) {
     document.querySelectorAll(".page").forEach((page) => page.classList.remove("active"));
     const targetPage = document.getElementById(`${pageName}-page`);
-    if (targetPage) {
-      targetPage.classList.add("active");
-      setCurrentPage(pageName);
-      if (pageName === "search") {
-        const searchInput = document.getElementById("search-input");
-        if (searchInput && spotlightVisible) setTimeout(() => searchInput.focus(), 50);
-      }
-      if (pageName === "bookmarks") {
-        if (fadeInEnabled) {
-          const bookmarksContent = document.querySelector(".bookmarks-content");
-          if (bookmarksContent) {
-            bookmarksContent.classList.remove("fade-in");
-            void bookmarksContent.offsetWidth;
-            bookmarksContent.classList.add("fade-in");
-          }
-        }
+    if (!targetPage) return;
+    targetPage.classList.add("active");
+    setCurrentPage(pageName);
+    if (pageName === "search") {
+      const searchInput = document.getElementById("search-input");
+      if (searchInput && spotlightVisible) setTimeout(() => searchInput.focus(), 50);
+    }
+    if (pageName === "bookmarks" && fadeInEnabled) {
+      const bookmarksContent = document.querySelector(".bookmarks-content");
+      if (bookmarksContent) {
+        bookmarksContent.classList.remove("fade-in");
+        void bookmarksContent.offsetWidth;
+        bookmarksContent.classList.add("fade-in");
       }
     }
   }
 
   // src/pages/newtab/newtab.js
   init_tabs2();
-
-  // src/pages/newtab/modalVisibility.js
-  init_newtabState();
-
-  // src/utils/formatDuration.js
-  function formatTimeRemaining(ms) {
-    const totalSeconds = Math.floor(ms / 1e3);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor(totalSeconds % 3600 / 60);
-    const seconds = totalSeconds % 60;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    if (minutes > 0) return `${minutes}m ${seconds}s`;
-    return `${seconds}s`;
-  }
-
-  // src/services/tabService.js
-  async function getTabCount() {
-    const tabs = await chrome.tabs.query({});
-    return tabs.length;
-  }
-
-  // src/services/backgroundMessenger.js
-  async function sendToBackground(message) {
-    try {
-      return await chrome.runtime.sendMessage(message);
-    } catch (e) {
-    }
-  }
-
-  // src/components/tabLimiter/tabLimiterUI.js
-  init_newtabState();
-  function initializeTabLimiter() {
-    updateLimiterUI();
-    setLimiterUpdateInterval(setInterval(updateLimiterUI, 1e3));
-    initLimitButtons();
-  }
-  async function updateLimiterUI() {
-    const result = await window.chrome.storage.sync.get(["tabLimit", "managementMethod", "pendingIncrease"]);
-    const tabLimit = result.tabLimit !== void 0 ? result.tabLimit : 0;
-    const managementMethod = result.managementMethod || "block";
-    const tabCount = await getTabCount();
-    const limitDisplay = document.getElementById("current-limit");
-    const countDisplay = document.getElementById("current-tabs");
-    if (limitDisplay) limitDisplay.textContent = tabLimit === 0 ? "Off" : tabLimit;
-    if (countDisplay) countDisplay.textContent = tabCount;
-    const buttons = document.querySelectorAll(".limit-btn");
-    buttons.forEach((btn) => {
-      if (btn.classList.contains("delay-btn")) return;
-      const btnLimit = parseInt(btn.dataset.limit, 10);
-      if (btnLimit === tabLimit) {
-        btn.classList.add("active");
-      } else {
-        btn.classList.remove("active");
-      }
-      if (result.pendingIncrease && result.pendingIncrease.targetLimit === btnLimit) {
-        btn.classList.add("pending");
-      } else {
-        btn.classList.remove("pending");
-      }
-    });
-    const radios = document.querySelectorAll('input[name="management-method"]');
-    radios.forEach((radio) => {
-      if (radio.value === managementMethod) radio.checked = true;
-    });
-    updatePendingDisplay(result.pendingIncrease);
-  }
-  function initLimitButtons() {
-    const limitButtons = document.querySelectorAll(".limit-btn");
-    limitButtons.forEach((btn) => {
-      if (btn.classList.contains("delay-btn")) return;
-      if (btn.classList.contains("scale-btn")) return;
-      btn.addEventListener("click", async () => {
-        const newLimit = parseInt(btn.dataset.limit, 10);
-        if (isNaN(newLimit)) return;
-        try {
-          const { tabLimit } = await window.chrome.storage.sync.get("tabLimit");
-          const currentLimit = tabLimit !== void 0 ? tabLimit : 0;
-          if (newLimit === currentLimit) return;
-          const effectiveCurrent = currentLimit === 0 ? 9999 : currentLimit;
-          const effectiveNew = newLimit === 0 ? 9999 : newLimit;
-          if (effectiveNew < effectiveCurrent) {
-            await window.chrome.storage.sync.set({ tabLimit: newLimit });
-            await window.chrome.storage.sync.remove("pendingIncrease");
-            updateLimiterUI();
-            if (newLimit !== 0) {
-              const tabCount = await getTabCount();
-              if (tabCount > newLimit) {
-                await sendToBackground({ action: "enforceLimit" });
-              }
-            }
-          } else {
-            const startTime = Date.now();
-            await window.chrome.storage.sync.set({ pendingIncrease: { targetLimit: newLimit, startTime } });
-            await sendToBackground({ action: "startIncrease", targetLimit: newLimit, startTime });
-            updateLimiterUI();
-          }
-        } catch (error) {
-        }
-      });
-    });
-    const methodRadios = document.querySelectorAll('input[name="management-method"]');
-    methodRadios.forEach((radio) => {
-      radio.addEventListener("change", async (event) => {
-        const method = event.target.value;
-        if (method) {
-          await window.chrome.storage.sync.set({ managementMethod: method });
-          updateLimiterUI();
-        }
-      });
-    });
-    const cancelIncreaseBtn = document.getElementById("cancel-increase");
-    if (cancelIncreaseBtn) cancelIncreaseBtn.addEventListener("click", async () => {
-      await window.chrome.storage.sync.remove("pendingIncrease");
-      await sendToBackground({ action: "cancelIncrease" });
-      updateLimiterUI();
-    });
-  }
-  function updatePendingDisplay(pendingIncrease) {
-    const pendingBox = document.getElementById("limiter-pending-box");
-    if (!pendingBox) return;
-    if (pendingIncrease && pendingIncrease.targetLimit !== void 0 && pendingIncrease.startTime) {
-      const elapsed = Date.now() - pendingIncrease.startTime;
-      const remaining = Math.max(0, 30 * 60 * 1e3 - elapsed);
-      if (remaining > 0) {
-        pendingBox.style.display = "block";
-        const targetElement = document.getElementById("pending-target");
-        const timeElement = document.getElementById("time-remaining");
-        if (targetElement) targetElement.textContent = pendingIncrease.targetLimit === 0 ? "Off" : pendingIncrease.targetLimit;
-        if (timeElement) timeElement.textContent = formatTimeRemaining(remaining);
-        return;
-      }
-    }
-    pendingBox.style.display = "none";
-  }
-
-  // src/services/delayStorage.js
-  async function loadDelaySettings() {
-    return chrome.storage.sync.get(["searchDelaySeconds", "showQueryOnDelay"]);
-  }
-  async function getDelaySeconds() {
-    const result = await chrome.storage.sync.get("searchDelaySeconds");
-    return result.searchDelaySeconds;
-  }
-  async function saveDelaySeconds(seconds) {
-    return chrome.storage.sync.set({ searchDelaySeconds: seconds });
-  }
-  async function clearPendingDecrease() {
-    return chrome.storage.sync.remove("pendingDelayDecrease");
-  }
-  async function savePendingDecrease(targetDelay, startTime) {
-    return chrome.storage.sync.set({ pendingDelayDecrease: { targetDelay, startTime } });
-  }
-  async function getPendingDecrease() {
-    const result = await chrome.storage.sync.get("pendingDelayDecrease");
-    return result.pendingDelayDecrease;
-  }
-
-  // src/components/searchDelay/searchDelay.js
-  init_newtabState();
-  function initializeSearchDelaySettings() {
-    const delayButtons = document.querySelectorAll(".delay-btn");
-    const showQueryCheck = document.getElementById("show-query-checkbox");
-    loadDelaySettings().then((res) => {
-      setSearchDelaySeconds(res.searchDelaySeconds !== void 0 ? res.searchDelaySeconds : 0);
-      if (showQueryCheck) showQueryCheck.checked = res.showQueryOnDelay !== void 0 ? res.showQueryOnDelay : true;
-      updateDelayPendingUI();
-    });
-    delayButtons.forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
-        const newDelay = parseInt(e.target.dataset.value);
-        const currentDelay = await getDelaySeconds();
-        const actualCurrent = currentDelay !== void 0 ? currentDelay : 0;
-        if (newDelay === actualCurrent) return;
-        if (newDelay > actualCurrent) {
-          await saveDelaySeconds(newDelay);
-          await clearPendingDecrease();
-          setSearchDelaySeconds(newDelay);
-          await sendToBackground({ action: "updateSearchDelay", delaySeconds: newDelay });
-          updateDelayPendingUI();
-        } else if (newDelay < actualCurrent) {
-          const startTime = Date.now();
-          await savePendingDecrease(newDelay, startTime);
-          await sendToBackground({ action: "startDelayDecrease" });
-          updateDelayPendingUI();
-        }
-      });
-    });
-    const cancelBtn = document.getElementById("cancel-delay-decrease");
-    if (cancelBtn) {
-      cancelBtn.addEventListener("click", async () => {
-        await clearPendingDecrease();
-        await sendToBackground({ action: "cancelDelayDecrease" });
-        updateDelayPendingUI();
-      });
-    }
-    if (delayUpdateInterval) clearInterval(delayUpdateInterval);
-    setDelayUpdateInterval(setInterval(updateDelayPendingUI, 1e3));
-    if (showQueryCheck) {
-      showQueryCheck.addEventListener("change", () => {
-        window.chrome.storage.sync.set({ showQueryOnDelay: showQueryCheck.checked });
-      });
-    }
-  }
-  async function updateDelayPendingUI() {
-    const box = document.getElementById("delay-pending-box");
-    const targetSpan = document.getElementById("delay-target-time");
-    const timeSpan = document.getElementById("delay-time-remaining");
-    const delayButtons = document.querySelectorAll(".delay-btn");
-    const pendingDelayDecrease = await getPendingDecrease();
-    delayButtons.forEach((btn) => {
-      const val = parseInt(btn.dataset.value);
-      btn.classList.remove("active", "pending");
-      if (val === searchDelaySeconds) btn.classList.add("active");
-    });
-    if (pendingDelayDecrease && pendingDelayDecrease.startTime) {
-      const elapsed = Date.now() - pendingDelayDecrease.startTime;
-      const remaining = Math.max(0, 30 * 60 * 1e3 - elapsed);
-      if (remaining > 0) {
-        if (box) box.style.display = "block";
-        if (targetSpan) targetSpan.textContent = pendingDelayDecrease.targetDelay + "s";
-        if (timeSpan) timeSpan.textContent = formatTimeRemaining(remaining);
-        delayButtons.forEach((btn) => {
-          if (parseInt(btn.dataset.value) === pendingDelayDecrease.targetDelay) {
-            btn.classList.add("pending");
-          }
-        });
-        return;
-      }
-    }
-    if (box) box.style.display = "none";
-  }
 
   // src/components/engines/engineModal.js
   init_bookmarksDB();
@@ -2757,10 +2546,10 @@
   function buildEngineDialog({ title, subtitle, body, foot }) {
     closeAllEngineDialogs();
     const overlay = el2("div", `modal show ${DIALOG_CLASS}`);
-    const card = el2("div", "picker-card");
-    card.appendChild(el2("div", "picker-title", title));
-    if (subtitle) card.appendChild(el2("div", "picker-subtitle", subtitle));
-    if (body) card.appendChild(body);
+    const card2 = el2("div", "picker-card");
+    card2.appendChild(el2("div", "picker-title", title));
+    if (subtitle) card2.appendChild(el2("div", "picker-subtitle", subtitle));
+    if (body) card2.appendChild(body);
     if (foot && foot.length) {
       const footEl = el2("div", "picker-foot");
       foot.forEach(({ label, primary, onClick }) => {
@@ -2769,9 +2558,9 @@
         btn.addEventListener("click", onClick);
         footEl.appendChild(btn);
       });
-      card.appendChild(footEl);
+      card2.appendChild(footEl);
     }
-    overlay.appendChild(card);
+    overlay.appendChild(card2);
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) closeAllEngineDialogs();
     });
@@ -2783,20 +2572,20 @@
     const host = el2("div", "picker-wellhost");
     const well = el2("div", "picker-well");
     [{ type: "file", label: "Upload SVG" }, { type: "acronym", label: "Acronym" }].forEach(({ type, label }) => {
-      const row = el2("button", "picker-row" + (iconChoice.type === type ? " is-current" : ""));
-      row.type = "button";
-      row.appendChild(el2("span", "picker-check"));
+      const row2 = el2("button", "picker-row" + (iconChoice.type === type ? " is-current" : ""));
+      row2.type = "button";
+      row2.appendChild(el2("span", "picker-check"));
       const span = el2("span", "", label);
       span.style.flex = "1";
-      row.append(span);
-      row.addEventListener("click", () => {
+      row2.append(span);
+      row2.addEventListener("click", () => {
         iconChoice.type = type;
         const labelEl = document.getElementById("engine-add-icon-label");
         if (labelEl) labelEl.textContent = type === "file" ? "Upload SVG" : "Acronym";
         closeAllEngineDialogs();
         setTimeout(() => openIconInputPicker(type), 80);
       });
-      well.appendChild(row);
+      well.appendChild(row2);
     });
     host.appendChild(well);
     body.appendChild(host);
@@ -2822,8 +2611,8 @@
       });
       body.append(inputEl, proxyBtn);
     } else {
-      const row = el2("div");
-      row.style.cssText = "display:flex;gap:10px;align-items:center;";
+      const row2 = el2("div");
+      row2.style.cssText = "display:flex;gap:10px;align-items:center;";
       inputEl = document.createElement("input");
       inputEl.type = "text";
       inputEl.maxLength = 2;
@@ -2839,8 +2628,8 @@
       colorInput.addEventListener("input", () => {
         iconChoice.acronym.color = colorInput.value;
       });
-      row.append(inputEl, colorInput);
-      body.appendChild(row);
+      row2.append(inputEl, colorInput);
+      body.appendChild(row2);
     }
     buildEngineDialog({
       title: type === "file" ? "Upload SVG" : "Acronym",
@@ -2880,17 +2669,17 @@
   var openEngineSubpage = (name, customTitle) => nav.open(name, customTitle);
   var closeEngineSubpage = () => nav.close();
   function makeStarSvg(filled) {
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", "0 0 24 24");
-    svg.setAttribute("width", "16");
-    svg.setAttribute("height", "16");
-    svg.setAttribute("fill", filled ? "currentColor" : "none");
-    svg.setAttribute("stroke", "currentColor");
-    svg.setAttribute("stroke-width", "2");
+    const svg2 = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg2.setAttribute("viewBox", "0 0 24 24");
+    svg2.setAttribute("width", "16");
+    svg2.setAttribute("height", "16");
+    svg2.setAttribute("fill", filled ? "currentColor" : "none");
+    svg2.setAttribute("stroke", "currentColor");
+    svg2.setAttribute("stroke-width", "2");
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z");
-    svg.appendChild(path);
-    return svg;
+    svg2.appendChild(path);
+    return svg2;
   }
   function renderEngineListInModal() {
     closeEngineSubpage();
@@ -2901,14 +2690,14 @@
     keys.forEach((key, i2) => {
       const engine = searchEngines[key];
       const first = i2 === 0, last = i2 === keys.length - 1;
-      const row = document.createElement("div");
-      row.className = "settings-row engine-list-row";
-      row.style.cursor = "default";
-      if (first && last) row.style.borderRadius = "16px";
-      else if (first) row.style.borderRadius = "16px 16px 4px 4px";
-      else if (last) row.style.borderRadius = "4px 4px 16px 16px";
-      else row.style.borderRadius = "4px";
-      if (engine.isHidden) row.style.opacity = "0.5";
+      const row2 = document.createElement("div");
+      row2.className = "settings-row engine-list-row";
+      row2.style.cursor = "default";
+      if (first && last) row2.style.borderRadius = "16px";
+      else if (first) row2.style.borderRadius = "16px 16px 4px 4px";
+      else if (last) row2.style.borderRadius = "4px 4px 16px 16px";
+      else row2.style.borderRadius = "4px";
+      if (engine.isHidden) row2.style.opacity = "0.5";
       const iconWrap = document.createElement("div");
       iconWrap.className = "engine-row-icon";
       const img = document.createElement("img");
@@ -2919,7 +2708,7 @@
         img.src = "src/assets/svg/default.api.svg";
       };
       iconWrap.appendChild(img);
-      row.appendChild(iconWrap);
+      row2.appendChild(iconWrap);
       const textWrap = document.createElement("span");
       textWrap.className = "settings-row-text";
       const nameEl = document.createElement("span");
@@ -2929,7 +2718,7 @@
       urlEl.className = "settings-row-value";
       urlEl.textContent = engine.url || "Default Browser Search";
       textWrap.append(nameEl, urlEl);
-      row.appendChild(textWrap);
+      row2.appendChild(textWrap);
       const controls = document.createElement("div");
       controls.className = "engine-row-controls";
       const starBtn = document.createElement("button");
@@ -2956,13 +2745,13 @@
       slider.className = "toggle-slider";
       toggleLabel.append(checkbox, slider);
       controls.append(toggleLabel, starBtn);
-      row.appendChild(controls);
-      row.addEventListener("contextmenu", (e) => {
+      row2.appendChild(controls);
+      row2.addEventListener("contextmenu", (e) => {
         e.preventDefault();
         if (ContextMenu.disabled) return;
         openEngineItemDialog(key);
       });
-      listContainer.appendChild(row);
+      listContainer.appendChild(row2);
     });
   }
   function openEngineItemDialog(key) {
@@ -3128,102 +2917,13 @@
   }
 
   // src/pages/newtab/modalVisibility.js
-  var _settingsSnapshotTheme = null;
-  var _settingsSnapshotScale = null;
-  function _revertSettingsModal() {
-    if (_settingsSnapshotTheme !== null) {
-      setAppThemeConfig(_settingsSnapshotTheme);
-      applyThemeConfig(appThemeConfig);
-      try {
-        chrome.storage.sync.set({ Theme: appThemeConfig });
-      } catch (err2) {
-      }
-      syncThemePicker();
-    }
-    if (_settingsSnapshotScale !== null) {
-      setUiScale(_settingsSnapshotScale);
-      applyScale(uiScale);
-    }
-    const resetConfirmBox = document.getElementById("reset-confirm-box");
-    const resetAllBtn = document.getElementById("reset-all-btn");
-    if (resetConfirmBox) resetConfirmBox.style.display = "none";
-    if (resetAllBtn) resetAllBtn.style.display = "";
-  }
   async function showModal(modalId) {
     if (modalId === "engine-modal") {
       renderEngineListInModal();
       document.dispatchEvent(new CustomEvent("engine-modal-opened"));
     }
-    if (modalId === "settings-modal") {
-      _settingsSnapshotTheme = appThemeConfig ? Object.assign({}, appThemeConfig) : null;
-      _settingsSnapshotScale = uiScale;
-      const spotlightCheckbox = document.getElementById("spotlight-checkbox");
-      if (spotlightCheckbox) spotlightCheckbox.checked = spotlightVisible;
-      syncThemePicker();
-      const behaviorRadios = document.querySelectorAll('input[name="search-behavior"]');
-      behaviorRadios.forEach((radio) => {
-        if (radio.value === searchEngineBehavior) radio.checked = true;
-      });
-      const pillBehaviorRadios = document.querySelectorAll('input[name="bookmark-pill-behavior"]');
-      pillBehaviorRadios.forEach((radio) => {
-        if (radio.value === bookmarkPillBehavior) radio.checked = true;
-      });
-      closeSettingsSubpage();
-      document.dispatchEvent(new CustomEvent("settings-modal-opened"));
-    }
     const modal = document.getElementById(modalId);
     if (modal) modal.classList.add("show");
-  }
-  function hideModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.classList.remove("show");
-    if (modalId === "settings-modal" && (location.hash === "#settings" || location.hash === "")) {
-      try {
-        history.replaceState(null, "", location.pathname + location.search);
-      } catch (e) {
-      }
-    }
-  }
-  function openSettingsSubpage(name) {
-    const page = document.querySelector(`.settings-subpage[data-panel="${name}"]`);
-    const home = document.getElementById("settings-home");
-    if (!page || !home) return;
-    document.querySelectorAll(".settings-subpage").forEach((p2) => {
-      p2.hidden = true;
-    });
-    home.hidden = true;
-    page.hidden = false;
-    const title = document.getElementById("settings-title");
-    if (title) title.textContent = page.dataset.subpageTitle || "Settings";
-    const closeBtn = document.getElementById("close-settings-modal");
-    if (closeBtn) {
-      closeBtn.textContent = "\u2039";
-      closeBtn.title = "Back";
-      closeBtn.dataset.mode = "back";
-    }
-    const body = page.closest(".settings-body");
-    if (body) body.scrollTop = 0;
-    if (name === "limiter") updateLimiterUI();
-    if (name === "delay") updateDelayPendingUI();
-  }
-  function closeSettingsSubpage() {
-    const home = document.getElementById("settings-home");
-    if (!home) return;
-    document.querySelectorAll(".settings-subpage").forEach((p2) => {
-      p2.hidden = true;
-    });
-    home.hidden = false;
-    const title = document.getElementById("settings-title");
-    if (title) title.textContent = "Settings";
-    const closeBtn = document.getElementById("close-settings-modal");
-    if (closeBtn) {
-      closeBtn.textContent = "\xD7";
-      closeBtn.title = "Close";
-      closeBtn.dataset.mode = "close";
-    }
-  }
-  function settingsSubpageOpen() {
-    return !!document.querySelector(".settings-subpage:not([hidden])");
   }
   function topmostOpenModal() {
     let best = null;
@@ -3266,6 +2966,64 @@
     document.addEventListener("DOMContentLoaded", initModalBehaviour);
   } else {
     initModalBehaviour();
+  }
+
+  // src/utils/formatDuration.js
+  function formatTimeRemaining(ms) {
+    const totalSeconds = Math.floor(ms / 1e3);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor(totalSeconds % 3600 / 60);
+    const seconds = totalSeconds % 60;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
+  }
+
+  // src/services/tabService.js
+  async function getTabCount() {
+    const tabs = await chrome.tabs.query({});
+    return tabs.length;
+  }
+
+  // src/services/backgroundMessenger.js
+  async function sendToBackground(message) {
+    try {
+      return await chrome.runtime.sendMessage(message);
+    } catch (e) {
+    }
+  }
+
+  // src/components/tabLimiter/tabLimiterUI.js
+  var QUEUE_MS = 30 * 60 * 1e3;
+  async function requestTabLimit(newLimit) {
+    if (isNaN(newLimit)) return;
+    try {
+      const { tabLimit } = await window.chrome.storage.sync.get("tabLimit");
+      const currentLimit = tabLimit !== void 0 ? tabLimit : 0;
+      if (newLimit === currentLimit) return;
+      const effectiveCurrent = currentLimit === 0 ? 9999 : currentLimit;
+      const effectiveNew = newLimit === 0 ? 9999 : newLimit;
+      if (effectiveNew < effectiveCurrent) {
+        await window.chrome.storage.sync.set({ tabLimit: newLimit });
+        await window.chrome.storage.sync.remove("pendingIncrease");
+        if (newLimit !== 0) {
+          const tabCount = await getTabCount();
+          if (tabCount > newLimit) await sendToBackground({ action: "enforceLimit" });
+        }
+      } else {
+        const startTime = Date.now();
+        await window.chrome.storage.sync.set({ pendingIncrease: { targetLimit: newLimit, startTime } });
+        await sendToBackground({ action: "startIncrease", targetLimit: newLimit, startTime });
+      }
+    } catch (error) {
+    }
+  }
+  function pendingIncreaseText(pendingIncrease, now = Date.now()) {
+    if (!pendingIncrease || pendingIncrease.targetLimit === void 0 || !pendingIncrease.startTime) return "";
+    const remaining = Math.max(0, QUEUE_MS - (now - pendingIncrease.startTime));
+    if (remaining <= 0) return "";
+    const target = pendingIncrease.targetLimit === 0 ? "Off" : pendingIncrease.targetLimit;
+    return `Queued: ${target} in ${formatTimeRemaining(remaining)}`;
   }
 
   // src/utils/url.js
@@ -3590,9 +3348,9 @@
     const overlay = document.createElement("div");
     overlay.className = "modal show file-access-warning";
     overlay.style.zIndex = "500";
-    const card = document.createElement("div");
-    card.className = "picker-card";
-    card.style.cssText = "max-width: 340px; padding: 24px;";
+    const card2 = document.createElement("div");
+    card2.className = "picker-card";
+    card2.style.cssText = "max-width: 340px; padding: 24px;";
     const title = document.createElement("div");
     title.className = "picker-title";
     title.style.cssText = "padding: 0 0 8px; font-size: 16px;";
@@ -3606,20 +3364,19 @@
     dismissBtn.textContent = "Dismiss";
     dismissBtn.type = "button";
     dismissBtn.addEventListener("click", () => overlay.remove());
-    card.append(title, body, dismissBtn);
-    overlay.appendChild(card);
+    card2.append(title, body, dismissBtn);
+    overlay.appendChild(card2);
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) overlay.remove();
     });
     document.body.appendChild(overlay);
   }
 
-  // src/pages/newtab/settingsModal.js
-  init_bookmarksDB();
-
   // src/services/dataExport.js
   init_bookmarksDB();
   init_defaults();
+  init_storageKeys();
+  var EXPORTED_SYNC_KEYS = BACKUP_SYNC_KEYS.map((k) => k.key).filter((k) => k !== "activeTabs");
   async function generateExportData(activeTabsList) {
     const data = await generateExportDataCore(activeTabsList);
     if (window.AtlasProfiles) {
@@ -3635,21 +3392,7 @@
     const allBookmarks = await BookmarkDB.getAllBookmarks();
     const [syncData, localData] = await Promise.all([
       new Promise((resolve) => {
-        window.chrome.storage.sync.get([
-          "tabLimit",
-          "managementMethod",
-          "searchDelaySeconds",
-          "showQueryOnDelay",
-          "grayscale",
-          "customSearchEngines",
-          "defaultEngineKey",
-          "selectedSearchEngine",
-          "fadeInEnabled",
-          "spotlightVisible",
-          "searchEngineBehavior",
-          "bookmarkPillBehavior",
-          "Theme"
-        ], (items) => resolve(items || {}));
+        window.chrome.storage.sync.get(EXPORTED_SYNC_KEYS, (items) => resolve(items || {}));
       }),
       // Only `rhe_rules` is read from local storage. A leftover `githubSync` key
       // may still exist from before sync was removed; it held a GitHub token, so
@@ -3673,23 +3416,14 @@
         }
       }));
     }
+    const settings = {};
+    for (const key of EXPORTED_SYNC_KEYS) settings[key] = syncData[key];
     return {
       ...allBookmarks,
+      ...settings,
       activeTabs: activeTabsList,
       Theme: syncData.Theme || DEFAULT_THEME,
-      tabLimit: syncData.tabLimit,
-      managementMethod: syncData.managementMethod,
-      searchDelaySeconds: syncData.searchDelaySeconds,
-      showQueryOnDelay: syncData.showQueryOnDelay,
-      grayscale: syncData.grayscale,
-      customSearchEngines: syncData.customSearchEngines,
       customEngineIcons,
-      defaultEngineKey: syncData.defaultEngineKey,
-      selectedSearchEngine: syncData.selectedSearchEngine,
-      fadeInEnabled: syncData.fadeInEnabled,
-      spotlightVisible: syncData.spotlightVisible,
-      searchEngineBehavior: syncData.searchEngineBehavior,
-      bookmarkPillBehavior: syncData.bookmarkPillBehavior,
       rhe_rules: localData.rhe_rules
     };
   }
@@ -3753,6 +3487,7 @@
   }
 
   // src/services/dataImport.js
+  init_storageKeys();
   async function persistImportData(importData) {
     const ap = window.AtlasProfiles;
     if (!(ap && importData && importData.atlasProfiles)) return persistImportDataCore(importData);
@@ -3785,23 +3520,12 @@
   }
   async function settingsFromImport(importData) {
     const storageData = {};
-    if (importData.fadeInEnabled !== void 0) storageData.fadeInEnabled = importData.fadeInEnabled;
-    if (importData.spotlightVisible !== void 0) storageData.spotlightVisible = importData.spotlightVisible;
-    if (importData.searchEngineBehavior !== void 0) storageData.searchEngineBehavior = importData.searchEngineBehavior;
-    if (importData.bookmarkPillBehavior !== void 0) storageData.bookmarkPillBehavior = importData.bookmarkPillBehavior;
-    if (importData.activeTabs) storageData.activeTabs = importData.activeTabs;
-    if (importData.customSearchEngines) {
-      storageData.customSearchEngines = importData.customSearchEngines;
-      await moveEngineIconsToDb(storageData.customSearchEngines);
+    for (const { key, importWhen } of BACKUP_SYNC_KEYS) {
+      const value = importData[key];
+      if (importWhen === "truthy" ? value : value !== void 0) storageData[key] = value;
     }
-    if (importData.defaultEngineKey) storageData.defaultEngineKey = importData.defaultEngineKey;
-    if (importData.selectedSearchEngine) storageData.selectedSearchEngine = importData.selectedSearchEngine;
-    if (importData.tabLimit !== void 0) storageData.tabLimit = importData.tabLimit;
-    if (importData.managementMethod) storageData.managementMethod = importData.managementMethod;
-    if (importData.searchDelaySeconds !== void 0) storageData.searchDelaySeconds = importData.searchDelaySeconds;
-    if (importData.showQueryOnDelay !== void 0) storageData.showQueryOnDelay = importData.showQueryOnDelay;
-    if (importData.grayscale !== void 0) storageData.grayscale = importData.grayscale;
-    if (importData.Theme) storageData.Theme = await themeWithBackgroundInDb(importData.Theme);
+    if (storageData.customSearchEngines) await moveEngineIconsToDb(storageData.customSearchEngines);
+    if (storageData.Theme) storageData.Theme = await themeWithBackgroundInDb(storageData.Theme);
     return storageData;
   }
   async function moveEngineIconsToDb(engines) {
@@ -3814,17 +3538,17 @@
       }
     }
   }
-  async function themeWithBackgroundInDb(theme) {
-    if (typeof theme === "object" && theme !== null) {
-      if (theme.customBg && typeof theme.customBg === "string" && theme.customBg.length > 1e3) {
+  async function themeWithBackgroundInDb(theme2) {
+    if (typeof theme2 === "object" && theme2 !== null) {
+      if (theme2.customBg && typeof theme2.customBg === "string" && theme2.customBg.length > 1e3) {
         try {
-          await BookmarkDB.saveIcon("theme_custom_bg", theme.customBg);
-          return { ...theme, customBg: "idb:theme_custom_bg" };
+          await BookmarkDB.saveIcon("theme_custom_bg", theme2.customBg);
+          return { ...theme2, customBg: "idb:theme_custom_bg" };
         } catch (_) {
         }
       }
     }
-    return theme;
+    return theme2;
   }
   function sanitizeHugeStrings(obj) {
     if (typeof obj === "string" && obj.length > 8192) return void 0;
@@ -4786,7 +4510,7 @@
   }
   function toCsv(rows) {
     const lines = [CSV_COLS.map(csvEscape).join(",")];
-    for (const row of rows) lines.push(CSV_COLS.map((h) => csvEscape(row[h])).join(","));
+    for (const row2 of rows) lines.push(CSV_COLS.map((h) => csvEscape(row2[h])).join(","));
     return lines.join("\r\n");
   }
   function advanceQuoted(state, text, i2) {
@@ -4874,10 +4598,10 @@
       fileDescs.push({ c_2, sc, su, fn, b });
       pos = no;
     }
-    const entries = {};
+    const entries2 = {};
     for (const { c_2, sc, su, fn, b } of fileDescs) {
       if (!c_2) {
-        entries[fn] = slc(data, b, b + sc);
+        entries2[fn] = slc(data, b, b + sc);
       } else if (c_2 === 8) {
         if (typeof DecompressionStream !== "undefined") {
           try {
@@ -4886,18 +4610,18 @@
             writer.write(data.subarray(b, b + sc));
             writer.close();
             const response = new Response(ds.readable);
-            entries[fn] = new Uint8Array(await response.arrayBuffer());
+            entries2[fn] = new Uint8Array(await response.arrayBuffer());
           } catch (e2) {
             await new Promise((r) => setTimeout(r, 0));
-            entries[fn] = inflateSync(data.subarray(b, b + sc), { out: new u8(su) });
+            entries2[fn] = inflateSync(data.subarray(b, b + sc), { out: new u8(su) });
           }
         } else {
           await new Promise((r) => setTimeout(r, 0));
-          entries[fn] = inflateSync(data.subarray(b, b + sc), { out: new u8(su) });
+          entries2[fn] = inflateSync(data.subarray(b, b + sc), { out: new u8(su) });
         }
       }
     }
-    return entries;
+    return entries2;
   }
 
   // src/services/detractlessFormat.js
@@ -4959,20 +4683,20 @@
       createdAt: s.createdAt || "",
       updatedAt: s.updatedAt || ""
     }));
-    const entries = {};
+    const entries2 = {};
     if (passthrough) {
       for (const [path, bytes] of Object.entries(passthrough)) {
         if (isOwnedEntry(path)) continue;
         if (path === V1_CONFIG || path.startsWith("pastekit/")) continue;
         if (path === SYNC_PREFIX.slice(0, -1) || path.startsWith(SYNC_PREFIX)) continue;
-        entries[path] = bytes;
+        entries2[path] = bytes;
       }
     }
-    entries[FILE_MANIFEST] = strToU8(JSON.stringify(outerManifest, null, 2));
-    entries[NEWTAB_CONFIG] = strToU8(JSON.stringify(detractlessConfig, null, 2));
-    entries[SHARED_PK_MANIFEST] = strToU8(JSON.stringify(pkManifest, null, 2));
-    entries[SHARED_PK_CSV] = strToU8(toCsv(csvRows));
-    return zipSync(entries);
+    entries2[FILE_MANIFEST] = strToU8(JSON.stringify(outerManifest, null, 2));
+    entries2[NEWTAB_CONFIG] = strToU8(JSON.stringify(detractlessConfig, null, 2));
+    entries2[SHARED_PK_MANIFEST] = strToU8(JSON.stringify(pkManifest, null, 2));
+    entries2[SHARED_PK_CSV] = strToU8(toCsv(csvRows));
+    return zipSync(entries2);
   }
   function parsePastekit(manifestBytes, csvBytes) {
     let pkManifest;
@@ -4990,41 +4714,41 @@
     let snippets = [];
     if (rows.length >= 2) {
       const headers = rows[0].map((h) => h.trim().toLowerCase());
-      const col = (row, name) => {
+      const col = (row2, name) => {
         const idx = headers.indexOf(name);
-        return idx === -1 ? "" : row[idx] || "";
+        return idx === -1 ? "" : row2[idx] || "";
       };
-      snippets = rows.slice(1).map((row) => ({
-        name: col(row, "name"),
-        description: col(row, "description"),
-        contentText: col(row, "contenttext"),
-        contentHtml: col(row, "contenthtml"),
-        tags: col(row, "tags").split(";").map((t) => t.trim()).filter(Boolean),
-        folderXid: col(row, "folderxid") || null,
-        createdAt: col(row, "createdat") || null,
-        updatedAt: col(row, "updatedat") || null
+      snippets = rows.slice(1).map((row2) => ({
+        name: col(row2, "name"),
+        description: col(row2, "description"),
+        contentText: col(row2, "contenttext"),
+        contentHtml: col(row2, "contenthtml"),
+        tags: col(row2, "tags").split(";").map((t) => t.trim()).filter(Boolean),
+        folderXid: col(row2, "folderxid") || null,
+        createdAt: col(row2, "createdat") || null,
+        updatedAt: col(row2, "updatedat") || null
       })).filter((s) => s.name);
     }
     return { folders, snippets };
   }
-  function detectLayout(entries, version) {
+  function detectLayout(entries2, version) {
     if (version >= 2) return "v2";
-    if (entries[V1_CONFIG]) return "v1-newtab";
-    if (entries["settings.json"] || entries["notes.json"] || entries["events.json"]) return "v1-launcher";
+    if (entries2[V1_CONFIG]) return "v1-newtab";
+    if (entries2["settings.json"] || entries2["notes.json"] || entries2["events.json"]) return "v1-launcher";
     return "unknown";
   }
   function importDetractless(rawEntries) {
-    let entries;
-    entries = rawEntries;
+    let entries2;
+    entries2 = rawEntries;
     const normalizedEntries = {};
-    for (const [path, bytes] of Object.entries(entries)) {
+    for (const [path, bytes] of Object.entries(entries2)) {
       normalizedEntries[path.replace(/\\/g, "/")] = bytes;
     }
-    entries = normalizedEntries;
-    if (!entries[FILE_MANIFEST]) throw new Error(".detractless: manifest.json missing");
+    entries2 = normalizedEntries;
+    if (!entries2[FILE_MANIFEST]) throw new Error(".detractless: manifest.json missing");
     let outerManifest;
     try {
-      outerManifest = JSON.parse(strFromU8(entries[FILE_MANIFEST]));
+      outerManifest = JSON.parse(strFromU8(entries2[FILE_MANIFEST]));
     } catch (_) {
       throw new Error(".detractless: manifest.json is not valid JSON");
     }
@@ -5034,23 +4758,23 @@
     if (version > FORMAT_VERSION) {
       throw new Error(`.detractless: file is from a newer version (${version}) \u2014 update Detractless to open it`);
     }
-    const layout = detectLayout(entries, version);
+    const layout = detectLayout(entries2, version);
     if (layout === "unknown") {
       throw new Error(".detractless: unrecognised archive layout (no newtab or launcher data)");
     }
     const configPath = layout === "v2" ? NEWTAB_CONFIG : V1_CONFIG;
     let detractlessConfig = null;
-    if (entries[configPath]) {
+    if (entries2[configPath]) {
       try {
-        detractlessConfig = JSON.parse(strFromU8(entries[configPath]));
+        detractlessConfig = JSON.parse(strFromU8(entries2[configPath]));
       } catch (_) {
         throw new Error(`.detractless: ${configPath} is not valid JSON`);
       }
     }
-    const pkManifestBytes = entries[SHARED_PK_MANIFEST] || entries[V1_PK_MANIFEST];
-    const pkCsvBytes = entries[SHARED_PK_CSV] || entries[V1_PK_CSV];
+    const pkManifestBytes = entries2[SHARED_PK_MANIFEST] || entries2[V1_PK_MANIFEST];
+    const pkCsvBytes = entries2[SHARED_PK_CSV] || entries2[V1_PK_CSV];
     const pastekitData = pkManifestBytes && pkCsvBytes ? parsePastekit(pkManifestBytes, pkCsvBytes) : null;
-    return { version, layout, detractlessConfig, pastekitData, entries };
+    return { version, layout, detractlessConfig, pastekitData, entries: entries2 };
   }
   async function packageArchive({ detractlessConfig, pastekitExport, passthrough }) {
     return exportDetractless({ detractlessConfig, pastekitExport, passthrough });
@@ -5067,7 +4791,8 @@
   }
 
   // src/pastekit/services/db.js
-  var DB_NAME = "pastekit";
+  init_storageKeys();
+  var DB_NAME = PASTEKIT_DB;
   var DB_VERSION = 2;
   var _dbPromise = null;
   function openDB() {
@@ -5210,7 +4935,7 @@
     const rows = planSnippetImport(inputSnippets, xidToId, snippetByName, mode, report);
     if (rows.length) {
       const { tx, os } = await store("snippets", "readwrite");
-      for (const row of rows) row.id == null ? os.add(row) : os.put(row);
+      for (const row2 of rows) row2.id == null ? os.add(row2) : os.put(row2);
       await txDone(tx);
     }
     return report;
@@ -5502,259 +5227,11 @@
     }, isError ? 6e3 : 3500);
   }
 
-  // src/services/resetService.js
-  init_bookmarksDB();
-  function deleteDatabase(name) {
-    return new Promise((resolve) => {
-      const req = indexedDB.deleteDatabase(name);
-      req.onsuccess = () => resolve();
-      req.onerror = () => resolve();
-      req.onblocked = () => resolve();
-    });
-  }
-  async function resetAllData() {
-    if (BookmarkDB.db) {
-      BookmarkDB.db.close();
-      BookmarkDB.db = null;
-    }
-    for (const name of window.AtlasProfiles ? window.AtlasProfiles.allDbNames() : [BookmarkDB.dbName]) {
-      await deleteDatabase(name);
-    }
-    await closeDB();
-    await deleteDatabase("pastekit");
-    await new Promise((resolve) => chrome.storage.sync.clear(resolve));
-    await new Promise((resolve) => chrome.storage.local.clear(resolve));
-    if (chrome.storage.session) {
-      await new Promise((resolve) => chrome.storage.session.clear(resolve));
-    }
-    window.location.reload();
-  }
-
-  // src/pages/newtab/settingsModal.js
-  init_tabs2();
-  init_scrollAffordance();
+  // src/pages/newtab/newtab.js
   init_newtabState();
-  function initSettingsModal() {
-    const closeSettingsModal = document.getElementById("close-settings-modal");
-    const saveSettings = document.getElementById("save-settings");
-    const cancelSettings = document.getElementById("cancel-settings");
-    const importBtn = document.getElementById("import-btn");
-    const importFile = document.getElementById("import-file");
-    const exportBtn = document.getElementById("export-btn");
-    const openLimiterBtn = document.getElementById("open-limiter-modal");
-    const closeLimiterBtn = document.getElementById("close-limiter-modal");
-    const openDelayBtn = document.getElementById("open-delay-modal");
-    if (openDelayBtn) {
-      openDelayBtn.addEventListener("click", () => {
-        hideModal("settings-modal");
-        showModal("delay-modal");
-        updateDelayPendingUI();
-      });
-    }
-    if (closeSettingsModal) closeSettingsModal.addEventListener("click", () => {
-      if (settingsSubpageOpen()) {
-        closeSettingsSubpage();
-        return;
-      }
-      _revertSettingsModal();
-      hideModal("settings-modal");
-    });
-    if (saveSettings) saveSettings.addEventListener("click", async () => {
-      const spotlightCheckbox = document.getElementById("spotlight-checkbox");
-      const behaviorRadio = document.querySelector('input[name="search-behavior"]:checked');
-      const pillBehaviorRadio = document.querySelector('input[name="bookmark-pill-behavior"]:checked');
-      const newSpotlightVisible = spotlightCheckbox ? spotlightCheckbox.checked : spotlightVisible;
-      const newBehavior = behaviorRadio ? behaviorRadio.value : searchEngineBehavior;
-      const newPillBehavior = pillBehaviorRadio ? pillBehaviorRadio.value : bookmarkPillBehavior;
-      setSpotlightVisible(newSpotlightVisible);
-      setSearchEngineBehavior(newBehavior);
-      setBookmarkPillBehavior(newPillBehavior);
-      const settingsToSave = {
-        fadeInEnabled,
-        spotlightVisible: newSpotlightVisible,
-        searchEngineBehavior: newBehavior,
-        bookmarkPillBehavior: newPillBehavior,
-        Theme: appThemeConfig,
-        uiScale
-      };
-      BookmarkDB.setUiPref("uiScale", uiScale).catch(() => {
-      });
-      window.chrome.storage.sync.set(settingsToSave, () => {
-        applyFadeIn();
-        applySpotlightVisibility();
-        applyThemeConfig(appThemeConfig);
-        if (searchEngineBehavior === "always-default") updateCurrentEngine("default");
-        hideModal("settings-modal");
-      });
-    });
-    if (cancelSettings) cancelSettings.addEventListener("click", () => {
-      _revertSettingsModal();
-      hideModal("settings-modal");
-      const spotlightCheckbox = document.getElementById("spotlight-checkbox");
-      if (spotlightCheckbox) spotlightCheckbox.checked = spotlightVisible;
-    });
-    if (importBtn) importBtn.addEventListener("click", () => importFile && importFile.click());
-    if (importFile) importFile.addEventListener("change", importBookmarks);
-    if (exportBtn) exportBtn.addEventListener("click", exportBookmarks);
-    if (openLimiterBtn) openLimiterBtn.addEventListener("click", () => {
-      hideModal("settings-modal");
-      showModal("limiter-modal");
-      updateLimiterUI();
-    });
-    if (closeLimiterBtn) closeLimiterBtn.addEventListener("click", () => hideModal("limiter-modal"));
-    document.querySelectorAll(".scale-btn").forEach((btn) => {
-      btn.addEventListener("click", () => toggleScale(parseFloat(btn.dataset.value)));
-    });
-    initSettingsRows();
-    const resetAllBtn = document.getElementById("reset-all-btn");
-    const resetConfirmBox = document.getElementById("reset-confirm-box");
-    const resetCancelBtn = document.getElementById("reset-cancel-btn");
-    const resetConfirmBtn = document.getElementById("reset-confirm-btn");
-    if (resetAllBtn) {
-      resetAllBtn.addEventListener("click", () => {
-        resetAllBtn.style.display = "none";
-        if (resetConfirmBox) resetConfirmBox.style.display = "block";
-      });
-    }
-    if (resetCancelBtn) {
-      resetCancelBtn.addEventListener("click", () => {
-        if (resetConfirmBox) resetConfirmBox.style.display = "none";
-        if (resetAllBtn) resetAllBtn.style.display = "";
-      });
-    }
-    if (resetConfirmBtn) {
-      resetConfirmBtn.addEventListener("click", async () => {
-        resetConfirmBtn.disabled = true;
-        resetConfirmBtn.textContent = "Resetting...";
-        await resetAllData();
-      });
-    }
-  }
-  var PICKERS = {
-    "search-behavior": {
-      kind: "radio",
-      name: "search-behavior",
-      labels: { "remember": "Remember last selected", "always-default": "Always reset to default" }
-    },
-    "bookmark-pill-behavior": {
-      kind: "radio",
-      name: "bookmark-pill-behavior",
-      labels: { "prefix": "When typing ./ (default)", "always": "Always" }
-    },
-    "management-method": {
-      kind: "radio",
-      name: "management-method",
-      labels: { "random": "Close a random tab", "block": "Block the new tab" }
-    },
-    "theme-choice": {
-      kind: "radio",
-      name: "theme-choice",
-      labels: { "system": "System", "light": "Light", "dark": "Dark", "custom": "Custom" }
-    },
-    "ui-scale": {
-      kind: "scale",
-      labels: { "0.75": "75%", "0.9": "90%", "1": "100%", "1.1": "110%", "1.25": "125%" }
-    }
-  };
-  function pickerCurrentValue(cfg) {
-    if (cfg.kind === "scale") return String(uiScale);
-    const checked = document.querySelector(`input[name="${cfg.name}"]:checked`);
-    return checked ? checked.value : null;
-  }
-  function pickerSelect(cfg, value) {
-    if (cfg.kind === "scale") {
-      const btn = document.querySelector(`.scale-btn[data-value="${value}"]`);
-      if (btn) btn.click();
-      return;
-    }
-    const radio = document.querySelector(`input[name="${cfg.name}"][value="${value}"]`);
-    if (radio) {
-      radio.checked = true;
-      radio.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-  }
-  function refreshSettingsRowValues() {
-    document.querySelectorAll("[data-picker-value]").forEach((span) => {
-      const cfg = PICKERS[span.dataset.pickerValue];
-      if (!cfg) return;
-      const value = pickerCurrentValue(cfg);
-      span.textContent = value !== null && cfg.labels[value] ? cfg.labels[value] : "";
-    });
-  }
-  function openPickerDialog(title, cfg) {
-    const current = pickerCurrentValue(cfg);
-    const overlay = document.createElement("div");
-    overlay.className = "modal show picker-modal";
-    const close = () => overlay.remove();
-    const card = document.createElement("div");
-    card.className = "picker-card";
-    const heading = document.createElement("div");
-    heading.className = "picker-title";
-    heading.textContent = title;
-    card.appendChild(heading);
-    const host = document.createElement("div");
-    host.className = "picker-wellhost";
-    const well = document.createElement("div");
-    well.className = "picker-well";
-    Object.entries(cfg.labels).forEach(([value, label]) => {
-      const row = document.createElement("button");
-      row.type = "button";
-      row.className = "picker-row" + (value === current ? " is-current" : "");
-      const mark = document.createElement("span");
-      mark.className = "picker-check";
-      const text = document.createElement("span");
-      text.textContent = label;
-      row.append(mark, text);
-      row.addEventListener("click", () => {
-        pickerSelect(cfg, value);
-        refreshSettingsRowValues();
-        close();
-      });
-      well.appendChild(row);
-    });
-    host.appendChild(well);
-    requestAnimationFrame(function() {
-      if (well.scrollHeight > well.clientHeight + 1) {
-        attachScrollAffordance(well, { host, items: ".picker-row" });
-      }
-    });
-    card.appendChild(host);
-    const hiddenClose = document.createElement("button");
-    hiddenClose.type = "button";
-    hiddenClose.className = "close-btn picker-hidden-close";
-    hiddenClose.hidden = true;
-    hiddenClose.addEventListener("click", close);
-    card.appendChild(hiddenClose);
-    overlay.addEventListener("click", (event) => {
-      if (event.target === overlay) close();
-    });
-    overlay.appendChild(card);
-    document.body.appendChild(overlay);
-  }
-  function initSettingsRows() {
-    document.querySelectorAll("[data-picker]").forEach((row) => {
-      row.addEventListener("click", () => {
-        const cfg = PICKERS[row.dataset.picker];
-        if (cfg) openPickerDialog(row.dataset.pickerTitle || "", cfg);
-      });
-    });
-    document.querySelectorAll("[data-subpage]").forEach((row) => {
-      row.addEventListener("click", () => openSettingsSubpage(row.dataset.subpage));
-    });
-    document.addEventListener("settings-modal-opened", refreshSettingsRowValues);
-    refreshSettingsRowValues();
-    initSettingsScrollAffordance();
-  }
-  function initSettingsScrollAffordance() {
-    const body = document.querySelector("#settings-modal .settings-body");
-    if (!body) return;
-    const affordance = attachScrollAffordance(body, {
-      items: ".settings-section-header, .settings-row, .setting-item"
-    });
-    document.addEventListener("settings-modal-opened", () => {
-      requestAnimationFrame(affordance.refresh);
-    });
-  }
+
+  // src/pages/newtab/bookmarkData.js
+  init_bookmarksDB();
 
   // src/services/starterContent.js
   init_bookmarksDB();
@@ -5811,36 +5288,7 @@
     return true;
   }
 
-  // src/pages/newtab/newtab.js
-  init_newtabState();
-  document.addEventListener("DOMContentLoaded", async () => {
-    await loadBookmarkData();
-    ContextMenu.init();
-    const versionEl = document.getElementById("version-trigger");
-    if (versionEl) versionEl.textContent = "v" + chrome.runtime.getManifest().version;
-    initializeTheme();
-    initializeFadeIn();
-    initializeSpotlightVisibility();
-    initializeScale();
-    window.chrome.storage.sync.get(["bookmarkPillBehavior"], (res) => {
-      if (res && res.bookmarkPillBehavior) setBookmarkPillBehavior(res.bookmarkPillBehavior);
-    });
-    await initializeTabs();
-    const removedPages = await runOrphanRepairOnce(activeTabs);
-    if (removedPages.length > 0) await refreshBookmarkCache();
-    wireCallbacks();
-    initFeatures();
-    const checkSettingsHash2 = wireSettingsOpeners();
-    document.querySelectorAll(".modal").forEach((modal) => modal.addEventListener("click", (e) => e.stopPropagation()));
-    await loadSearchEngines();
-    initializeSearch();
-    loadSavedEngine();
-    showPage("search");
-    const isSettingsTarget = location.hash === "#settings" || location.search.includes("settings");
-    const searchInput = document.getElementById("search-input");
-    if (searchInput && spotlightVisible && !isSettingsTarget) setTimeout(() => searchInput.focus(), 100);
-    if (isSettingsTarget) setTimeout(checkSettingsHash2, 50);
-  });
+  // src/pages/newtab/bookmarkData.js
   async function loadBookmarkData() {
     await BookmarkDB.init();
     await BookmarkDB.migrateFromChromeStorage();
@@ -5849,6 +5297,660 @@
     const didSeed = await seedStarterContent();
     if (didSeed) await refreshBookmarkCache();
   }
+  function closeBookmarkData() {
+    if (BookmarkDB.db) {
+      try {
+        BookmarkDB.db.close();
+      } catch (e) {
+      }
+      BookmarkDB.db = null;
+    }
+  }
+
+  // src/pages/newtab/profileSwitch.js
+  init_bookmarksDB();
+
+  // src/settings/registry.js
+  init_storageKeys();
+  var entries = /* @__PURE__ */ new Map();
+  var values = /* @__PURE__ */ new Map();
+  var listeners = [];
+  var watching = false;
+  var same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  function defineSetting(entry) {
+    entries.set(entry.key, entry);
+    values.set(entry.key, syncDefault(entry.key));
+  }
+  function getSetting(key) {
+    if (!entries.has(key)) throw new Error(`Unknown setting: ${key}`);
+    return values.get(key);
+  }
+  async function setSetting(key, value) {
+    const entry = entries.get(key);
+    if (!entry) throw new Error(`Unknown setting: ${key}`);
+    if (entry.write) {
+      await entry.write(value);
+      return;
+    }
+    update(key, value, { initial: false, local: true });
+    await new Promise((resolve) => window.chrome.storage.sync.set({ [key]: value }, resolve));
+  }
+  async function loadSettings() {
+    const keys = [...entries.keys()];
+    const stored = await new Promise((resolve) => window.chrome.storage.sync.get(keys, (r) => resolve(r || {})));
+    for (const key of keys) {
+      const value = stored[key] !== void 0 ? stored[key] : syncDefault(key);
+      update(key, value, { initial: true, local: false }, true);
+    }
+  }
+  function watchSettings() {
+    if (watching) return;
+    watching = true;
+    window.chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "sync") return;
+      for (const key of Object.keys(changes)) {
+        if (!entries.has(key)) continue;
+        const next = changes[key].newValue !== void 0 ? changes[key].newValue : syncDefault(key);
+        if (!same(next, values.get(key))) update(key, next, { initial: false, local: false });
+      }
+    });
+  }
+  function onSettingChange(fn) {
+    listeners.push(fn);
+  }
+  function update(key, value, ctx, always = false) {
+    if (!always && same(value, values.get(key)) && !ctx.local) return;
+    values.set(key, value);
+    const entry = entries.get(key);
+    if (entry.apply) entry.apply(value, ctx);
+    for (const fn of listeners.slice()) {
+      try {
+        fn(key, value);
+      } catch (e) {
+        console.error("[settings] listener failed", e);
+      }
+    }
+  }
+
+  // src/pages/newtab/profileSwitch.js
+  init_tabs2();
+  init_newtabState();
+  function installProfileSwitch() {
+    const ap = window.AtlasProfiles;
+    if (ap && ap.setSwitchHandler) ap.setSwitchHandler(applyProfileSwitch);
+  }
+  async function applyProfileSwitch() {
+    const ap = window.AtlasProfiles;
+    if (ap && BookmarkDB.dbName !== ap.dbName()) {
+      closeBookmarkData();
+      await loadBookmarkData();
+    } else {
+      await refreshBookmarkCache();
+    }
+    await loadSettings();
+    await initializeTabs();
+    if (currentPage === "bookmarks") {
+      if (activeTabs.some((t) => String(t.id) === String(currentBookmarkPage))) loadBookmarks();
+      else {
+        selectSearchTab();
+        showPage("search");
+      }
+    }
+    await loadSearchEngines();
+    loadSavedEngine();
+    if (window.AtlasSettingsUI) window.AtlasSettingsUI.rerender();
+  }
+
+  // src/settings/definitions.js
+  init_defaults();
+  init_bookmarksDB();
+  init_newtabState();
+
+  // src/services/delayStorage.js
+  async function getDelaySeconds() {
+    const result = await chrome.storage.sync.get("searchDelaySeconds");
+    return result.searchDelaySeconds;
+  }
+  async function saveDelaySeconds(seconds) {
+    return chrome.storage.sync.set({ searchDelaySeconds: seconds });
+  }
+  async function clearPendingDecrease() {
+    return chrome.storage.sync.remove("pendingDelayDecrease");
+  }
+  async function savePendingDecrease(targetDelay, startTime) {
+    return chrome.storage.sync.set({ pendingDelayDecrease: { targetDelay, startTime } });
+  }
+
+  // src/components/searchDelay/searchDelay.js
+  async function requestSearchDelay(newDelay) {
+    if (isNaN(newDelay)) return;
+    const currentDelay = await getDelaySeconds();
+    const actualCurrent = currentDelay !== void 0 ? currentDelay : 0;
+    if (newDelay === actualCurrent) return;
+    if (newDelay > actualCurrent) {
+      await saveDelaySeconds(newDelay);
+      await clearPendingDecrease();
+      await sendToBackground({ action: "updateSearchDelay", delaySeconds: newDelay });
+    } else {
+      await savePendingDecrease(newDelay, Date.now());
+      await sendToBackground({ action: "startDelayDecrease" });
+    }
+  }
+  function pendingDecreaseText(pending, now = Date.now()) {
+    if (!pending || !pending.startTime) return "";
+    const remaining = Math.max(0, QUEUE_MS - (now - pending.startTime));
+    if (remaining <= 0) return "";
+    return `Queued: ${pending.targetDelay}s in ${formatTimeRemaining(remaining)}`;
+  }
+
+  // src/settings/definitions.js
+  var defined = false;
+  function defineAllSettings() {
+    if (defined) return;
+    defined = true;
+    defineSetting({
+      key: "spotlightVisible",
+      apply: (v) => {
+        setSpotlightVisible(v);
+        applySpotlightVisibility();
+      }
+    });
+    defineSetting({
+      key: "searchEngineBehavior",
+      apply: (v, { local }) => {
+        setSearchEngineBehavior(v);
+        if (local && v === "always-default") updateCurrentEngine("default");
+      }
+    });
+    defineSetting({ key: "bookmarkPillBehavior", apply: (v) => setBookmarkPillBehavior(v) });
+    defineSetting({
+      key: "Theme",
+      apply: (v) => {
+        setAppThemeConfig(v || DEFAULT_THEME);
+        applyThemeConfig(v || DEFAULT_THEME);
+      }
+    });
+    defineSetting({
+      key: "uiScale",
+      apply: (v, { local }) => {
+        applyScale(v);
+        if (local) BookmarkDB.setUiPref("uiScale", v).catch(() => {
+        });
+      }
+    });
+    defineSetting({ key: "fadeInEnabled", apply: (v) => {
+      setFadeInEnabled(v);
+      applyFadeIn();
+    } });
+    defineSetting({ key: "tabLimit", write: requestTabLimit });
+    defineSetting({ key: "pendingIncrease" });
+    defineSetting({ key: "managementMethod" });
+    defineSetting({ key: "searchDelaySeconds", apply: (v) => setSearchDelaySeconds(v), write: requestSearchDelay });
+    defineSetting({ key: "pendingDelayDecrease" });
+    defineSetting({ key: "showQueryOnDelay" });
+    defineSetting({ key: "grayscale", apply: (v) => applyGrayscale(v) });
+  }
+
+  // src/settings/controls.js
+  var options = (labels) => Object.entries(labels).map(([value, label]) => ({ value, label }));
+  function choice(key, labels) {
+    return {
+      options: options(labels),
+      get: () => String(getSetting(key)),
+      set: (v) => setSetting(key, v)
+    };
+  }
+  function numberChoice(key, labels, parse) {
+    return {
+      options: options(labels),
+      get: () => String(getSetting(key)),
+      set: (v) => setSetting(key, parse(v))
+    };
+  }
+  var flag = (key) => ({ get: () => !!getSetting(key), set: (v) => setSetting(key, !!v) });
+  var LIMITS = Object.fromEntries(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].map((v) => [v, v === "0" ? "Off" : v]));
+  var DELAYS = { "0": "Off", "15": "15 seconds", "30": "30 seconds", "60": "1 minute", "120": "2 minutes", "300": "5 minutes" };
+  var SCALES = { "0.75": "75%", "0.9": "90%", "1": "100%", "1.1": "110%", "1.25": "125%" };
+  var theme = {
+    options: options({ "system": "System", "light": "Light", "dark": "Dark", "custom": "Custom" }),
+    get: () => getSetting("Theme") && getSetting("Theme").Theme || "dark",
+    set: (mode) => setSetting("Theme", Object.assign({}, getSetting("Theme"), { Theme: mode }))
+  };
+  var CONTROLS = {
+    grayscale: flag("grayscale"),
+    spotlight: flag("spotlightVisible"),
+    showQuery: flag("showQueryOnDelay"),
+    engine: choice("searchEngineBehavior", { "remember": "Remember last selected", "always-default": "Always reset to default" }),
+    pills: choice("bookmarkPillBehavior", { "prefix": "When typing ./", "always": "Always" }),
+    theme,
+    scale: numberChoice("uiScale", SCALES, parseFloat),
+    limit: numberChoice("tabLimit", LIMITS, (v) => parseInt(v, 10)),
+    method: choice("managementMethod", { "random": "Close a random tab", "block": "Block the new tab" }),
+    delay: numberChoice("searchDelaySeconds", DELAYS, (v) => parseInt(v, 10))
+  };
+  function labelOf(key) {
+    const c = CONTROLS[key], v = c.get();
+    const o = c.options.find((x2) => String(x2.value) === String(v));
+    return o ? o.label : "-";
+  }
+
+  // src/settings/markup.js
+  var I = {
+    search: '<circle cx="9" cy="9" r="5.5"/><path d="m13.5 13.5 3 3"/>',
+    sun: '<circle cx="10" cy="10" r="3.2"/><path d="M10 2.5v1.5M10 16v1.5M2.5 10H4M16 10h1.5M4.7 4.7l1 1M14.3 14.3l1 1M4.7 15.3l1-1M14.3 5.7l1-1"/>',
+    focus: '<circle cx="10" cy="10" r="6.5"/><circle cx="10" cy="10" r="2.5"/>',
+    db: '<ellipse cx="10" cy="5" rx="6" ry="2.2"/><path d="M4 5v10c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2V5M4 10c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"/>',
+    reset: '<path d="M4 10a6 6 0 1 0 2-4.5M4 3.5v3h3"/>',
+    star: '<path d="m10 3 2.1 4.4 4.9.6-3.6 3.3.9 4.8L10 13.7 5.7 16l.9-4.8L3 7.9l4.9-.6z"/>',
+    ext: '<path d="M7 13 13 7M8 7h5v5"/>'
+  };
+  var svg = (d, cls = "") => `<svg class="${cls}" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  var CHEV = '<svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>';
+  var CHECK = '<svg viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9l3 3 6-7"/></svg>';
+  var row = (title, desc, ctrl) => `<div class="sp-row"><div class="sp-row-text"><div class="sp-row-title">${title}</div>${desc ? `<div class="sp-row-desc">${desc}</div>` : ""}</div><div class="sp-row-ctrl">${ctrl}</div></div>`;
+  var card = (rows) => `<div class="sp-card">${rows.join("")}</div>`;
+  var section = (title, cards) => `<div class="sp-section">${title ? `<h2 class="sp-section-title">${title}</h2>` : ""}${cards.join("")}</div>`;
+  var select = (key, label, sm = false) => `<button class="sp-pill${sm ? " sm" : ""}" data-select="${key}"><span>${label}</span>${CHEV}</button>`;
+  var toggle = (key, on) => `<button class="sp-toggle" role="switch" data-toggle="${key}" aria-checked="${on}"></button>`;
+  function modeThumb(id, checked, bg, panel, line) {
+    return `
+    <button class="sp-mode" role="radio" data-mode="${id}" aria-checked="${checked}" aria-label="${id}">
+      <svg viewBox="0 0 80 60">${id === "system" ? `<rect width="40" height="60" fill="#f4f4f4"/><rect x="40" width="40" height="60" fill="#1c1c1c"/>
+           <rect x="6" y="8" width="10" height="44" rx="2" fill="#e2e2e2"/><rect x="46" y="8" width="10" height="44" rx="2" fill="#2e2e2e"/>
+           <rect x="20" y="14" width="14" height="2.5" rx="1" fill="#7aa7f7"/><rect x="60" y="14" width="14" height="2.5" rx="1" fill="#7aa7f7"/>` : `<rect width="80" height="60" fill="${bg}"/><rect x="6" y="8" width="14" height="44" rx="2" fill="${panel}"/>
+           <rect x="26" y="12" width="40" height="2.5" rx="1" fill="#7aa7f7"/><rect x="26" y="20" width="30" height="2.5" rx="1" fill="${line}"/>
+           <rect x="26" y="28" width="44" height="2.5" rx="1" fill="#7aa7f7"/><rect x="26" y="36" width="24" height="2.5" rx="1" fill="${line}"/>`}
+      </svg>
+    </button>`;
+  }
+  var scalePreview = (scale) => `<div class="sp-scale-preview" aria-hidden="true"><div class="sp-scale-sample" style="zoom:${scale}"><div class="sp-scale-bar">${svg(I.search)}<span>Search the web</span></div><div class="sp-scale-pills"><span>Notion</span><span>Gmail</span><span>Calendar</span></div></div></div>`;
+
+  // src/settings/pages.js
+  var REVIEW_URL = "https://chromewebstore.google.com/detail/ipgmbcinekdcmhhnbanlahedgpehffab";
+  var resetState = { confirming: false };
+  var selectFor = (key) => select(key, labelOf(key));
+  var toggleFor = (key) => toggle(key, CONTROLS[key].get());
+  function searchPage() {
+    return section("", [card([
+      row("Search bar", "Show the search bar on your new tab", toggleFor("spotlight")),
+      row("Engine preference", "Which engine the search bar starts with", selectFor("engine")),
+      row("Bookmark pills", "When bookmark pills appear while typing", selectFor("pills"))
+    ])]);
+  }
+  function appearancePage() {
+    const mode = CONTROLS.theme.get();
+    const thumbs = modeThumb("system", mode === "system") + modeThumb("light", mode === "light", "#fafafa", "#ececec", "#c9c9c9") + modeThumb("dark", mode === "dark", "#1c1c1c", "#2e2e2e", "#555");
+    return section("Visual style", [
+      card([row("Theme", "", `<div class="sp-modes" role="radiogroup">${thumbs}</div>`)]),
+      card([row("UI scale", "Size of everything on the new tab", selectFor("scale")) + scalePreview(getSetting("uiScale"))])
+    ]);
+  }
+  function focusPage() {
+    const limitNote = pendingIncreaseText(getSetting("pendingIncrease")) || "Decreases apply now. Increases take 30 minutes.";
+    const delayNote = pendingDecreaseText(getSetting("pendingDelayDecrease")) || "A pause before results, to make searching deliberate. Increases apply now. Decreases take 30 minutes.";
+    return section("Tab limiter", [card([
+      row("Tab limit", limitNote, selectFor("limit")),
+      row("When the limit is hit", "", selectFor("method"))
+    ])]) + section("Search delay", [card([
+      row("Delay", delayNote, selectFor("delay")),
+      row("Show the search query", "While you wait", toggleFor("showQuery"))
+    ])]) + section("Display", [card([
+      row("Grayscale", "Remove color from the new tab", toggleFor("grayscale"))
+    ])]);
+  }
+  function backupPage() {
+    return section("", [card([
+      row("Export", "Save your bookmarks, settings and snippets to a .detractless file", `<button class="sp-pill" data-action="export">Export</button>`),
+      row("Import", "Bring in a .detractless, .pastekit or .json file", `<button class="sp-pill" data-action="import">Import</button>`)
+    ])]);
+  }
+  function resetPage() {
+    const asking = resetState.confirming;
+    return section("", [card([
+      row("Reset everything", "Erases bookmarks, settings and snippets stored on this computer", asking ? "" : `<button class="sp-pill danger" data-action="reset-ask">Reset</button>`),
+      ...asking ? [`<div class="sp-confirm"><div class="sp-row-desc">This cannot be undone. Everything stored on this computer is deleted.</div><div class="sp-confirm-btns"><button class="sp-pill" data-action="reset-cancel">Cancel</button><button class="sp-pill danger" data-action="reset-go">Erase everything</button></div></div>`] : []
+    ])]);
+  }
+  var PAGES = {
+    search: searchPage,
+    appearance: appearancePage,
+    focus: focusPage,
+    backup: backupPage,
+    reset: resetPage
+  };
+  var NAV = [
+    { group: "Settings", items: [
+      { id: "search", label: "Search", icon: I.search },
+      { id: "appearance", label: "Appearance", icon: I.sun },
+      { id: "focus", label: "Focus", icon: I.focus }
+    ] },
+    { group: "Data", items: [
+      { id: "backup", label: "Backup", icon: I.db },
+      { id: "reset", label: "Reset", icon: I.reset },
+      { id: "review", label: "Leave a review", icon: I.star, external: true }
+    ] }
+  ];
+
+  // src/settings/menu.js
+  var menu = null;
+  var owner = null;
+  function initMenu(menuEl, scrollHost) {
+    menu = menuEl;
+    menu.addEventListener("mousemove", (e) => {
+      const li = e.target.closest(".sp-menu-item");
+      if (li && document.activeElement !== li) li.focus();
+    });
+    menu.addEventListener("mouseleave", () => {
+      if (owner) menu.focus();
+    });
+    menu.addEventListener("click", (e) => {
+      const li = e.target.closest(".sp-menu-item");
+      if (li) pick(li);
+    });
+    menu.addEventListener("keydown", onMenuKey2, true);
+    document.addEventListener("mousedown", (e) => {
+      if (owner && !menu.contains(e.target) && !owner.contains(e.target)) closeMenu();
+    });
+    window.addEventListener("resize", closeMenu);
+    scrollHost.addEventListener("scroll", closeMenu);
+  }
+  function openMenu(btn) {
+    if (owner === btn) return closeMenu();
+    owner = btn;
+    const c = CONTROLS[btn.dataset.select], cur = String(c.get());
+    menu.innerHTML = c.options.map(
+      (o) => `<li class="sp-menu-item" role="menuitemradio" tabindex="-1" aria-checked="${String(o.value) === cur}" data-value="${o.value}"><span>${o.label}</span>${CHECK}</li>`
+    ).join("");
+    const r = btn.getBoundingClientRect();
+    menu.style.minWidth = Math.max(200, r.width) + "px";
+    menu.style.top = r.bottom + 6 + "px";
+    menu.style.left = "0px";
+    menu.classList.add("open");
+    const maxTop = window.innerHeight - menu.offsetHeight - 8;
+    if (r.bottom + 6 > maxTop) menu.style.top = Math.max(8, r.top - menu.offsetHeight - 6) + "px";
+    menu.style.left = Math.max(8, r.right - menu.offsetWidth) + "px";
+    menu.focus();
+  }
+  function closeMenu() {
+    if (!menu) return;
+    menu.classList.remove("open");
+    owner = null;
+  }
+  var menuIsOpen = () => !!owner;
+  function pick(li) {
+    const btn = owner;
+    btn.querySelector("span").textContent = li.textContent;
+    closeMenu();
+    btn.focus();
+    CONTROLS[btn.dataset.select].set(li.dataset.value);
+  }
+  function onMenuKey2(e) {
+    const items = [...menu.children];
+    const i2 = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (i2 === -1) return (menu.querySelector('[aria-checked="true"]') || items[0]).focus();
+      items[(i2 + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length].focus();
+    }
+    if ((e.key === "Enter" || e.key === " ") && i2 !== -1) {
+      e.preventDefault();
+      pick(items[i2]);
+    }
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      const b = owner;
+      closeMenu();
+      if (b) b.focus();
+    }
+  }
+
+  // src/services/resetService.js
+  init_bookmarksDB();
+  init_storageKeys();
+  function deleteDatabase(name) {
+    return new Promise((resolve) => {
+      const req = indexedDB.deleteDatabase(name);
+      req.onsuccess = () => resolve();
+      req.onerror = () => resolve();
+      req.onblocked = () => resolve();
+    });
+  }
+  async function resetAllData() {
+    if (BookmarkDB.db) {
+      BookmarkDB.db.close();
+      BookmarkDB.db = null;
+    }
+    for (const name of window.AtlasProfiles ? window.AtlasProfiles.allDbNames() : [BookmarkDB.dbName]) {
+      await deleteDatabase(name);
+    }
+    await closeDB();
+    await deleteDatabase(PASTEKIT_DB);
+    await new Promise((resolve) => chrome.storage.sync.clear(resolve));
+    await new Promise((resolve) => chrome.storage.local.clear(resolve));
+    if (chrome.storage.session) {
+      await new Promise((resolve) => chrome.storage.session.clear(resolve));
+    }
+    window.location.reload();
+  }
+
+  // src/settings/shell.js
+  var root = null;
+  var navEl = null;
+  var content = null;
+  var current = "search";
+  var $ = (id) => document.getElementById(id);
+  function installSettingsPage() {
+    if (root) return;
+    root = buildRoot();
+    navEl = $("sp-nav");
+    content = $("sp-content");
+    keepUnzoomed();
+    initMenu($("sp-menu"), root.querySelector(".sp-main"));
+    wireShell();
+    wireContent();
+    onSettingChange(() => rerenderSoon());
+    publishApi();
+  }
+  var isSettingsOpen = () => !!root && !root.hidden;
+  function openSettings(pageId) {
+    if (pageId && PAGES[pageId]) current = pageId;
+    if (!root.hidden && !pageId) return;
+    root.hidden = false;
+    resetState.confirming = false;
+    $("sp-version").textContent = "v" + chrome.runtime.getManifest().version;
+    render();
+  }
+  function closeSettings() {
+    if (!root || root.hidden) return;
+    root.hidden = true;
+    closeMenu();
+    forgetSettingsUrl();
+  }
+  function buildRoot() {
+    const el3 = document.createElement("div");
+    el3.id = "sp-root";
+    el3.hidden = true;
+    el3.innerHTML = `
+    <div class="sp-layout">
+      <aside class="sp-sidebar">
+        <button class="sp-nav-item" id="sp-back">${svg('<path d="M16 10H4m5-5-5 5 5 5"/>')}Back to dashboard</button>
+        <label class="sp-search">${svg(I.search)}<input id="sp-search" type="text" placeholder="Search" autocomplete="off"></label>
+        <nav id="sp-nav"></nav>
+        <div class="sp-side-foot">
+          <button class="sp-version" id="sp-version" tabindex="-1"></button>
+        </div>
+      </aside>
+      <main class="sp-main"><div class="sp-content" id="sp-content"></div></main>
+    </div>
+    <ul class="sp-menu" id="sp-menu" role="menu" tabindex="-1"></ul>
+    <input type="file" id="import-file" accept=".detractless,.pastekit,.json" hidden>`;
+    document.body.appendChild(el3);
+    return el3;
+  }
+  function keepUnzoomed() {
+    const unzoom = () => {
+      const z = parseFloat(document.body.style.zoom);
+      root.style.zoom = z && z !== 1 ? String(1 / z) : "";
+    };
+    unzoom();
+    new MutationObserver(unzoom).observe(document.body, { attributes: true, attributeFilter: ["style"] });
+  }
+  function renderNav(filter = "") {
+    const f = filter.trim().toLowerCase();
+    navEl.innerHTML = NAV.map((g) => {
+      const items = g.items.filter((i2) => i2.label.toLowerCase().includes(f));
+      if (!items.length) return "";
+      return `<div class="sp-group-label">${g.group}</div>` + items.map(
+        (i2) => `<button class="sp-nav-item" data-page="${i2.id}" ${i2.id === current ? 'aria-current="page"' : ""}>${svg(i2.icon)}${i2.label}${i2.external ? svg(I.ext, "ext") : ""}</button>`
+      ).join("");
+    }).join("");
+  }
+  function renderPage() {
+    closeMenu();
+    const item = NAV.flatMap((g) => g.items).find((i2) => i2.id === current);
+    const focusKey = focusedControl();
+    content.innerHTML = `<h1 class="sp-page-title">${item.label}</h1>` + PAGES[current]();
+    if (focusKey) {
+      const again = content.querySelector(`[${focusKey.attr}="${focusKey.value}"]`);
+      if (again) again.focus();
+    }
+  }
+  function focusedControl() {
+    const a = document.activeElement;
+    if (!a || !content.contains(a)) return null;
+    for (const attr of ["data-select", "data-toggle", "data-mode", "data-action"]) {
+      if (a.hasAttribute(attr)) return { attr, value: a.getAttribute(attr) };
+    }
+    return null;
+  }
+  function render() {
+    renderNav($("sp-search").value);
+    renderPage();
+  }
+  var rerenderTimer = 0;
+  function rerenderSoon() {
+    clearTimeout(rerenderTimer);
+    rerenderTimer = setTimeout(() => {
+      if (isSettingsOpen() && !menuIsOpen()) renderPage();
+    }, 0);
+  }
+  function go(id) {
+    if (id === "review") {
+      window.open(REVIEW_URL, "_blank", "noopener");
+      return;
+    }
+    if (!PAGES[id]) return;
+    current = id;
+    resetState.confirming = false;
+    render();
+  }
+  function forgetSettingsUrl() {
+    try {
+      const u = new URL(location.href);
+      if (!u.searchParams.has("settings") && u.hash !== "#settings") return;
+      u.searchParams.delete("settings");
+      history.replaceState(null, "", u.pathname + u.search);
+    } catch (e) {
+    }
+  }
+  function wireShell() {
+    $("sp-back").addEventListener("click", closeSettings);
+    navEl.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-page]");
+      if (b) go(b.dataset.page);
+    });
+    $("sp-search").addEventListener("input", (e) => renderNav(e.target.value));
+    $("import-file").addEventListener("change", importBookmarks);
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || !isSettingsOpen() || menuIsOpen()) return;
+      if (document.querySelector(".modal.show")) return;
+      e.preventDefault();
+      closeSettings();
+    });
+  }
+  function wireContent() {
+    content.addEventListener("click", (e) => {
+      const t = e.target.closest("[data-toggle]");
+      if (t) {
+        const v = t.getAttribute("aria-checked") !== "true";
+        t.setAttribute("aria-checked", String(v));
+        CONTROLS[t.dataset.toggle].set(v);
+        return;
+      }
+      const m = e.target.closest("[data-mode]");
+      if (m) {
+        content.querySelectorAll("[data-mode]").forEach((b) => b.setAttribute("aria-checked", String(b === m)));
+        CONTROLS.theme.set(m.dataset.mode);
+        return;
+      }
+      const s = e.target.closest("[data-select]");
+      if (s) {
+        openMenu(s);
+        return;
+      }
+      const a = e.target.closest("[data-action]");
+      if (a) runAction(a.dataset.action);
+    });
+  }
+  function runAction(act) {
+    if (act === "export") exportBookmarks();
+    else if (act === "import") $("import-file").click();
+    else if (act === "reset-ask") {
+      resetState.confirming = true;
+      renderPage();
+    } else if (act === "reset-cancel") {
+      resetState.confirming = false;
+      renderPage();
+    } else if (act === "reset-go") resetAllData();
+  }
+  function publishApi() {
+    window.AtlasSettingsUI = {
+      current: () => current,
+      rerender: () => {
+        if (isSettingsOpen()) renderPage();
+      },
+      go,
+      content,
+      svg,
+      row,
+      card,
+      section,
+      I,
+      register(def) {
+        PAGES[def.id] = def.render;
+        const group = NAV.find((g) => g.group === (def.group || "Settings"));
+        const at = group.items.findIndex((i2) => i2.id === def.before);
+        group.items.splice(at < 0 ? group.items.length : at, 0, { id: def.id, label: def.label, icon: def.icon });
+        if (new URLSearchParams(location.search).get("settings") === def.id) current = def.id;
+        if (isSettingsOpen()) render();
+      }
+    };
+  }
+
+  // src/pages/newtab/newtab.js
+  defineAllSettings();
+  installSettingsPage();
+  document.addEventListener("DOMContentLoaded", async () => {
+    await loadBookmarkData();
+    ContextMenu.init();
+    await loadSettings();
+    watchSettings();
+    watchSystemTheme();
+    await initializeTabs();
+    const removedPages = await runOrphanRepairOnce(activeTabs);
+    if (removedPages.length > 0) await refreshBookmarkCache();
+    wireCallbacks();
+    initFeatures();
+    installProfileSwitch();
+    wireSettingsOpeners();
+    document.querySelectorAll(".modal").forEach((modal) => modal.addEventListener("click", (e) => e.stopPropagation()));
+    await loadSearchEngines();
+    initializeSearch();
+    loadSavedEngine();
+    showPage("search");
+    const searchInput = document.getElementById("search-input");
+    if (searchInput && spotlightVisible && !isSettingsUrl()) setTimeout(() => searchInput.focus(), 100);
+  });
   function wireCallbacks() {
     setTabNavigationCallbacks({
       onTabClick: (tab) => {
@@ -5868,21 +5970,7 @@
   async function onImportComplete(importData) {
     renderTabs();
     loadBookmarks();
-    if (importData.fadeInEnabled !== void 0) applyFadeIn();
-    if (importData.spotlightVisible !== void 0) applySpotlightVisibility();
-    if (importData.Theme) applyThemeConfig(appThemeConfig);
-    if (importData.searchEngineBehavior !== void 0) {
-      const behaviorRadios = document.querySelectorAll('input[name="search-behavior"]');
-      behaviorRadios.forEach((radio) => {
-        if (radio.value === searchEngineBehavior) radio.checked = true;
-      });
-    }
-    if (importData.bookmarkPillBehavior !== void 0) {
-      const pillRadios = document.querySelectorAll('input[name="bookmark-pill-behavior"]');
-      pillRadios.forEach((radio) => {
-        if (radio.value === bookmarkPillBehavior) radio.checked = true;
-      });
-    }
+    await loadSettings();
     if (importData.selectedSearchEngine) updateCurrentEngine(currentEngine);
     renderEngineDropdown();
   }
@@ -5890,39 +5978,33 @@
     initializeBookmarks();
     initBookmarkAddModal();
     initEngineModal();
-    initSettingsModal();
-    initializeTabLimiter();
-    initThemePicker();
-    initializeSearchDelaySettings();
     const globalSettingsBtn = document.getElementById("global-settings-btn");
-    if (globalSettingsBtn) globalSettingsBtn.addEventListener("click", () => showModal("settings-modal"));
+    if (globalSettingsBtn) globalSettingsBtn.addEventListener("click", () => openSettings());
+  }
+  function isSettingsUrl() {
+    return location.hash === "#settings" || location.search.includes("settings");
+  }
+  function openSettingsFromUrl() {
+    if (isSettingsUrl()) openSettings(new URLSearchParams(location.search).get("settings") || void 0);
   }
   function wireSettingsOpeners() {
-    const checkSettingsHash2 = () => {
-      if (location.hash === "#settings" || location.search.includes("settings")) {
-        showModal("settings-modal");
-      }
-    };
-    checkSettingsHash2();
-    setTimeout(checkSettingsHash2, 100);
-    window.addEventListener("hashchange", checkSettingsHash2);
+    openSettingsFromUrl();
+    window.addEventListener("hashchange", openSettingsFromUrl);
     if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
       chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (msg && msg.atlas && msg.atlas.act === "open-settings") {
-          showModal("settings-modal");
+          openSettings(msg.atlas.page);
           if (sendResponse) sendResponse({ ok: true });
         }
       });
     }
-    return checkSettingsHash2;
   }
   window.addEventListener("pageshow", () => {
     selectSearchTab();
     showPage("search");
-    const isSettingsTarget = location.hash === "#settings" || location.search.includes("settings");
     const searchInput = document.getElementById("search-input");
-    if (isSettingsTarget) {
-      checkSettingsHash();
+    if (isSettingsUrl()) {
+      openSettingsFromUrl();
     } else if (searchInput && spotlightVisible) {
       setTimeout(() => searchInput.focus(), 100);
     }

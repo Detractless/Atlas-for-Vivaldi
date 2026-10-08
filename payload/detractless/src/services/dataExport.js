@@ -1,5 +1,10 @@
 import { BookmarkDB } from './bookmarksDB.js';
 import { DEFAULT_THEME } from '../constants/defaults.js';
+import { BACKUP_SYNC_KEYS } from '../constants/storageKeys.js';
+
+// Every chrome.storage.sync key a backup carries (atlasKeys.json "backup": true),
+// except activeTabs, which comes from memory so unsaved page edits are included.
+const EXPORTED_SYNC_KEYS = BACKUP_SYNC_KEYS.map((k) => k.key).filter((k) => k !== 'activeTabs');
 
 // Atlas: the backup also carries every profile (list, settings, bookmark databases).
 export async function generateExportData(activeTabsList) {
@@ -15,21 +20,7 @@ async function generateExportDataCore(activeTabsList) {
 
   const [syncData, localData] = await Promise.all([
     new Promise((resolve) => {
-      window.chrome.storage.sync.get([
-        "tabLimit",
-        "managementMethod",
-        "searchDelaySeconds",
-        "showQueryOnDelay",
-        "grayscale",
-        "customSearchEngines",
-        "defaultEngineKey",
-        "selectedSearchEngine",
-        "fadeInEnabled",
-        "spotlightVisible",
-        "searchEngineBehavior",
-        "bookmarkPillBehavior",
-        "Theme"
-      ], (items) => resolve(items || {}));
+      window.chrome.storage.sync.get(EXPORTED_SYNC_KEYS, (items) => resolve(items || {}));
     }),
     // Only `rhe_rules` is read from local storage. A leftover `githubSync` key
     // may still exist from before sync was removed; it held a GitHub token, so
@@ -55,27 +46,15 @@ async function generateExportDataCore(activeTabsList) {
     }));
   }
 
+  const settings = {};
+  for (const key of EXPORTED_SYNC_KEYS) settings[key] = syncData[key];
   return {
     ...allBookmarks,
+    ...settings,
     activeTabs: activeTabsList,
-
     Theme: syncData.Theme || DEFAULT_THEME,
-
-    tabLimit: syncData.tabLimit,
-    managementMethod: syncData.managementMethod,
-    searchDelaySeconds: syncData.searchDelaySeconds,
-    showQueryOnDelay: syncData.showQueryOnDelay,
-    grayscale: syncData.grayscale,
-    customSearchEngines: syncData.customSearchEngines,
     customEngineIcons: customEngineIcons,
-    defaultEngineKey: syncData.defaultEngineKey,
-    selectedSearchEngine: syncData.selectedSearchEngine,
-
-    fadeInEnabled: syncData.fadeInEnabled,
-    spotlightVisible: syncData.spotlightVisible,
-    searchEngineBehavior: syncData.searchEngineBehavior,
-    bookmarkPillBehavior: syncData.bookmarkPillBehavior,
-
     rhe_rules: localData.rhe_rules
   };
+
 }

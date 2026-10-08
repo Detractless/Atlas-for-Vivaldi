@@ -1,4 +1,4 @@
-// Settings > Profiles. Adds the page to the settings UI (settingsPage.js) and
+// Settings > Profiles. Adds the page to the settings UI (src/settings/shell.js) and
 // manages profiles through AtlasProfiles (profilesCore.js): add, remove, rename,
 // label, image, switch, and the per-category share toggles.
 (function () {

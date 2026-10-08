@@ -1,5 +1,6 @@
 import { BookmarkDB } from './bookmarksDB.js';
 import { pruneOrphanedPages } from './orphanCleanup.js';
+import { BACKUP_SYNC_KEYS } from '../constants/storageKeys.js';
 
 // Atlas: restore the backup's profiles first, then the usual import fills the active one.
 export async function persistImportData(importData) {
@@ -53,23 +54,13 @@ async function persistImportDataCore(importData) {
 /** The chrome.storage.sync values an import restores (big images go to IndexedDB). */
 async function settingsFromImport(importData) {
   const storageData = {};
-  if (importData.fadeInEnabled !== undefined) storageData.fadeInEnabled = importData.fadeInEnabled;
-  if (importData.spotlightVisible !== undefined) storageData.spotlightVisible = importData.spotlightVisible;
-  if (importData.searchEngineBehavior !== undefined) storageData.searchEngineBehavior = importData.searchEngineBehavior;
-  if (importData.bookmarkPillBehavior !== undefined) storageData.bookmarkPillBehavior = importData.bookmarkPillBehavior;
-  if (importData.activeTabs) storageData.activeTabs = importData.activeTabs;
-  if (importData.customSearchEngines) {
-    storageData.customSearchEngines = importData.customSearchEngines;
-    await moveEngineIconsToDb(storageData.customSearchEngines);
+  // Which keys, and whether a falsy value counts, come from atlasKeys.json.
+  for (const { key, importWhen } of BACKUP_SYNC_KEYS) {
+    const value = importData[key];
+    if (importWhen === 'truthy' ? value : value !== undefined) storageData[key] = value;
   }
-  if (importData.defaultEngineKey) storageData.defaultEngineKey = importData.defaultEngineKey;
-  if (importData.selectedSearchEngine) storageData.selectedSearchEngine = importData.selectedSearchEngine;
-  if (importData.tabLimit !== undefined) storageData.tabLimit = importData.tabLimit;
-  if (importData.managementMethod) storageData.managementMethod = importData.managementMethod;
-  if (importData.searchDelaySeconds !== undefined) storageData.searchDelaySeconds = importData.searchDelaySeconds;
-  if (importData.showQueryOnDelay !== undefined) storageData.showQueryOnDelay = importData.showQueryOnDelay;
-  if (importData.grayscale !== undefined) storageData.grayscale = importData.grayscale;
-  if (importData.Theme) storageData.Theme = await themeWithBackgroundInDb(importData.Theme);
+  if (storageData.customSearchEngines) await moveEngineIconsToDb(storageData.customSearchEngines);
+  if (storageData.Theme) storageData.Theme = await themeWithBackgroundInDb(storageData.Theme);
   return storageData;
 }
 

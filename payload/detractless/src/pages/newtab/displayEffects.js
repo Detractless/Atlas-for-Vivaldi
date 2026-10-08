@@ -1,11 +1,6 @@
-import { fadeInEnabled, spotlightVisible, uiScale, setFadeInEnabled, setSpotlightVisible, setUiScale, currentPage, setCurrentPage } from './newtabState.js';
-
-export function initializeFadeIn() {
-  window.chrome.storage.sync.get(["fadeInEnabled"], (result) => {
-    setFadeInEnabled(result.fadeInEnabled !== undefined ? result.fadeInEnabled : true);
-    applyFadeIn();
-  })
-}
+// What the display settings DO to the page. Reading and saving them is the
+// settings registry's job (settings/definitions.js); these only apply a value.
+import { fadeInEnabled, spotlightVisible, setUiScale, setCurrentPage } from './newtabState.js';
 
 export function applyFadeIn() {
   const bookmarksContent = document.querySelector(".bookmarks-content");
@@ -20,32 +15,15 @@ export function applyFadeIn() {
   }
 }
 
-export function toggleFadeIn(enabled) {
-  setFadeInEnabled(enabled);
-  window.chrome.storage.sync.set({ fadeInEnabled: enabled });
-  applyFadeIn();
-}
-
-export function initializeSpotlightVisibility() {
-  window.chrome.storage.sync.get(["spotlightVisible"], (result) => { setSpotlightVisible(result.spotlightVisible !== undefined ? result.spotlightVisible : true); applySpotlightVisibility() })
-}
-
 export function applySpotlightVisibility() {
-  const searchPage = document.getElementById("search-page"); if (searchPage) { spotlightVisible ? searchPage.classList.remove("hide-spotlight") : searchPage.classList.add("hide-spotlight") }
-  const spotlightCheckbox = document.getElementById("spotlight-checkbox"); if (spotlightCheckbox) spotlightCheckbox.checked = spotlightVisible
+  const searchPage = document.getElementById("search-page");
+  if (searchPage) searchPage.classList.toggle("hide-spotlight", !spotlightVisible);
 }
 
-export function toggleSpotlightVisibility(enabled) { setSpotlightVisible(enabled); window.chrome.storage.sync.set({ spotlightVisible: enabled }); applySpotlightVisibility() }
-
-export function initializeScale() {
-  // preinit.js applies the cached scale from IndexedDB before first paint.
-  // Confirm from sync storage (source of truth across devices).
-  window.chrome.storage.sync.get(["uiScale"], (result) => {
-    const syncScale = result.uiScale !== undefined ? result.uiScale : 1.0;
-    applyScale(syncScale);
-  });
-}
-
+/* The scale is stored as uiScale and only ever applied from the stored value, so
+   _scaleCache (read by preinit.js before the first paint) always equals storage.
+   Writing the cache from a preview that was never saved is what let a new tab
+   paint one size and then jump to another. */
 export function applyScale(value) {
   const preScale = document.getElementById('pre-scale');
   if (preScale) preScale.remove();
@@ -63,27 +41,24 @@ export function applyScale(value) {
     document.body.style.marginLeft = `${pct}vw`;
     document.body.style.marginTop = `${pct}vh`;
   }
-  document.querySelectorAll(".scale-btn").forEach(btn => {
-    btn.classList.toggle("active", parseFloat(btn.dataset.value) === value);
-  });
 }
 
-export function toggleScale(value) {
-  setUiScale(value);
-  applyScale(value);
+/** Grayscale removes colour from the whole new tab (html.grayscale in settingsPage.css). */
+export function applyGrayscale(on) {
+  document.documentElement.classList.toggle("grayscale", !!on);
 }
 
 export function showPage(pageName) {
-  document.querySelectorAll(".page").forEach((page) => page.classList.remove("active"))
-  const targetPage = document.getElementById(`${pageName}-page`)
-  if (targetPage) {
-    targetPage.classList.add("active"); setCurrentPage(pageName);
-    if (pageName === "search") {
-      const searchInput = document.getElementById("search-input");
-      if (searchInput && spotlightVisible) setTimeout(() => searchInput.focus(), 50);
-    }
-    if (pageName === "bookmarks") {
-      if (fadeInEnabled) { const bookmarksContent = document.querySelector(".bookmarks-content"); if (bookmarksContent) { bookmarksContent.classList.remove("fade-in"); void bookmarksContent.offsetWidth; bookmarksContent.classList.add("fade-in") } }
-    }
+  document.querySelectorAll(".page").forEach((page) => page.classList.remove("active"));
+  const targetPage = document.getElementById(`${pageName}-page`);
+  if (!targetPage) return;
+  targetPage.classList.add("active"); setCurrentPage(pageName);
+  if (pageName === "search") {
+    const searchInput = document.getElementById("search-input");
+    if (searchInput && spotlightVisible) setTimeout(() => searchInput.focus(), 50);
+  }
+  if (pageName === "bookmarks" && fadeInEnabled) {
+    const bookmarksContent = document.querySelector(".bookmarks-content");
+    if (bookmarksContent) { bookmarksContent.classList.remove("fade-in"); void bookmarksContent.offsetWidth; bookmarksContent.classList.add("fade-in"); }
   }
 }

@@ -505,7 +505,93 @@
     return false;
   });
 
+  // src/constants/atlasKeys.json
+  var atlasKeys_default = {
+    _about: "The one list of Atlas storage keys, databases and ids. The bundles import it, install.py reads it, and tests/unit/storage_keys.test.js checks that code and this file agree. Never rename a key: stored user data uses these names. default: value when the key is absent. backup: carried by Export/Import. importWhen: 'defined' restores any value that is not undefined, 'truthy' only a truthy one. profile: the profilesCore.js category that owns it when profiles keep separate settings.",
+    extensionId: "mpognobbkildjkofajifpdfhcoklimli",
+    newTabPath: "index.html",
+    databases: {
+      bookmarks: "DetractlessBookmarks",
+      pastekit: "pastekit"
+    },
+    sync: {
+      activeTabs: { default: null, backup: true, importWhen: "truthy", profile: "bookmarks", note: "Pages list. Export takes it from memory, not storage." },
+      Theme: {
+        default: {
+          _comment: "Theme settings: 'system' <- Follows System settings (Light/Dark). 'dark' <- Forces standard Dark mode. 'light' <- Forces standard Light mode. 'custom' <- Uses the CustomColors mapped below. Note: To apply changes, reload the page.",
+          Theme: "dark",
+          CustomColors: {
+            WindowBackground: "#1E1E1E",
+            ControlBackground: "#2D2D2D",
+            ControlHover: "#3A3A3A",
+            BorderColor: "#444444",
+            TextPrimary: "#FFFFFF",
+            TextSecondary: "#999999",
+            SelectionBackground: "#2A2A2A"
+          }
+        },
+        backup: true,
+        importWhen: "truthy",
+        profile: "theme"
+      },
+      uiScale: { default: 1, backup: true, importWhen: "defined", profile: "appearance" },
+      fadeInEnabled: { default: true, backup: true, importWhen: "defined", profile: "appearance" },
+      spotlightVisible: { default: true, backup: true, importWhen: "defined", profile: "search" },
+      searchEngineBehavior: { default: "remember", backup: true, importWhen: "defined", profile: "search" },
+      bookmarkPillBehavior: { default: "always", backup: true, importWhen: "defined", profile: "search" },
+      customSearchEngines: { default: {}, backup: true, importWhen: "truthy", profile: "search" },
+      defaultEngineKey: { default: "default", backup: true, importWhen: "truthy", profile: "search" },
+      selectedSearchEngine: { default: null, backup: true, importWhen: "truthy", profile: "search" },
+      tabLimit: { default: 0, backup: true, importWhen: "defined", profile: "focus" },
+      managementMethod: { default: "block", backup: true, importWhen: "truthy", profile: "focus" },
+      pendingIncrease: { default: null, backup: false, profile: "focus", note: "A tab-limit increase waiting out its 30 minutes." },
+      searchDelaySeconds: { default: 0, backup: true, importWhen: "defined", profile: "focus" },
+      pendingDelayDecrease: { default: null, backup: false, note: "A search-delay decrease waiting out its 30 minutes." },
+      showQueryOnDelay: { default: true, backup: true, importWhen: "defined", profile: "focus" },
+      grayscale: { default: false, backup: true, importWhen: "defined", profile: "focus" },
+      "bookmarks-migrated": { default: null, backup: false, note: "Legacy: set once bookmarks moved from sync storage to IndexedDB." },
+      "bookmarks-page-1": { default: null, backup: false, note: "Legacy bookmark storage, read once by migrateFromChromeStorage." },
+      "bookmarks-page-2": { default: null, backup: false, note: "Legacy, as bookmarks-page-1." },
+      "bookmarks-page-3": { default: null, backup: false, note: "Legacy, as bookmarks-page-1." }
+    },
+    syncPatterns: {
+      "page<id>": "Legacy per-page bookmark key, removed when a page is deleted (tabs.js)."
+    },
+    local: {
+      hasSeededDefaults: { default: false, note: "Starter pages were added once." },
+      hasRepairedOrphanPages: { default: false, note: "Orphan-page repair ran once." },
+      _themeCache: { default: null, note: "Theme preference copy for first paint in other pages." },
+      rhe_rules: { default: null, backup: true, note: "Element Remover rules (archived feature); still carried by backups." },
+      activeDelays: { default: {}, note: "Service worker: search delays in progress." },
+      atlasProfilesV2: { default: null, note: "Profiles state (profilesCore.js)." },
+      __atlas_localstorage__: { default: {}, note: "Backing store of the localStorage shim (atlas-localstorage-shim.js)." },
+      "pastekit.settings": { default: null, note: "PasteKit (archived feature)." },
+      savedTabGroups: { default: null, note: "Tab saver (service worker)." }
+    },
+    session: {
+      rheTabStates: { default: null, note: "Element Remover per-tab state (archived feature)." }
+    },
+    localStorage: {
+      _themeCache: "Theme preference for the first paint (themePreinit.js).",
+      _scaleCache: "UI scale for the first paint (preinit.js). Always the stored uiScale.",
+      uiScale: "Legacy scale value, read only as a last fallback by preinit.js.",
+      themePref: "Legacy theme value, migrated into IndexedDB uiPrefs."
+    }
+  };
+
+  // src/constants/storageKeys.js
+  var EXTENSION_ID = atlasKeys_default.extensionId;
+  var BOOKMARKS_DB = atlasKeys_default.databases.bookmarks;
+  var PASTEKIT_DB = atlasKeys_default.databases.pastekit;
+  function syncDefault(key) {
+    const entry = atlasKeys_default.sync[key];
+    if (!entry) throw new Error(`Unknown sync key: ${key}`);
+    return entry.default === void 0 ? void 0 : JSON.parse(JSON.stringify(entry.default));
+  }
+  var BACKUP_SYNC_KEYS = Object.keys(atlasKeys_default.sync).filter((k) => atlasKeys_default.sync[k].backup).map((k) => ({ key: k, importWhen: atlasKeys_default.sync[k].importWhen || "defined" }));
+
   // src/background/stateSync.js
+  var SEEDED_KEYS = ["tabLimit", "managementMethod", "searchDelaySeconds", "showQueryOnDelay", "customSearchEngines"];
   var initializeState = async () => {
     try {
       const result = await chrome.storage.sync.get(["tabLimit", "managementMethod", "searchDelaySeconds", "customSearchEngines"]);
@@ -534,12 +620,10 @@
   };
   initializeState();
   chrome.runtime.onInstalled.addListener(() => {
-    chrome.storage.sync.get(["tabLimit", "managementMethod", "searchDelaySeconds", "showQueryOnDelay", "customSearchEngines"], (result) => {
-      if (result.tabLimit === void 0) chrome.storage.sync.set({ tabLimit: 0 });
-      if (result.managementMethod === void 0) chrome.storage.sync.set({ managementMethod: "block" });
-      if (result.searchDelaySeconds === void 0) chrome.storage.sync.set({ searchDelaySeconds: 0 });
-      if (result.showQueryOnDelay === void 0) chrome.storage.sync.set({ showQueryOnDelay: true });
-      if (result.customSearchEngines === void 0) chrome.storage.sync.set({ customSearchEngines: {} });
+    chrome.storage.sync.get(SEEDED_KEYS, (result) => {
+      for (const key of SEEDED_KEYS) {
+        if (result[key] === void 0) chrome.storage.sync.set({ [key]: syncDefault(key) });
+      }
     });
     chrome.storage.local.set({ activeDelays: {} });
   });
@@ -608,7 +692,7 @@
   }
 
   // src/pastekit/services/db.js
-  var DB_NAME = "pastekit";
+  var DB_NAME = PASTEKIT_DB;
   var DB_VERSION = 2;
   var _dbPromise = null;
   function openDB() {

@@ -1,7 +1,8 @@
 import { dematerialize } from './bookmarkSync.js';
+import { BOOKMARKS_DB } from '../constants/storageKeys.js';
 
 export const BookmarkDB = {
-  dbName: 'DetractlessBookmarks',
+  dbName: BOOKMARKS_DB,
   // v6 added the `notes` and `events` stores. Both features have been removed and
   // nothing reads these any more.
   // v7 adds `bookmarkRecords` (Phase 12): bookmarks as merge-owned records so an

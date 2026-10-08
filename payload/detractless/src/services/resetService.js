@@ -16,6 +16,7 @@
 // success and silently leave the data behind.
 import { BookmarkDB } from './bookmarksDB.js';
 import { closeDB as closePastekitDB } from '../pastekit/services/db.js';
+import { PASTEKIT_DB } from '../constants/storageKeys.js';
 
 /** Delete one database, resolving whatever happens — a reset must not hang. */
 function deleteDatabase(name) {
@@ -39,7 +40,7 @@ export async function resetAllData() {
 
   // Snippets. A separate database with its own memoised connection.
   await closePastekitDB();
-  await deleteDatabase('pastekit');
+  await deleteDatabase(PASTEKIT_DB);
 
   // Settings, plus anything left over from removed features (the sync config, the
   // encryption flag and `snippetSalt` all lived here).

@@ -3,31 +3,28 @@ import '../../styles/themes.css';
 import '../../styles/base.css';
 import '../../styles/components.css';
 import './newtab.css';
-import { BookmarkDB } from '../../services/bookmarksDB.js';
 import { ContextMenu } from '../../components/contextMenu/contextMenu.js';
 import { refreshBookmarkCache, initializeBookmarks, loadBookmarks } from '../../components/bookmarks/bookmarks.js';
 import { initBookmarkAddModal } from '../../components/bookmarks/bookmarkModal.js';
-import { initializeTheme, initThemePicker } from './theme.js';
-import { initializeFadeIn, initializeSpotlightVisibility, initializeScale, showPage } from './displayEffects.js';
+import { watchSystemTheme } from './theme.js';
+import { showPage } from './displayEffects.js';
 import { initializeTabs, setTabNavigationCallbacks, renderTabs, selectSearchTab } from '../../components/tabs/tabs.js';
-import { showModal, hideModal } from './modalVisibility.js';
-import { initializeTabLimiter } from '../../components/tabLimiter/tabLimiterUI.js';
-import { initializeSearchDelaySettings } from '../../components/searchDelay/searchDelay.js';
+import { showModal } from './modalVisibility.js';
+// The tab limiter's stylesheet; imported here so the CSS keeps its place in the bundle.
+import '../../components/tabLimiter/tabLimiterUI.js';
 import { loadSearchEngines, loadSavedEngine, setManageEnginesCallback, renderEngineDropdown, updateCurrentEngine } from '../../components/engines/enginesUI.js';
 import { initEngineModal } from '../../components/engines/engineModal.js';
 import { initializeSearch } from '../../components/search/search.js';
-import { initSettingsModal } from './settingsModal.js';
 import { setImportCompleteCallback } from './importExport.js';
-import { seedStarterContent } from '../../services/starterContent.js';
-import { applyFadeIn, applySpotlightVisibility } from './displayEffects.js';
-import { applyThemeConfig } from './theme.js';
 import { runOrphanRepairOnce } from '../../services/orphanCleanup.js';
-import {
-  spotlightVisible, setCurrentBookmarkPage, activeTabs,
-  appThemeConfig, currentEngine, searchEngineBehavior, bookmarkPillBehavior, setBookmarkPillBehavior
-} from './newtabState.js';
-// Styles for the full-page Settings UI (settingsPage.js loads outside the bundle).
-// Imported last so these rules land at the end of newtab.bundle.css.
+import { spotlightVisible, setCurrentBookmarkPage, activeTabs, currentEngine } from './newtabState.js';
+import { loadBookmarkData } from './bookmarkData.js';
+import { installProfileSwitch } from './profileSwitch.js';
+import { defineAllSettings } from '../../settings/definitions.js';
+import { loadSettings, watchSettings } from '../../settings/registry.js';
+import { installSettingsPage, openSettings } from '../../settings/shell.js';
+// Styles for the full-page Settings UI. Imported last so these rules land at the
+// end of newtab.bundle.css.
 import './settingsPage.css';
 
 /* R-015: initOptionsModal stood here, wiring the two tiles of the separate
@@ -35,15 +32,17 @@ import './settingsPage.css';
    card's home list now, and initBookmarkAddModal owns them, so the chooser has
    no markup and no init of its own left. */
 
+// Settings is built now, not at DOMContentLoaded: profilesPage.js runs right after
+// this bundle and registers its page through window.AtlasSettingsUI.
+defineAllSettings();
+installSettingsPage();
+
 document.addEventListener("DOMContentLoaded", async () => {
   await loadBookmarkData();
   ContextMenu.init();
-  const versionEl = document.getElementById('version-trigger');
-  if (versionEl) versionEl.textContent = 'v' + chrome.runtime.getManifest().version;
-  initializeTheme(); initializeFadeIn(); initializeSpotlightVisibility(); initializeScale();
-  window.chrome.storage.sync.get(["bookmarkPillBehavior"], (res) => {
-    if (res && res.bookmarkPillBehavior) setBookmarkPillBehavior(res.bookmarkPillBehavior);
-  });
+  await loadSettings();
+  watchSettings();
+  watchSystemTheme();
   await initializeTabs();
 
   /* REPAIR for profiles that already carry orphaned pages, from imports made
@@ -57,28 +56,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   wireCallbacks();
   initFeatures();
-  const checkSettingsHash = wireSettingsOpeners();
+  installProfileSwitch();
+  wireSettingsOpeners();
 
   document.querySelectorAll(".modal").forEach(modal => modal.addEventListener("click", e => e.stopPropagation()));
 
   await loadSearchEngines(); initializeSearch(); loadSavedEngine();
 
   showPage("search");
-  const isSettingsTarget = location.hash === '#settings' || location.search.includes('settings');
   const searchInput = document.getElementById("search-input");
-  if (searchInput && spotlightVisible && !isSettingsTarget) setTimeout(() => searchInput.focus(), 100);
-  if (isSettingsTarget) setTimeout(checkSettingsHash, 50);
-
+  if (searchInput && spotlightVisible && !isSettingsUrl()) setTimeout(() => searchInput.focus(), 100);
 });
-
-/** Open the bookmarks database, run its migrations, and seed a first-run profile. */
-async function loadBookmarkData() {
-  await BookmarkDB.init(); await BookmarkDB.migrateFromChromeStorage();
-  await BookmarkDB.migrateBookmarksToRecords(); // Phase 12, non-destructive
-  await refreshBookmarkCache();
-  const didSeed = await seedStarterContent();
-  if (didSeed) await refreshBookmarkCache();
-}
 
 function wireCallbacks() {
   setTabNavigationCallbacks({
@@ -96,17 +84,7 @@ function wireCallbacks() {
 async function onImportComplete(importData) {
   renderTabs();
   loadBookmarks();
-  if (importData.fadeInEnabled !== undefined) applyFadeIn();
-  if (importData.spotlightVisible !== undefined) applySpotlightVisibility();
-  if (importData.Theme) applyThemeConfig(appThemeConfig);
-  if (importData.searchEngineBehavior !== undefined) {
-    const behaviorRadios = document.querySelectorAll('input[name="search-behavior"]');
-    behaviorRadios.forEach(radio => { if (radio.value === searchEngineBehavior) radio.checked = true; });
-  }
-  if (importData.bookmarkPillBehavior !== undefined) {
-    const pillRadios = document.querySelectorAll('input[name="bookmark-pill-behavior"]');
-    pillRadios.forEach(radio => { if (radio.value === bookmarkPillBehavior) radio.checked = true; });
-  }
+  await loadSettings();
   if (importData.selectedSearchEngine) updateCurrentEngine(currentEngine);
   renderEngineDropdown();
 }
@@ -115,36 +93,34 @@ function initFeatures() {
   initializeBookmarks();
   initBookmarkAddModal();
   initEngineModal();
-  initSettingsModal();
-  initializeTabLimiter();
-  initThemePicker();
-  initializeSearchDelaySettings();
 
   const globalSettingsBtn = document.getElementById('global-settings-btn');
   /* R-016: the + disc opens the anchored Add menu, and initBookmarkAddModal
      wires it. Nothing here binds it any more. */
-  if (globalSettingsBtn) globalSettingsBtn.addEventListener('click', () => showModal('settings-modal'));
+  if (globalSettingsBtn) globalSettingsBtn.addEventListener('click', () => openSettings());
 }
 
-/** Settings opens from #settings / ?settings and from an "open-settings" message. */
+/** #settings or ?settings[=<page>] in the address opens Settings (on that page). */
+function isSettingsUrl() {
+  return location.hash === '#settings' || location.search.includes('settings');
+}
+
+function openSettingsFromUrl() {
+  if (isSettingsUrl()) openSettings(new URLSearchParams(location.search).get('settings') || undefined);
+}
+
+/** Settings opens from the address and from an "open-settings" message. */
 function wireSettingsOpeners() {
-  const checkSettingsHash = () => {
-    if (location.hash === '#settings' || location.search.includes('settings')) {
-      showModal('settings-modal');
-    }
-  };
-  checkSettingsHash();
-  setTimeout(checkSettingsHash, 100);
-  window.addEventListener('hashchange', checkSettingsHash);
+  openSettingsFromUrl();
+  window.addEventListener('hashchange', openSettingsFromUrl);
   if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
     chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (msg && msg.atlas && msg.atlas.act === 'open-settings') {
-        showModal('settings-modal');
+        openSettings(msg.atlas.page);
         if (sendResponse) sendResponse({ ok: true });
       }
     });
   }
-  return checkSettingsHash;
 }
 
 window.addEventListener("pageshow", () => {
@@ -152,12 +128,12 @@ window.addEventListener("pageshow", () => {
   // call rather than a poke at a hidden radio that no longer exists.
   selectSearchTab();
   showPage("search");
-  const isSettingsTarget = location.hash === '#settings' || location.search.includes('settings');
   const searchInput = document.getElementById("search-input");
-  if (isSettingsTarget) {
-    checkSettingsHash();
+  // Was a call to a function that only existed inside the DOMContentLoaded
+  // handler, so restoring a cached tab with ?settings threw a ReferenceError.
+  if (isSettingsUrl()) {
+    openSettingsFromUrl();
   } else if (searchInput && spotlightVisible) {
     setTimeout(() => searchInput.focus(), 100);
   }
-
 });

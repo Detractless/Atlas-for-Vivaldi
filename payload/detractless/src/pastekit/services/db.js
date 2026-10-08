@@ -10,7 +10,8 @@
 //   rebuilding. The DB-level UNIQUE constraint on `name` went with them, and
 //   `saveSnippet`'s explicit check is still the only thing enforcing it.
 import { fuzzyScore } from '../utils/fuzzyMatch.js';
-const DB_NAME = 'pastekit', DB_VERSION = 2;
+import { PASTEKIT_DB } from '../../constants/storageKeys.js';
+const DB_NAME = PASTEKIT_DB, DB_VERSION = 2;
 let _dbPromise = null;
 
 function openDB() {

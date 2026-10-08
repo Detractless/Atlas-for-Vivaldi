@@ -259,7 +259,6 @@ MENU_PLAN = {
 # installed: see _old/archive/sidebar-tools/RESTORE.md. The ids below are only used to
 # remove a panel an earlier install left in the profile.
 PANEL_ID = "WEBPANEL_atlas_sidebar"
-PANEL_URL = "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/sidepanel.html"
 
 # What step 3 installs from payload/detractless. Only files that index.html,
 # gate.html, window.html or the bundles actually load; everything else in the
@@ -279,7 +278,6 @@ DETRACTLESS_FILES = (
     "src/pages/newtab/profilesCore.js",
     "src/pages/newtab/profilesPage.js",
     "src/pages/newtab/profilesPage.css",
-    "src/pages/newtab/settingsPage.js",
     "src/pages/newtab/newtabBridge.js",
 )
 # Files an earlier install put in Resources/vivaldi for the archived sidebar.
@@ -447,7 +445,15 @@ def _ensure(d: dict, key: str) -> dict:
     return d[key]
 
 
-ATLAS_NEWTAB_URL = "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/index.html"
+def atlas_keys() -> dict:
+    """payload/detractless/src/constants/atlasKeys.json: the one list of ids and storage keys."""
+    path = payload_root() / "detractless" / "src" / "constants" / "atlasKeys.json"
+    return json.loads(read_text(path))
+
+
+def newtab_url() -> str:
+    keys = atlas_keys()
+    return f"chrome-extension://{keys['extensionId']}/{keys['newTabPath']}"
 
 
 def _load_prefs(prefs_file: Path) -> dict:
@@ -586,12 +592,13 @@ def _prefs_navigation_toolbar(v: dict):
 
 def _prefs_new_tab(v: dict):
     # The Atlas dashboard becomes the new-tab and home page (link type 4 = custom URL).
-    v["homepage"] = ATLAS_NEWTAB_URL
+    url = newtab_url()
+    v["homepage"] = url
     tabs = _ensure(v, "tabs")
     tabs["focus_webview"] = True
     new_page = _ensure(tabs, "new_page")
     new_page["link"] = 4
-    new_page["custom_url"] = ATLAS_NEWTAB_URL
+    new_page["custom_url"] = url
 
 
 def _prefs_themes(v: dict, payload: Path):
