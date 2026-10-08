@@ -75,3 +75,18 @@ Per-phase gate: `node --test tests/unit/*.test.js`, `python3 -m unittest discove
 - New test `error_handling.test.js`: no silent catch/.catch in JS, no reasonless `except: pass` in Python.
 - Tests: node 70/70 + 1 todo, python 9/9. Dry run OK. node --check 0 failures.
 
+## Phase 8: guardrails
+- Line endings: `.gitattributes` (`* text=auto eol=crlf`, `*.sh` LF, package-lock/.claude/.agents untouched, binaries marked); index renormalised in its own commit (bfb2506, no content change). `line_endings.test.js` checks every tracked file.
+- `size_limits.test.js`: files under 400 lines, functions under 80, everywhere except generated/vendored/_old and the pre-signed Harper extension (editing it would desync it from harper.crx).
+- Legacy Windows-era suites (tier1-4 runner, adversarial) moved to `_old/tests-legacy/` with a table mapping every test to its replacement; they were regex-on-source checks (7 broke on the renames, 7 already failed before the cleanup). Ported as behavior tests: `spelling_engine.test.js` (9), `css_tokens.test.js` (2), profile menu, menus closing each other, Harper isolation, Harper payload.
+- Builds: `build.sh` / `build.cmd` call `scripts/build.py` (bundle, new-tab build, package per platform). `refresh_backup.py` defaults to ~/Downloads. Windows-era docs moved to `_old/docs/`; README rewritten.
+- Not done here: `.claude/MAP.md` is still the September map; the map-on-stop hook rebuilds it with a background AI call, so it was left to that hook rather than starting an external call mid-task.
+- Fresh-checkout proof: a new git worktree of HEAD passes every test and the dry run.
+- Tests: node 90/90 + 1 todo, python 10/10.
+
+## Final state (2026-10-08)
+- Phases 0-8 all done; none skipped. Deviations (each logged above): snippets kept in backups (Phase 6), 06-sidebar.css kept (Phase 5), theme rule pinned by a test rather than shared code (Phase 5), legacy tests retired with replacements (Phase 8).
+- Largest hand-written file: `payload/detractless/src/services/tabSaver.js` 395 lines. Largest function: `buildDialog` in `components/bookmarks/bookmarkDialog.js`, 75 lines. Exempt: Harper `background.js` 629 lines, `analyzeText` 122.
+- Bugs found and left (outside the plan): Extensions popover search resets on every keystroke (todo test in atlas_window.test.js).
+- Waiting for the user (touches Vivaldi): rebuild the DMG, run a real install, check the settings fixes live, optionally delete the stale installed copy of harper.pem in ~/Library/Application Support/Vivaldi/Atlas/extensions/harper/.
+
