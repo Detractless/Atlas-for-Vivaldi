@@ -47,6 +47,11 @@
   outline: none !important;
   transition-delay: 0s !important;
 }
+/* The focused address field shows the same faint outline as the joined
+   address bar card (section 4c), before anything is typed too. */
+#browser .UrlBar-AddressField:focus-within {
+  border-color: var(--atlas-border) !important;
+}
 
 /* At rest the URL and the site-info button are simply not drawn. */
 #browser .UrlBar-AddressField .UrlBar-UrlFieldWrapper,
@@ -222,7 +227,6 @@
 }
 #browser .atlas-urlcard[hidden] { display: none; }
 #browser.atlas-urlcard-open .UrlBar-AddressField:focus-within {
-  border-color: var(--atlas-border) !important;
   border-bottom-color: transparent !important;
   border-bottom-left-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
