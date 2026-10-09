@@ -29,7 +29,8 @@ async function editSchool(local) {
   const { window: win, document: doc } = t;
   click(win, doc.getElementById("global-settings-btn"));
   click(win, await waitFor(() => doc.querySelector('#sp-nav [data-page="profiles"]'), 2000, "Profiles"));
-  click(win, await waitFor(() => doc.querySelector('#sp-content [data-pf-edit="school"]'), 2000, "Edit"));
+  click(win, await waitFor(() => doc.querySelector('#sp-content [data-pf-menu="school"]'), 2000, "the profile's ⋮ button"));
+  click(win, await waitFor(() => doc.querySelector('#sp-content [data-pf-edit="school"]'), 2000, "Edit in its menu"));
   await waitFor(() => doc.querySelector("#sp-content [data-pfe-ga], #sp-content [data-pfe-pick]"), 2000, "the Google row");
   await settle(win, 30);
   return t;

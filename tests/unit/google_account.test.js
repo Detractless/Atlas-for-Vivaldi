@@ -145,7 +145,8 @@ test("the edit page links, changes and unlinks the account; a non-email is refus
   const stored = async () => plain((await t.chrome.storage.local.get(["atlasProfilesV2"])).atlasProfilesV2).list.find((p) => p.id === "school").google;
   click(win, doc.getElementById("global-settings-btn"));
   click(win, await waitFor(() => doc.querySelector('#sp-nav [data-page="profiles"]'), 2000, "Profiles"));
-  click(win, await waitFor(() => doc.querySelector('#sp-content [data-pf-edit="school"]'), 2000, "Edit"));
+  click(win, await waitFor(() => doc.querySelector('#sp-content [data-pf-menu="school"]'), 2000, "the profile's ⋮ button"));
+  click(win, await waitFor(() => doc.querySelector('#sp-content [data-pf-edit="school"]'), 2000, "Edit in its menu"));
   const field = () => doc.querySelector("#sp-content [data-pfe-google]");
   await waitFor(field, 2000, "Google account field");
   const set = (v) => { field().value = v; field().dispatchEvent(new win.Event("change", { bubbles: true })); };

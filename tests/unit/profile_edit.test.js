@@ -29,7 +29,7 @@ async function openProfiles(state = profiles()) {
   const { window: win, document: doc } = t;
   click(win, doc.getElementById("global-settings-btn"));
   click(win, await waitFor(() => doc.querySelector('#sp-nav [data-page="profiles"]'), 2000, "Profiles in the menu"));
-  await waitFor(() => doc.querySelector('#sp-content [data-pf-edit="school"]'), 2000, "profile rows");
+  await waitFor(() => doc.querySelector('#sp-content [data-pf-switch="school"]'), 2000, "profile rows");
   return t;
 }
 
@@ -37,8 +37,14 @@ const content = (t) => t.document.getElementById("sp-content");
 const title = (t) => text(t.document.querySelector("#sp-content .sp-page-title"));
 const storedProfile = async (t, id) => plain((await t.chrome.storage.local.get(["atlasProfilesV2"])).atlasProfilesV2).list.find((p) => p.id === id);
 
+/** A profile's ⋮ menu, then one of its items. */
+async function fromMenu(t, id, item) {
+  click(t.window, content(t).querySelector(`[data-pf-menu="${id}"]`));
+  click(t.window, await waitFor(() => content(t).querySelector(`.sp-popmenu [${item}="${id}"]`), 2000, `${item} in the menu`));
+}
+
 async function edit(t, id) {
-  click(t.window, content(t).querySelector(`[data-pf-edit="${id}"]`));
+  await fromMenu(t, id, "data-pf-edit");
   await waitFor(() => content(t).querySelector("[data-pfe-name]"), 2000, "edit page");
 }
 
@@ -47,14 +53,56 @@ function change(t, el, value) {
   el.dispatchEvent(new t.window.Event("change", { bubbles: true }));
 }
 
-test("the profile list is read-only, with Edit on every profile", async () => {
+test("the profile list is read-only: one ⋮ per profile, no Switch button or Current badge", async () => {
   const t = await openProfiles();
   assert.equal(content(t).querySelectorAll(".pf-input").length, 0, "no text boxes in the list");
   const rows = [...content(t).querySelectorAll(".pf-row")];
   assert.deepEqual(rows.map((r) => text(r.querySelector(".pf-name"))), ["Pat", "Pat (School)"]);
   assert.deepEqual(rows.map((r) => text(r.querySelector(".pf-label"))), ["Personal", "School"]);
-  assert.ok(content(t).querySelector('[data-pf-switch="school"]'), "Switch stays in the list");
+  for (const id of ["personal", "school"]) assert.ok(content(t).querySelector(`[data-pf-menu="${id}"]`), `⋮ on ${id}`);
+  assert.equal(content(t).querySelector(".pf-badge"), null, "no Current badge");
+  assert.ok(![...content(t).querySelectorAll(".pf-row button")].some((b) => /^(Switch|Edit)$/.test(text(b))), "no Switch or Edit buttons");
   assert.deepEqual(t.errors, []);
+});
+
+test("clicking a profile switches to it; the active one is highlighted and nothing moves", async () => {
+  const t = await openProfiles();
+  const pick = (id) => content(t).querySelector(`[data-pf-switch="${id}"]`);
+  assert.equal(pick("personal").getAttribute("aria-pressed"), "true", "the active profile is marked");
+  assert.equal(pick("school").getAttribute("aria-pressed"), "false");
+  click(t.window, pick("school"));
+  await settle(t.window, 300);
+  const state = plain((await t.chrome.storage.local.get(["atlasProfilesV2"])).atlasProfilesV2);
+  assert.equal(state.active, "school");
+  assert.equal(pick("school").getAttribute("aria-pressed"), "true", "the mark moves");
+  assert.equal(pick("personal").getAttribute("aria-pressed"), "false");
+  assert.deepEqual([...content(t).querySelectorAll(".pf-row .pf-name")].map(text), ["Pat", "Pat (School)"], "same order");
+});
+
+test("a profile's ⋮ menu has Edit and Delete; Delete asks first, right in the list", async () => {
+  const t = await openProfiles();
+  await fromMenu(t, "school", "data-pf-delete");
+  await settle(t.window, 50);
+  assert.match(text(content(t)), /Delete Pat \(School\)\?/);
+  click(t.window, content(t).querySelector("[data-pf-cancel]"));
+  await settle(t.window, 50);
+  assert.ok(await storedProfile(t, "school"), "Cancel keeps it");
+  await fromMenu(t, "school", "data-pf-delete");
+  await settle(t.window, 50);
+  click(t.window, content(t).querySelector('[data-pf-delete-go="school"]'));
+  await settle(t.window, 200);
+  assert.equal(await storedProfile(t, "school"), undefined, "deleted");
+  assert.equal(content(t).querySelectorAll(".pf-row").length, 1);
+});
+
+test("the ⋮ menu closes on Escape without closing Settings", async () => {
+  const t = await openProfiles();
+  click(t.window, content(t).querySelector('[data-pf-menu="school"]'));
+  await waitFor(() => content(t).querySelector(".sp-popmenu"), 2000, "menu");
+  t.document.body.dispatchEvent(new t.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  await settle(t.window, 30);
+  assert.equal(content(t).querySelector(".sp-popmenu"), null);
+  assert.ok(!t.document.getElementById("sp-root").hidden);
 });
 
 test("Edit opens a page of its own: titled with the name, not in the side list, Back returns", async () => {
@@ -116,7 +164,10 @@ test("the last profile can't be deleted", async () => {
   const t = await openNewTab({ local: { atlasProfilesV2: one } });
   click(t.window, t.document.getElementById("global-settings-btn"));
   click(t.window, await waitFor(() => t.document.querySelector('#sp-nav [data-page="profiles"]'), 2000, "Profiles"));
-  click(t.window, await waitFor(() => content(t).querySelector('[data-pf-edit="personal"]'), 2000, "Edit"));
+  click(t.window, await waitFor(() => content(t).querySelector('[data-pf-menu="personal"]'), 2000, "⋮"));
+  const menu = await waitFor(() => content(t).querySelector(".sp-popmenu"), 2000, "menu");
+  assert.equal(menu.querySelector("[data-pf-delete]"), null, "the last profile's menu has no Delete");
+  click(t.window, menu.querySelector('[data-pf-edit="personal"]'));
   const del = await waitFor(() => content(t).querySelector('[data-pfe-delete="personal"]'), 2000, "Delete");
   assert.ok(del.disabled, "disabled");
   assert.match(text(content(t)), /at least one profile/);

@@ -51,3 +51,9 @@ export const scalePreview = (scale) =>
   `<div class="sp-scale-preview" aria-hidden="true"><div class="sp-scale-sample" style="zoom:${scale}">` +
   `<div class="sp-scale-bar">${svg(I.search)}<span>Search the web</span></div>` +
   `<div class="sp-scale-pills"><span>Notion</span><span>Gmail</span><span>Calendar</span></div></div></div>`;
+
+/** The ⋮ ("more") button's icon, and the drag handle's. */
+export const KEBAB =
+  '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="10" cy="4.5" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="15.5" r="1.5"/></svg>';
+export const GRIP =
+  '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="5" r="1.3"/><circle cx="12.5" cy="5" r="1.3"/><circle cx="7.5" cy="10" r="1.3"/><circle cx="12.5" cy="10" r="1.3"/><circle cx="7.5" cy="15" r="1.3"/><circle cx="12.5" cy="15" r="1.3"/></svg>';

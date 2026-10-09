@@ -53,3 +53,9 @@
 #sp-root .pfe-ga-links { display: block; margin-top: 6px; color: var(--sp-text-3); font-size: 12px; }
 #sp-root .pfe-link { border: 0; background: none; padding: 0; color: var(--sp-text-2); font-size: 12px; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 #sp-root .pfe-link:hover { color: var(--sp-text); }
+
+/* The profile list: click a profile to switch; the active one is highlighted. */
+#sp-root .pf-pick { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; margin: -6px 0 -6px -8px; padding: 6px 8px; border: 0; border-radius: 12px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+#sp-root .pf-pick:hover { background: var(--sp-nav-hover); }
+#sp-root .pf-pick[aria-pressed="true"] { background: var(--sp-nav-active); cursor: default; }
+#sp-root .pf-check { width: 18px; height: 18px; margin-left: auto; flex: none; color: var(--sp-text); }

@@ -78,8 +78,8 @@ export const PAGES = {
 
 export const NAV = [
   { group: "Settings", items: [
-    { id: "pages", label: "Pages", icon: I.pages },
     { id: "search", label: "Search", icon: I.search },
+    { id: "pages", label: "Pages", icon: I.pages },
     { id: "appearance", label: "Appearance", icon: I.sun },
     { id: "focus", label: "Focus", icon: I.focus }
   ] },

@@ -80,7 +80,8 @@ test("Settings opens from the settings button", async () => {
     const r = doc.getElementById("sp-root");
     return r && !r.hidden ? r : null;
   }, 3000, "settings page");
-  await waitFor(() => text(doc.getElementById("sp-content")).includes("Search bar"), 3000, "settings content");
+  // Settings opens on its first page, Profiles.
+  await waitFor(() => text(doc.getElementById("sp-content")).includes("Your profiles"), 3000, "settings content");
   assert.ok(text(root.querySelector("#sp-nav")).includes("Appearance"));
   await settle(win, 800);
   assert.deepEqual(t.errors, []);

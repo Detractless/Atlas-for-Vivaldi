@@ -1481,14 +1481,14 @@
     });
   }
   function openBookmarkMenu(groupName, bookmark) {
-    const indexOf = () => bookmarks[groupName].findIndex((b) => b.name === bookmark.name && b.url === bookmark.url);
+    const indexOf2 = () => bookmarks[groupName].findIndex((b) => b.name === bookmark.name && b.url === bookmark.url);
     openBookmarkItemDialog({
       name: bookmark.name,
       url: bookmark.url,
       onRename: (raw) => {
         const newName = raw.trim();
         if (!newName) return "Give the bookmark a name.";
-        const idx = indexOf();
+        const idx = indexOf2();
         if (idx === -1) return true;
         bookmarks[groupName][idx].name = newName;
         bookmark.name = newName;
@@ -1499,7 +1499,7 @@
       onEditUrl: (raw) => {
         const value = raw.trim();
         if (!value) return "Give the bookmark a URL.";
-        const idx = indexOf();
+        const idx = indexOf2();
         if (idx === -1) return true;
         const finalUrl = value.match(/^https?:\/\//) ? value : "https://" + value;
         bookmarks[groupName][idx].url = finalUrl;
@@ -1637,24 +1637,24 @@
     `;
     const btn = container.querySelector(".switcher-btn");
     const label = container.querySelector(".switcher-label");
-    const menu2 = container.querySelector(".switcher-menu");
-    els = { container, btn, label, menu: menu2 };
+    const menu3 = container.querySelector(".switcher-menu");
+    els = { container, btn, label, menu: menu3 };
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       setOpen(btn.getAttribute("aria-expanded") !== "true");
     });
-    menu2.addEventListener("click", (e) => onMenuClick(e, btn));
+    menu3.addEventListener("click", (e) => onMenuClick(e, btn));
     document.addEventListener("click", (e) => {
       if (!els || !container.contains(e.target)) setOpen(false);
     });
-    menu2.addEventListener("mousemove", (e) => {
+    menu3.addEventListener("mousemove", (e) => {
       const li = e.target.closest(".switcher-item");
       if (li && document.activeElement !== li) li.focus();
     });
-    menu2.addEventListener("mouseleave", () => {
-      if (menu2.classList.contains("open")) menu2.focus();
+    menu3.addEventListener("mouseleave", () => {
+      if (menu3.classList.contains("open")) menu3.focus();
     });
-    menu2.addEventListener("keydown", (e) => onMenuKey(e, menu2, btn));
+    menu3.addEventListener("keydown", (e) => onMenuKey(e, menu3, btn));
   }
   function onMenuClick(e, btn) {
     const li = e.target.closest(".switcher-item");
@@ -1668,12 +1668,12 @@
     btn.focus();
     if (_onTabClick) _onTabClick(tab);
   }
-  function onMenuKey(e, menu2, btn) {
-    const items = [...menu2.children].filter((el3) => el3.classList.contains("switcher-item"));
+  function onMenuKey(e, menu3, btn) {
+    const items = [...menu3.children].filter((el3) => el3.classList.contains("switcher-item"));
     let i2 = items.indexOf(document.activeElement);
     if (i2 === -1 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
       e.preventDefault();
-      (menu2.querySelector('[aria-selected="true"]') || items[0])?.focus();
+      (menu3.querySelector('[aria-selected="true"]') || items[0])?.focus();
       return;
     }
     if (e.key === "ArrowDown") {
@@ -1766,16 +1766,22 @@
     saveTabs();
     renderTabs();
   }
-  function movePage(id, step) {
+  function movePageTo(id, index) {
     const from = activeTabs.findIndex((t) => t.id === id);
-    const to = from + step;
-    if (from < 0 || to < 0 || to >= activeTabs.length) return;
-    if (activeTabs[from].type === "search" || activeTabs[to].type === "search") return;
+    if (from < 0 || activeTabs[from].type === "search") return;
+    const min = activeTabs[0] && activeTabs[0].type === "search" ? 1 : 0;
+    const to = Math.max(min, Math.min(index, activeTabs.length - 1));
+    if (to === from) return;
     const next = activeTabs.slice();
-    [next[from], next[to]] = [next[to], next[from]];
+    const [page] = next.splice(from, 1);
+    next.splice(to, 0, page);
     setActiveTabs(next);
     saveTabs();
     renderTabs();
+  }
+  function movePage(id, step) {
+    const from = activeTabs.findIndex((t) => t.id === id);
+    if (from >= 0) movePageTo(id, from + step);
   }
   function syncSelection() {
     if (!els) return;
@@ -5394,32 +5400,41 @@
     </button>`;
   }
   var scalePreview = (scale) => `<div class="sp-scale-preview" aria-hidden="true"><div class="sp-scale-sample" style="zoom:${scale}"><div class="sp-scale-bar">${svg(I.search)}<span>Search the web</span></div><div class="sp-scale-pills"><span>Notion</span><span>Gmail</span><span>Calendar</span></div></div></div>`;
+  var KEBAB = '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="10" cy="4.5" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="15.5" r="1.5"/></svg>';
+  var GRIP = '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="5" r="1.3"/><circle cx="12.5" cy="5" r="1.3"/><circle cx="7.5" cy="10" r="1.3"/><circle cx="12.5" cy="10" r="1.3"/><circle cx="7.5" cy="15" r="1.3"/><circle cx="12.5" cy="15" r="1.3"/></svg>';
 
   // src/settings/pagesSection.js
-  var state = { confirming: null };
+  var state = { menuFor: null, confirming: null, dragging: null };
   var esc2 = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   var pageById = (id) => activeTabs.find((t) => String(t.id) === String(id));
-  function pill(action, id, label, opts = {}) {
-    return `<button class="sp-pill sm${opts.danger ? " danger" : ""}" data-action="${action}" data-id="${esc2(id)}"${opts.disabled ? " disabled" : ""}${opts.title ? ` title="${esc2(opts.title)}" aria-label="${esc2(opts.title)}"` : ""}>${label}</button>`;
+  var indexOf = (id) => activeTabs.findIndex((t) => String(t.id) === String(id));
+  function pill(action, id, label, danger) {
+    return `<button class="sp-pill sm${danger ? " danger" : ""}" data-action="${action}" data-id="${esc2(id)}">${label}</button>`;
   }
-  function controls(t, i2) {
-    if (t.type === "search") return pill("page-edit", t.id, "Edit");
-    const last = i2 === activeTabs.length - 1;
-    const firstMovable = i2 <= 1 || activeTabs[i2 - 1].type === "search";
-    return pill("page-up", t.id, "&uarr;", { disabled: firstMovable, title: `Move ${t.label} up` }) + pill("page-down", t.id, "&darr;", { disabled: last, title: `Move ${t.label} down` }) + pill("page-edit", t.id, "Edit") + pill("page-delete", t.id, "Delete", { danger: true });
+  function menu(t) {
+    if (state.menuFor !== String(t.id)) return "";
+    const id = esc2(t.id);
+    return `<div class="sp-popmenu" role="menu"><button role="menuitem" data-action="page-edit" data-id="${id}">Edit</button>` + (t.type === "search" ? "" : `<button role="menuitem" class="danger" data-action="page-delete" data-id="${id}">Delete</button>`) + `</div>`;
   }
-  function pageRow(t, i2) {
+  function controls(t) {
+    const id = esc2(t.id), name = esc2(t.label);
+    return `<span class="sp-menuwrap"><button class="sp-kebab" data-action="page-menu" data-id="${id}" aria-haspopup="menu" aria-expanded="${state.menuFor === String(t.id)}" aria-label="More for ${name}" title="More">${KEBAB}</button>${menu(t)}</span>`;
+  }
+  function pageRow(t) {
     const asking = state.confirming === String(t.id);
-    const ctrl = asking ? `<span class="pg-ask">Delete ${esc2(t.label)} and its bookmarks?</span><button class="sp-pill sm" data-action="page-delete-cancel">Cancel</button>` + pill("page-delete-go", t.id, "Delete", { danger: true }) : controls(t, i2);
-    return `<div class="sp-row pg-row" data-page-id="${esc2(t.id)}"><div class="sp-row-text"><div class="sp-row-title">${esc2(displayName(t))}</div><div class="sp-row-desc">${esc2(cleanSubtitle(t.sub) || starterSubtitle(t))}</div></div><div class="sp-row-ctrl">${ctrl}</div></div>`;
+    const ctrl = asking ? `<span class="pg-ask">Delete ${esc2(t.label)} and its bookmarks?</span><button class="sp-pill sm" data-action="page-delete-cancel">Cancel</button>` + pill("page-delete-go", t.id, "Delete", true) : controls(t);
+    const handle = t.type === "search" ? '<span class="pg-grip pg-grip--fixed" aria-hidden="true"></span>' : `<button class="pg-grip" draggable="true" data-action="page-drag" data-id="${esc2(t.id)}" aria-label="Move ${esc2(t.label)}: drag, or use the arrow keys" title="Drag to reorder">${GRIP}</button>`;
+    return `<div class="sp-row pg-row" data-page-id="${esc2(t.id)}">${handle}<div class="sp-row-text"><div class="sp-row-title">${esc2(displayName(t))}</div><div class="sp-row-desc">${esc2(cleanSubtitle(t.sub) || starterSubtitle(t))}</div></div><div class="sp-row-ctrl">${ctrl}</div></div>`;
   }
   function pagesPage() {
-    const list = activeTabs.map((t, i2) => pageRow(t, i2));
+    const list = activeTabs.map((t) => pageRow(t));
     const add = `<div class="sp-row pg-addrow"><button class="sp-pill" data-action="page-add">+ Add page</button></div>`;
-    return section("", [card([...list, add])]) + `<p class="sp-row-desc pg-intro">The order here is the order in the page switcher. Right-click a page in the switcher for the same edits.</p>`;
+    return section("", [card([...list, add])]) + `<p class="sp-row-desc pg-intro">Drag a page to change its place in the page switcher. Right-click a page in the switcher for the same edits.</p>`;
   }
   function pageAction(act, id, rerender) {
+    if (act === "page-drag") return;
     if (act === "page-add") {
+      state.menuFor = null;
       openAddPopup({ mode: "page", onSaved: rerender });
       return;
     }
@@ -5430,11 +5445,16 @@
     }
     const t = pageById(id);
     if (!t) return;
-    if (act === "page-edit") openAddPopup({ mode: "page", page: t, onSaved: rerender });
-    else if (act === "page-up" || act === "page-down") {
-      movePage(t.id, act === "page-up" ? -1 : 1);
+    if (act === "page-menu") {
+      state.menuFor = state.menuFor === String(t.id) ? null : String(t.id);
+      state.confirming = null;
       rerender();
+    } else if (act === "page-edit") {
+      state.menuFor = null;
+      rerender();
+      openAddPopup({ mode: "page", page: t, onSaved: rerender });
     } else if (act === "page-delete") {
+      state.menuFor = null;
       state.confirming = String(t.id);
       rerender();
     } else if (act === "page-delete-go") {
@@ -5443,8 +5463,76 @@
       rerender();
     }
   }
+  function rowAt(e, content2) {
+    const row2 = e.target && e.target.closest && e.target.closest(".pg-row[data-page-id]");
+    return row2 && content2.contains(row2) ? row2 : null;
+  }
+  function clearDrop(content2) {
+    content2.querySelectorAll(".pg-drop").forEach((r) => r.classList.remove("pg-drop"));
+  }
+  function wirePagesSection(content2, rerender, isOpen) {
+    content2.addEventListener("dragstart", (e) => {
+      const h = e.target.closest && e.target.closest('[data-action="page-drag"]');
+      if (!h) return;
+      state.dragging = h.dataset.id;
+      state.menuFor = null;
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", h.dataset.id);
+      }
+    });
+    content2.addEventListener("dragover", (e) => {
+      const row2 = state.dragging !== null && rowAt(e, content2);
+      if (!row2) return;
+      e.preventDefault();
+      clearDrop(content2);
+      row2.classList.add("pg-drop");
+    });
+    content2.addEventListener("drop", (e) => {
+      const row2 = state.dragging !== null && rowAt(e, content2);
+      if (!row2) return;
+      e.preventDefault();
+      const page = pageById(state.dragging);
+      state.dragging = null;
+      clearDrop(content2);
+      if (page) {
+        movePageTo(page.id, indexOf(row2.dataset.pageId));
+        rerender();
+      }
+    });
+    content2.addEventListener("dragend", () => {
+      state.dragging = null;
+      clearDrop(content2);
+    });
+    content2.addEventListener("keydown", (e) => {
+      const h = e.target.closest && e.target.closest('[data-action="page-drag"]');
+      if (!h || e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+      e.preventDefault();
+      const page = pageById(h.dataset.id);
+      if (!page) return;
+      movePage(page.id, e.key === "ArrowUp" ? -1 : 1);
+      rerender();
+      const again = [...content2.querySelectorAll('[data-action="page-drag"]')].find((b) => b.dataset.id === String(page.id));
+      if (again) again.focus();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || state.menuFor === null || !isOpen()) return;
+      e.preventDefault();
+      e.stopPropagation();
+      state.menuFor = null;
+      rerender();
+    }, true);
+    document.addEventListener("click", (e) => {
+      if (state.menuFor === null || !isOpen()) return;
+      if (e.target.closest && e.target.closest('.sp-popmenu, [data-action="page-menu"]')) return;
+      state.menuFor = null;
+      rerender();
+    }, true);
+  }
   function resetPagesSection() {
+    state.menuFor = null;
     state.confirming = null;
+    state.dragging = null;
   }
 
   // src/settings/pages.js
@@ -5503,8 +5591,8 @@
   };
   var NAV = [
     { group: "Settings", items: [
-      { id: "pages", label: "Pages", icon: I.pages },
       { id: "search", label: "Search", icon: I.search },
+      { id: "pages", label: "Pages", icon: I.pages },
       { id: "appearance", label: "Appearance", icon: I.sun },
       { id: "focus", label: "Focus", icon: I.focus }
     ] },
@@ -5516,24 +5604,24 @@
   ];
 
   // src/settings/menu.js
-  var menu = null;
+  var menu2 = null;
   var owner = null;
   function initMenu(menuEl, scrollHost) {
-    menu = menuEl;
-    menu.addEventListener("mousemove", (e) => {
+    menu2 = menuEl;
+    menu2.addEventListener("mousemove", (e) => {
       const li = e.target.closest(".sp-menu-item");
       if (li && document.activeElement !== li) li.focus();
     });
-    menu.addEventListener("mouseleave", () => {
-      if (owner) menu.focus();
+    menu2.addEventListener("mouseleave", () => {
+      if (owner) menu2.focus();
     });
-    menu.addEventListener("click", (e) => {
+    menu2.addEventListener("click", (e) => {
       const li = e.target.closest(".sp-menu-item");
       if (li) pick(li);
     });
-    menu.addEventListener("keydown", onMenuKey2, true);
+    menu2.addEventListener("keydown", onMenuKey2, true);
     document.addEventListener("mousedown", (e) => {
-      if (owner && !menu.contains(e.target) && !owner.contains(e.target)) closeMenu();
+      if (owner && !menu2.contains(e.target) && !owner.contains(e.target)) closeMenu();
     });
     window.addEventListener("resize", closeMenu);
     scrollHost.addEventListener("scroll", closeMenu);
@@ -5542,22 +5630,22 @@
     if (owner === btn) return closeMenu();
     owner = btn;
     const c = CONTROLS[btn.dataset.select], cur = String(c.get());
-    menu.innerHTML = c.options.map(
+    menu2.innerHTML = c.options.map(
       (o) => `<li class="sp-menu-item" role="menuitemradio" tabindex="-1" aria-checked="${String(o.value) === cur}" data-value="${o.value}"><span>${o.label}</span>${CHECK}</li>`
     ).join("");
     const r = btn.getBoundingClientRect();
-    menu.style.minWidth = Math.max(200, r.width) + "px";
-    menu.style.top = r.bottom + 6 + "px";
-    menu.style.left = "0px";
-    menu.classList.add("open");
-    const maxTop = window.innerHeight - menu.offsetHeight - 8;
-    if (r.bottom + 6 > maxTop) menu.style.top = Math.max(8, r.top - menu.offsetHeight - 6) + "px";
-    menu.style.left = Math.max(8, r.right - menu.offsetWidth) + "px";
-    menu.focus();
+    menu2.style.minWidth = Math.max(200, r.width) + "px";
+    menu2.style.top = r.bottom + 6 + "px";
+    menu2.style.left = "0px";
+    menu2.classList.add("open");
+    const maxTop = window.innerHeight - menu2.offsetHeight - 8;
+    if (r.bottom + 6 > maxTop) menu2.style.top = Math.max(8, r.top - menu2.offsetHeight - 6) + "px";
+    menu2.style.left = Math.max(8, r.right - menu2.offsetWidth) + "px";
+    menu2.focus();
   }
   function closeMenu() {
-    if (!menu) return;
-    menu.classList.remove("open");
+    if (!menu2) return;
+    menu2.classList.remove("open");
     owner = null;
   }
   var menuIsOpen = () => !!owner;
@@ -5569,11 +5657,11 @@
     CONTROLS[btn.dataset.select].set(li.dataset.value);
   }
   function onMenuKey2(e) {
-    const items = [...menu.children];
+    const items = [...menu2.children];
     const i2 = items.indexOf(document.activeElement);
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
-      if (i2 === -1) return (menu.querySelector('[aria-checked="true"]') || items[0]).focus();
+      if (i2 === -1) return (menu2.querySelector('[aria-checked="true"]') || items[0]).focus();
       items[(i2 + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length].focus();
     }
     if ((e.key === "Enter" || e.key === " ") && i2 !== -1) {
@@ -5619,7 +5707,7 @@
   var root = null;
   var navEl = null;
   var content = null;
-  var current = "search";
+  var current = null;
   var currentArg = null;
   var $ = (id) => document.getElementById(id);
   var esc3 = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -5633,6 +5721,7 @@
     initMenu($("sp-menu"), root.querySelector(".sp-main"));
     wireShell();
     wireContent();
+    wirePagesSection(content, () => renderPage(), isSettingsOpen);
     onSettingChange(() => rerenderSoon());
     publishApi();
   }
@@ -5640,6 +5729,9 @@
   function openSettings(pageId) {
     if (pageId && PAGES[pageId]) {
       current = pageId;
+      currentArg = null;
+    } else if (!current || !PAGES[current]) {
+      current = NAV[0].items[0].id;
       currentArg = null;
     }
     if (!root.hidden && !pageId) return;
@@ -5817,6 +5909,7 @@
       card,
       section,
       I,
+      kebab: KEBAB,
       register(def) {
         PAGES[def.id] = def.render;
         if (def.hidden) {

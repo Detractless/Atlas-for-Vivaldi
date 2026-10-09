@@ -237,17 +237,26 @@ export function deletePage(id) {
   renderTabs();
 }
 
-/** Move a page one place up (-1) or down (+1). Home stays first. */
-export function movePage(id, step) {
+/** Move a page to place `index` in the list (dragging in Settings > Pages).
+    Home stays first: nothing goes above it, and it never moves. */
+export function movePageTo(id, index) {
   const from = activeTabs.findIndex((t) => t.id === id);
-  const to = from + step;
-  if (from < 0 || to < 0 || to >= activeTabs.length) return;
-  if (activeTabs[from].type === 'search' || activeTabs[to].type === 'search') return;
+  if (from < 0 || activeTabs[from].type === 'search') return;
+  const min = activeTabs[0] && activeTabs[0].type === 'search' ? 1 : 0;
+  const to = Math.max(min, Math.min(index, activeTabs.length - 1));
+  if (to === from) return;
   const next = activeTabs.slice();
-  [next[from], next[to]] = [next[to], next[from]];
+  const [page] = next.splice(from, 1);
+  next.splice(to, 0, page);
   setActiveTabs(next);
   saveTabs();
   renderTabs();
+}
+
+/** Move a page one place up (-1) or down (+1): the drag handle's arrow keys. */
+export function movePage(id, step) {
+  const from = activeTabs.findIndex((t) => t.id === id);
+  if (from >= 0) movePageTo(id, from + step);
 }
 
 function syncSelection() {

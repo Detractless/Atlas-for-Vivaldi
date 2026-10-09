@@ -139,3 +139,21 @@ html.grayscale { filter: grayscale(1); }
 #sp-root .sp-back-link { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 8px -6px; padding: 4px 8px; border: 0; border-radius: 8px; background: none; color: var(--sp-text-2); font-size: 13px; cursor: pointer; }
 #sp-root .sp-back-link:hover { background: var(--sp-nav-hover); color: var(--sp-text); }
 #sp-root .sp-back-link svg { width: 16px; height: 16px; }
+
+/* The ⋮ ("more") button and its small menu, used by Settings > Pages and Profiles. */
+#sp-root .sp-menuwrap { position: relative; display: inline-flex; }
+#sp-root .sp-kebab { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: var(--sp-text-2); cursor: pointer; }
+#sp-root .sp-kebab:hover, #sp-root .sp-kebab[aria-expanded="true"] { background: var(--sp-nav-hover); color: var(--sp-text); }
+#sp-root .sp-kebab svg { width: 18px; height: 18px; }
+#sp-root .sp-popmenu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; min-width: 148px; padding: 6px; background: var(--sp-card); border: 1px solid var(--sp-border); border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); }
+#sp-root .sp-popmenu button { display: block; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--sp-text); font: 14px/20px var(--sp-font); text-align: left; cursor: pointer; }
+#sp-root .sp-popmenu button:hover { background: var(--sp-nav-hover); }
+#sp-root .sp-popmenu button.danger { color: var(--sp-danger); }
+
+/* Settings > Pages: the drag handle, and where a dragged page will land. */
+#sp-root .pg-grip { width: 24px; height: 32px; flex: none; display: grid; place-items: center; margin-left: -6px; border: 0; border-radius: 6px; background: none; color: var(--sp-text-3); cursor: grab; }
+#sp-root .pg-grip:hover, #sp-root .pg-grip:focus-visible { color: var(--sp-text); background: var(--sp-nav-hover); }
+#sp-root .pg-grip:active { cursor: grabbing; }
+#sp-root .pg-grip svg { width: 16px; height: 16px; }
+#sp-root .pg-grip--fixed { cursor: default; }
+#sp-root .pg-row.pg-drop { box-shadow: inset 0 2px 0 var(--sp-text-2); }

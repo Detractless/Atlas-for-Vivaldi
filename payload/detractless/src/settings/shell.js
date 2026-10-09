@@ -4,13 +4,14 @@
 import { PAGES, NAV, REVIEW_URL, resetState } from './pages.js';
 import { CONTROLS } from './controls.js';
 import { onSettingChange } from './registry.js';
-import { I, svg, row, card, section } from './markup.js';
+import { I, svg, row, card, section, KEBAB } from './markup.js';
 import { initMenu, openMenu, closeMenu, menuIsOpen } from './menu.js';
 import { importBookmarks, exportBookmarks } from '../pages/newtab/importExport.js';
 import { resetAllData } from '../services/resetService.js';
-import { pageAction, resetPagesSection } from './pagesSection.js';
+import { pageAction, resetPagesSection, wirePagesSection } from './pagesSection.js';
 
-let root = null, navEl = null, content = null, current = "search", currentArg = null;
+/* `current` is null until Settings first opens, which then shows the first page in the list (Profiles). */
+let root = null, navEl = null, content = null, current = null, currentArg = null;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -28,6 +29,7 @@ export function installSettingsPage() {
   initMenu($("sp-menu"), root.querySelector(".sp-main"));
   wireShell();
   wireContent();
+  wirePagesSection(content, () => renderPage(), isSettingsOpen);
   onSettingChange(() => rerenderSoon());
   publishApi();
 }
@@ -37,6 +39,7 @@ export const isSettingsOpen = () => !!root && !root.hidden;
 /** Show Settings, on `pageId` when given (?settings=<id> and messages use this). */
 export function openSettings(pageId) {
   if (pageId && PAGES[pageId]) { current = pageId; currentArg = null; }
+  else if (!current || !PAGES[current]) { current = NAV[0].items[0].id; currentArg = null; }
   if (!root.hidden && !pageId) return;
   root.hidden = false;
   resetState.confirming = false;
@@ -207,7 +210,7 @@ function publishApi() {
     current: () => current,
     arg: () => currentArg,
     rerender: () => { if (isSettingsOpen()) renderPage(); },
-    go, content, svg, row, card, section, I,
+    go, content, svg, row, card, section, I, kebab: KEBAB,
     register(def) {
       PAGES[def.id] = def.render;
       if (def.hidden) {
