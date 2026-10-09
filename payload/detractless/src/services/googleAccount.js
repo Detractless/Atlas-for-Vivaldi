@@ -4,9 +4,14 @@
    active, the Google links the new tab opens (bookmarks, searches, bookmark
    pills) carry the account, so Gmail, Drive and the rest open as it.
 
-   How: Google picks the account from `authuser` (an email works, and unlike
-   the u/0, u/1 numbers it does not shift when accounts sign in or out), and
-   from a /u/N/ part of the path, which is replaced by the email too.
+   How: Google picks the account from `authuser`, and from a /u/N/ part of the
+   path, which is replaced too. The value is the account's number from the list
+   the browser window found (spec 002, chrome.storage.local.atlasGoogleAccounts),
+   because Google Search ignores an email there: measured 2026-10-09 in Vivaldi,
+   google.com/search?authuser=<email> opened account 0 while authuser=3 opened
+   account 3 (Gmail took either). The number is looked up again each time, as
+   numbers shift when accounts sign in or out. Without a list, the email is
+   used, which still works for Gmail.
 
    Not covered, on purpose (the user's decision): the address bar and anything
    typed there, searches the browser runs with its own default engine, and
@@ -19,9 +24,11 @@
 const GOOGLE_HOST = /(^|\.)(google\.com|youtube\.com)$/i;
 const ACCOUNT_IN_PATH = /(^|\/)u\/\d+(\/|$)/;
 
-/** `url` set to open as `email`, if it is a Google link; otherwise `url` unchanged. */
-export function withGoogleAccount(url, email) {
-  if (!email) return url;
+/** `url` set to open as `who` (an account number or an email), if it is a
+    Google link; otherwise `url` unchanged. */
+export function withGoogleAccount(url, who) {
+  if (who === '' || who === null || who === undefined) return url;
+  const value = String(who);
   let u;
   try {
     u = new URL(url);
@@ -30,11 +37,20 @@ export function withGoogleAccount(url, email) {
   }
   if (!/^https?:$/.test(u.protocol) || !GOOGLE_HOST.test(u.hostname)) return url;
   if (ACCOUNT_IN_PATH.test(u.pathname)) {
-    u.pathname = u.pathname.replace(ACCOUNT_IN_PATH, (m, before, after) => `${before}u/${encodeURIComponent(email)}${after}`);
+    u.pathname = u.pathname.replace(ACCOUNT_IN_PATH, (m, before, after) => `${before}u/${encodeURIComponent(value)}${after}`);
   }
-  u.searchParams.set('authuser', email);
+  u.searchParams.set('authuser', value);
   return u.toString();
 }
+
+/* The signed-in accounts the browser window found, kept current. */
+let found = [];
+try {
+  chrome.storage.local.get(['atlasGoogleAccounts'], (r) => { found = (r && r.atlasGoogleAccounts && r.atlasGoogleAccounts.accounts) || []; });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.atlasGoogleAccounts) found = (changes.atlasGoogleAccounts.newValue || {}).accounts || [];
+  });
+} catch (e) { /* no chrome.storage (outside the browser, or a unit test): no list, emails are used */ }
 
 /** The active profile's linked email, or '' when there is none. */
 export function activeGoogleEmail() {
@@ -43,7 +59,16 @@ export function activeGoogleEmail() {
   return (p && p.google && p.google.email) || '';
 }
 
+/** The active profile's account as Google should be asked for it: its number
+    when it is signed in and found, else its email, else ''. */
+export function activeGoogleAccount() {
+  const email = activeGoogleEmail().toLowerCase();
+  if (!email) return '';
+  const a = found.find((x) => x && x.signedIn && String(x.email).toLowerCase() === email && Number.isInteger(x.index));
+  return a ? a.index : activeGoogleEmail();
+}
+
 /** `url` as the active profile's Google account would open it. */
 export function forActiveAccount(url) {
-  return withGoogleAccount(url, activeGoogleEmail());
+  return withGoogleAccount(url, activeGoogleAccount());
 }

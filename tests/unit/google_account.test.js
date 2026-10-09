@@ -67,6 +67,9 @@ test("withGoogleAccount: Google and YouTube links get the account; nothing else 
     assert.equal(withGoogleAccount(url, e), url, `${url} is left alone`);
   }
   assert.equal(withGoogleAccount("https://mail.google.com", ""), "https://mail.google.com", "no account, no change");
+  assert.equal(account(withGoogleAccount("https://www.google.com/search?q=x", 3)), "3", "an account number works too");
+  assert.equal(account(withGoogleAccount("https://www.google.com/search?q=x", 0)), "0", "including number 0");
+  assert.ok(withGoogleAccount("https://mail.google.com/mail/u/1/#inbox", 3).startsWith("https://mail.google.com/mail/u/3/?authuser=3"));
   assert.equal(withGoogleAccount("not a url", e), "not a url");
 });
 
@@ -77,6 +80,26 @@ test("with a linked account, Google bookmarks open as that account; others are u
   assert.equal(account(link(page, "Google Calendar").href), EMAILS.school);
   assert.equal(link(page, "Notion").getAttribute("href"), "https://notion.so");
   assert.deepEqual(t.errors, []);
+});
+
+test("when the linked account is among the signed-in ones, links use its number (Google Search ignores an email)", async () => {
+  // Measured 2026-10-09 in Vivaldi: google.com/search?authuser=<email> opened account 0; authuser=3 opened account 3.
+  const found = { accounts: [
+    { index: 0, name: "Other", email: "other@example.com", photo: "", signedIn: true },
+    { index: 3, name: "Pat", email: EMAILS.school, photo: "", signedIn: true }], at: 1 };
+  const t = await openNewTab({ sync: { selectedSearchEngine: "google" }, local: { atlasProfilesV2: profiles("school", EMAILS), atlasGoogleAccounts: found } });
+  const { window: win, document: doc } = t;
+  const input = doc.getElementById("search-input");
+  type(win, input, "cats");
+  key(win, input, "Enter");
+  await settle(win, 100);
+  assert.equal(account(plain(win.__navigations)[0]), "3");
+  const page = await openEssentials(t);
+  assert.equal(account(link(page, "Gmail").href), "3");
+  await t.chrome.storage.local.set({ atlasGoogleAccounts: { accounts: [], at: 2, error: "offline" } });
+  await settle(win, 50);
+  link(page, "Gmail").dispatchEvent(new win.MouseEvent("mousedown", { bubbles: true }));
+  assert.equal(account(link(page, "Gmail").href), EMAILS.school, "without a list, the email is used");
 });
 
 test("with no linked account, Google bookmarks open unchanged", async () => {

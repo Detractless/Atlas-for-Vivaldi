@@ -1175,8 +1175,9 @@
   // src/services/googleAccount.js
   var GOOGLE_HOST = /(^|\.)(google\.com|youtube\.com)$/i;
   var ACCOUNT_IN_PATH = /(^|\/)u\/\d+(\/|$)/;
-  function withGoogleAccount(url, email) {
-    if (!email) return url;
+  function withGoogleAccount(url, who) {
+    if (who === "" || who === null || who === void 0) return url;
+    const value = String(who);
     let u;
     try {
       u = new URL(url);
@@ -1185,18 +1186,34 @@
     }
     if (!/^https?:$/.test(u.protocol) || !GOOGLE_HOST.test(u.hostname)) return url;
     if (ACCOUNT_IN_PATH.test(u.pathname)) {
-      u.pathname = u.pathname.replace(ACCOUNT_IN_PATH, (m, before, after) => `${before}u/${encodeURIComponent(email)}${after}`);
+      u.pathname = u.pathname.replace(ACCOUNT_IN_PATH, (m, before, after) => `${before}u/${encodeURIComponent(value)}${after}`);
     }
-    u.searchParams.set("authuser", email);
+    u.searchParams.set("authuser", value);
     return u.toString();
+  }
+  var found = [];
+  try {
+    chrome.storage.local.get(["atlasGoogleAccounts"], (r) => {
+      found = r && r.atlasGoogleAccounts && r.atlasGoogleAccounts.accounts || [];
+    });
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === "local" && changes.atlasGoogleAccounts) found = (changes.atlasGoogleAccounts.newValue || {}).accounts || [];
+    });
+  } catch (e) {
   }
   function activeGoogleEmail() {
     const ap = typeof window !== "undefined" ? window.AtlasProfiles : null;
     const p2 = ap && ap.active ? ap.active() : null;
     return p2 && p2.google && p2.google.email || "";
   }
+  function activeGoogleAccount() {
+    const email = activeGoogleEmail().toLowerCase();
+    if (!email) return "";
+    const a = found.find((x2) => x2 && x2.signedIn && String(x2.email).toLowerCase() === email && Number.isInteger(x2.index));
+    return a ? a.index : activeGoogleEmail();
+  }
   function forActiveAccount(url) {
-    return withGoogleAccount(url, activeGoogleEmail());
+    return withGoogleAccount(url, activeGoogleAccount());
   }
 
   // src/utils/pillSelection.js
