@@ -115,18 +115,11 @@ test("the profile menu is Atlas's own right-click menu: pointer, sizes, no color
   assert.ok(![...menuRoot(t.document).querySelectorAll(".mi")].some((r) => r.className.includes("danger")), "no colored Delete");
 });
 
-test("Delete in the right-click menu asks first, right in the list", async () => {
+test("Delete in the right-click menu deletes the profile at once, without asking", async () => {
   const t = await openProfiles();
   await fromMenu(t, "school", "Delete");
-  await settle(t.window, 50);
-  assert.match(text(content(t)), /Delete Pat \(School\)\?/);
-  click(t.window, content(t).querySelector("[data-pf-cancel]"));
-  await settle(t.window, 50);
-  assert.ok(await storedProfile(t, "school"), "Cancel keeps it");
-  await fromMenu(t, "school", "Delete");
-  await settle(t.window, 50);
-  click(t.window, content(t).querySelector('[data-pf-delete-go="school"]'));
   await settle(t.window, 200);
+  assert.equal(content(t).querySelector("[data-pf-cancel], [data-pf-delete-go], .pf-ask"), null, "no confirmation");
   assert.equal(await storedProfile(t, "school"), undefined, "deleted");
   assert.equal(content(t).querySelectorAll(".pf-row").length, 1);
 });
@@ -181,19 +174,10 @@ test("the image can be changed or removed on the edit page", async () => {
   assert.equal(content(t).querySelector('[data-pfe-clear-icon="personal"]'), null, "nothing left to remove");
 });
 
-test("Delete asks first; deleting the active profile switches to the other and returns to the list", async () => {
+test("Delete on the edit page deletes at once; deleting the active profile switches to the other and returns to the list", async () => {
   const t = await openProfiles();
   await edit(t, "personal");
   click(t.window, content(t).querySelector('[data-pfe-delete="personal"]'));
-  await settle(t.window, 50);
-  assert.match(text(content(t)), /Delete Pat\?/);
-  click(t.window, content(t).querySelector("[data-pfe-delete-cancel]"));
-  await settle(t.window, 50);
-  assert.ok(await storedProfile(t, "personal"), "Cancel keeps it");
-
-  click(t.window, content(t).querySelector('[data-pfe-delete="personal"]'));
-  await settle(t.window, 50);
-  click(t.window, content(t).querySelector('[data-pfe-delete-go="personal"]'));
   await waitFor(() => title(t) === "Profiles", 3000, "back on Profiles");
   const state = plain((await t.chrome.storage.local.get(["atlasProfilesV2"])).atlasProfilesV2);
   assert.deepEqual(state.list.map((p) => p.id), ["school"]);

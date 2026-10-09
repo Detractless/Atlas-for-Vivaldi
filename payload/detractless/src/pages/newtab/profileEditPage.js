@@ -7,7 +7,7 @@
   if (!UI || !AP) return;
 
   const esc = AP.esc;
-  let confirming = false, notice = "", shownId = null;
+  let notice = "", shownId = null;
   /* A Google address that isn't an email stays in the box with a note, unsaved. */
   let googleDraft = null, googleProblem = "";
 
@@ -149,16 +149,12 @@
     const desc = only ? "You need at least one profile, so this one can't be deleted."
       : p.id === s.active ? "You'll switch to the first remaining profile."
         : "Its own settings and bookmarks go with it.";
-    const ctl = confirming
-      ? `<span class="pf-ask">Delete ${esc(p.name)}?</span>
-         <button class="sp-pill sm" data-pfe-delete-cancel>Cancel</button>
-         <button class="sp-pill sm danger" data-pfe-delete-go="${id}">Delete</button>`
-      : `<button class="sp-pill sm danger" data-pfe-delete="${id}"${only ? " disabled" : ""}>Delete</button>`;
+    const ctl = `<button class="sp-pill sm danger" data-pfe-delete="${id}"${only ? " disabled" : ""}>Delete</button>`;
     return UI.card([UI.row("Delete this profile", desc, ctl)]);
   }
 
   function render(id) {
-    if (id !== shownId) { shownId = id; confirming = false; notice = ""; googleDraft = null; googleProblem = ""; googleTyped = false; askForAccounts(); }
+    if (id !== shownId) { shownId = id; notice = ""; googleDraft = null; googleProblem = ""; googleTyped = false; askForAccounts(); }
     const s = AP.get(), p = profile(id);
     if (!s || !p) return '<p class="sp-row-desc">This profile no longer exists.</p>';
     return UI.section("", [head(p), fields(p)]) + UI.section("", [deleteCard(p, s)]);
@@ -195,12 +191,8 @@
       googleDraft = null; googleProblem = "";
       AP.update(b.dataset.pfeGoogleUnlink, { google: null }).then(redraw);
     } else if ((b = t("[data-pfe-delete]"))) {
-      if (!b.disabled) { confirming = true; redraw(); }
-    } else if (t("[data-pfe-delete-cancel]")) {
-      confirming = false; redraw();
-    } else if ((b = t("[data-pfe-delete-go]"))) {
-      confirming = false;
-      AP.remove(b.dataset.pfeDeleteGo).then(() => UI.go("profiles"));
+      /* At once, no confirmation (the user's choice); the last profile's button is disabled. */
+      if (!b.disabled) AP.remove(b.dataset.pfeDelete).then(() => UI.go("profiles"));
     }
   });
 

@@ -14,16 +14,13 @@
 #sp-root .pf-name { font-weight: 500; }
 #sp-root .pf-label { font-size: 12px; line-height: 16px; color: var(--sp-text-2); }
 #sp-root .pf-label:empty::before { content: "No label"; color: var(--sp-text-3); }
-#sp-root .pf-actions { display: flex; align-items: center; gap: 8px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
 #sp-root .pf-badge { font-size: 12px; line-height: 16px; padding: 2px 10px; border-radius: 9999px; background: var(--sp-nav-active); color: var(--sp-text-2); }
-#sp-root .pf-ask { font-size: 13px; color: var(--sp-text-2); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #sp-root .sp-pill[disabled] { opacity: .45; cursor: default; }
 #sp-root .sp-pill[disabled]:hover { background: var(--sp-pill); }
 #sp-root .pf-addrow { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
 #sp-root .pf-row + .pf-addrow::before { content: ""; position: absolute; top: 0; left: 16px; right: 16px; height: 1px; background: var(--sp-border); }
 #sp-root .pf-notice { font-size: 12px; color: var(--sp-danger); }
 #sp-root .pf-intro { margin: 0 0 12px; }
-#sp-root .pf-actions .sp-pill { height: 30px; padding: 0 12px; font-size: 13px; }
 
 /* The list's avatars are pictures, not buttons; the image is chosen on the edit page. */
 #sp-root .pf-av--static { display: inline-block; cursor: default; }

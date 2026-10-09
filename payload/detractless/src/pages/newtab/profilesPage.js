@@ -11,16 +11,9 @@
   const ICON_SVG = '<circle cx="10" cy="7" r="3.2"/><path d="M3.8 16.5c.8-3 3.2-4.5 6.2-4.5s5.4 1.5 6.2 4.5"/>';
   const CHECK = '<svg class="pf-check" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9l3 3 6-7"/></svg>';
   const esc = AP.esc;
-  /* Which profile is asking "delete, are you sure?". */
-  let confirmId = null;
 
   function profileRow(p, s) {
     const active = p.id === s.active, id = esc(p.id);
-    const ctl = confirmId === p.id
-      ? `<span class="pf-ask">Delete ${esc(p.name)}?</span>
-         <button class="sp-pill sm" data-pf-cancel>Cancel</button>
-         <button class="sp-pill sm danger" data-pf-delete-go="${id}">Delete</button>`
-      : "";
     return `<div class="pf-row${active ? " is-active" : ""}" data-pf-id="${id}">
       <button class="pf-pick" data-pf-switch="${id}" aria-pressed="${active}" aria-haspopup="menu"
         title="${active ? "Current profile" : `Switch to ${esc(p.name)}`}. Right-click for Edit and Delete">
@@ -28,7 +21,6 @@
         <span class="pf-fields"><span class="pf-name">${esc(p.name)}</span><span class="pf-label">${esc(p.label)}</span></span>
         ${active ? CHECK : ""}
       </button>
-      ${ctl ? `<div class="pf-actions">${ctl}</div>` : ""}
     </div>`;
   }
 
@@ -64,11 +56,11 @@
     const s = AP.get(), id = row.dataset.pfId;
     if (!s || !window.__atlasMenu) return;
     const items = [{ label: "Edit", run: () => UI.go("profile", id) }];
-    if (s.list.length > 1) items.push({ label: "Delete", run: () => { confirmId = id; redraw(); } });
+    /* Delete acts at once (the user asked for no confirmation). The last profile can't be deleted. */
+    if (s.list.length > 1) items.push({ label: "Delete", run: () => AP.remove(id).then(redraw) });
     const byMouse = e.type === "contextmenu";
     const r = row.getBoundingClientRect();
     const at = byMouse ? e : { clientX: r.left + 30, clientY: r.bottom - 6 };
-    confirmId = null;
     window.__atlasMenu.open(at, items, { focus: !byMouse });
   }
 
@@ -93,10 +85,6 @@
     let b;
     if (t("[data-pf-add]")) {
       AP.add({ name: "New profile" }).then((p) => UI.go("profile", p.id));
-    } else if (t("[data-pf-cancel]")) {
-      confirmId = null; redraw();
-    } else if ((b = t("[data-pf-delete-go]"))) {
-      confirmId = null; AP.remove(b.dataset.pfDeleteGo).then(redraw);
     } else if ((b = t("[data-pf-switch]"))) {
       const s = AP.get();
       if (s && s.active !== b.dataset.pfSwitch) AP.switchTo(b.dataset.pfSwitch);
