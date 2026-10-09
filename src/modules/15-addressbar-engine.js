@@ -1,9 +1,31 @@
 /* ── 15-addressbar-engine.js: the address bar searches with the new tab's engine ──
-   The new tab keeps its default engine in chrome.storage.sync: defaultEngineKey,
-   and customSearchEngines[key].url, the prefix a query is appended to. This makes
-   the matching engine Vivaldi's own default search, adding it to Vivaldi first if
-   Vivaldi has none, so a search typed in the address bar goes to the same place.
-   Runs at start and again whenever the new tab's engine changes. ── */
+   The new tab keeps its engines in chrome.storage.sync: customSearchEngines[key].url
+   is the prefix a query is appended to, defaultEngineKey the default, and
+   selectedSearchEngine the last one picked (on the new tab or with the address
+   bar's engine button, 19-addressbar-engine-picker.js). The address bar uses the
+   same engine as the new tab (addressBarEngineKey). This makes that engine
+   Vivaldi's own default search, adding it to Vivaldi first if Vivaldi has none,
+   so a search typed in the address bar goes to the same place. Runs at start and
+   again whenever one of those settings changes. ── */
+
+/* The settings that decide it; a change to any of them syncs again. */
+var ENGINE_KEYS = ['customSearchEngines', 'defaultEngineKey', 'selectedSearchEngine', 'searchEngineBehavior'];
+
+/* A pick made with the address bar's engine button while engines "always
+   reset to the default": it lasts until you leave the field. */
+var engineOverride = null;
+
+/* The engine the address bar searches with: as on the new tab, the last one
+   picked, or the default when engines always reset. An engine with no address
+   ("Browser Default") leaves the default in charge. */
+function addressBarEngineKey(r) {
+  r = r || {};
+  var all = r.customSearchEngines || {};
+  var usable = function (k) { return !!(k && all[k] && all[k].url); };
+  if (usable(engineOverride)) return engineOverride;
+  if (r.searchEngineBehavior !== 'always-default' && usable(r.selectedSearchEngine)) return r.selectedSearchEngine;
+  return r.defaultEngineKey || 'default';
+}
 
 function engineTemplate(eng) {
   return eng.url.indexOf('{searchTerms}') !== -1 ? eng.url : eng.url + '{searchTerms}';
@@ -66,6 +88,7 @@ function finishEngineSync() {
 function makeDefaultEngine(res, guid) {
   if (guid && res.defaultSearch !== guid) vivaldi.searchEngines.setDefault('defaultSearch', guid);
   finishEngineSync();
+  if (typeof abeEngineApplied === 'function') abeEngineApplied();
 }
 
 function applyEngine(key, eng) {
@@ -95,8 +118,8 @@ function applyEngine(key, eng) {
 function syncAddressBarEngine() {
   if (engineSyncBusy) { engineSyncAgain = true; return; }
   engineSyncBusy = true;
-  chrome.storage.sync.get(['defaultEngineKey', 'customSearchEngines'], function (r) {
-    var key = (r && r.defaultEngineKey) || 'default';
+  chrome.storage.sync.get(['customSearchEngines', 'defaultEngineKey', 'selectedSearchEngine', 'searchEngineBehavior'], function (r) {
+    var key = addressBarEngineKey(r);
     var eng = r && r.customSearchEngines && r.customSearchEngines[key];
     if (!eng || !eng.url) return finishEngineSync();
     applyEngine(key, eng);
@@ -106,6 +129,6 @@ function syncAddressBarEngine() {
 if (window.vivaldi && vivaldi.searchEngines && chrome.storage && chrome.storage.sync) {
   syncAddressBarEngine();
   chrome.storage.onChanged.addListener(function (changes, area) {
-    if (area === 'sync' && (changes.defaultEngineKey || changes.customSearchEngines)) syncAddressBarEngine();
+    if (area === 'sync' && ENGINE_KEYS.some(function (k) { return changes[k]; })) syncAddressBarEngine();
   });
 }

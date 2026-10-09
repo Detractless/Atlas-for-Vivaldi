@@ -2415,21 +2415,31 @@
     });
     container.appendChild(manageBtn);
   }
-  function updateCurrentEngine(engineKey) {
+  function showEngine(engineKey) {
     const engine = searchEngines[engineKey];
     const iconDisplay = document.getElementById("current-engine-icon-display");
-    if (iconDisplay && engine) {
-      iconDisplay.innerHTML = "";
-      const img = document.createElement("img");
-      setEngineIconSrc(img, engine, engineKey);
-      img.alt = engine.name;
-      img.onerror = () => {
-        img.src = "src/assets/svg/default.api.svg";
-      };
-      iconDisplay.appendChild(img);
-      setCurrentEngine(engineKey);
-      saveSelectedEngine(engineKey);
-    }
+    if (!iconDisplay || !engine) return false;
+    iconDisplay.innerHTML = "";
+    const img = document.createElement("img");
+    setEngineIconSrc(img, engine, engineKey);
+    img.alt = engine.name;
+    img.onerror = () => {
+      img.src = "src/assets/svg/default.api.svg";
+    };
+    iconDisplay.appendChild(img);
+    setCurrentEngine(engineKey);
+    return true;
+  }
+  function updateCurrentEngine(engineKey) {
+    if (showEngine(engineKey)) saveSelectedEngine(engineKey);
+  }
+  function followEnginePicks() {
+    if (!(window.chrome && chrome.storage && chrome.storage.onChanged)) return;
+    chrome.storage.onChanged.addListener((changes, area) => {
+      const c = area === "sync" && changes.selectedSearchEngine;
+      if (!c || searchEngineBehavior === "always-default") return;
+      if (c.newValue && c.newValue !== currentEngine && searchEngines[c.newValue]) showEngine(c.newValue);
+    });
   }
   function loadSavedEngine() {
     try {
@@ -5924,9 +5934,11 @@
     await loadSearchEngines();
     initializeSearch();
     loadSavedEngine();
+    followEnginePicks();
     showPage("search");
     const searchInput = document.getElementById("search-input");
-    if (searchInput && spotlightVisible && !isSettingsUrl()) setTimeout(() => searchInput.focus(), 100);
+    if (new URLSearchParams(location.search).has("engines")) showModal("engine-modal");
+    else if (searchInput && spotlightVisible && !isSettingsUrl()) setTimeout(() => searchInput.focus(), 100);
   });
   function wireCallbacks() {
     setTabNavigationCallbacks({

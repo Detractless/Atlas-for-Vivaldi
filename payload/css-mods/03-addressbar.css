@@ -208,8 +208,9 @@
    The field and the card read as one shape (look B): no gap, the field's own
    color, one border around both, square corners where they meet, and a faint
    line under the field. #browser.atlas-urlcard-open is set while the card
-   shows. */
-#browser .atlas-urlcard {
+   shows. The engine pills (4d) use the same card. */
+#browser .atlas-urlcard,
+#browser .atlas-enginecard {
   position: fixed; z-index: 2147483000; box-sizing: border-box;
   padding: 10px 10px 10px;
   /* The focused field's color (hover-2 over the toolbar), made solid so the
@@ -221,12 +222,15 @@
   clip-path: inset(0 -40px -40px -40px);  /* no shadow up over the field */
   font: 13px/18px system-ui, -apple-system, "Segoe UI", sans-serif;
 }
-#browser .atlas-urlcard::before {
+#browser .atlas-urlcard::before,
+#browser .atlas-enginecard::before {
   content: ""; position: absolute; top: 0; left: 12px; right: 12px; height: 1px;
   background: var(--atlas-hover-2);
 }
-#browser .atlas-urlcard[hidden] { display: none; }
-#browser.atlas-urlcard-open .UrlBar-AddressField:focus-within {
+#browser .atlas-urlcard[hidden],
+#browser .atlas-enginecard[hidden] { display: none; }
+#browser.atlas-urlcard-open .UrlBar-AddressField:focus-within,
+#browser.atlas-engines-open .UrlBar-AddressField:focus-within {
   border-bottom-color: transparent !important;
   border-bottom-left-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
@@ -244,3 +248,27 @@
 #browser .atlas-urlpill[aria-selected="true"] { background: var(--atlas-text-1); color: var(--atlas-bar); }
 #browser .atlas-urlcard-hint { margin-top: 8px; color: var(--atlas-text-2); font-size: 11px; opacity: .8; }
 #browser.atlas-pills-open .OmniDropdown { display: none !important; }
+
+/* ── 4d. The engine button (src/modules/19-addressbar-engine-picker.js) ──────
+   While the field is in use, the engine a search will use sits over Vivaldi's
+   left icon (#browser.atlas-enginebtn-on). Clicked, the card shows the engines
+   as pills instead of the bookmarks (#browser.atlas-engines-open). */
+#browser.atlas-enginebtn-on .UrlBar-AddressField .SiteInfoButton { visibility: hidden !important; }
+#browser .atlas-enginebtn {
+  position: fixed; z-index: 2147483001; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; border: 0; border-radius: 6px; cursor: pointer;
+  background: transparent;
+}
+#browser .atlas-enginebtn[hidden] { display: none; }
+#browser .atlas-enginebtn:hover,
+#browser .atlas-enginebtn[aria-expanded="true"] { background: var(--atlas-hover-2); }
+#browser .atlas-enginebtn img { width: 16px; height: 16px; object-fit: contain; display: block; }
+#browser.atlas-engines-open .atlas-urlcard,
+#browser.atlas-engines-open .OmniDropdown { display: none !important; }
+#browser .atlas-enginepill { display: inline-flex; align-items: center; gap: 7px; }
+#browser .atlas-enginepill img,
+#browser .atlas-enginepill svg { width: 14px; height: 14px; object-fit: contain; flex-shrink: 0; }
+/* The plain "default" logo is drawn white for dark surfaces, as on the new tab. */
+#browser:not(.theme-dark) .atlas-enginebtn img[src*="default.api.svg"],
+#browser:not(.theme-dark) .atlas-enginepill img[src*="default.api.svg"] { filter: invert(1); }

@@ -52,13 +52,29 @@ export function renderEngineDropdown() {
   container.appendChild(manageBtn);
 }
 
-export function updateCurrentEngine(engineKey) {
+/* Show an engine on the engine button and make it the current one. */
+function showEngine(engineKey) {
   const engine = searchEngines[engineKey]; const iconDisplay = document.getElementById('current-engine-icon-display');
-  if (iconDisplay && engine) {
-    iconDisplay.innerHTML = ''; const img = document.createElement('img'); setEngineIconSrc(img, engine, engineKey);
-    img.alt = engine.name; img.onerror = () => { img.src = 'src/assets/svg/default.api.svg'; };
-    iconDisplay.appendChild(img); setCurrentEngine(engineKey); saveSelectedEngine(engineKey);
-  }
+  if (!iconDisplay || !engine) return false;
+  iconDisplay.innerHTML = ''; const img = document.createElement('img'); setEngineIconSrc(img, engine, engineKey);
+  img.alt = engine.name; img.onerror = () => { img.src = 'src/assets/svg/default.api.svg'; };
+  iconDisplay.appendChild(img); setCurrentEngine(engineKey);
+  return true;
+}
+
+export function updateCurrentEngine(engineKey) {
+  if (showEngine(engineKey)) saveSelectedEngine(engineKey);
+}
+
+/** An engine picked elsewhere (the address bar's engine button) shows here
+    too, unless engines always reset to the default. */
+export function followEnginePicks() {
+  if (!(window.chrome && chrome.storage && chrome.storage.onChanged)) return;
+  chrome.storage.onChanged.addListener((changes, area) => {
+    const c = area === 'sync' && changes.selectedSearchEngine;
+    if (!c || searchEngineBehavior === 'always-default') return;
+    if (c.newValue && c.newValue !== currentEngine && searchEngines[c.newValue]) showEngine(c.newValue);
+  });
 }
 
 export function loadSavedEngine() {

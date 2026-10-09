@@ -12,7 +12,7 @@ import { initializeTabs, setTabNavigationCallbacks, renderTabs, selectSearchTab 
 import { showModal } from './modalVisibility.js';
 // The tab limiter's stylesheet; imported here so the CSS keeps its place in the bundle.
 import '../../components/tabLimiter/tabLimiterUI.js';
-import { loadSearchEngines, loadSavedEngine, setManageEnginesCallback, renderEngineDropdown, updateCurrentEngine } from '../../components/engines/enginesUI.js';
+import { loadSearchEngines, loadSavedEngine, setManageEnginesCallback, renderEngineDropdown, updateCurrentEngine, followEnginePicks } from '../../components/engines/enginesUI.js';
 import { initEngineModal } from '../../components/engines/engineModal.js';
 import { initializeSearch } from '../../components/search/search.js';
 import { setImportCompleteCallback } from './importExport.js';
@@ -61,11 +61,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.querySelectorAll(".modal").forEach(modal => modal.addEventListener("click", e => e.stopPropagation()));
 
-  await loadSearchEngines(); initializeSearch(); loadSavedEngine();
+  await loadSearchEngines(); initializeSearch(); loadSavedEngine(); followEnginePicks();
 
   showPage("search");
   const searchInput = document.getElementById("search-input");
-  if (searchInput && spotlightVisible && !isSettingsUrl()) setTimeout(() => searchInput.focus(), 100);
+  // ?engines (the address bar's "Engine lists") opens the engine list.
+  if (new URLSearchParams(location.search).has('engines')) showModal('engine-modal');
+  else if (searchInput && spotlightVisible && !isSettingsUrl()) setTimeout(() => searchInput.focus(), 100);
 });
 
 function wireCallbacks() {
