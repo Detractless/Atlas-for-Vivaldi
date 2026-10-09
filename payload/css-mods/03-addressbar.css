@@ -195,20 +195,39 @@
 }
 
 /* ── 4c. The address bar card (src/modules/18-addressbar-pills.js) ──────────
-   While the field is in use, a card floats under it over the page, the same
+   While the field is in use, a card grows down from it over the page, the same
    width as the field: the whole address wrapped when it is too long for the
    one-line field, and while typing, the matching bookmarks as pills (the new
    tab's pills, inverted when picked). Vivaldi's own suggestions step aside
-   while pills show. */
+   while pills show.
+   The field and the card read as one shape (look B): no gap, the field's own
+   color, one border around both, square corners where they meet, and a faint
+   line under the field. #browser.atlas-urlcard-open is set while the card
+   shows. */
 #browser .atlas-urlcard {
   position: fixed; z-index: 2147483000; box-sizing: border-box;
-  padding: 8px 10px 10px;
-  background: var(--atlas-menu); color: var(--atlas-text-1);
-  border: 1px solid var(--atlas-border); border-radius: 12px;
+  padding: 10px 10px 10px;
+  /* The focused field's color (hover-2 over the toolbar), made solid so the
+     page doesn't show through. */
+  background: linear-gradient(var(--atlas-hover-2), var(--atlas-hover-2)), var(--atlas-bar);
+  color: var(--atlas-text-1);
+  border: 1px solid var(--atlas-border); border-top: 0; border-radius: 0 0 8px 8px;
   box-shadow: var(--atlas-shadow);
+  clip-path: inset(0 -40px -40px -40px);  /* no shadow up over the field */
   font: 13px/18px system-ui, -apple-system, "Segoe UI", sans-serif;
 }
+#browser .atlas-urlcard::before {
+  content: ""; position: absolute; top: 0; left: 12px; right: 12px; height: 1px;
+  background: var(--atlas-hover-2);
+}
 #browser .atlas-urlcard[hidden] { display: none; }
+#browser.atlas-urlcard-open .UrlBar-AddressField:focus-within {
+  border-color: var(--atlas-border) !important;
+  border-bottom-color: transparent !important;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  transition: none !important;
+}
 #browser .atlas-urlcard-full { color: var(--atlas-text-2); font-size: 12px; line-height: 17px; word-break: break-all; }
 #browser .atlas-urlcard-full + div { margin-top: 10px; }
 #browser .atlas-urlcard-pills { display: flex; flex-wrap: wrap; gap: 6px; }

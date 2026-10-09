@@ -1,6 +1,7 @@
 /* ── 18-addressbar-pills.js: the address bar card ──
    While the address field is in use, a card grows down from it over the page
-   (design A, 2026-10-09). It holds:
+   (design A, 2026-10-09), joined to the field as one shape with a faint line
+   between them (joined look B, 2026-10-09). It holds:
    - the whole address, wrapped, when it is too long for the one-line field
      (Vivaldi's field is a single-line input, so it can't wrap itself);
    - while you type, the bookmarks whose name contains what you typed, as
@@ -102,7 +103,10 @@ function apbRefresh() {
   if (apbState.list.length) card.appendChild(apbPills());
   card.hidden = !long && !apbState.list.length;
   var browser = document.getElementById('browser');
-  if (browser) browser.classList.toggle('atlas-pills-open', apbState.list.length > 0);
+  if (browser) {
+    browser.classList.toggle('atlas-pills-open', apbState.list.length > 0);
+    browser.classList.toggle('atlas-urlcard-open', !card.hidden);  // the field squares its bottom to join the card
+  }
   apbPlace(card, input);
 }
 
@@ -130,12 +134,13 @@ function apbPills() {
   return box;
 }
 
-/* Under the whole address field, same width, floating over the page. */
+/* Right under the whole address field, same width, with no gap: the field and
+   the card read as one shape growing down over the page. */
 function apbPlace(card, input) {
   var field = input.closest('.UrlBar-AddressField') || input;
   var r = field.getBoundingClientRect();
   card.style.left = Math.round(r.left) + 'px';
-  card.style.top = Math.round(r.bottom + 4) + 'px';
+  card.style.top = Math.round(r.bottom) + 'px';
   card.style.width = Math.round(r.width) + 'px';
 }
 
@@ -146,7 +151,7 @@ function apbClose() {
   apbState.at = -1;
   if (apbCard) apbCard.hidden = true;
   var browser = document.getElementById('browser');
-  if (browser) browser.classList.remove('atlas-pills-open');
+  if (browser) browser.classList.remove('atlas-pills-open', 'atlas-urlcard-open');
 }
 
 function apbOpen(b) {

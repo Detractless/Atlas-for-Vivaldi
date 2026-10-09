@@ -175,6 +175,21 @@ test("leaving the field closes the card", async () => {
   await wait(30);
   assert.ok(!card(w) || card(w).hidden);
   assert.ok(!w.window.document.getElementById("browser").classList.contains("atlas-pills-open"));
+  assert.ok(!w.window.document.getElementById("browser").classList.contains("atlas-urlcard-open"), "the field's corners come back");
+});
+
+test("the card joins the field: no gap, same left edge and width, and the field knows it's open", async () => {
+  const w = await start();
+  const doc = w.window.document;
+  doc.querySelector(".UrlBar-AddressField").getBoundingClientRect = () => ({ left: 120, top: 8, bottom: 48, width: 640, height: 40, right: 760 });
+  await focus(w);
+  assert.ok(!doc.getElementById("browser").classList.contains("atlas-urlcard-open"), "nothing to show yet");
+  await type(w, "no");
+  const c = card(w);
+  assert.deepEqual([c.style.left, c.style.top, c.style.width], ["120px", "48px", "640px"]);
+  assert.ok(doc.getElementById("browser").classList.contains("atlas-urlcard-open"));
+  await type(w, "zzz");
+  assert.ok(!doc.getElementById("browser").classList.contains("atlas-urlcard-open"), "no card, no join");
 });
 
 test("with no bookmark database yet, nothing shows and none is created", async () => {
