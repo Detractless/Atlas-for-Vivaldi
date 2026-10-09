@@ -2095,6 +2095,14 @@ function engineTemplate(eng) {
   return eng.url.indexOf('{searchTerms}') !== -1 ? eng.url : eng.url + '{searchTerms}';
 }
 
+/* Vivaldi lists an engine's address with %s where the query goes, but stores
+   and accepts {searchTerms}. Compare addresses with both read as the same
+   placeholder; an exact compare never matched, so a new copy of the engine was
+   added at every start (24 identical Google engines by 2026-10-08). */
+function engineUrlKey(url) {
+  return String(url || '').replace(/\{searchTerms\}|%s/g, '%s');
+}
+
 /* A Vivaldi search-engine record for an engine it doesn't have yet. */
 function newTemplateUrl(key, eng, tmpl, list) {
   return {
@@ -2103,6 +2111,34 @@ function newTemplateUrl(key, eng, tmpl, list) {
     imagePostParams: '', prepopulateId: 0, starterPackId: 0,
     isActive: list.length ? list[0].isActive : 0
   };
+}
+
+/* Clean up after that bug: keep one copy of each engine Atlas added (keyword
+   "atlas-..."), preferring the one Vivaldi uses, and remove the others. Engines
+   in use for any default (search, private, image, speed dials...) are never
+   removed, the same rule as Vivaldi's own isRemovable, and engines the user
+   added are never touched. Returns the list without the removed copies. */
+function removeDuplicateEngines(res, list) {
+  var inUse = {};
+  Object.keys(res).forEach(function (k) { if (k.indexOf('default') === 0 && res[k]) inUse[res[k]] = true; });
+  var groups = {};
+  list.forEach(function (t) {
+    if (!t.guid || String(t.keyword || '').indexOf('atlas-') !== 0) return;
+    var id = t.keyword + ' ' + engineUrlKey(t.url);
+    (groups[id] = groups[id] || []).push(t);
+  });
+  var removed = {};
+  Object.keys(groups).forEach(function (id) {
+    var copies = groups[id];
+    var keep = copies.find(function (t) { return inUse[t.guid]; }) || copies[0];
+    copies.forEach(function (t) {
+      if (t === keep || inUse[t.guid]) return;
+      removed[t.guid] = true;
+      var p = vivaldi.searchEngines.removeTemplateUrl(t.guid);
+      if (p && p.catch) p.catch(function (e) { atlasWarn('address-bar engine: removing a duplicate failed', e); });
+    });
+  });
+  return list.filter(function (t) { return !removed[t.guid]; });
 }
 
 /* One sync at a time; a change that arrives mid-sync runs once more at the end. */
@@ -2122,8 +2158,8 @@ function applyEngine(key, eng) {
   var tmpl = engineTemplate(eng);
   vivaldi.searchEngines.getTemplateUrls(function (res) {
     res = res || {};
-    var list = res.templateUrls || [];
-    var hit = list.find(function (t) { return t.url === tmpl; });
+    var list = removeDuplicateEngines(res, res.templateUrls || []);
+    var hit = list.find(function (t) { return engineUrlKey(t.url) === engineUrlKey(tmpl); });
     if (hit) return makeDefaultEngine(res, hit.guid);
     /* addTemplateUrl answers through its callback or its promise, depending on
        the Vivaldi build; act on whichever comes first. */

@@ -249,15 +249,19 @@ test("the page menu script is registered together with the spelling engine", asy
 
 /* vivaldi.searchEngines with a list of engines; records what Atlas changes. */
 function fakeEngines(templateUrls, defaultSearch) {
-  const state = { templateUrls, defaultSearch, added: [], setDefault: [] };
+  const state = { templateUrls, defaultSearch, added: [], setDefault: [], removed: [] };
   const api = {
-    getTemplateUrls(cb) { cb({ templateUrls: state.templateUrls, defaultSearch: state.defaultSearch }); },
+    getTemplateUrls(cb) { cb({ templateUrls: state.templateUrls, defaultSearch: state.defaultSearch, ...state.extra }); },
     setDefault(kind, guid) { state.setDefault.push([kind, guid]); state.defaultSearch = guid; },
     addTemplateUrl(t, cb) {
       const guid = "new-" + state.added.length;
       state.added.push(plain(t));
       state.templateUrls = state.templateUrls.concat([{ ...t, guid }]);
       cb({ guid });
+    },
+    removeTemplateUrl(guid) {
+      state.removed.push(guid);
+      state.templateUrls = state.templateUrls.filter((t) => t.guid !== guid);
     },
   };
   return { state, api };
@@ -292,4 +296,25 @@ test("changing the new tab's engine changes the address bar's", async () => {
   await w.chrome.storage.sync.set({ defaultEngineKey: "google" });
   await new Promise((r) => setTimeout(r, 50));
   assert.deepEqual(e.state.setDefault, [["defaultSearch", "g-google"]]);
+});
+
+test("Vivaldi listing the address with %s still counts as the same engine", async () => {
+  // Vivaldi shows {searchTerms} as %s. An exact compare missed it and added a
+  // new copy of the engine at every start.
+  const e = fakeEngines([GOOGLE_T, { guid: "g-ddg", url: "https://duckduckgo.com/?q=%s", isActive: 1 }], "g-google");
+  await start({ sync: { defaultEngineKey: "ddg", customSearchEngines: ENGINES }, searchEngines: e.api });
+  assert.deepEqual(e.state.added, [], "no new copy");
+  assert.deepEqual(e.state.setDefault, [["defaultSearch", "g-ddg"]]);
+});
+
+test("extra copies of an engine Atlas added are removed, keeping the one in use", async () => {
+  const copy = (guid) => ({ guid, keyword: "atlas-google", url: "https://www.google.com/search?q=%s", isActive: 1 });
+  const mine = { guid: "user-google", keyword: "g", url: "https://www.google.com/search?q=%s", isActive: 1 };
+  const e = fakeEngines([copy("a1"), copy("a2"), copy("a3"), copy("a4"), mine], "a3");
+  e.state.extra = { defaultPrivate: "a4" };
+  await start({ sync: { defaultEngineKey: "google", customSearchEngines: ENGINES }, searchEngines: e.api });
+  assert.deepEqual(e.state.removed.sort(), ["a1", "a2"], "a3 is the default search and a4 the private one");
+  assert.deepEqual(e.state.added, []);
+  assert.deepEqual(e.state.setDefault, [], "a3 already is the default");
+  assert.ok(e.state.templateUrls.some((t) => t.guid === "user-google"), "the user's own engine stays");
 });
