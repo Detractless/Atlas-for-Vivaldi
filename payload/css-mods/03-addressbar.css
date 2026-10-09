@@ -194,3 +194,30 @@
   }
 }
 
+/* ── 4c. The address bar card (src/modules/18-addressbar-pills.js) ──────────
+   While the field is in use, a card floats under it over the page, the same
+   width as the field: the whole address wrapped when it is too long for the
+   one-line field, and while typing, the matching bookmarks as pills (the new
+   tab's pills, inverted when picked). Vivaldi's own suggestions step aside
+   while pills show. */
+#browser .atlas-urlcard {
+  position: fixed; z-index: 2147483000; box-sizing: border-box;
+  padding: 8px 10px 10px;
+  background: var(--atlas-menu); color: var(--atlas-text-1);
+  border: 1px solid var(--atlas-border); border-radius: 12px;
+  box-shadow: var(--atlas-shadow);
+  font: 13px/18px system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+#browser .atlas-urlcard[hidden] { display: none; }
+#browser .atlas-urlcard-full { color: var(--atlas-text-2); font-size: 12px; line-height: 17px; word-break: break-all; }
+#browser .atlas-urlcard-full + div { margin-top: 10px; }
+#browser .atlas-urlcard-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+#browser .atlas-urlpill {
+  padding: 4px 12px; border: 0; border-radius: 9999px; cursor: pointer;
+  background: var(--atlas-hover-2); color: var(--atlas-text-1);
+  font: inherit; font-size: 12.5px; white-space: nowrap;
+}
+#browser .atlas-urlpill:hover { background: var(--atlas-hover-3); }
+#browser .atlas-urlpill[aria-selected="true"] { background: var(--atlas-text-1); color: var(--atlas-bar); }
+#browser .atlas-urlcard-hint { margin-top: 8px; color: var(--atlas-text-2); font-size: 11px; opacity: .8; }
+#browser.atlas-pills-open .OmniDropdown { display: none !important; }
