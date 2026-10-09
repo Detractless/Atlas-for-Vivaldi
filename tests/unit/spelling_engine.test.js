@@ -27,14 +27,25 @@ function engine() {
 }
 const sp = engine();
 
-/* Timing bars: 3 ms a suggestion and 150 ms for very long input. The engine
-   takes well under 1 ms a suggestion on its own, but `npm test` runs the test
-   files in parallel, and next to them (or other work on the computer) the same
-   engine measures 1-2.5 ms, so a 1 ms bar failed as the suite grew. 3 ms is
-   still instant to a person and still catches a real slowdown. The load is
-   reported with a failure, to tell a busy computer from a slow engine. */
+/* Timing: CPU time this process spent, best of a few tries, against bars of
+   3 ms a suggestion and 150 ms for very long input. The engine takes about
+   0.4 ms a suggestion on its own. But `npm test` runs the test files in
+   parallel, and next to them (and other work on the computer) the clock showed
+   1 to 3.3 ms: mostly time spent waiting for a CPU, which CPU time leaves out
+   (it measured up to 1.2 ms there). 3 ms is still instant to a person and
+   still catches a real slowdown. A failure reports the load. */
 const SLACK = 3;
 const busyNote = `, load ${os.loadavg()[0].toFixed(1)} on ${os.cpus().length} cores`;
+function bestCpuMs(tries, fn) {
+  let best = Infinity;
+  for (let i = 0; i < tries; i++) {
+    const t0 = process.cpuUsage();
+    fn();
+    const d = process.cpuUsage(t0);
+    best = Math.min(best, (d.user + d.system) / 1000);
+  }
+  return best;
+}
 
 test("correct words are accepted, whatever their case", () => {
   for (const w of ["search", "history", "download", "extension", "window", "browser", "atlas", "vivaldi", "tab",
@@ -88,10 +99,9 @@ test("empty, blank, symbol and non-Latin input is safe", () => {
 test("very long input is rejected quickly", () => {
   for (const len of [1000, 10000, 100000]) {
     const w = "a".repeat(len);
-    const t0 = process.hrtime.bigint();
     assert.ok(!sp.check(w));
     assert.deepEqual(sp.suggest(w), []);
-    const ms = Number(process.hrtime.bigint() - t0) / 1e6;
+    const ms = bestCpuMs(3, () => { sp.check(w); sp.suggest(w); });
     assert.ok(ms < 50 * SLACK, `length ${len} took ${ms.toFixed(1)} ms (limit ${50 * SLACK} ms${busyNote})`);
   }
 });
@@ -108,8 +118,6 @@ test("addresses are never treated as words", () => {
 
 test("suggestions are fast (well under a millisecond each)", () => {
   const words = ["serch", "browsr", "definately", "sarch", "windw", "zzqqww", "search", "12345", "teh", "seperate"];
-  const t0 = process.hrtime.bigint();
-  for (let i = 0; i < 500; i++) sp.suggest(words[i % words.length]);
-  const avgMs = Number(process.hrtime.bigint() - t0) / 1e6 / 500;
+  const avgMs = bestCpuMs(5, () => { for (let i = 0; i < 100; i++) sp.suggest(words[i % words.length]); }) / 100;
   assert.ok(avgMs < SLACK, `average ${avgMs.toFixed(3)} ms (limit ${SLACK} ms${busyNote})`);
 });
