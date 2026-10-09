@@ -79,6 +79,8 @@ function abeEnsureButton() {
   b.setAttribute('aria-haspopup', 'listbox');
   b.appendChild(abeImg(ABE_DEFAULT_ICON));
   b.addEventListener('mousedown', function (e) { e.preventDefault(); });  // keep the field focused
+  b.addEventListener('mouseenter', abeHoverOn);   // the logo is part of the bar's hover (20)
+  b.addEventListener('mouseleave', abeHoverOff);
   b.addEventListener('click', function () {
     if (abe.open) return abeCloseList();
     var field = abeFieldInput();
@@ -104,8 +106,12 @@ function abeShowButton() {
   b.setAttribute('aria-expanded', String(abe.open));
   b.hidden = false;
   var browser = document.getElementById('browser');
-  if (browser) browser.classList.add('atlas-enginebtn-on');
+  if (browser) {
+    browser.classList.add('atlas-enginebtn-on');
+    browser.classList.toggle('atlas-enginebtn-inuse', !!abe.input);  // at rest it shows only on hover
+  }
   abeWatchToolbar();
+  abeWatchHover();
   abePlace();
 }
 

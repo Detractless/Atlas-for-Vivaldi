@@ -7,6 +7,8 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const { openWindow } = require("./helpers/windowDom");
 const { openNewTab, closeAll, waitFor, settle } = require("./helpers/newtabDom");
 
@@ -259,10 +261,10 @@ test("the new tab is recognized by its address, index.html, even with the field 
   assert.ok(!browserHas(w, "atlas-newtab"), "a web page isn't the new tab");
 });
 
-test("on the new tab the engine logo shows without clicking into the field; elsewhere only in use", async () => {
+test("on the new tab the engine logo is there without clicking into the field; elsewhere only in use", async () => {
   const w = await start({ value: NEWTAB, sync: { selectedSearchEngine: "ddg" } });
   await switchTab(w);
-  assert.ok(btn(w) && !btn(w).hidden, "shown at rest");
+  assert.ok(btn(w) && !btn(w).hidden, "there at rest (drawn on hover, next test)");
   assert.equal(btnIcon(w), "src/assets/svg/duckduckgo.com.svg");
   assert.ok(browserHas(w, "atlas-enginebtn-on"), "Vivaldi's magnifier steps aside");
   await focus(w);
@@ -297,4 +299,25 @@ test("on the new tab, clicking the logo at rest goes into the field and shows th
   await wait(20);
   assert.equal(w.input.value, "", "emptied");
   assert.deepEqual(names(w), ["Google", "DuckDuckGo", "Engine lists"], "emptying it doesn't close the engines");
+});
+
+test("at rest the logo is drawn only while the pointer is over the bar or the logo, like the bar's own parts", async () => {
+  const w = await start({ value: NEWTAB });
+  await switchTab(w);
+  const doc = w.window.document, field = doc.querySelector(".UrlBar-AddressField");
+  const hover = (el, type, to) => el.dispatchEvent(new w.window.MouseEvent(type, { relatedTarget: to || null }));
+  assert.ok(!browserHas(w, "atlas-urlbar-hover") && !browserHas(w, "atlas-enginebtn-inuse"), "faded out at rest");
+  hover(field, "mouseenter");
+  assert.ok(browserHas(w, "atlas-urlbar-hover"), "drawn while over the bar");
+  hover(field, "mouseleave", btn(w));
+  assert.ok(browserHas(w, "atlas-urlbar-hover"), "moving onto the logo isn't leaving the bar");
+  hover(btn(w), "mouseleave", doc.body);
+  assert.ok(!browserHas(w, "atlas-urlbar-hover"), "gone once the pointer leaves both");
+  await focus(w);
+  assert.ok(browserHas(w, "atlas-enginebtn-inuse"), "drawn at once while the field is in use");
+  await blur(w);
+  assert.ok(!browserHas(w, "atlas-enginebtn-inuse"));
+  const css = fs.readFileSync(path.join(__dirname, "..", "..", "payload", "css-mods", "03-addressbar.css"), "utf8");
+  assert.match(css, /#browser:not\(\.atlas-urlbar-hover\):not\(\.atlas-enginebtn-inuse\) \.atlas-enginebtn \{ opacity: 0; pointer-events: none; \}/,
+    "the stylesheet fades it out otherwise");
 });

@@ -2770,6 +2770,8 @@ function abeEnsureButton() {
   b.setAttribute('aria-haspopup', 'listbox');
   b.appendChild(abeImg(ABE_DEFAULT_ICON));
   b.addEventListener('mousedown', function (e) { e.preventDefault(); });  // keep the field focused
+  b.addEventListener('mouseenter', abeHoverOn);   // the logo is part of the bar's hover (20)
+  b.addEventListener('mouseleave', abeHoverOff);
   b.addEventListener('click', function () {
     if (abe.open) return abeCloseList();
     var field = abeFieldInput();
@@ -2795,8 +2797,12 @@ function abeShowButton() {
   b.setAttribute('aria-expanded', String(abe.open));
   b.hidden = false;
   var browser = document.getElementById('browser');
-  if (browser) browser.classList.add('atlas-enginebtn-on');
+  if (browser) {
+    browser.classList.add('atlas-enginebtn-on');
+    browser.classList.toggle('atlas-enginebtn-inuse', !!abe.input);  // at rest it shows only on hover
+  }
   abeWatchToolbar();
+  abeWatchHover();
   abePlace();
 }
 
@@ -3000,10 +3006,12 @@ if (chrome.storage && chrome.storage.sync) {
   /* ═══ Module: 20-addressbar-newtab.js ═══ */
 /* ── 20-addressbar-newtab.js: the address bar on the Atlas new tab ──
    On the new tab (#browser.atlas-newtab, set by 01-addressbar.js) the engine
-   button (19-addressbar-engine-picker.js) shows without clicking into the
-   field, and the field is kept empty: Vivaldi would fill in the new tab's
-   extension address when you click into it or press Esc. Elsewhere the
-   button shows only while the field is in use. ── */
+   button (19-addressbar-engine-picker.js) is there without clicking into the
+   field, drawn as the bar's own parts are: only while the pointer is over the
+   bar (#browser.atlas-urlbar-hover) or the field is in use
+   (#browser.atlas-enginebtn-inuse). The field is kept empty: Vivaldi would
+   fill in the new tab's extension address when you click into it or press
+   Esc. Elsewhere the button shows only while the field is in use. ── */
 
 /* The window's address field, in use or not. */
 function abeFieldInput() {
@@ -3029,7 +3037,7 @@ function abeRest() {
   if (abeOnNewTab() && abeFieldInput()) return abeShowButton();
   if (abe.btn) abe.btn.hidden = true;
   var browser = document.getElementById('browser');
-  if (browser) browser.classList.remove('atlas-enginebtn-on');
+  if (browser) browser.classList.remove('atlas-enginebtn-on', 'atlas-enginebtn-inuse');
 }
 
 function abeNewTabChanged() {
@@ -3060,6 +3068,35 @@ function abeWatchToolbar() {
   abe.watched = bar;
   abe.ro = new ResizeObserver(function () { if (abe.btn && !abe.btn.hidden) abePlace(); });
   abe.ro.observe(bar);
+}
+
+/* The bar's own :hover ends where the logo starts, because the logo floats
+   over the bar rather than inside it. So the pointer over the bar or the
+   logo counts as one hover, #browser.atlas-urlbar-hover, which the logo's
+   fade (and the bar's hover color) follow. */
+function abeWatchHover() {
+  var anchor = abeAnchor(), field = anchor && anchor.closest('.UrlBar-AddressField');
+  if (!field || abe.hoverField === field) return;
+  if (abe.hoverField) {
+    abe.hoverField.removeEventListener('mouseenter', abeHoverOn);
+    abe.hoverField.removeEventListener('mouseleave', abeHoverOff);
+  }
+  abe.hoverField = field;
+  field.addEventListener('mouseenter', abeHoverOn);
+  field.addEventListener('mouseleave', abeHoverOff);
+}
+
+function abeHoverOn() {
+  var browser = document.getElementById('browser');
+  if (browser) browser.classList.add('atlas-urlbar-hover');
+}
+
+/* Moving between the bar and the logo isn't leaving. */
+function abeHoverOff(e) {
+  var to = e && e.relatedTarget;
+  if (to && ((abe.btn && abe.btn.contains(to)) || (abe.hoverField && abe.hoverField.contains(to)))) return;
+  var browser = document.getElementById('browser');
+  if (browser) browser.classList.remove('atlas-urlbar-hover');
 }
 
 if (typeof document !== 'undefined' && document.addEventListener) {

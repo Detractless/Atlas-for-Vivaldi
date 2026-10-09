@@ -261,6 +261,19 @@
   background: transparent;
 }
 #browser .atlas-enginebtn[hidden] { display: none; }
+/* On the new tab the button is there with the field at rest too, drawn as the
+   bar's own parts are (section 2): only while the pointer is over the bar,
+   after the same pause and fade; at once when the field is in use. The
+   pointer over the bar or the logo is one hover (#browser.atlas-urlbar-hover,
+   20-addressbar-newtab.js), and the bar keeps its hover color on the logo. */
+#browser .atlas-enginebtn { transition: opacity .3s ease, background-color .2s ease; transition-delay: 0s; }
+#browser.atlas-urlbar-hover .atlas-enginebtn { transition-delay: .18s, 0s; }
+#browser.atlas-enginebtn-inuse .atlas-enginebtn { transition-delay: 0s !important; }
+#browser:not(.atlas-urlbar-hover):not(.atlas-enginebtn-inuse) .atlas-enginebtn { opacity: 0; pointer-events: none; }
+#browser.atlas-urlbar-hover .UrlBar-AddressField:not(:focus-within) {
+  background-color: var(--atlas-hover-1) !important;
+  transition-delay: 0.18s;
+}
 #browser .atlas-enginebtn:hover,
 #browser .atlas-enginebtn[aria-expanded="true"] { background: var(--atlas-hover-2); }
 #browser .atlas-enginebtn img { width: 16px; height: 16px; object-fit: contain; display: block; }
