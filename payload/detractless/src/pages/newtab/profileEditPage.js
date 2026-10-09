@@ -63,9 +63,8 @@
   function accountsLine() {
     if (gaLooking || !gaCache) return "Looking for the Google accounts signed into Vivaldi…";
     if (gaCache.error) return `Couldn't read your Google accounts: ${gaCache.error}`;
-    const n = (gaCache.accounts || []).length;
-    if (!n) return "No Google accounts are signed in to Vivaldi.";
-    return `Found ${n} Google account${n === 1 ? "" : "s"}. Click one to link it to this profile.`;
+    if (!(gaCache.accounts || []).length) return "No Google accounts are signed in to Vivaldi.";
+    return ""; // the accounts themselves are shown; no line needed
   }
 
   /* ── The account picker (spec 002, phase 2): the found accounts as rows; one
@@ -82,7 +81,7 @@
 
   function accountButton(email, face, label, note, on, disabled) {
     return `<button class="pfe-acc" data-pfe-pick="${esc(email)}" aria-pressed="${on}"${disabled ? " disabled" : ""}>${face}` +
-      `<span class="pfe-acc-text"><span class="pfe-acc-name">${esc(label)}</span>${note ? ` <span class="pfe-acc-email">${esc(note)}</span>` : ""}</span>` +
+      `<span class="pfe-acc-text"><span class="pfe-acc-name">${esc(label)}</span>${note ? `<span class="pfe-acc-email">${esc(note)}</span>` : ""}</span>` +
       `${on ? '<span class="pfe-acc-check" aria-hidden="true">✓</span>' : ""}</button>`;
   }
 
@@ -133,15 +132,16 @@
     const links = '<span class="pfe-ga-links">' +
       (hasList ? `<button class="pfe-link" data-pfe-typed>${googleTyped ? "Pick from the list" : "Type an email instead"}</button> · ` : "") +
       '<button class="pfe-link" data-pfe-ga-refresh>Refresh</button></span>';
+    const line = accountsLine();
     const desc = (googleProblem ? `<span class="pf-notice">${esc(googleProblem)}</span>`
       : "Google links you open from the new tab use this account while this profile is active") +
-      `<span class="pfe-ga" data-pfe-ga>${esc(accountsLine())}</span>` +
-      (hasList && !googleTyped ? pickerList(linked) : "") + links;
+      (line ? `<span class="pfe-ga" data-pfe-ga>${esc(line)}</span>` : "") + links;
     const box = showBox
       ? `<input class="pf-input" type="email" data-pfe-google="${id}" value="${esc(value)}" placeholder="you@gmail.com" aria-label="Google account email" spellcheck="false" autocomplete="off">` +
         (linked ? `<button class="sp-pill sm" data-pfe-google-unlink="${id}">Unlink</button>` : "")
       : "";
-    return UI.row("Google account", desc, box);
+    /* The accounts go under the row, across the whole card, so each is a large target. */
+    return UI.row("Google account", desc, box) + (hasList && !googleTyped ? pickerList(linked) : "");
   }
 
   function deleteCard(p, s) {

@@ -30,7 +30,7 @@ async function editSchool(local) {
   click(win, doc.getElementById("global-settings-btn"));
   click(win, await waitFor(() => doc.querySelector('#sp-nav [data-page="profiles"]'), 2000, "Profiles"));
   click(win, await waitFor(() => doc.querySelector('#sp-content [data-pf-edit="school"]'), 2000, "Edit"));
-  await waitFor(() => doc.querySelector("#sp-content [data-pfe-ga]"), 2000, "the Google row");
+  await waitFor(() => doc.querySelector("#sp-content [data-pfe-ga], #sp-content [data-pfe-pick]"), 2000, "the Google row");
   await settle(win, 30);
   return t;
 }
@@ -47,6 +47,8 @@ test("the found accounts are listed; one click links one and marks it", async ()
   assert.equal(row(t, "pat@gmail.com").querySelector("img").getAttribute("src"), PHOTO, "Google's photo");
   assert.ok(row(t, "pat@school.edu").querySelector(".pfe-acc-initials"), "initials when there is no photo");
   assert.equal(content(t).querySelector("[data-pfe-google]"), null, "no email box until asked for");
+  assert.equal(content(t).querySelector("[data-pfe-ga]"), null, "no line counting the accounts");
+  assert.ok(!row(t, "pat@gmail.com").closest(".sp-row"), "the accounts sit under the row, across the card");
 
   click(t.window, row(t, "pat@school.edu"));
   await settle(t.window, 100);

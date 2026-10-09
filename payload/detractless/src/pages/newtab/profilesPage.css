@@ -36,18 +36,20 @@
 #sp-root .sp-row-ctrl .pf-input { width: 240px; border-color: var(--sp-border); }
 #sp-root .pfe-ga { display: block; margin-top: 4px; color: var(--sp-text-3); }
 
-/* The Google account picker on a profile's edit page (spec 002, phase 2). */
-#sp-root .pfe-accs { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; max-width: 460px; }
-#sp-root .pfe-acc { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 10px; border: 0; border-radius: 10px; background: none; color: var(--sp-text); font: 13px/18px var(--sp-font); text-align: left; cursor: pointer; }
+/* The Google account picker on a profile's edit page (spec 002, phase 2):
+   full card width under the Google row, one large row per account. */
+#sp-root .pfe-accs { display: flex; flex-direction: column; gap: 4px; padding: 0 12px 12px; }
+#sp-root .pfe-acc { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 60px; padding: 10px 14px; border: 0; border-radius: 12px; background: none; color: var(--sp-text); font: 14px/20px var(--sp-font); text-align: left; cursor: pointer; }
 #sp-root .pfe-acc:hover { background: var(--sp-nav-hover); }
 #sp-root .pfe-acc[aria-pressed="true"] { background: var(--sp-nav-active); }
 #sp-root .pfe-acc[disabled] { opacity: .5; cursor: default; }
 #sp-root .pfe-acc[disabled]:hover { background: none; }
-#sp-root .pfe-acc-photo, #sp-root .pfe-acc-initials { width: 26px; height: 26px; border-radius: 50%; flex: none; object-fit: cover; }
-#sp-root .pfe-acc-initials { display: grid; place-items: center; background: var(--sp-nav-active); color: var(--sp-text-2); font-size: 11px; font-weight: 500; }
-#sp-root .pfe-acc-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#sp-root .pfe-acc-email { color: var(--sp-text-2); font-size: 12px; }
-#sp-root .pfe-acc-check { margin-left: auto; color: var(--sp-text); }
+#sp-root .pfe-acc-photo, #sp-root .pfe-acc-initials { width: 40px; height: 40px; border-radius: 50%; flex: none; object-fit: cover; }
+#sp-root .pfe-acc-initials { display: grid; place-items: center; background: var(--sp-nav-active); color: var(--sp-text-2); font-size: 14px; font-weight: 500; }
+#sp-root .pfe-acc-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#sp-root .pfe-acc-name { font-size: 15px; line-height: 20px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sp-root .pfe-acc-email { font-size: 13px; line-height: 18px; color: var(--sp-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sp-root .pfe-acc-check { margin-left: auto; font-size: 16px; color: var(--sp-text); }
 #sp-root .pfe-ga-links { display: block; margin-top: 6px; color: var(--sp-text-3); font-size: 12px; }
 #sp-root .pfe-link { border: 0; background: none; padding: 0; color: var(--sp-text-2); font-size: 12px; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 #sp-root .pfe-link:hover { color: var(--sp-text); }

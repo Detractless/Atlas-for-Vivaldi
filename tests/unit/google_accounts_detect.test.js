@@ -158,7 +158,7 @@ async function editPage(local) {
   click(t.window, t.document.getElementById("global-settings-btn"));
   click(t.window, await waitFor(() => t.document.querySelector('#sp-nav [data-page="profiles"]'), 2000, "Profiles"));
   click(t.window, await waitFor(() => t.document.querySelector('#sp-content [data-pf-edit="school"]'), 2000, "Edit"));
-  await waitFor(() => t.document.querySelector("#sp-content [data-pfe-ga]"), 2000, "the accounts line");
+  await waitFor(() => t.document.querySelector("#sp-content [data-pfe-ga], #sp-content [data-pfe-pick]"), 2000, "the Google row");
   return t;
 }
 const gaLine = (t) => text(t.document.querySelector("#sp-content [data-pfe-ga]"));
@@ -167,8 +167,8 @@ test("the edit page shows the Google accounts found, and asks for a fresh list",
   const t = await editPage({ atlasGoogleAccounts: { accounts: [
     { index: 0, name: "Pat", email: "pat@gmail.com", photo: "", signedIn: true },
     { index: 1, name: "Pat (KSU)", email: "pat@students.ksu.edu", photo: "", signedIn: false }], at: 1 } });
-  // Phase 2 lists them as accounts to click (google_account_picker.test.js); the line counts them.
-  assert.equal(gaLine(t), "Found 2 Google accounts. Click one to link it to this profile.");
+  // Phase 2 lists them as accounts to click (google_account_picker.test.js), with no line about them.
+  assert.equal(t.document.querySelector("#sp-content [data-pfe-ga]"), null);
   assert.deepEqual([...t.document.querySelectorAll("#sp-content [data-pfe-pick]")].map((r) => r.dataset.pfePick),
     ["pat@gmail.com", "pat@students.ksu.edu", ""]);
   assert.ok(t.control.sentMessages.some((m) => m.atlas && m.atlas.act === "google-accounts" && m.atlas.refresh), "asked the browser window for a fresh list");
@@ -179,7 +179,8 @@ test("the edit page says why when no accounts could be read, and follows a new l
   const t = await editPage({ atlasGoogleAccounts: { accounts: [], at: 1, error: "Could not reach Google: offline" } });
   assert.match(gaLine(t), /Couldn't read your Google accounts: Could not reach Google: offline/);
   await t.chrome.storage.local.set({ atlasGoogleAccounts: { accounts: [{ index: 0, name: "Pat", email: "pat@gmail.com", photo: "", signedIn: true }], at: 2 } });
-  await waitFor(() => gaLine(t).startsWith("Found 1 Google account."), 2000, "the new list");
+  await waitFor(() => t.document.querySelectorAll("#sp-content [data-pfe-pick]").length === 2, 2000, "the new list");
+  assert.equal(t.document.querySelector("#sp-content [data-pfe-ga]"), null, "the error line is gone");
   assert.ok(t.document.querySelector("#sp-content [data-pfe-typed]"), "typing an email is still offered");
 });
 
