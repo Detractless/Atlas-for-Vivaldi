@@ -139,22 +139,23 @@ Requirements (acceptance criteria):
         - [x] T1.5.3 User checks in Vivaldi: the longest allowed subtitle fits without cutting off, rows are even `[activity: business-acceptance]`
         - Done 2026-10-09 with D1 = 3-5 words and D2 = "Your saved links here" (the user's /goal). Also added: Home can be right-clicked for Rename and Edit subtitle (no Delete), and the page dialog's title is the name the switcher shows. The backup test (T1.2.6) passes on the old code too, since activeTabs is exported whole; it guards the behavior. Menu fixed at 300px, subtitles capped at 32 characters; the user checked it in Vivaldi on 2026-10-09 and it looks right.
 
-- [ ] T2 Phase 2 New add popup and Pages in Settings (REQ-2, REQ-3). Needs Phase 1 (the popup uses the subtitle rule).
+- [x] T2 Phase 2 New add popup and Pages in Settings (REQ-2, REQ-3). Needs Phase 1 (the popup uses the subtitle rule).
 
-    - [ ] T2.1 Design gate `[component: addPopup]`
-        - [ ] T2.1.1 Read the current add flow and the dialog builder `[ref: payload/detractless/src/components/bookmarks/bookmarkModal.js; lines: 1-283]` `[ref: payload/detractless/src/components/bookmarks/bookmarkDialog.js; lines: 41-120, 293-366]`
-        - [ ] T2.1.2 Show 2-3 mockups of the popup and the Pages section in the new tab's tokens; get D5 `[activity: ui-design]`
-    - [ ] T2.2 Add popup `[component: addPopup]`
-        - [ ] T2.2.1 Prime Context: bookmark storage (`bookmarksDB`), groups, the + button wiring `[ref: payload/detractless/src/components/bookmarks/bookmarks.js; lines: 160-200]`
-        - [ ] T2.2.2 Write Tests: + opens the popup; a bookmark with name, URL, page and group is saved and shown; a new group can be made from it; a page with name and subtitle is created and opened; empty or invalid fields show inline reasons and save nothing; Escape and the backdrop close it without saving. Update `newtab_smoke.test.js` "a bookmark can be added through the + menu" to the new popup without weakening it `[ref: REQ-2]` `[activity: unit-test]`
-        - [ ] T2.2.3 Implement `components/addPopup/addPopup.js` + `.css` (one popup, both modes) and point the + button at it `[activity: frontend]`
-        - [ ] T2.2.4 Remove the old sequential add flow once all add tests pass `[activity: frontend]`
-        - [ ] T2.2.5 Validate: rules, build, tests `[activity: run-tests]`
-    - [ ] T2.3 Settings → Pages `[component: settings-pages]`
-        - [ ] T2.3.1 Prime Context: the settings shell and how a page registers `[ref: payload/detractless/src/settings/shell.js; lines: 15-47, 185-199]` `[ref: payload/detractless/src/settings/pages.js; lines: 75-88]`
-        - [ ] T2.3.2 Write Tests: Pages lists every page in order with its subtitle; Edit opens the popup filled in and saves; Add page opens the popup in page mode; Move up/down reorders and the switcher follows; Delete asks first and removes the page and its bookmarks; Home has no Delete `[ref: REQ-3]` `[activity: unit-test]`
-        - [ ] T2.3.3 Implement the Pages settings page (`src/settings/pagesSection.js`), registered in the Settings list `[activity: frontend]`
-        - [ ] T2.3.4 Validate: rules, build, tests `[activity: run-tests]`
+    - [x] T2.1 Design gate `[component: addPopup]`
+        - [x] T2.1.1 Read the current add flow and the dialog builder `[ref: payload/detractless/src/components/bookmarks/bookmarkModal.js; lines: 1-283]` `[ref: payload/detractless/src/components/bookmarks/bookmarkDialog.js; lines: 41-120, 293-366]`
+        - [x] T2.1.2 Show 2-3 mockups of the popup and the Pages section in the new tab's tokens; get D5 `[activity: ui-design]`
+    - [x] T2.2 Add popup `[component: addPopup]`
+        - [x] T2.2.1 Prime Context: bookmark storage (`bookmarksDB`), groups, the + button wiring `[ref: payload/detractless/src/components/bookmarks/bookmarks.js; lines: 160-200]`
+        - [x] T2.2.2 Write Tests: + opens the popup; a bookmark with name, URL, page and group is saved and shown; a new group can be made from it; a page with name and subtitle is created and opened; empty or invalid fields show inline reasons and save nothing; Escape and the backdrop close it without saving. Update `newtab_smoke.test.js` "a bookmark can be added through the + menu" to the new popup without weakening it `[ref: REQ-2]` `[activity: unit-test]`
+        - [x] T2.2.3 Implement `components/addPopup/addPopup.js` + `.css` (one popup, both modes) and point the + button at it `[activity: frontend]`
+        - [x] T2.2.4 Remove the old sequential add flow once all add tests pass `[activity: frontend]`
+        - [x] T2.2.5 Validate: rules, build, tests `[activity: run-tests]`
+    - [x] T2.3 Settings → Pages `[component: settings-pages]`
+        - [x] T2.3.1 Prime Context: the settings shell and how a page registers `[ref: payload/detractless/src/settings/shell.js; lines: 15-47, 185-199]` `[ref: payload/detractless/src/settings/pages.js; lines: 75-88]`
+        - [x] T2.3.2 Write Tests: Pages lists every page in order with its subtitle; Edit opens the popup filled in and saves; Add page opens the popup in page mode; Move up/down reorders and the switcher follows; Delete asks first and removes the page and its bookmarks; Home has no Delete `[ref: REQ-3]` `[activity: unit-test]`
+        - [x] T2.3.3 Implement the Pages settings page (`src/settings/pagesSection.js`), registered in the Settings list `[activity: frontend]`
+        - [x] T2.3.4 Validate: rules, build, tests `[activity: run-tests]`
+    - Done 2026-10-09. Design A built (mockups.html has A, B and C). The + button opens the popup directly; the + menu, bookmarkModal.js and tabs.js addNewTab are gone. Page edits live in tabs.js (updatePage, deletePage, movePage), shared by the switcher's right-click dialog and Settings > Pages, which is first in the Settings list. Found while testing: a group picked before the group list finished loading was reset; the list now keeps it.
 
 - [ ] T3 Phase 3 Profile edit page (REQ-4). Independent of Phases 1-2. `[parallel: true]`
 

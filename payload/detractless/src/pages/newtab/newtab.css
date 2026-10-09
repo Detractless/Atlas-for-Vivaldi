@@ -138,56 +138,11 @@ button.plus__link { border: none; }
 /* Hover shifts the surface only (UI-RULES 5.4); the ink does not change. */
 .action-btn:hover { background: var(--hover-on-canvas); }
 
-/* The + and settings buttons stay in the DOM, hidden: newtab.js and the Add
-   dialog wire them, and the toolbar menu's rows click them. */
+/* The + and settings buttons stay in the DOM, hidden: newtab.js and the add
+   popup wire them, and the toolbar menu's rows click them. */
 #global-add-btn, #global-settings-btn { display: none; }
 
-/* ── Centred Add menu (R-021, superseding R-016) ─────────────────────────
-   The + disc opens a CENTRED dialog over the blurred page, like every other
-   branch in the bookmarks area. R-016 had it anchored under the disc, decided
-   before the R-012 dialog family had spread across the rest of this surface
-   class; R-021 aligns it rather than leaving it the one branch the pattern
-   never reached. Same scrim values as .page-nav-scrim and .modal, all from
-   tokens, so the three surfaces cannot drift.
-
-   STILL NOT class="modal", and this is the R-014 trap that survives the move:
-   the shared dismissal clicks a .close-btn and otherwise strips .show, and this
-   thing has neither a close button nor a single element to strip. setMenuOpen
-   owns both halves. Centring a dialog and delegating its dismissal are separate
-   decisions; R-021 took only the first.
-
-   The z-index lift on .action-buttons is GONE with the anchoring: nothing hangs
-   off the disc any more, so the bar needs no stacking of its own. The panel sits
-   at 200 with real modals because it now IS one, visually. */
-.add-menu-scrim {
-  position: fixed; inset: 0; z-index: 200;
-  background: var(--surface-overlay);
-  backdrop-filter: blur(var(--blur-overlay));
-}
 .add-menu { display: flex; }
-/* Two classes so this beats .picker-card's own width whatever the source order.
-   Fixed rather than absolute: the panel is centred on the VIEWPORT now, not
-   positioned against the trigger, so it must not inherit the action bar's
-   containing block.
-
-   CENTRED WITH AUTO MARGINS, NOT WITH A TRANSFORM, and this is load-bearing.
-   The obvious `top:50%; left:50%; transform:translate(-50%,-50%)` is wrong for
-   this card specifically: .picker-card runs the modalIn entrance, which animates
-   TRANSFORM (translateY(12px) to 0). A running animation outranks a normal
-   declaration, so for those 200ms the animation's transform REPLACES the
-   centring one, the card's top-left corner sits at the viewport centre, and it
-   visibly slides up and left into place when the animation ends. inset:0 with
-   auto margins centres on both axes and leaves transform free for the entrance;
-   height:fit-content is what gives the vertical margins something to halve.
-
-   Every other dialog avoids this by centring through .modal's flexbox instead. */
-.add-menu-panel.picker-card {
-  position: fixed; inset: 0; margin: auto;
-  height: fit-content;
-  z-index: 201;
-  width: 280px; max-width: calc(100vw - 32px);
-}
-.add-menu-scrim[hidden], .add-menu-panel[hidden] { display: none; }
 
 
 /* ══ MODALS ═══════════════════════════════════════════════════════════ */

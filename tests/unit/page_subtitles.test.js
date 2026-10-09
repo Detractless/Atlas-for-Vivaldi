@@ -115,17 +115,32 @@ test("Home's subtitle can be edited too, and Home can't be deleted", async () =>
   assert.equal((await stored(t))[0].sub, "Start every day here");
 });
 
+/** The add popup (components/addPopup), switched to Page mode. */
+async function pagePopup(win, doc) {
+  click(win, doc.getElementById("global-add-btn"));
+  const p = await waitFor(() => doc.querySelector(".add-popup"), 2000, "add popup");
+  click(win, p.querySelector('[data-add-mode="page"]'));
+  return p;
+}
+function setField(win, p, name, value) {
+  const el = p.querySelector(`[data-field="${name}"]`);
+  el.value = value;
+  el.dispatchEvent(new win.Event("input", { bubbles: true }));
+}
+
 test("a new page needs a name and a valid subtitle", async () => {
   const t = await seeded();
   const { window: win, document: doc } = t;
-  click(win, doc.getElementById("global-add-btn"));
-  click(win, doc.getElementById("add-row-page"));
-  await answer(win, "Page name", "Gym");
-  const p = await answer(win, "Page subtitle", "Lifting");
-  assert.match(text(p.querySelector(".picker-error")), /at least 3 words/);
+  const p = await pagePopup(win, doc);
+  setField(win, p, "pageName", "Gym");
+  setField(win, p, "sub", "Lifting");
+  click(win, p.querySelector("[data-add-save]"));
+  await settle(win, 100);
+  assert.match(text(p.querySelector('[data-error-for="sub"]')), /at least 3 words/);
   assert.equal((await stored(t)).length, 3, "no page yet");
 
-  await answer(win, "Page subtitle", "Workouts and meal plans");
+  setField(win, p, "sub", "Workouts and meal plans");
+  click(win, p.querySelector("[data-add-save]"));
   await settle(win, 200);
   const page = (await stored(t))[3];
   assert.equal(page.label, "Gym");
@@ -134,14 +149,13 @@ test("a new page needs a name and a valid subtitle", async () => {
   assert.deepEqual(t.errors, []);
 });
 
-test("closing the subtitle step creates no page", async () => {
+test("closing the popup in Page mode creates no page", async () => {
   const t = await seeded();
   const { window: win, document: doc } = t;
-  click(win, doc.getElementById("global-add-btn"));
-  click(win, doc.getElementById("add-row-page"));
-  await answer(win, "Page name", "Gym");
-  await waitFor(() => pane(doc, "Page subtitle"), 3000, "subtitle step");
-  click(win, doc.querySelector(".bookmark-dialog .picker-hidden-close"));
+  const p = await pagePopup(win, doc);
+  setField(win, p, "pageName", "Gym");
+  setField(win, p, "sub", "Workouts and meal plans");
+  click(win, p.querySelector("[data-add-cancel]"));
   await settle(win, 100);
   assert.equal((await stored(t)).length, 3);
 });

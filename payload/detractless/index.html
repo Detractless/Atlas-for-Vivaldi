@@ -68,46 +68,13 @@
     <!-- Dock-style discs (UI-RULES 4): card-fill circles with an icon, the
          launcher DockIcon carried to the web. -->
     <div class="action-buttons" id="global-actions">
-        <!-- R-021 (superseding R-016): the + disc opens a CENTRED dialog over
-             the blurred page, joining the R-012 dialog family that every other
-             branch in this area already uses. It is STILL not class="modal",
-             for the reason R-014 recorded: the shared dismissal hides by
-             clicking a .close-btn, which would leave one half of this on
-             screen. setMenuOpen owns the scrim and the panel together. -->
-        <div class="add-menu-scrim" id="add-menu-scrim" hidden></div>
+        <!-- The + button opens the add popup (components/addPopup), one dialog
+             for a bookmark or a page. -->
         <div class="add-menu" id="add-menu">
             <button class="action-btn" id="global-add-btn" title="Add page or bookmark"
                     aria-label="Add page or bookmark" aria-expanded="false" aria-haspopup="dialog">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
             </button>
-            <!-- A DIALOG, not a menu, whatever its position in this markup suggests:
-                 .add-menu-scrim covers the viewport with the overlay tint and the
-                 blur, and .add-menu-panel centres itself with inset:0 and auto
-                 margins (R-021). It was marked role="menu", which tells assistive
-                 tech to expect an inline popup with arrow-key navigation rather
-                 than something modal, so the roles now say what it actually is.
-                 aria-modal is honest here because the scrim really does take every
-                 click outside the card. -->
-            <div class="add-menu-panel picker-card" id="add-menu-panel"
-                 role="dialog" aria-modal="true" aria-label="Add page or bookmark" hidden>
-              <!-- The well, so this matches every other dialog (R-032). It was
-                   missed there because it is hand-written markup and that pass
-                   converted the four JS builders; it still picked up the CSS half
-                   of the change, which left its rows hovering with the token meant
-                   for welled rows while sitting on the card. -->
-              <div class="picker-wellhost">
-                <div class="picker-well">
-                <button class="picker-row" type="button" id="add-row-bookmark">
-                    <span class="picker-row-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"/></svg></span>
-                    <span>Add bookmark</span>
-                </button>
-                <button class="picker-row" type="button" id="add-row-page">
-                    <span class="picker-row-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18"/></svg></span>
-                    <span>Add page</span>
-                </button>
-                </div>
-              </div>
-            </div>
         </div>
         <span class="action-divider"></span>
         <button class="action-btn" id="global-settings-btn" title="Settings" aria-label="Settings">
@@ -115,15 +82,6 @@
         </button>
     </div>
 
-
-    <!-- R-021: the Add Bookmark CARD stood here and is gone. It collected four
-         fields on one screen (name, url, page row, group row) behind a header
-         and a duplicate footer Close. Adding a bookmark is four small picker
-         dialogs now, built in bookmarkModal.js from the same openInputPicker /
-         openListPicker the rest of this area uses, so there is no markup for it
-         here at all. NO STEP COUNTER in that sequence, deliberately: the wizard
-         this lineage started from showed one over a conditional step and was
-         wrong whenever an existing group was chosen. -->
 
     <div id="engine-modal" class="modal" data-no-backdrop-close>
         <div class="settings-container">

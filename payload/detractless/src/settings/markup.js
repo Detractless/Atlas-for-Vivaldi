@@ -8,7 +8,8 @@ export const I = {
   db: '<ellipse cx="10" cy="5" rx="6" ry="2.2"/><path d="M4 5v10c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2V5M4 10c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"/>',
   reset: '<path d="M4 10a6 6 0 1 0 2-4.5M4 3.5v3h3"/>',
   star: '<path d="m10 3 2.1 4.4 4.9.6-3.6 3.3.9 4.8L10 13.7 5.7 16l.9-4.8L3 7.9l4.9-.6z"/>',
-  ext: '<path d="M7 13 13 7M8 7h5v5"/>'
+  ext: '<path d="M7 13 13 7M8 7h5v5"/>',
+  pages: '<rect x="3" y="4" width="14" height="12" rx="2"/><path d="M3 8h14"/>'
 };
 
 export const svg = (d, cls = "") =>

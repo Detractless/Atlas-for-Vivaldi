@@ -8,6 +8,7 @@ import { I, svg, row, card, section } from './markup.js';
 import { initMenu, openMenu, closeMenu, menuIsOpen } from './menu.js';
 import { importBookmarks, exportBookmarks } from '../pages/newtab/importExport.js';
 import { resetAllData } from '../services/resetService.js';
+import { pageAction, resetPagesSection } from './pagesSection.js';
 
 let root = null, navEl = null, content = null, current = "search";
 const $ = (id) => document.getElementById(id);
@@ -123,6 +124,7 @@ function go(id) {
   if (!PAGES[id]) return;
   current = id;
   resetState.confirming = false;
+  resetPagesSection();
   render();
 }
 
@@ -168,12 +170,13 @@ function wireContent() {
     const s = e.target.closest("[data-select]");
     if (s) { openMenu(s); return; }
     const a = e.target.closest("[data-action]");
-    if (a) runAction(a.dataset.action);
+    if (a) runAction(a.dataset.action, a);
   });
 }
 
-function runAction(act) {
-  if (act === "export") exportBookmarks();
+function runAction(act, el) {
+  if (act.startsWith("page-")) pageAction(act, el.dataset.id, renderPage);
+  else if (act === "export") exportBookmarks();
   else if (act === "import") $("import-file").click();
   else if (act === "reset-ask") { resetState.confirming = true; renderPage(); }
   else if (act === "reset-cancel") { resetState.confirming = false; renderPage(); }

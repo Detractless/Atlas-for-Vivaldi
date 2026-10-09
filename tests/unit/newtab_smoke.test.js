@@ -4,33 +4,13 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { openNewTab, closeAll, waitFor, settle, click, pressEnter } = require("./helpers/newtabDom");
+const { openNewTab, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
 
 test.afterEach(closeAll);
 
 const text = (el) => (el ? el.textContent.replace(/\s+/g, " ").trim() : "");
 const switcherLabels = (doc) =>
   [...doc.querySelectorAll("#tabs-container .switcher-item .label")].map((li) => li.firstChild.textContent);
-
-function dialog(doc, title) {
-  return [...doc.querySelectorAll(".bookmark-dialog")].find(
-    (d) => text(d.querySelector(".picker-title")) === title
-  );
-}
-
-async function answerInput(win, title, value) {
-  const d = await waitFor(() => dialog(win.document, title), 3000, `dialog "${title}"`);
-  const field = d.querySelector(".picker-field");
-  field.value = value;
-  pressEnter(win, field);
-}
-
-async function pickRow(win, title, label) {
-  const d = await waitFor(() => dialog(win.document, title), 3000, `dialog "${title}"`);
-  const row = [...d.querySelectorAll(".picker-row")].find((r) => text(r) === label);
-  assert.ok(row, `"${label}" is offered in "${title}"`);
-  click(win, row);
-}
 
 test("search bar renders on a fresh new tab", async () => {
   const t = await openNewTab();
@@ -60,15 +40,23 @@ test("page tabs render, starter pages included", async () => {
   t.window.close();
 });
 
-test("a bookmark can be added through the + menu", async () => {
+test("a bookmark can be added through the + popup", async () => {
   const t = await openNewTab();
   const { window: win, document: doc } = t;
   click(win, doc.getElementById("global-add-btn"));
-  click(win, doc.getElementById("add-row-bookmark"));
-  await answerInput(win, "Bookmark name", "Smoke Test Site");
-  await answerInput(win, "Bookmark URL", "https://smoke.example.com");
-  await pickRow(win, "Bookmark page", "Essentials");
-  await pickRow(win, "Bookmark group", "PRODUCTIVITY");
+  const p = await waitFor(() => doc.querySelector(".add-popup"), 2000, "add popup");
+  const set = (name, value) => {
+    const el = p.querySelector(`[data-field="${name}"]`);
+    el.value = value;
+    el.dispatchEvent(new win.Event("change", { bubbles: true }));
+  };
+  set("name", "Smoke Test Site");
+  set("url", "https://smoke.example.com");
+  const essentials = [...p.querySelector('[data-field="page"]').options].find((o) => o.textContent === "Essentials");
+  set("page", essentials.value);
+  await waitFor(() => [...p.querySelector('[data-field="group"]').options].some((o) => o.textContent === "PRODUCTIVITY"), 2000, "groups");
+  set("group", "PRODUCTIVITY");
+  click(win, p.querySelector("[data-add-save]"));
   await settle(win, 300);
 
   // Open the Essentials page and look for the new bookmark.

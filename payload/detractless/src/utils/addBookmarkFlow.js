@@ -1,7 +1,7 @@
 // src/utils/addBookmarkFlow.js — the four answers behind adding a bookmark.
 //
 // Lives in utils for the same reason as pillSelection.js: pure state, no DOM.
-// components/bookmarks/bookmarkModal.js drives the dialogs over it.
+// The add popup (components/addPopup) checks its bookmark answers with it.
 //
 // WHY A REDUCER AND NOT FOUR VARIABLES. The flow got Back buttons (R-021 pass),
 // and Back has to restore what you already typed. Module-level `let`s could hold

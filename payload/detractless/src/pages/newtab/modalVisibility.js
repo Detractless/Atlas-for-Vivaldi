@@ -1,9 +1,8 @@
 import { renderEngineListInModal } from '../../components/engines/engineModal.js';
 
 export async function showModal(modalId) {
-  /* R-021: no "add-modal" branch any more. The add card is four small dialogs
-     built by bookmarkModal.js, none of which is a registered modal id, so there
-     is nothing here to prime. Settings is a page now (settings/shell.js). */
+  /* No "add-modal" branch: the add popup (components/addPopup) builds itself
+     and is not a registered modal id. Settings is a page (settings/shell.js). */
   if (modalId === "engine-modal") {
     renderEngineListInModal();
     document.dispatchEvent(new CustomEvent('engine-modal-opened'));

@@ -5,6 +5,7 @@ import { getSetting } from './registry.js';
 import { I, row, card, section, select, toggle, modeThumb, scalePreview } from './markup.js';
 import { pendingIncreaseText } from '../components/tabLimiter/tabLimiterUI.js';
 import { pendingDecreaseText } from '../components/searchDelay/searchDelay.js';
+import { pagesPage } from './pagesSection.js';
 
 export const REVIEW_URL = "https://chromewebstore.google.com/detail/ipgmbcinekdcmhhnbanlahedgpehffab";
 
@@ -67,6 +68,7 @@ function resetPage() {
 
 /** Page id -> render(). profilesPage.js adds "profiles" through AtlasSettingsUI.register. */
 export const PAGES = {
+  pages: pagesPage,
   search: searchPage,
   appearance: appearancePage,
   focus: focusPage,
@@ -76,6 +78,7 @@ export const PAGES = {
 
 export const NAV = [
   { group: "Settings", items: [
+    { id: "pages", label: "Pages", icon: I.pages },
     { id: "search", label: "Search", icon: I.search },
     { id: "appearance", label: "Appearance", icon: I.sun },
     { id: "focus", label: "Focus", icon: I.focus }

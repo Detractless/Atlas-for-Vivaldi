@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<!-- Spec 001, D5: the add popup and Settings > Pages, drawn in the new tab's
+     own dark-theme tokens (styles/themes.css) and dialog vocabulary
+     (styles/components.css: picker-card, picker-well, picker-row, picker-field,
+     picker-foot). A is the one that was built. Open this file in any browser. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spec 001 mockups: add popup and Pages</title>
+<style>
+  :root {
+    --surface-card: #262622; --surface-canvas: #111110; --surface-muted: #33332E;
+    --text-primary: #F2F1EE; --text-secondary: #A0A099; --text-tertiary: #7B7B75;
+    --hover-on-card: #3C3C36; --accent: #F2F1EE; --accent-text: #111110;
+    --border: rgba(255,255,255,.08); --error: #F08A7E;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px; background: #0b0b0a; color: var(--text-primary);
+         font: 14px/1.4 ui-sans-serif, -apple-system, system-ui, "Segoe UI", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 40px 0 6px; }
+  .note { color: var(--text-secondary); max-width: 760px; margin: 0 0 16px; }
+  .row { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+  .label { font-size: 12px; color: var(--text-tertiary); margin: 0 0 8px; }
+  .card { width: 360px; background: var(--surface-card); border-radius: 24px; padding: 8px; }
+  .title { font-size: 18px; font-weight: 700; padding: 8px 8px 0; margin-bottom: 12px; }
+  .seg { display: flex; gap: 4px; padding: 0 8px 12px; }
+  .seg span { padding: 6px 12px; border-radius: 10px; color: var(--text-secondary); }
+  .seg span.on { background: var(--hover-on-card); color: var(--text-primary); }
+  .well { background: var(--surface-canvas); border-radius: 18px; padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+  .f { background: var(--surface-card); border-radius: 3px; padding: 9px 14px; display: flex; flex-direction: column; gap: 3px; }
+  .f:first-child { border-radius: 11px 11px 3px 3px; } .f:last-child { border-radius: 3px 3px 11px 11px; }
+  .f small { font-size: 11px; color: var(--text-tertiary); }
+  .f .v { color: var(--text-primary); } .f .ph { color: var(--text-tertiary); }
+  .f.sel { flex-direction: row; justify-content: space-between; align-items: center; }
+  .f .err { color: var(--error); font-size: 12px; }
+  .count { font-size: 11px; color: var(--text-tertiary); text-align: right; }
+  .foot { display: flex; gap: 8px; padding: 12px 8px 4px; }
+  .btn { flex: 1; text-align: center; padding: 10px 0; border-radius: 999px; background: var(--surface-muted); }
+  .btn.primary { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+  .menu .r { background: var(--surface-card); padding: 12px 16px; border-radius: 3px; }
+  .menu .r:first-child { border-radius: 11px 11px 3px 3px; } .menu .r:last-child { border-radius: 3px 3px 11px 11px; }
+  .link { padding: 12px 8px 4px; color: var(--text-secondary); text-align: center; font-size: 13px; }
+  .arrow { align-self: center; color: var(--text-tertiary); font-size: 22px; }
+  .sp { width: 620px; }
+  .sp-title { font-size: 22px; font-weight: 600; margin: 0 0 16px; }
+  .sp-card { border: 1px solid var(--border); border-radius: 16px; background: var(--surface-card); }
+  .sp-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; min-height: 56px; }
+  .sp-row + .sp-row { border-top: 1px solid var(--border); }
+  .sp-text { flex: 1; } .sp-text b { font-weight: 500; display: block; } .sp-text i { font-style: normal; font-size: 12px; color: var(--text-secondary); }
+  .pill { padding: 5px 11px; border-radius: 999px; background: var(--surface-muted); font-size: 12px; }
+  .pill.danger { color: var(--error); } .pill.off { opacity: .35; }
+  .pf { display: flex; align-items: center; gap: 12px; }
+  .av { width: 40px; height: 40px; border-radius: 50%; background: #f5c518; color: #6b4e00; display: grid; place-items: center; font-weight: 600; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>Spec 001 mockups</h1>
+<p class="note">All three popups use the dialog look the new tab already has (the card, the inset well, the rows) and the page switcher's way of marking the current choice (a soft grey background, no pills). They differ in how you pick between a bookmark and a page.</p>
+
+<h2>A. One popup, Bookmark | Page at the top (built)</h2>
+<p class="note">The + button opens this straight away. Bookmark is chosen first; Page swaps the fields in place. Everything is on one screen, and nothing is saved until Add.</p>
+<div class="row">
+  <div><div class="label">Bookmark</div>
+    <div class="card">
+      <div class="title">Add</div>
+      <div class="seg"><span class="on">Bookmark</span><span>Page</span></div>
+      <div class="well">
+        <div class="f"><small>Name</small><span class="v">Canvas</span></div>
+        <div class="f"><small>URL</small><span class="v">kennesaw.instructure.com</span></div>
+        <div class="f sel"><span><small>Page</small><br><span class="v">College</span></span><span>&#9662;</span></div>
+        <div class="f sel"><span><small>Group</small><br><span class="v">CLASSES</span></span><span>&#9662;</span></div>
+      </div>
+      <div class="foot"><span class="btn">Cancel</span><span class="btn primary">Add</span></div>
+    </div></div>
+  <div><div class="label">Page, with a subtitle that is too short</div>
+    <div class="card">
+      <div class="title">Add</div>
+      <div class="seg"><span>Bookmark</span><span class="on">Page</span></div>
+      <div class="well">
+        <div class="f"><small>Name</small><span class="v">Gym</span></div>
+        <div class="f"><small>Subtitle</small><span class="v">Lifting</span><span class="err">Use at least 3 words</span></div>
+      </div>
+      <div class="count">1 of 3-5 words &middot; 7 / 32</div>
+      <div class="foot"><span class="btn">Cancel</span><span class="btn primary">Add</span></div>
+    </div></div>
+</div>
+
+<h2>B. Keep the choice menu, then one form</h2>
+<p class="note">Closest to today: the + still asks "bookmark or page" first, but the four dialogs after it become one form. One more click than A.</p>
+<div class="row">
+  <div class="card menu"><div class="well"><div class="r">Add bookmark</div><div class="r">Add page</div></div></div>
+  <div class="arrow">&rarr;</div>
+  <div class="card">
+    <div class="title">Add bookmark</div>
+    <div class="well">
+      <div class="f"><small>Name</small><span class="ph">GitHub</span></div>
+      <div class="f"><small>URL</small><span class="ph">https://example.com</span></div>
+      <div class="f sel"><span><small>Page</small><br><span class="v">Essentials</span></span><span>&#9662;</span></div>
+      <div class="f sel"><span><small>Group</small><br><span class="ph">Choose a group</span></span><span>&#9662;</span></div>
+    </div>
+    <div class="foot"><span class="btn">Back</span><span class="btn primary">Add</span></div>
+  </div>
+</div>
+
+<h2>C. Bookmark first, page as a link</h2>
+<p class="note">Bookmarks are the common case, so the popup is a bookmark form with "Add a page instead" under it. Fewest controls, but adding a page is less visible.</p>
+<div class="row">
+  <div class="card">
+    <div class="title">Add bookmark</div>
+    <div class="well">
+      <div class="f"><small>Name</small><span class="ph">GitHub</span></div>
+      <div class="f"><small>URL</small><span class="ph">https://example.com</span></div>
+      <div class="f sel"><span><small>Page and group</small><br><span class="v">Essentials &middot; PRODUCTIVITY</span></span><span>&#9662;</span></div>
+    </div>
+    <div class="foot"><span class="btn">Cancel</span><span class="btn primary">Add</span></div>
+    <div class="link">Add a page instead</div>
+  </div>
+</div>
+
+<h2>Settings &gt; Pages (with A)</h2>
+<p class="note">Every page with its subtitle, in switcher order. Edit and Add page open popup A in Page mode. Home stays first: no Delete and no moving.</p>
+<div class="sp">
+  <div class="sp-title">Pages</div>
+  <div class="sp-card">
+    <div class="sp-row"><div class="sp-text"><b>Home</b><i>Everything at a glance</i></div><span class="pill">Edit</span></div>
+    <div class="sp-row"><div class="sp-text"><b>College</b><i>Classes and due dates</i></div><span class="pill off">&uarr;</span><span class="pill">&darr;</span><span class="pill">Edit</span><span class="pill danger">Delete</span></div>
+    <div class="sp-row"><div class="sp-text"><b>Work</b><i>Shifts and pay stubs</i></div><span class="pill">&uarr;</span><span class="pill off">&darr;</span><span class="pill">Edit</span><span class="pill danger">Delete</span></div>
+    <div class="sp-row"><span class="pill">+ Add page</span></div>
+  </div>
+</div>
+
+<h2>Settings &gt; Profiles &gt; Edit (Phase 3, same look)</h2>
+<div class="sp">
+  <div class="sp-card">
+    <div class="sp-row"><div class="pf"><div class="av">CD</div><div class="sp-text"><b>Christian Darby-Ward</b><i>Personal</i></div></div><div style="flex:1"></div><span class="pill">Current</span><span class="pill">Edit</span></div>
+    <div class="sp-row"><div class="pf"><div class="av" style="background:#7aa7f7;color:#0c2a55">CS</div><div class="sp-text"><b>Christian (School)</b><i>School</i></div></div><div style="flex:1"></div><span class="pill">Switch</span><span class="pill">Edit</span></div>
+  </div>
+</div>
+</body>
+</html>

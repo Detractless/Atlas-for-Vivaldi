@@ -1,6 +1,6 @@
 // New-tab side of requests the toolbar menu sends (the bundle only knows
-// "open-settings"). "Add page or bookmark" clicks the hidden add button that
-// initBookmarkAddModal already wires. A fresh tab opened with ?add=1 does the
+// "open-settings"). "Add page or bookmark" clicks the hidden + button, which
+// opens the add popup (components/addPopup). A fresh tab opened with ?add=1 does the
 // same once the page has finished starting.
 (function () {
   function openAdd() {

@@ -5,7 +5,7 @@ import '../../styles/components.css';
 import './newtab.css';
 import { ContextMenu } from '../../components/contextMenu/contextMenu.js';
 import { refreshBookmarkCache, initializeBookmarks, loadBookmarks } from '../../components/bookmarks/bookmarks.js';
-import { initBookmarkAddModal } from '../../components/bookmarks/bookmarkModal.js';
+import { initAddPopup } from '../../components/addPopup/addPopup.js';
 import { watchSystemTheme } from './theme.js';
 import { showPage } from './displayEffects.js';
 import { initializeTabs, setTabNavigationCallbacks, renderTabs, selectSearchTab } from '../../components/tabs/tabs.js';
@@ -91,12 +91,11 @@ async function onImportComplete(importData) {
 
 function initFeatures() {
   initializeBookmarks();
-  initBookmarkAddModal();
+  initAddPopup();
   initEngineModal();
 
   const globalSettingsBtn = document.getElementById('global-settings-btn');
-  /* R-016: the + disc opens the anchored Add menu, and initBookmarkAddModal
-     wires it. Nothing here binds it any more. */
+  /* The + button opens the add popup; initAddPopup wires it. */
   if (globalSettingsBtn) globalSettingsBtn.addEventListener('click', () => openSettings());
 }
 

@@ -129,3 +129,8 @@ html.grayscale { filter: grayscale(1); }
 .sp-scale-bar svg { width: 16px; height: 16px; flex-shrink: 0; }
 .sp-scale-pills { display: flex; gap: 6px; }
 .sp-scale-pills span { padding: 4px 10px; border-radius: 12px; background: var(--sp-pill); color: var(--sp-text-2); font-size: 12px; }
+
+/* Settings > Pages (src/settings/pagesSection.js) */
+#sp-root .pg-row .sp-pill.sm { height: 30px; padding: 0 10px; font-size: 13px; }
+#sp-root .pg-ask { font-size: 13px; color: var(--sp-text-2); white-space: nowrap; }
+#sp-root .pg-intro { margin: 12px 4px 0; }

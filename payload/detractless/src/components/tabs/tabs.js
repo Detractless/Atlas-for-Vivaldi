@@ -40,8 +40,8 @@ function sentenceCase(t) {
   return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
 }
 
-/** Home shows as "Dashboard" unless the user renamed it. */
-function displayName(tab) {
+/** Home shows as "Dashboard" unless the user renamed it. Settings > Pages uses it too. */
+export function displayName(tab) {
   return (tab.type === 'search' && (!tab.label || tab.label === 'Home')) ? 'Dashboard' : sentenceCase(tab.label);
 }
 
@@ -201,32 +201,53 @@ function switcherItem(tab) {
 
 /** Rename / subtitle / Delete for one page, on the R-012 card. Home can't be deleted. */
 function openPageDialog(tab) {
-  const update = (patch) => {
-    const t = activeTabs.find((t2) => t2.id === tab.id);
-    if (t) {
-      Object.assign(t, patch);
-      saveTabs();
-      renderTabs();
-    }
-  };
   openTabDialog({
     title: displayName(tab),
     name: tab.label,
     sub: cleanSubtitle(tab.sub) || starterSubtitle(tab),
-    onRename: (newName) => update({ label: newName }),
-    onSubtitle: (raw) => subtitleProblem(raw) || (update({ sub: cleanSubtitle(raw) }), true),
-    onDelete: tab.type === 'search' ? null : () => {
-      setActiveTabs(activeTabs.filter((t) => t.id !== tab.id));
-      if (currentBookmarkPage === tab.id) {
-        if (_onNavigateToSearch) _onNavigateToSearch();
-        selectSearchTab();
-      }
-      storageRemove('sync', `page${tab.id}`);
-      BookmarkDB.deleteBookmarks(tab.id);
-      saveTabs();
-      renderTabs();
-    },
+    onRename: (newName) => updatePage(tab.id, { label: newName }),
+    onSubtitle: (raw) => subtitleProblem(raw) || (updatePage(tab.id, { sub: cleanSubtitle(raw) }), true),
+    onDelete: tab.type === 'search' ? null : () => deletePage(tab.id),
   });
+}
+
+/* ── Page edits (the page dialog and Settings > Pages share these) ─────── */
+
+/** Change a page's name and/or subtitle. */
+export function updatePage(id, patch) {
+  const t = activeTabs.find((t2) => t2.id === id);
+  if (!t) return;
+  Object.assign(t, patch);
+  saveTabs();
+  renderTabs();
+}
+
+/** Delete a page and its bookmarks. Home is never deleted. */
+export function deletePage(id) {
+  const tab = activeTabs.find((t) => t.id === id);
+  if (!tab || tab.type === 'search') return;
+  setActiveTabs(activeTabs.filter((t) => t.id !== id));
+  if (currentBookmarkPage === id) {
+    if (_onNavigateToSearch) _onNavigateToSearch();
+    selectSearchTab();
+  }
+  storageRemove('sync', `page${id}`);
+  BookmarkDB.deleteBookmarks(id);
+  saveTabs();
+  renderTabs();
+}
+
+/** Move a page one place up (-1) or down (+1). Home stays first. */
+export function movePage(id, step) {
+  const from = activeTabs.findIndex((t) => t.id === id);
+  const to = from + step;
+  if (from < 0 || to < 0 || to >= activeTabs.length) return;
+  if (activeTabs[from].type === 'search' || activeTabs[to].type === 'search') return;
+  const next = activeTabs.slice();
+  [next[from], next[to]] = [next[to], next[from]];
+  setActiveTabs(next);
+  saveTabs();
+  renderTabs();
 }
 
 function syncSelection() {
@@ -243,37 +264,8 @@ function syncSelection() {
 
 /* ── Page lifecycle ────────────────────────────────────────────────────── */
 
-/**
- * R-022: ASKS FOR A NAME FIRST. The default is a PLACEHOLDER, not a value, so
- * pressing Enter immediately still gives the one-keystroke path while an empty
- * field costs nothing to replace. Escape creates no page (R-021).
- */
-export async function addNewTab() {
-  const count = activeTabs.filter(t => t.type !== 'search').length + 1;
-  const { openInputPicker } = await import('../bookmarks/bookmarkDialog.js');
-
-  openInputPicker({
-    title: 'Page name',
-    value: '',
-    placeholder: `Page ${count}`,
-    save: (raw) => {
-      const label = raw.trim() || `Page ${count}`;
-      /* Second step: the subtitle. The page is created only when it is valid,
-         so closing this step leaves no page behind. */
-      setTimeout(() => openInputPicker({
-        title: 'Page subtitle',
-        value: '',
-        placeholder: 'Three to five words',
-        back: addNewTab,
-        save: (sub) => subtitleProblem(sub) || (createPage(label, cleanSubtitle(sub)), true),
-      }), 0);
-      return true;
-    },
-  });
-}
-
-/** The write half of addNewTab, separated so the dialog owns only the asking. */
-function createPage(label, sub) {
+/** Add a page at the end and open it. The add popup asks for the name and subtitle. */
+export function createPage(label, sub) {
   const newId = Date.now();
   const newTab = { id: newId, label, type: 'bookmarks', sub };
   activeTabs.push(newTab); saveTabs();

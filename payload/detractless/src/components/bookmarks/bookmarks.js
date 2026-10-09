@@ -10,10 +10,8 @@ import {
   bookmarks, setBookmarks,
   activeTabs
 } from '../../pages/newtab/newtabState.js';
-/* No import from bookmarkModal.js any more. addBookmark used to reach back into
-   it for readAddForm/showAddBookmarkError/clearAddBookmarkForm, which made the
-   writer depend on the widget that collected the values. The flow passes
-   resolved values in instead, so the dependency runs one way. */
+/* addBookmark takes resolved values from whatever collected them (today the
+   add popup), so the writer never depends on the widget. */
 import { attachScrollAffordance } from '../shared/scrollAffordance.js';
 import { refreshBookmarkCache } from './bookmarkCache.js';
 
