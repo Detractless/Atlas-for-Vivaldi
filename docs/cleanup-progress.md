@@ -90,3 +90,12 @@ Per-phase gate: `node --test tests/unit/*.test.js`, `python3 -m unittest discove
 - Bugs found and left (outside the plan): Extensions popover search resets on every keystroke (todo test in atlas_window.test.js).
 - Waiting for the user (touches Vivaldi): rebuild the DMG, run a real install, check the settings fixes live, optionally delete the stale installed copy of harper.pem in ~/Library/Application Support/Vivaldi/Atlas/extensions/harper/.
 
+## After the cleanup: October 3-4 work restored (2026-10-08)
+- Cause: a second copy of the project (`Google Drive/My Drive/atlas-installer`) got four fixes on Oct 3-4 that never reached this copy. The cleanup started from this copy, so today's reinstall replaced them in Vivaldi.
+- Restored from that copy:
+  - `css-mods/01-chrome.css`: the frame stays in full-screen windows (`:not(.fullscreen.inner)`; full-screen video still drops it), a 1px outline around the page that stays unbroken around the rounded corners, and Vivaldi's toolbar bottom border hidden. This replaces the `#webpage-stack::before` line added earlier today.
+  - `css-mods/06-sidebar.css`: the same outline and full-screen rule for the side panel.
+  - `background/messaging.js`: search-delay lookups pass the saved engines to `standardiseUrl`, so a delay on Reddit or another custom engine is found again instead of reloading the gate page forever. Test: `service_worker.test.js` (fails without the fix).
+  - `src/modules/15-addressbar-engine.js`: the address bar's default search engine follows the new tab's default, adding the engine to Vivaldi if needed. It was a hand edit in that copy's atlas.js only. Tests: 3 in `atlas_window.test.js` (fail without the module).
+- Checked and not missing: every other file that copy has is older than this one, an archived feature (in `_old/`), or the old module names. The Oct 5 profile and menu work was already here.
+- Tests: node 94/94 + 1 todo, python 10/10. The spelling speed test (`suggestions are fast`) failed 2 of 6 full runs while the machine was busy (load average 5.6) and passed alone and in 3 runs at load 3.2.

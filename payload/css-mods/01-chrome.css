@@ -59,7 +59,7 @@
 }
 
 /* Outer container shell (#main): Square top, flush with window edges */
-#browser:not(.fullscreen).tabs-top #main {
+#browser:not(.fullscreen.inner).tabs-top #main {
   background-color: var(--atlas-bar) !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
@@ -76,6 +76,8 @@
   border-top-right-radius: 0 !important;
   border-bottom-left-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
+  /* Vivaldi gives .mainbar a 1px bottom border; hide it so the bar blends into the frame rails. */
+  border-bottom-color: transparent !important;
   overflow: hidden !important;
 }
 
@@ -98,45 +100,54 @@
 }
 
 /* Option B: Concave radial fillets that physically wrap and hug the webpage corners */
-#browser:not(.fullscreen) #webview-container::before,
-#browser:not(.fullscreen) #webview-container::after {
+/* The fillet boxes are 11px (1px bigger on the outer sides) and paint the 1px outline
+   ring themselves, at radius 10-11px, so the outline stays continuous around the curve. */
+#browser:not(.fullscreen.inner) #webview-container::before,
+#browser:not(.fullscreen.inner) #webview-container::after {
   content: '';
   position: absolute;
   top: 0;
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
   z-index: 5;
   pointer-events: none;
 }
-#browser:not(.fullscreen) #webview-container::before {
-  left: 5px;
-  background: radial-gradient(circle at 100% 100%, transparent 10px, var(--atlas-bar) 10.5px);
+#browser:not(.fullscreen.inner) #webview-container::before {
+  left: 4px;
+  background:
+    radial-gradient(circle at 100% 100%, transparent 10px, var(--atlas-border) 10px, var(--atlas-border) 11px, transparent 11px),
+    radial-gradient(circle at 100% 100%, transparent 10px, var(--atlas-bar) 10.5px);
 }
-#browser:not(.fullscreen) #webview-container::after {
-  right: 5px;
-  background: radial-gradient(circle at 0% 100%, transparent 10px, var(--atlas-bar) 10.5px);
+#browser:not(.fullscreen.inner) #webview-container::after {
+  right: 4px;
+  background:
+    radial-gradient(circle at 0% 100%, transparent 10px, var(--atlas-border) 10px, var(--atlas-border) 11px, transparent 11px),
+    radial-gradient(circle at 0% 100%, transparent 10px, var(--atlas-bar) 10.5px);
 }
 
 /* Nested webpage stack: cradled by the container with uniform 5px side & bottom rails */
-#browser:not(.fullscreen) #webpage-stack {
-  margin: 0 5px 5px 5px !important;
+#browser:not(.fullscreen.inner) #webpage-stack {
+  /* 1px top gap so the outline's top edge sits inside the container instead of under the toolbar. */
+  margin: 1px 5px 5px 5px !important;
   border-radius: 10px !important;
   overflow: clip !important;
+  /* One continuous 1px outline along the top edge and around the rounded corners. */
+  box-shadow: 0 0 0 1px var(--atlas-border) !important;
 }
 
 /* Cradle inner webpage curves with solid container background */
 #browser #webpage-stack:after,
 #browser.maximized #webpage-stack:after,
 #browser.unified-ui #webpage-stack:after,
-#browser:not(.fullscreen) #webpage-stack:after {
+#browser:not(.fullscreen.inner) #webpage-stack:after {
   background: var(--atlas-bar) !important;
   background-color: var(--atlas-bar) !important;
   background-image: none !important;
   --mask-box-radius: 10px !important;
 }
 
-#browser:not(.fullscreen) #webpage-stack .webpageview,
-#browser:not(.fullscreen) #webpage-stack .internal.visible {
+#browser:not(.fullscreen.inner) #webpage-stack .webpageview,
+#browser:not(.fullscreen.inner) #webpage-stack .internal.visible {
   border-radius: 10px !important;
   overflow: clip !important;
 }

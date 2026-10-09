@@ -112,38 +112,46 @@
   border-right-color: transparent !important;
 }
 /* Side panel (Tools) card: cradled by the container with matching 5px rails and 10px rounded corners */
-#browser:not(.fullscreen) #panels-container.expanded {
-  margin: 0 0 5px 5px !important;
+#browser:not(.fullscreen.inner) #panels-container.expanded {
+  /* 1px top gap so the outline's top edge sits inside the container, matching the page card. */
+  margin: 1px 0 5px 5px !important;
   border-radius: 10px !important;
   border-right-color: transparent !important;
+  box-shadow: 0 0 0 1px var(--atlas-border) !important;
 }
 
-#browser:not(.fullscreen) #panels-container.expanded .panel-collapse-guard,
-#browser:not(.fullscreen) #panels-container.expanded .panel-group,
-#browser:not(.fullscreen) #panels-container.expanded .panel,
-#browser:not(.fullscreen) #panels-container.expanded webview {
+#browser:not(.fullscreen.inner) #panels-container.expanded .panel-collapse-guard,
+#browser:not(.fullscreen.inner) #panels-container.expanded .panel-group,
+#browser:not(.fullscreen.inner) #panels-container.expanded .panel,
+#browser:not(.fullscreen.inner) #panels-container.expanded webview {
   border-radius: 10px !important;
   overflow: clip !important;
 }
 
 /* Option B: Concave radial fillets that physically wrap and hug the side panel top corners */
-#browser:not(.fullscreen) #panels-container.expanded::before,
-#browser:not(.fullscreen) #panels-container.expanded::after {
+/* 11px fillet boxes reach 1px past the card and paint the outline ring (radius 10-11px)
+   themselves, so the outline stays continuous around the curve, like the page card. */
+#browser:not(.fullscreen.inner) #panels-container.expanded::before,
+#browser:not(.fullscreen.inner) #panels-container.expanded::after {
   content: '';
   position: absolute;
-  top: 0;
-  width: 10px;
-  height: 10px;
+  top: -1px;
+  width: 11px;
+  height: 11px;
   z-index: 5;
   pointer-events: none;
 }
-#browser:not(.fullscreen) #panels-container.expanded::before {
-  left: 0;
-  background: radial-gradient(circle at 100% 100%, transparent 10px, var(--atlas-bar) 10.5px);
+#browser:not(.fullscreen.inner) #panels-container.expanded::before {
+  left: -1px;
+  background:
+    radial-gradient(circle at 100% 100%, transparent 10px, var(--atlas-border) 10px, var(--atlas-border) 11px, transparent 11px),
+    radial-gradient(circle at 100% 100%, transparent 10px, var(--atlas-bar) 10.5px);
 }
-#browser:not(.fullscreen) #panels-container.expanded::after {
-  right: 0;
-  background: radial-gradient(circle at 0% 100%, transparent 10px, var(--atlas-bar) 10.5px);
+#browser:not(.fullscreen.inner) #panels-container.expanded::after {
+  right: -1px;
+  background:
+    radial-gradient(circle at 0% 100%, transparent 10px, var(--atlas-border) 10px, var(--atlas-border) 11px, transparent 11px),
+    radial-gradient(circle at 0% 100%, transparent 10px, var(--atlas-bar) 10.5px);
 }
 /* Vivaldi keeps ~34px of the panel column reserved for the switcher strip we
    hide, and the native <webview> can't be stretched over it from CSS, so a bare

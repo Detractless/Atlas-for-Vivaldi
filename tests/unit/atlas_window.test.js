@@ -246,3 +246,50 @@ test("the page menu script is registered together with the spelling engine", asy
   assert.deepEqual(cs.js, ["components/atlas/atlas-spelling.js", "components/atlas/atlas-ctxmenu.js"]);
   assert.equal(cs.runAt, "document_start");
 });
+
+/* vivaldi.searchEngines with a list of engines; records what Atlas changes. */
+function fakeEngines(templateUrls, defaultSearch) {
+  const state = { templateUrls, defaultSearch, added: [], setDefault: [] };
+  const api = {
+    getTemplateUrls(cb) { cb({ templateUrls: state.templateUrls, defaultSearch: state.defaultSearch }); },
+    setDefault(kind, guid) { state.setDefault.push([kind, guid]); state.defaultSearch = guid; },
+    addTemplateUrl(t, cb) {
+      const guid = "new-" + state.added.length;
+      state.added.push(plain(t));
+      state.templateUrls = state.templateUrls.concat([{ ...t, guid }]);
+      cb({ guid });
+    },
+  };
+  return { state, api };
+}
+const GOOGLE_T = { guid: "g-google", url: "https://www.google.com/search?q={searchTerms}", isActive: 1 };
+const DDG_T = { guid: "g-ddg", url: "https://duckduckgo.com/?q={searchTerms}", isActive: 1 };
+const ENGINES = {
+  google: { name: "Google", url: "https://www.google.com/search?q=" },
+  ddg: { name: "DuckDuckGo", url: "https://duckduckgo.com/?q=" },
+};
+
+test("the address bar searches with the new tab's default engine", async () => {
+  const e = fakeEngines([GOOGLE_T, DDG_T], "g-google");
+  await start({ sync: { defaultEngineKey: "ddg", customSearchEngines: ENGINES }, searchEngines: e.api });
+  assert.deepEqual(e.state.setDefault, [["defaultSearch", "g-ddg"]]);
+  assert.deepEqual(e.state.added, []);
+});
+
+test("an engine Vivaldi doesn't have is added, then made the default", async () => {
+  const e = fakeEngines([GOOGLE_T], "g-google");
+  await start({ sync: { defaultEngineKey: "ddg", customSearchEngines: ENGINES }, searchEngines: e.api });
+  assert.equal(e.state.added.length, 1);
+  assert.equal(e.state.added[0].url, "https://duckduckgo.com/?q={searchTerms}");
+  assert.equal(e.state.added[0].name, "DuckDuckGo");
+  assert.deepEqual(e.state.setDefault, [["defaultSearch", "new-0"]]);
+});
+
+test("changing the new tab's engine changes the address bar's", async () => {
+  const e = fakeEngines([GOOGLE_T, DDG_T], "g-ddg");
+  const w = await start({ sync: { defaultEngineKey: "ddg", customSearchEngines: ENGINES }, searchEngines: e.api });
+  assert.deepEqual(e.state.setDefault, [], "already the default: nothing to change");
+  await w.chrome.storage.sync.set({ defaultEngineKey: "google" });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.deepEqual(e.state.setDefault, [["defaultSearch", "g-google"]]);
+});

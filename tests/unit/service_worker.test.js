@@ -43,11 +43,11 @@ function storageArea(data = {}) {
   };
 }
 
-function loadWorker() {
+function loadWorker(seed = {}) {
   const listeners = {}, calls = [];
   const chrome = anyApi("chrome", listeners, calls);
   const fake = {
-    storage: { sync: storageArea(), local: storageArea(), session: storageArea(), onChanged: anyApi("chrome.storage.onChanged", listeners, calls) },
+    storage: { sync: storageArea(seed.sync), local: storageArea(seed.local), session: storageArea(), onChanged: anyApi("chrome.storage.onChanged", listeners, calls) },
     tabs: new Proxy({ query: (q, cb) => { if (cb) Promise.resolve().then(() => cb([])); return Promise.resolve([]); } }, {
       get: (t, p) => (p in t ? t[p] : anyApi(`chrome.tabs.${String(p)}`, listeners, calls)),
     }),
@@ -93,6 +93,22 @@ test("search-delay messages get their answers", async () => {
   assert.deepEqual(await send(w, { action: "markDelayCompleted", url }), { success: true });
   assert.deepEqual(await send(w, { action: "startDelayDecrease" }), { success: true });
   assert.deepEqual(await send(w, { action: "cancelDelayDecrease" }), { success: true });
+});
+
+test("a delay on a custom engine is found again (no reload loop on Reddit and friends)", async () => {
+  // The delay is stored under the URL standardised WITH the saved engines; the gate
+  // page's status and "done" messages must look it up the same way.
+  const url = "https://www.reddit.com/search/?q=cats&type=link";
+  const key = "https://www.reddit.com/search/?q=cats";
+  const w = loadWorker({
+    sync: { searchDelaySeconds: 30, customSearchEngines: { reddit: { name: "Reddit", url: "https://www.reddit.com/search/?q=" } } },
+    local: { activeDelays: { [key]: { startTime: Date.now(), completed: false } } },
+  });
+  await new Promise((r) => setTimeout(r, 20));
+  const status = await send(w, { action: "checkDelayStatus", url });
+  assert.equal(status.inDelay, true, JSON.stringify(status));
+  assert.deepEqual(await send(w, { action: "markDelayCompleted", url }), { success: true });
+  assert.equal(w.storage.local._data.activeDelays[key].completed, true);
 });
 
 test("tab-limit messages get their answers", async () => {

@@ -91,7 +91,11 @@ async function openWindow(opts = {}) {
       window.IDBKeyRange = IDBKeyRange;
       fake = windowChrome(window, { sync: opts.sync, local: opts.local }, calls, listeners);
       window.chrome = fake.chrome;
-      window.vivaldi = recorder("vivaldi", calls, listeners);
+      const rec = recorder("vivaldi", calls, listeners);
+      // opts.searchEngines stands in for vivaldi.searchEngines; the rest is recorded.
+      window.vivaldi = opts.searchEngines
+        ? new Proxy({ searchEngines: opts.searchEngines }, { get: (t, p) => (p in t ? t[p] : rec[p]) })
+        : rec;
     },
   });
   await new Promise((resolve) => dom.window.addEventListener("load", resolve));

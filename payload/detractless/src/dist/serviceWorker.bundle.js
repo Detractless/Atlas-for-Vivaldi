@@ -385,7 +385,7 @@
   // src/background/messaging.js
   var ok = (sendResponse) => sendResponse({ success: true });
   function delayStatus(url) {
-    const delayInfo = activeDelays[standardiseUrl(url)];
+    const delayInfo = activeDelays[standardiseUrl(url, managedEngines)];
     if (!delayInfo) return { inDelay: false };
     const elapsed = Date.now() - delayInfo.startTime;
     const remaining = Math.max(0, searchDelayMs - elapsed);
@@ -397,7 +397,7 @@
     };
   }
   function markDelayCompleted(url) {
-    const stdUrl = standardiseUrl(url);
+    const stdUrl = standardiseUrl(url, managedEngines);
     if (activeDelays[stdUrl]) {
       activeDelays[stdUrl].completed = true;
       pruneActiveDelays();

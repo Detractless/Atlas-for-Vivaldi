@@ -1,4 +1,4 @@
-import { searchDelayMs, activeDelays, setSearchDelayMs } from './workerState.js';
+import { searchDelayMs, activeDelays, managedEngines, setSearchDelayMs } from './workerState.js';
 import { enforceTabLimit } from './tabLimiter.js';
 import { standardiseUrl } from './searchUrl.js';
 import { checkPendingIncrease, checkPendingDelayDecrease, pruneActiveDelays } from './pendingChanges.js';
@@ -6,9 +6,14 @@ import { storageSet } from '../services/storage.js';
 
 const ok = (sendResponse) => sendResponse({ success: true });
 
+/* Delays are stored under the URL standardised with the saved engines
+   (searchInterception.js), so every lookup must pass them too. Without them a
+   custom engine's URL standardises to null, the delay is never found, and the
+   gate page reloads forever (seen on Reddit). */
+
 /** How far along the search delay for `url` is, for the gate page. */
 function delayStatus(url) {
-  const delayInfo = activeDelays[standardiseUrl(url)];
+  const delayInfo = activeDelays[standardiseUrl(url, managedEngines)];
   if (!delayInfo) return { inDelay: false };
   const elapsed = Date.now() - delayInfo.startTime;
   const remaining = Math.max(0, searchDelayMs - elapsed);
@@ -21,7 +26,7 @@ function delayStatus(url) {
 }
 
 function markDelayCompleted(url) {
-  const stdUrl = standardiseUrl(url);
+  const stdUrl = standardiseUrl(url, managedEngines);
   if (activeDelays[stdUrl]) {
     activeDelays[stdUrl].completed = true;
     pruneActiveDelays();
