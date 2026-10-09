@@ -284,7 +284,7 @@
           pastekit: "pastekit"
         },
         sync: {
-          activeTabs: { default: null, backup: true, importWhen: "truthy", profile: "bookmarks", note: "Pages list. Export takes it from memory, not storage." },
+          activeTabs: { default: null, backup: true, importWhen: "truthy", profile: "bookmarks", note: "Pages list: {id, label, type, sub}; sub is the subtitle under the name (services/pageSubtitle.js). Export takes it from memory, not storage." },
           Theme: {
             default: {
               _comment: "Theme settings: 'system' <- Follows System settings (Light/Dark). 'dark' <- Forces standard Dark mode. 'light' <- Forces standard Light mode. 'custom' <- Uses the CustomColors mapped below. Note: To apply changes, reload the page.",
@@ -1072,22 +1072,29 @@
       ]
     });
   }
-  function openTabDialog({ name, onRename, onDelete }) {
-    buildDialog({
-      title: name,
-      subtitle: "Page",
-      actions: [
-        {
-          kind: "input",
-          label: "Rename page",
-          paneTitle: "Rename page",
-          icon: Icons.edit,
-          fieldValue: name,
-          save: onRename
-        },
-        { kind: "danger", label: "Delete page", icon: Icons.delete, count: 0, confirm: onDelete }
-      ]
-    });
+  function openTabDialog({ title, name, sub, onRename, onSubtitle, onDelete }) {
+    const actions = [
+      {
+        kind: "input",
+        label: "Rename page",
+        paneTitle: "Rename page",
+        icon: Icons.edit,
+        fieldValue: name,
+        save: onRename
+      },
+      {
+        kind: "input",
+        label: "Edit subtitle",
+        paneTitle: "Edit subtitle",
+        icon: Icons.edit,
+        value: sub,
+        fieldValue: sub,
+        placeholder: "Three to five words",
+        save: onSubtitle
+      }
+    ];
+    if (onDelete) actions.push({ kind: "danger", label: "Delete page", icon: Icons.delete, count: 0, confirm: onDelete });
+    buildDialog({ title: title || name, subtitle: "Page", actions });
   }
   var init_bookmarkDialog = __esm({
     "src/components/bookmarks/bookmarkDialog.js"() {
@@ -1297,6 +1304,43 @@
     }
   });
 
+  // src/services/pageSubtitle.js
+  function cleanSubtitle(text) {
+    return String(text ?? "").replace(/\s+/g, " ").trim();
+  }
+  function subtitleProblem(text) {
+    const t = cleanSubtitle(text);
+    const words = t ? t.split(" ").length : 0;
+    if (words < MIN_WORDS) return `Use at least ${MIN_WORDS} words`;
+    if (words > MAX_WORDS) return `Use at most ${MAX_WORDS} words`;
+    if (t.length > MAX_CHARS) return `Keep it to ${MAX_CHARS} characters`;
+    return null;
+  }
+  function starterSubtitle(page) {
+    return page && page.type === "search" ? HOME_SUBTITLE : STARTER_SUBTITLE;
+  }
+  function fillMissingSubtitles(pages2) {
+    let changed = false;
+    pages2.forEach((page) => {
+      if (!cleanSubtitle(page.sub)) {
+        page.sub = starterSubtitle(page);
+        changed = true;
+      }
+    });
+    return changed;
+  }
+  var MIN_WORDS, MAX_WORDS, MAX_CHARS, HOME_SUBTITLE, STARTER_SUBTITLE;
+  var init_pageSubtitle = __esm({
+    "src/services/pageSubtitle.js"() {
+      init_defaults();
+      MIN_WORDS = 3;
+      MAX_WORDS = 5;
+      MAX_CHARS = 32;
+      HOME_SUBTITLE = DEFAULT_TABS[0].sub;
+      STARTER_SUBTITLE = "Your saved links here";
+    }
+  });
+
   // src/components/tabs/tabs.js
   var tabs_exports = {};
   __export(tabs_exports, {
@@ -1323,6 +1367,7 @@
       storageGet("sync", ["activeTabs"]).then((result) => {
         if (result.activeTabs && Array.isArray(result.activeTabs)) {
           setActiveTabs(result.activeTabs);
+          if (fillMissingSubtitles(activeTabs)) saveTabs();
         } else {
           setActiveTabs([...DEFAULT_TABS]);
           saveTabs();
@@ -1434,40 +1479,40 @@
     li.setAttribute("tabindex", "-1");
     li.dataset.id = String(tab.id);
     li.setAttribute("aria-selected", String(tab.id === selectedTabId));
-    const tabSub = tab.type === "search" && !tab.sub ? "Everything at a glance" : tab.sub || "";
+    const tabSub = cleanSubtitle(tab.sub) || starterSubtitle(tab);
     const spanLabel = document.createElement("span");
     spanLabel.className = "label";
     spanLabel.textContent = displayName(tab);
-    if (tabSub) {
-      const spanSub = document.createElement("span");
-      spanSub.className = "sub";
-      spanSub.textContent = tabSub;
-      spanLabel.appendChild(spanSub);
-    }
+    const spanSub = document.createElement("span");
+    spanSub.className = "sub";
+    spanSub.textContent = tabSub;
+    spanLabel.appendChild(spanSub);
     li.appendChild(spanLabel);
     li.insertAdjacentHTML("beforeend", checkSVG);
-    if (tab.type !== "search") {
-      li.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        if (ContextMenu.disabled) return;
-        setOpen(false);
-        openPageDialog(tab);
-      });
-    }
+    li.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      if (ContextMenu.disabled) return;
+      setOpen(false);
+      openPageDialog(tab);
+    });
     return li;
   }
   function openPageDialog(tab) {
+    const update2 = (patch) => {
+      const t = activeTabs.find((t2) => t2.id === tab.id);
+      if (t) {
+        Object.assign(t, patch);
+        saveTabs();
+        renderTabs();
+      }
+    };
     openTabDialog({
+      title: displayName(tab),
       name: tab.label,
-      onRename: (newName) => {
-        const t = activeTabs.find((t2) => t2.id === tab.id);
-        if (t) {
-          t.label = newName;
-          saveTabs();
-          renderTabs();
-        }
-      },
-      onDelete: () => {
+      sub: cleanSubtitle(tab.sub) || starterSubtitle(tab),
+      onRename: (newName) => update2({ label: newName }),
+      onSubtitle: (raw) => subtitleProblem(raw) || (update2({ sub: cleanSubtitle(raw) }), true),
+      onDelete: tab.type === "search" ? null : () => {
         setActiveTabs(activeTabs.filter((t) => t.id !== tab.id));
         if (currentBookmarkPage === tab.id) {
           if (_onNavigateToSearch) _onNavigateToSearch();
@@ -1500,14 +1545,20 @@
       placeholder: `Page ${count}`,
       save: (raw) => {
         const label = raw.trim() || `Page ${count}`;
-        createPage(label);
+        setTimeout(() => openInputPicker2({
+          title: "Page subtitle",
+          value: "",
+          placeholder: "Three to five words",
+          back: addNewTab,
+          save: (sub) => subtitleProblem(sub) || (createPage(label, cleanSubtitle(sub)), true)
+        }), 0);
         return true;
       }
     });
   }
-  function createPage(label) {
+  function createPage(label, sub) {
     const newId = Date.now();
-    const newTab = { id: newId, label, type: "bookmarks" };
+    const newTab = { id: newId, label, type: "bookmarks", sub };
     activeTabs.push(newTab);
     saveTabs();
     selectedTabId = newId;
@@ -1524,6 +1575,7 @@
       init_bookmarksDB();
       init_scrollAffordance();
       init_storage();
+      init_pageSubtitle();
       init_newtabState();
       _onTabClick = null;
       _onNavigateToSearch = null;

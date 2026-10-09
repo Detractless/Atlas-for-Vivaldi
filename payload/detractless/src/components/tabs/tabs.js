@@ -20,6 +20,7 @@ import { BookmarkDB } from '../../services/bookmarksDB.js';
 // bundle's module order (and so its start-up order) stays the same.
 import '../shared/scrollAffordance.js';
 import { storageGet, storageRemove, storageSet } from '../../services/storage.js';
+import { cleanSubtitle, fillMissingSubtitles, starterSubtitle, subtitleProblem } from '../../services/pageSubtitle.js';
 import {
   activeTabs, setActiveTabs, currentBookmarkPage
 } from '../../pages/newtab/newtabState.js';
@@ -54,6 +55,7 @@ export async function initializeTabs() {
     storageGet('sync', ["activeTabs"]).then((result) => {
       if (result.activeTabs && Array.isArray(result.activeTabs)) {
         setActiveTabs(result.activeTabs);
+        if (fillMissingSubtitles(activeTabs)) saveTabs();
       } else {
         setActiveTabs([...DEFAULT_TABS]);
         saveTabs();
@@ -175,43 +177,45 @@ function switcherItem(tab) {
   li.dataset.id = String(tab.id);
   li.setAttribute('aria-selected', String(tab.id === selectedTabId));
 
-  const tabSub = (tab.type === 'search' && !tab.sub) ? 'Everything at a glance' : (tab.sub || '');
+  /* Pages loaded at start already have one (initializeTabs); the fallback
+     covers pages swapped in later, by an import or a profile switch. */
+  const tabSub = cleanSubtitle(tab.sub) || starterSubtitle(tab);
   const spanLabel = document.createElement('span');
   spanLabel.className = 'label';
   spanLabel.textContent = displayName(tab);
-  if (tabSub) {
-    const spanSub = document.createElement('span');
-    spanSub.className = 'sub';
-    spanSub.textContent = tabSub;
-    spanLabel.appendChild(spanSub);
-  }
+  const spanSub = document.createElement('span');
+  spanSub.className = 'sub';
+  spanSub.textContent = tabSub;
+  spanLabel.appendChild(spanSub);
   li.appendChild(spanLabel);
   li.insertAdjacentHTML('beforeend', checkSVG);
 
-  if (tab.type !== 'search') {
-    li.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      if (ContextMenu.disabled) return;
-      setOpen(false);
-      openPageDialog(tab);
-    });
-  }
+  li.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    if (ContextMenu.disabled) return;
+    setOpen(false);
+    openPageDialog(tab);
+  });
   return li;
 }
 
-/** Rename / Delete for one page, on the R-012 card. */
+/** Rename / subtitle / Delete for one page, on the R-012 card. Home can't be deleted. */
 function openPageDialog(tab) {
+  const update = (patch) => {
+    const t = activeTabs.find((t2) => t2.id === tab.id);
+    if (t) {
+      Object.assign(t, patch);
+      saveTabs();
+      renderTabs();
+    }
+  };
   openTabDialog({
+    title: displayName(tab),
     name: tab.label,
-    onRename: (newName) => {
-      const t = activeTabs.find((t2) => t2.id === tab.id);
-      if (t) {
-        t.label = newName;
-        saveTabs();
-        renderTabs();
-      }
-    },
-    onDelete: () => {
+    sub: cleanSubtitle(tab.sub) || starterSubtitle(tab),
+    onRename: (newName) => update({ label: newName }),
+    onSubtitle: (raw) => subtitleProblem(raw) || (update({ sub: cleanSubtitle(raw) }), true),
+    onDelete: tab.type === 'search' ? null : () => {
       setActiveTabs(activeTabs.filter((t) => t.id !== tab.id));
       if (currentBookmarkPage === tab.id) {
         if (_onNavigateToSearch) _onNavigateToSearch();
@@ -254,16 +258,24 @@ export async function addNewTab() {
     placeholder: `Page ${count}`,
     save: (raw) => {
       const label = raw.trim() || `Page ${count}`;
-      createPage(label);
+      /* Second step: the subtitle. The page is created only when it is valid,
+         so closing this step leaves no page behind. */
+      setTimeout(() => openInputPicker({
+        title: 'Page subtitle',
+        value: '',
+        placeholder: 'Three to five words',
+        back: addNewTab,
+        save: (sub) => subtitleProblem(sub) || (createPage(label, cleanSubtitle(sub)), true),
+      }), 0);
       return true;
     },
   });
 }
 
 /** The write half of addNewTab, separated so the dialog owns only the asking. */
-function createPage(label) {
+function createPage(label, sub) {
   const newId = Date.now();
-  const newTab = { id: newId, label, type: 'bookmarks' };
+  const newTab = { id: newId, label, type: 'bookmarks', sub };
   activeTabs.push(newTab); saveTabs();
   // Navigate to the new page instead of announcing it with an alert().
   selectedTabId = newId;

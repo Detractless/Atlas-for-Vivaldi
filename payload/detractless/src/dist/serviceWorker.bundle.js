@@ -448,7 +448,7 @@
       pastekit: "pastekit"
     },
     sync: {
-      activeTabs: { default: null, backup: true, importWhen: "truthy", profile: "bookmarks", note: "Pages list. Export takes it from memory, not storage." },
+      activeTabs: { default: null, backup: true, importWhen: "truthy", profile: "bookmarks", note: "Pages list: {id, label, type, sub}; sub is the subtitle under the name (services/pageSubtitle.js). Export takes it from memory, not storage." },
       Theme: {
         default: {
           _comment: "Theme settings: 'system' <- Follows System settings (Light/Dark). 'dark' <- Forces standard Dark mode. 'light' <- Forces standard Light mode. 'custom' <- Uses the CustomColors mapped below. Note: To apply changes, reload the page.",

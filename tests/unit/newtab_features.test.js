@@ -163,6 +163,22 @@ test("a backup exported from one new tab restores into a fresh one", async () =>
   b.window.close();
 });
 
+test("page subtitles travel in a backup", async () => {
+  const pages = [
+    { id: "search", label: "Home", type: "search", sub: "Start every day here" },
+    { id: 7, label: "College", type: "bookmarks", sub: "Classes and due dates" },
+  ];
+  const a = await openNewTab({ local: { hasSeededDefaults: true }, sync: { activeTabs: pages } });
+  const bytes = await exportArchive(a);
+  a.window.close();
+
+  const b = await openNewTab({ local: { hasSeededDefaults: true }, sync: { activeTabs: [{ id: "search", label: "Home", type: "search" }] } });
+  await importArchive(b, bytes, "backup.detractless");
+  const stored = await b.chrome.storage.sync.get(["activeTabs"]);
+  assert.deepEqual(plain(stored.activeTabs.map((p) => [p.label, p.sub])), [["Home", "Start every day here"], ["College", "Classes and due dates"]]);
+  b.window.close();
+});
+
 /* Snippets (from the archived PasteKit) live in their own IndexedDB database.
    Backups must keep carrying them, so an export + reset + import loses nothing. */
 function idb(win, fn) {

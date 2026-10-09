@@ -350,17 +350,21 @@ export function openBookmarkItemDialog({ name, url, onRename, onEditUrl, onDelet
   });
 }
 
-export function openTabDialog({ name, onRename, onDelete }) {
-  buildDialog({
-    title: name,
-    subtitle: 'Page',
-    actions: [
-      {
-        kind: 'input', label: 'Rename page', paneTitle: 'Rename page',
-        icon: Icons.edit, fieldValue: name,
-        save: onRename,
-      },
-      { kind: 'danger', label: 'Delete page', icon: Icons.delete, count: 0, confirm: onDelete },
-    ],
-  });
+/** `title` is the name as the switcher shows it; `onDelete` null leaves the
+    Delete row out (Home can't be deleted). */
+export function openTabDialog({ title, name, sub, onRename, onSubtitle, onDelete }) {
+  const actions = [
+    {
+      kind: 'input', label: 'Rename page', paneTitle: 'Rename page',
+      icon: Icons.edit, fieldValue: name,
+      save: onRename,
+    },
+    {
+      kind: 'input', label: 'Edit subtitle', paneTitle: 'Edit subtitle',
+      icon: Icons.edit, value: sub, fieldValue: sub, placeholder: 'Three to five words',
+      save: onSubtitle,
+    },
+  ];
+  if (onDelete) actions.push({ kind: 'danger', label: 'Delete page', icon: Icons.delete, count: 0, confirm: onDelete });
+  buildDialog({ title: title || name, subtitle: 'Page', actions });
 }
