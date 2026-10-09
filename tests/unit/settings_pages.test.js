@@ -6,6 +6,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { openNewTab, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
+const { menuLabels, pickMenu } = require("./helpers/atlasMenu");
 
 test.afterEach(closeAll);
 
@@ -34,10 +35,10 @@ const stored = async (t) => plain((await t.chrome.storage.sync.get(["activeTabs"
 const switcher = (t) => [...t.document.querySelectorAll("#tabs-container .switcher-item .label")].map((l) => l.firstChild.textContent);
 
 /** Open a page's ⋮ menu and click one of its items. */
-async function fromMenu(t, id, action) {
+async function fromMenu(t, id, label) {
   click(t.window, button(t, "page-menu", id));
-  const item = await waitFor(() => t.document.querySelector(`#sp-content .sp-popmenu [data-action="${action}"][data-id="${id}"]`), 2000, `${action} in the menu`);
-  click(t.window, item);
+  await waitFor(() => menuLabels(t.document).includes(label), 2000, `${label} in the menu`);
+  pickMenu(t.window, t.document, label);
 }
 function drag(t, fromId, toId) {
   const ev = (type, el) => el.dispatchEvent(new t.window.Event(type, { bubbles: true, cancelable: true }));
@@ -60,7 +61,7 @@ test("Settings > Pages lists every page in order with its subtitle", async () =>
 
 test("Edit opens the popup filled in; saving updates Settings, the switcher and storage", async () => {
   const t = await openPagesSettings();
-  await fromMenu(t, "1", "page-edit");
+  await fromMenu(t, "1", "Edit");
   const p = await waitFor(() => t.document.querySelector(".add-popup"), 2000, "popup");
   assert.equal(text(p.querySelector(".picker-title")), "Edit page");
   assert.equal(p.querySelector('[data-field="pageName"]').value, "College");
@@ -122,34 +123,48 @@ test("each page has one ⋮ button; Home's menu has no Delete", async () => {
   for (const id of ["search", "1", "2"]) assert.ok(button(t, "page-menu", id), `⋮ on ${id}`);
   assert.equal(t.document.querySelector('#sp-content .pg-row > .sp-row-ctrl > [data-action="page-edit"]'), null, "no Edit button on the row itself");
   click(t.window, button(t, "page-menu", "search"));
-  const menu = await waitFor(() => t.document.querySelector("#sp-content .sp-popmenu"), 2000, "Home's menu");
-  assert.deepEqual([...menu.querySelectorAll("[data-action]")].map((b) => b.dataset.action), ["page-edit"]);
+  await waitFor(() => menuLabels(t.document).length, 2000, "Home's menu");
+  assert.deepEqual(menuLabels(t.document), ["Edit"]);
+  click(t.window, button(t, "page-menu", "1"));
+  await waitFor(() => menuLabels(t.document).length === 2, 2000, "College's menu");
+  assert.deepEqual(menuLabels(t.document), ["Edit", "Delete"]);
+});
+
+test("the ⋮ menu is Atlas's own right-click menu: pointer, sizes, no colored items", async () => {
+  const t = await openPagesSettings();
+  click(t.window, button(t, "page-menu", "1"));
+  await waitFor(() => menuLabels(t.document).length, 2000, "menu");
+  const host = t.document.querySelector("atlas-ctx");
+  assert.equal(host.parentNode, t.document.body, "drawn over the page, not inside Settings");
+  assert.ok(host.__root.querySelector("svg.tail"), "with its pointer");
+  assert.equal(t.document.querySelector("#sp-content .sp-popmenu"), null, "not the old Settings popup");
+  assert.ok(![...host.__root.querySelectorAll(".mi")].some((r) => r.className.includes("danger")), "no colored Delete");
 });
 
 test("the ⋮ menu closes on Escape without closing Settings, and on a click elsewhere", async () => {
   const t = await openPagesSettings();
   click(t.window, button(t, "page-menu", "1"));
-  await waitFor(() => t.document.querySelector("#sp-content .sp-popmenu"), 2000, "menu");
+  await waitFor(() => menuLabels(t.document).length, 2000, "menu");
   t.document.body.dispatchEvent(new t.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
   await settle(t.window, 30);
-  assert.equal(t.document.querySelector("#sp-content .sp-popmenu"), null, "menu closed");
+  assert.deepEqual(menuLabels(t.document), [], "menu closed");
   assert.ok(!t.document.getElementById("sp-root").hidden, "Settings stays open");
   click(t.window, button(t, "page-menu", "1"));
-  await waitFor(() => t.document.querySelector("#sp-content .sp-popmenu"), 2000, "menu again");
-  click(t.window, t.document.querySelector("#sp-content .sp-page-title"));
+  await waitFor(() => menuLabels(t.document).length, 2000, "menu again");
+  t.document.querySelector("#sp-content .sp-page-title").dispatchEvent(new t.window.MouseEvent("mousedown", { bubbles: true }));
   await settle(t.window, 30);
-  assert.equal(t.document.querySelector("#sp-content .sp-popmenu"), null, "a click elsewhere closes it");
+  assert.deepEqual(menuLabels(t.document), [], "a click elsewhere closes it");
 });
 
 test("Delete in the ⋮ menu asks first; Cancel keeps the page; confirming removes it", async () => {
   const t = await openPagesSettings();
-  await fromMenu(t, "2", "page-delete");
+  await fromMenu(t, "2", "Delete");
   await settle(t.window, 50);
   assert.match(text(rows(t)[2]), /Delete Work and its bookmarks\?/);
   click(t.window, t.document.querySelector('#sp-content [data-action="page-delete-cancel"]'));
   await settle(t.window, 50);
   assert.equal(rows(t).length, 3);
-  await fromMenu(t, "2", "page-delete");
+  await fromMenu(t, "2", "Delete");
   await settle(t.window, 50);
   click(t.window, button(t, "page-delete-go", "2"));
   await settle(t.window, 100);

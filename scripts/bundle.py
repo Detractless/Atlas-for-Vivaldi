@@ -30,6 +30,7 @@ KEYS_JSON = ROOT / "payload" / "detractless" / "src" / "constants" / "atlasKeys.
 ATLAS_JS = ROOT / "payload" / "install-files" / "atlas.js"
 SPELLING_JS = ROOT / "payload" / "install-files" / "components" / "atlas" / "atlas-spelling.js"
 CTXMENU_JS = ROOT / "payload" / "install-files" / "components" / "atlas" / "atlas-ctxmenu.js"
+MENU_JS = ROOT / "payload" / "install-files" / "components" / "atlas" / "atlas-menu.js"
 MODULE_RE = re.compile(r"^(\d{2})-.*\.js$")
 
 
@@ -122,7 +123,7 @@ def write_outputs(out_dir):
         spelling_dst.parent.mkdir(parents=True, exist_ok=True)
         spelling_dst.write_bytes(spelling.encode("utf-8"))
         outputs["atlas-spelling.js"] = spelling_dst
-    validate_syntax([atlas_dst, spelling_dst, CTXMENU_JS])
+    validate_syntax([atlas_dst, spelling_dst, MENU_JS, CTXMENU_JS])
     return outputs
 
 

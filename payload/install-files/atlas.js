@@ -218,7 +218,7 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
   var DESIRED_CS = [
     { id: 'atlas-ctxmenu', matches: ['<all_urls>'],
       excludeMatches: ['https://chromewebstore.google.com/*'],
-      js: ['components/atlas/atlas-spelling.js', 'components/atlas/atlas-ctxmenu.js'], runAt: 'document_start' },
+      js: ['components/atlas/atlas-spelling.js', 'components/atlas/atlas-menu.js', 'components/atlas/atlas-ctxmenu.js'], runAt: 'document_start' },
     /* Spec 002: Google pages open as the active profile's account (17-google-switch.js
        answers it). Top frames only: allFrames is left off. */
     { id: 'atlas-google-account', matches: ['*://*.google.com/*', '*://*.gmail.com/*', '*://*.youtube.com/*'],
@@ -254,7 +254,7 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
 /* Atlas context menu on web pages: inject the shared component and act
    on the messages its items send. Protected pages (Web Store, PDFs) are
    refused by Chromium and keep the pruned native menu. */
-var CTX_SCRIPTS = ['components/atlas/atlas-spelling.js', 'components/atlas/atlas-ctxmenu.js'];
+var CTX_SCRIPTS = ['components/atlas/atlas-spelling.js', 'components/atlas/atlas-menu.js', 'components/atlas/atlas-ctxmenu.js'];
 var INJECTABLE = /^(https?|vivaldi|chrome|chrome-extension):/;
 /* The Web Store is unscriptable by Chromium. Our own history and downloads
    pages deliberately have no context menu at all, so skip them too. */

@@ -42,7 +42,7 @@ for (const osDark of [true, false]) {
   test(`every copy of the theme rule agrees (OS ${osDark ? "dark" : "light"})`, () => {
     const newTab = load("payload/detractless/src/utils/themeResolver.js", "resolveActiveTheme", osDark);
     const preinit = load("payload/detractless/src/pages/shared/themePreinit.js", "resolveTheme", osDark);
-    const pageMenu = load("payload/install-files/components/atlas/atlas-ctxmenu.js", "resolveThemeDark", osDark);
+    const pageMenu = load("payload/install-files/components/atlas/atlas-menu.js", "resolveThemeDark", osDark);
     const windowSync = load("src/modules/11-theme-sync.js", "resolveDark", osDark);
     for (const theme of CASES) {
       const cfg = theme === undefined ? {} : { Theme: theme };

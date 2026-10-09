@@ -11,6 +11,7 @@ const fs = require("fs");
 const path = require("path");
 const { openWindow } = require("./helpers/windowDom");
 const { openNewTab, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
+const { menuLabels, pickMenu } = require("./helpers/atlasMenu");
 
 const plain = (v) => JSON.parse(JSON.stringify(v === undefined ? null : v));
 const text = (el) => (el ? el.textContent.replace(/\s+/g, " ").trim() : "");
@@ -158,7 +159,8 @@ async function editPage(local) {
   click(t.window, t.document.getElementById("global-settings-btn"));
   click(t.window, await waitFor(() => t.document.querySelector('#sp-nav [data-page="profiles"]'), 2000, "Profiles"));
   (await waitFor(() => t.document.querySelector('#sp-content [data-pf-switch="school"]'), 2000, "the profile")).dispatchEvent(new t.window.MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 20 }));
-  click(t.window, await waitFor(() => t.document.querySelector('#sp-content [data-pf-edit="school"]'), 2000, "Edit in its menu"));
+  await waitFor(() => menuLabels(t.document).includes("Edit"), 2000, "Edit in its menu");
+  pickMenu(t.window, t.document, "Edit");
   await waitFor(() => t.document.querySelector("#sp-content [data-pfe-ga], #sp-content [data-pfe-pick]"), 2000, "the Google row");
   return t;
 }

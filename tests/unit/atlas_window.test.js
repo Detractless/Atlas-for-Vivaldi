@@ -274,7 +274,7 @@ test("the page menu script is registered together with the spelling engine", asy
   const w = await start();
   const reg = w.calls.find((c) => c.name === "chrome.scripting.registerContentScripts");
   const cs = plain(reg.args[0])[0];
-  assert.deepEqual(cs.js, ["components/atlas/atlas-spelling.js", "components/atlas/atlas-ctxmenu.js"]);
+  assert.deepEqual(cs.js, ["components/atlas/atlas-spelling.js", "components/atlas/atlas-menu.js", "components/atlas/atlas-ctxmenu.js"]);
   assert.equal(cs.runAt, "document_start");
 });
 

@@ -85,9 +85,11 @@ class InstallerTest(unittest.TestCase):
             self.assertNotIn(source_only, installed)
 
     def test_every_page_reference_is_installed(self):
-        """Each src/href in index.html and gate.html points at an installed file."""
+        """Each src/href in index.html and gate.html points at an installed file
+        (the new tab also loads components/atlas/atlas-menu.js, from step 1)."""
         res = self.tmp / "res"
         res.mkdir()
+        files.step1_atlas_files(PAYLOAD / "install-files", res)
         files.step3_detractless(PAYLOAD / "detractless", res, skip=False)
         for page in ("index.html", "gate.html"):
             html = (PAYLOAD / "detractless" / page).read_text(encoding="utf-8")

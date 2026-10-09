@@ -13,6 +13,8 @@ const { makeFakeChrome } = require("./fakeChrome");
 
 const ROOT = path.resolve(__dirname, "..", "..", "..");
 const PAGE_ROOT = path.join(ROOT, "payload", "detractless");
+// components/atlas/* sits beside the new tab once installed (install.py step 1).
+const COMPONENTS_ROOT = path.join(ROOT, "payload", "install-files");
 const ORIGIN = "https://atlas.test";
 const TYPES = { ".js": "application/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".html": "text/html" };
 
@@ -20,8 +22,10 @@ function serveFromDisk(root) {
   return requestInterceptor((request) => {
     const url = new URL(request.url);
     if (url.origin !== ORIGIN) return new Response("", { status: 404 });
-    const file = path.join(root, decodeURIComponent(url.pathname));
-    if (!file.startsWith(root) || !fs.existsSync(file)) return new Response("", { status: 404 });
+    const rel = decodeURIComponent(url.pathname);
+    const base = rel.startsWith("/components/") ? COMPONENTS_ROOT : root;
+    const file = path.join(base, rel);
+    if (!file.startsWith(base) || !fs.existsSync(file)) return new Response("", { status: 404 });
     const type = TYPES[path.extname(file)] || "application/octet-stream";
     return new Response(fs.readFileSync(file), { headers: { "Content-Type": type } });
   });
@@ -42,6 +46,10 @@ function stubBrowserOnlyApis(window) {
     return "blob:https://atlas.test/" + window.__blobs.length;
   };
   window.URL.revokeObjectURL = () => {};
+  // Atlas's right-click menu (components/atlas/atlas-menu.js) draws in a CLOSED
+  // shadow root; open it so tests can read the menu (as host.__root).
+  const attach = window.Element.prototype.attachShadow;
+  window.Element.prototype.attachShadow = function () { const r = attach.call(this, { mode: "open" }); this.__root = r; return r; };
 }
 
 /**

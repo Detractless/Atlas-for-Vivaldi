@@ -29,7 +29,7 @@ export function installSettingsPage() {
   initMenu($("sp-menu"), root.querySelector(".sp-main"));
   wireShell();
   wireContent();
-  wirePagesSection(content, () => renderPage(), isSettingsOpen);
+  wirePagesSection(content, () => renderPage());
   onSettingChange(() => rerenderSoon());
   publishApi();
 }
@@ -195,7 +195,7 @@ function wireContent() {
 }
 
 function runAction(act, el) {
-  if (act.startsWith("page-")) pageAction(act, el.dataset.id, renderPage);
+  if (act.startsWith("page-")) pageAction(act, el.dataset.id, renderPage, el);
   else if (act === "export") exportBookmarks();
   else if (act === "import") $("import-file").click();
   else if (act === "reset-ask") { resetState.confirming = true; renderPage(); }

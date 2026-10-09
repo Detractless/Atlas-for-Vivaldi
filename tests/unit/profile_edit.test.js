@@ -6,6 +6,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { openNewTab, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
+const { menuRoot, menuLabels, pickMenu } = require("./helpers/atlasMenu");
 
 test.afterEach(closeAll);
 
@@ -43,13 +44,14 @@ function rightClick(t, id) {
 }
 
 /** A profile's right-click menu, then one of its items. */
-async function fromMenu(t, id, item) {
+async function fromMenu(t, id, label) {
   rightClick(t, id);
-  click(t.window, await waitFor(() => content(t).querySelector(`.sp-popmenu [${item}="${id}"]`), 2000, `${item} in the menu`));
+  await waitFor(() => menuLabels(t.document).includes(label), 2000, `${label} in the menu`);
+  pickMenu(t.window, t.document, label);
 }
 
 async function edit(t, id) {
-  await fromMenu(t, id, "data-pf-edit");
+  await fromMenu(t, id, "Edit");
   await waitFor(() => content(t).querySelector("[data-pfe-name]"), 2000, "edit page");
 }
 
@@ -87,27 +89,41 @@ test("clicking a profile switches to it; the active one is highlighted and nothi
 test("right-clicking a profile opens a menu with Edit and Delete; the menu key does too", async () => {
   const t = await openProfiles();
   rightClick(t, "school");
-  const menu = await waitFor(() => content(t).querySelector(".sp-popmenu"), 2000, "menu");
-  assert.deepEqual([...menu.querySelectorAll("button")].map(text), ["Edit", "Delete"]);
-  assert.ok(menu.closest('[data-pf-id="school"]'), "on that profile's row");
+  await waitFor(() => menuLabels(t.document).length, 2000, "menu");
+  assert.deepEqual(menuLabels(t.document), ["Edit", "Delete"]);
   t.document.body.dispatchEvent(new t.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
   await settle(t.window, 30);
   const pick = content(t).querySelector('[data-pf-switch="personal"]');
   pick.focus();
   pick.dispatchEvent(new t.window.KeyboardEvent("keydown", { key: "ContextMenu", bubbles: true, cancelable: true }));
-  await waitFor(() => content(t).querySelector('[data-pf-id="personal"] .sp-popmenu'), 2000, "menu from the keyboard");
-  assert.equal(t.document.activeElement, content(t).querySelector('[data-pf-id="personal"] .sp-popmenu button'), "focus moves into the menu");
+  await waitFor(() => menuLabels(t.document).length, 2000, "menu from the keyboard");
+  const root = menuRoot(t.document);
+  assert.equal(root.activeElement, root.querySelector(".mi"), "the keyboard is in the menu");
+  // A real key press crosses out of the menu's shadow root (composed), as here.
+  root.activeElement.dispatchEvent(new t.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true, composed: true }));
+  await waitFor(() => content(t).querySelector("[data-pfe-name]"), 2000, "Enter on Edit opens the edit page");
+});
+
+test("the profile menu is Atlas's own right-click menu: pointer, sizes, no colored items", async () => {
+  const t = await openProfiles();
+  rightClick(t, "school");
+  await waitFor(() => menuLabels(t.document).length, 2000, "menu");
+  const host = t.document.querySelector("atlas-ctx");
+  assert.equal(host.parentNode, t.document.body, "drawn over the page, not inside Settings");
+  assert.ok(menuRoot(t.document).querySelector("svg.tail"), "with its pointer");
+  assert.equal(content(t).querySelector(".sp-popmenu"), null, "not the old Settings popup");
+  assert.ok(![...menuRoot(t.document).querySelectorAll(".mi")].some((r) => r.className.includes("danger")), "no colored Delete");
 });
 
 test("Delete in the right-click menu asks first, right in the list", async () => {
   const t = await openProfiles();
-  await fromMenu(t, "school", "data-pf-delete");
+  await fromMenu(t, "school", "Delete");
   await settle(t.window, 50);
   assert.match(text(content(t)), /Delete Pat \(School\)\?/);
   click(t.window, content(t).querySelector("[data-pf-cancel]"));
   await settle(t.window, 50);
   assert.ok(await storedProfile(t, "school"), "Cancel keeps it");
-  await fromMenu(t, "school", "data-pf-delete");
+  await fromMenu(t, "school", "Delete");
   await settle(t.window, 50);
   click(t.window, content(t).querySelector('[data-pf-delete-go="school"]'));
   await settle(t.window, 200);
@@ -118,16 +134,16 @@ test("Delete in the right-click menu asks first, right in the list", async () =>
 test("the right-click menu closes on Escape without closing Settings, and on a click elsewhere", async () => {
   const t = await openProfiles();
   rightClick(t, "school");
-  await waitFor(() => content(t).querySelector(".sp-popmenu"), 2000, "menu");
+  await waitFor(() => menuLabels(t.document).length, 2000, "menu");
   t.document.body.dispatchEvent(new t.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
   await settle(t.window, 30);
-  assert.equal(content(t).querySelector(".sp-popmenu"), null);
+  assert.deepEqual(menuLabels(t.document), []);
   assert.ok(!t.document.getElementById("sp-root").hidden);
   rightClick(t, "school");
-  await waitFor(() => content(t).querySelector(".sp-popmenu"), 2000, "menu again");
-  click(t.window, content(t).querySelector(".sp-page-title"));
+  await waitFor(() => menuLabels(t.document).length, 2000, "menu again");
+  content(t).querySelector(".sp-page-title").dispatchEvent(new t.window.MouseEvent("mousedown", { bubbles: true }));
   await settle(t.window, 30);
-  assert.equal(content(t).querySelector(".sp-popmenu"), null, "a click elsewhere closes it");
+  assert.deepEqual(menuLabels(t.document), [], "a click elsewhere closes it");
   assert.equal((await t.chrome.storage.local.get(["atlasProfilesV2"])).atlasProfilesV2.active, "personal", "right-clicking didn't switch");
 });
 
@@ -191,9 +207,9 @@ test("the last profile can't be deleted", async () => {
   click(t.window, t.document.getElementById("global-settings-btn"));
   click(t.window, await waitFor(() => t.document.querySelector('#sp-nav [data-page="profiles"]'), 2000, "Profiles"));
   (await waitFor(() => content(t).querySelector('[data-pf-switch="personal"]'), 2000, "the profile")).dispatchEvent(new t.window.MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
-  const menu = await waitFor(() => content(t).querySelector(".sp-popmenu"), 2000, "menu");
-  assert.equal(menu.querySelector("[data-pf-delete]"), null, "the last profile's menu has no Delete");
-  click(t.window, menu.querySelector('[data-pf-edit="personal"]'));
+  await waitFor(() => menuLabels(t.document).length, 2000, "menu");
+  assert.deepEqual(menuLabels(t.document), ["Edit"], "the last profile's menu has no Delete");
+  pickMenu(t.window, t.document, "Edit");
   const del = await waitFor(() => content(t).querySelector('[data-pfe-delete="personal"]'), 2000, "Delete");
   assert.ok(del.disabled, "disabled");
   assert.match(text(content(t)), /at least one profile/);

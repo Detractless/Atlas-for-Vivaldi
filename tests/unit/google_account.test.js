@@ -9,6 +9,7 @@ const assert = require("node:assert/strict");
 const path = require("path");
 const esbuild = require("esbuild");
 const { openNewTab, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
+const { menuLabels, pickMenu } = require("./helpers/atlasMenu");
 
 test.afterEach(closeAll);
 
@@ -146,7 +147,8 @@ test("the edit page links, changes and unlinks the account; a non-email is refus
   click(win, doc.getElementById("global-settings-btn"));
   click(win, await waitFor(() => doc.querySelector('#sp-nav [data-page="profiles"]'), 2000, "Profiles"));
   (await waitFor(() => doc.querySelector('#sp-content [data-pf-switch="school"]'), 2000, "the profile")).dispatchEvent(new win.MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 20 }));
-  click(win, await waitFor(() => doc.querySelector('#sp-content [data-pf-edit="school"]'), 2000, "Edit in its menu"));
+  await waitFor(() => menuLabels(doc).includes("Edit"), 2000, "Edit in its menu");
+  pickMenu(win, doc, "Edit");
   const field = () => doc.querySelector("#sp-content [data-pfe-google]");
   await waitFor(field, 2000, "Google account field");
   const set = (v) => { field().value = v; field().dispatchEvent(new win.Event("change", { bubbles: true })); };

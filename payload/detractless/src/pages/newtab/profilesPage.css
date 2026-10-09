@@ -59,7 +59,3 @@
 #sp-root .pf-pick:hover { background: var(--sp-nav-hover); }
 #sp-root .pf-pick[aria-pressed="true"] { background: var(--sp-nav-active); cursor: default; }
 #sp-root .pf-check { width: 18px; height: 18px; margin-left: auto; flex: none; color: var(--sp-text); }
-
-/* A profile's right-click menu, opened where the pointer is (or under the row from the menu key). */
-#sp-root .pf-row > .sp-popmenu { top: calc(100% - 6px); right: 16px; }
-#sp-root .pf-row > .sp-popmenu--at { right: auto; }

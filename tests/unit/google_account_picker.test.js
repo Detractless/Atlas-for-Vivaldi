@@ -6,6 +6,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { openNewTab, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
+const { menuLabels, pickMenu } = require("./helpers/atlasMenu");
 
 test.afterEach(closeAll);
 
@@ -30,7 +31,8 @@ async function editSchool(local) {
   click(win, doc.getElementById("global-settings-btn"));
   click(win, await waitFor(() => doc.querySelector('#sp-nav [data-page="profiles"]'), 2000, "Profiles"));
   (await waitFor(() => doc.querySelector('#sp-content [data-pf-switch="school"]'), 2000, "the profile")).dispatchEvent(new win.MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 20 }));
-  click(win, await waitFor(() => doc.querySelector('#sp-content [data-pf-edit="school"]'), 2000, "Edit in its menu"));
+  await waitFor(() => menuLabels(doc).includes("Edit"), 2000, "Edit in its menu");
+  pickMenu(win, doc, "Edit");
   await waitFor(() => doc.querySelector("#sp-content [data-pfe-ga], #sp-content [data-pfe-pick]"), 2000, "the Google row");
   await settle(win, 30);
   return t;

@@ -10,7 +10,8 @@ const { JSDOM, VirtualConsole } = require("jsdom");
 const { makeFakeChrome } = require("./helpers/fakeChrome");
 
 const ATLAS = path.join(__dirname, "..", "..", "payload", "install-files", "components", "atlas");
-const SCRIPTS = ["atlas-spelling.js", "atlas-ctxmenu.js"].map((f) => fs.readFileSync(path.join(ATLAS, f), "utf8"));
+// atlas-menu.js draws the menu; atlas-ctxmenu.js decides what is in it.
+const SCRIPTS = ["atlas-spelling.js", "atlas-menu.js", "atlas-ctxmenu.js"].map((f) => fs.readFileSync(path.join(ATLAS, f), "utf8"));
 const plain = (v) => JSON.parse(JSON.stringify(v));
 let open = [];
 test.afterEach(() => { for (const p of open) p.window.close(); open = []; });
