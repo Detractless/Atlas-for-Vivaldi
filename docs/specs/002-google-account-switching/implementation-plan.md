@@ -141,21 +141,22 @@ Requirements (acceptance criteria):
 
 - [ ] T2 Phase 2 Account picker on the profile edit page (REQ-2, REQ-6). Needs Phase 1. `[parallel: true]` with Phase 3
 
-    - [ ] T2.1 Prime Context
-        - [ ] T2.1.1 Read the edit page and its tests `[ref: payload/detractless/src/pages/newtab/profileEditPage.js]` `[ref: tests/unit/profile_edit.test.js]` `[ref: tests/unit/google_account.test.js]`
-    - [ ] T2.2 Write Tests (`tests/unit/google_account_picker.test.js`)
-        - [ ] T2.2.1 With a cached list, the Google row lists each account (photo, name, email); choosing one saves `google: { email }` and marks it chosen `[ref: REQ-2]` `[activity: unit-test]`
-        - [ ] T2.2.2 A linked email not in the list shows as "not signed in right now" and stays linked `[ref: REQ-2]` `[activity: unit-test]`
-        - [ ] T2.2.3 "Type an email instead" shows the spec 001 field, which still links, refuses non-emails and unlinks `[ref: REQ-6]` `[activity: unit-test]`
-        - [ ] T2.2.4 With no list (detection failed), the row shows the reason and the typed field, as in spec 001 `[ref: REQ-1, REQ-6]` `[activity: unit-test]`
-        - [ ] T2.2.5 "Refresh" asks the window for a new list and redraws when it arrives `[ref: REQ-1]` `[activity: unit-test]`
-        - [ ] T2.2.6 Names and emails from Google are escaped; a photo link that isn't `https://*.googleusercontent.com` is not shown `[ref: Key decisions "Privacy"]` `[activity: unit-test]`
-    - [ ] T2.3 Implement the picker in `googleRow` (split into its own small plain script if `profileEditPage.js` would pass 400 lines) and its styles in `profilesPage.css` `[activity: frontend]`
-    - [ ] T2.4 Implement: keep `tests/unit/google_account.test.js` passing unchanged (REQ-6) `[activity: frontend]`
-    - [ ] T2.5 Validate
-        - [ ] T2.5.1 Rules and `node --check` `[activity: lint-code, review-code]`
-        - [ ] T2.5.2 Build and `npm test` `[activity: run-tests]`
+    - [x] T2.1 Prime Context
+        - [x] T2.1.1 Read the edit page and its tests `[ref: payload/detractless/src/pages/newtab/profileEditPage.js]` `[ref: tests/unit/profile_edit.test.js]` `[ref: tests/unit/google_account.test.js]`
+    - [x] T2.2 Write Tests (`tests/unit/google_account_picker.test.js`)
+        - [x] T2.2.1 With a cached list, the Google row lists each account (photo, name, email); choosing one saves `google: { email }` and marks it chosen `[ref: REQ-2]` `[activity: unit-test]`
+        - [x] T2.2.2 A linked email not in the list shows as "not signed in right now" and stays linked `[ref: REQ-2]` `[activity: unit-test]`
+        - [x] T2.2.3 "Type an email instead" shows the spec 001 field, which still links, refuses non-emails and unlinks `[ref: REQ-6]` `[activity: unit-test]`
+        - [x] T2.2.4 With no list (detection failed), the row shows the reason and the typed field, as in spec 001 `[ref: REQ-1, REQ-6]` `[activity: unit-test]`
+        - [x] T2.2.5 "Refresh" asks the window for a new list and redraws when it arrives `[ref: REQ-1]` `[activity: unit-test]`
+        - [x] T2.2.6 Names and emails from Google are escaped; a photo link that isn't `https://*.googleusercontent.com` is not shown `[ref: Key decisions "Privacy"]` `[activity: unit-test]`
+    - [x] T2.3 Implement the picker in `googleRow` (split into its own small plain script if `profileEditPage.js` would pass 400 lines) and its styles in `profilesPage.css` `[activity: frontend]`
+    - [x] T2.4 Implement: keep `tests/unit/google_account.test.js` passing unchanged (REQ-6) `[activity: frontend]`
+    - [x] T2.5 Validate
+        - [x] T2.5.1 Rules and `node --check` `[activity: lint-code, review-code]`
+        - [x] T2.5.2 Build and `npm test` `[activity: run-tests]`
         - [ ] T2.5.3 The user picks an account in Vivaldi `[activity: business-acceptance]`
+    - Built 2026-10-09, design A (the user's pick): the found accounts as rows in the Google row, one click links one, None unlinks; a signed-out account is marked and can't be picked; a linked account not signed in now is listed and stays linked; "Type an email instead" and "Refresh" under the list; with no list, the reason and the email box as before. The phase 1 line now just counts the accounts (its two tests updated). Tests: `tests/unit/google_account_picker.test.js` (7; 6 failed before the code, the no-list one guards spec 001 behavior); `google_account.test.js` unchanged and passing. T2.5.3 waits for the user's install.
 
 - [ ] T3 Phase 3 Google tabs switch on profile change (REQ-3, REQ-5). Needs Phase 1. `[parallel: true]` with Phase 2
 

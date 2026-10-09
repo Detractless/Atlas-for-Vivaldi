@@ -167,7 +167,10 @@ test("the edit page shows the Google accounts found, and asks for a fresh list",
   const t = await editPage({ atlasGoogleAccounts: { accounts: [
     { index: 0, name: "Pat", email: "pat@gmail.com", photo: "", signedIn: true },
     { index: 1, name: "Pat (KSU)", email: "pat@students.ksu.edu", photo: "", signedIn: false }], at: 1 } });
-  assert.equal(gaLine(t), "Found 2 Google accounts: pat@gmail.com, pat@students.ksu.edu (signed out)");
+  // Phase 2 lists them as accounts to click (google_account_picker.test.js); the line counts them.
+  assert.equal(gaLine(t), "Found 2 Google accounts. Click one to link it to this profile.");
+  assert.deepEqual([...t.document.querySelectorAll("#sp-content [data-pfe-pick]")].map((r) => r.dataset.pfePick),
+    ["pat@gmail.com", "pat@students.ksu.edu", ""]);
   assert.ok(t.control.sentMessages.some((m) => m.atlas && m.atlas.act === "google-accounts" && m.atlas.refresh), "asked the browser window for a fresh list");
   assert.deepEqual(t.errors, []);
 });
@@ -176,8 +179,8 @@ test("the edit page says why when no accounts could be read, and follows a new l
   const t = await editPage({ atlasGoogleAccounts: { accounts: [], at: 1, error: "Could not reach Google: offline" } });
   assert.match(gaLine(t), /Couldn't read your Google accounts: Could not reach Google: offline/);
   await t.chrome.storage.local.set({ atlasGoogleAccounts: { accounts: [{ index: 0, name: "Pat", email: "pat@gmail.com", photo: "", signedIn: true }], at: 2 } });
-  await waitFor(() => gaLine(t).startsWith("Found 1 Google account:"), 2000, "the new list");
-  assert.ok(t.document.querySelector("#sp-content [data-pfe-google]"), "the typed email is still there");
+  await waitFor(() => gaLine(t).startsWith("Found 1 Google account."), 2000, "the new list");
+  assert.ok(t.document.querySelector("#sp-content [data-pfe-typed]"), "typing an email is still offered");
 });
 
 test("before any list arrives the edit page says it is looking", async () => {

@@ -44,12 +44,13 @@
   /* The Google accounts the browser window found (src/modules/16-google-accounts.js
      caches them in chrome.storage.local). Shown on the Google row; asked for
      afresh each time a profile's page opens. */
-  let gaCache = null;
+  let gaCache = null, gaLooking = false, googleTyped = false;
   try {
     chrome.storage.local.get(["atlasGoogleAccounts"], (r) => { gaCache = (r && r.atlasGoogleAccounts) || null; if (onPage()) redraw(); });
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "local" || !changes.atlasGoogleAccounts) return;
       gaCache = changes.atlasGoogleAccounts.newValue || null;
+      gaLooking = false;
       if (onPage() && !typing()) redraw();
     });
   } catch (e) { /* no chrome.storage (page opened outside the browser): nothing found */ }
@@ -60,12 +61,45 @@
   }
 
   function accountsLine() {
-    if (!gaCache) return "Looking for the Google accounts signed into Vivaldi…";
+    if (gaLooking || !gaCache) return "Looking for the Google accounts signed into Vivaldi…";
     if (gaCache.error) return `Couldn't read your Google accounts: ${gaCache.error}`;
-    const list = gaCache.accounts || [];
-    if (!list.length) return "No Google accounts are signed in to Vivaldi.";
-    return `Found ${list.length} Google account${list.length === 1 ? "" : "s"}: ` +
-      list.map((a) => a.email + (a.signedIn ? "" : " (signed out)")).join(", ");
+    const n = (gaCache.accounts || []).length;
+    if (!n) return "No Google accounts are signed in to Vivaldi.";
+    return `Found ${n} Google account${n === 1 ? "" : "s"}. Click one to link it to this profile.`;
+  }
+
+  /* ── The account picker (spec 002, phase 2): the found accounts as rows; one
+     click links one. Names and emails come from Google, so they are escaped,
+     and only Google's own photo links are loaded. ── */
+  const PHOTO_RE = /^https:\/\/[a-z0-9-]+\.googleusercontent\.com\//i;
+  const accountList = () => (gaCache && !gaLooking && !gaCache.error && gaCache.accounts) || [];
+
+  function accountFace(a) {
+    if (PHOTO_RE.test(a.photo || "")) return `<img class="pfe-acc-photo" src="${esc(a.photo)}" alt="" referrerpolicy="no-referrer">`;
+    const initials = String(a.name || a.email).split(/\s+/).map((w) => w.charAt(0)).join("").slice(0, 2).toUpperCase();
+    return `<span class="pfe-acc-initials">${esc(initials)}</span>`;
+  }
+
+  function accountButton(email, face, label, note, on, disabled) {
+    return `<button class="pfe-acc" data-pfe-pick="${esc(email)}" aria-pressed="${on}"${disabled ? " disabled" : ""}>${face}` +
+      `<span class="pfe-acc-text"><span class="pfe-acc-name">${esc(label)}</span>${note ? ` <span class="pfe-acc-email">${esc(note)}</span>` : ""}</span>` +
+      `${on ? '<span class="pfe-acc-check" aria-hidden="true">✓</span>' : ""}</button>`;
+  }
+
+  /* Each found account (a signed-out one can't be picked), a linked account
+     that isn't signed in now, then None. */
+  function pickerList(linked) {
+    const want = linked.toLowerCase(), list = accountList();
+    const rows = list.map((a) => {
+      const on = a.email.toLowerCase() === want, out = a.signedIn ? "" : "signed out";
+      const note = a.name ? a.email + (out ? ` · ${out}` : "") : out;
+      return accountButton(a.email, accountFace(a), a.name || a.email, note, on, !a.signedIn && !on);
+    });
+    if (linked && !list.some((a) => a.email.toLowerCase() === want)) {
+      rows.unshift(accountButton(linked, '<span class="pfe-acc-initials">?</span>', linked, "not signed in right now", true, false));
+    }
+    rows.push(accountButton("", '<span class="pfe-acc-initials">–</span>', "None", "", !linked, false));
+    return `<div class="pfe-accs" role="group" aria-label="Google account for this profile">${rows.join("")}</div>`;
   }
 
   function head(p) {
@@ -90,16 +124,24 @@
   }
 
   /* The Google account this profile opens Google links as (services/googleAccount.js
-     in the bundle). Typed in for now; detecting the signed-in accounts comes later. */
+     in the bundle): picked from the found accounts, or typed in when there is no
+     list or the user asks to type. */
   function googleRow(p) {
     const id = esc(p.id), linked = p.google ? p.google.email : "";
+    const hasList = accountList().length > 0, showBox = googleTyped || !hasList;
     const value = googleDraft !== null ? googleDraft : linked;
+    const links = '<span class="pfe-ga-links">' +
+      (hasList ? `<button class="pfe-link" data-pfe-typed>${googleTyped ? "Pick from the list" : "Type an email instead"}</button> · ` : "") +
+      '<button class="pfe-link" data-pfe-ga-refresh>Refresh</button></span>';
     const desc = (googleProblem ? `<span class="pf-notice">${esc(googleProblem)}</span>`
       : "Google links you open from the new tab use this account while this profile is active") +
-      `<span class="pfe-ga" data-pfe-ga>${esc(accountsLine())}</span>`;
-    return UI.row("Google account", desc,
-      `<input class="pf-input" type="email" data-pfe-google="${id}" value="${esc(value)}" placeholder="you@gmail.com" aria-label="Google account email" spellcheck="false" autocomplete="off">` +
-      (linked ? `<button class="sp-pill sm" data-pfe-google-unlink="${id}">Unlink</button>` : ""));
+      `<span class="pfe-ga" data-pfe-ga>${esc(accountsLine())}</span>` +
+      (hasList && !googleTyped ? pickerList(linked) : "") + links;
+    const box = showBox
+      ? `<input class="pf-input" type="email" data-pfe-google="${id}" value="${esc(value)}" placeholder="you@gmail.com" aria-label="Google account email" spellcheck="false" autocomplete="off">` +
+        (linked ? `<button class="sp-pill sm" data-pfe-google-unlink="${id}">Unlink</button>` : "")
+      : "";
+    return UI.row("Google account", desc, box);
   }
 
   function deleteCard(p, s) {
@@ -116,7 +158,7 @@
   }
 
   function render(id) {
-    if (id !== shownId) { shownId = id; confirming = false; notice = ""; googleDraft = null; googleProblem = ""; askForAccounts(); }
+    if (id !== shownId) { shownId = id; confirming = false; notice = ""; googleDraft = null; googleProblem = ""; googleTyped = false; askForAccounts(); }
     const s = AP.get(), p = profile(id);
     if (!s || !p) return '<p class="sp-row-desc">This profile no longer exists.</p>';
     return UI.section("", [head(p), fields(p)]) + UI.section("", [deleteCard(p, s)]);
@@ -140,6 +182,15 @@
       iconFor = b.dataset.pfeIcon; fileInput.value = ""; fileInput.click();
     } else if ((b = t("[data-pfe-clear-icon]"))) {
       AP.update(b.dataset.pfeClearIcon, { icon: "" }).then(redraw);
+    } else if ((b = t("[data-pfe-pick]"))) {
+      if (b.disabled) return;
+      const email = b.dataset.pfePick;
+      googleDraft = null; googleProblem = "";
+      AP.update(shownId, { google: email ? { email } : null }).then(redraw);
+    } else if (t("[data-pfe-typed]")) {
+      googleTyped = !googleTyped; redraw();
+    } else if (t("[data-pfe-ga-refresh]")) {
+      gaLooking = true; askForAccounts(); redraw();
     } else if ((b = t("[data-pfe-google-unlink]"))) {
       googleDraft = null; googleProblem = "";
       AP.update(b.dataset.pfeGoogleUnlink, { google: null }).then(redraw);
