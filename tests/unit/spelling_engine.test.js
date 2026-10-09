@@ -27,14 +27,14 @@ function engine() {
 }
 const sp = engine();
 
-/* Timing bars. On a quiet computer: 1 ms a suggestion and 50 ms for very long
-   input. While the computer is busy (the test files run in parallel, and other
-   work may be running), macOS can move this work to slower cores and the same
-   engine measures about twice as slow, so the bars are three times looser then:
-   still instant to a person, and still far below a real slowdown. */
-const BUSY = os.loadavg()[0] / os.cpus().length > 0.5;
-const SLACK = BUSY ? 3 : 1;
-const busyNote = BUSY ? ", computer busy" : "";
+/* Timing bars: 3 ms a suggestion and 150 ms for very long input. The engine
+   takes well under 1 ms a suggestion on its own, but `npm test` runs the test
+   files in parallel, and next to them (or other work on the computer) the same
+   engine measures 1-2.5 ms, so a 1 ms bar failed as the suite grew. 3 ms is
+   still instant to a person and still catches a real slowdown. The load is
+   reported with a failure, to tell a busy computer from a slow engine. */
+const SLACK = 3;
+const busyNote = `, load ${os.loadavg()[0].toFixed(1)} on ${os.cpus().length} cores`;
 
 test("correct words are accepted, whatever their case", () => {
   for (const w of ["search", "history", "download", "extension", "window", "browser", "atlas", "vivaldi", "tab",
