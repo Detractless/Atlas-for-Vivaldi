@@ -160,37 +160,39 @@ Requirements (acceptance criteria):
 
 - [ ] T3 Phase 3 Google tabs switch on profile change (REQ-3, REQ-5). Needs Phase 1. `[parallel: true]` with Phase 2
 
-    - [ ] T3.1 Prime Context
-        - [ ] T3.1.1 Read how the window learns of a profile switch `[ref: src/modules/07-profile-menu.js; lines: 82-90, 210-220]` `[ref: payload/detractless/src/pages/newtab/profilesCore.js; lines: 183-195, 355-371]`
-    - [ ] T3.2 Write Tests (`tests/unit/google_switch.test.js`, window harness)
-        - [ ] T3.2.1 `redirectFor`: a Google or YouTube URL showing another account gets the profile's account (`authuser`, and a `/u/N/` part replaced); one already showing it, a non-Google URL, a look-alike host and an unlinked profile get `null` `[ref: REQ-3]` `[activity: unit-test]`
-        - [ ] T3.2.2 A profile switch reloads the active tab when it is a Google or YouTube page, with the new account; a non-Google active tab is not touched `[ref: REQ-3]` `[activity: unit-test]`
-        - [ ] T3.2.3 A background Google tab is not reloaded on the switch, but is when the user moves to it, once `[ref: REQ-3; E1]` `[activity: unit-test]`
-        - [ ] T3.2.4 Switching to a profile with no linked account touches no tab `[ref: REQ-3]` `[activity: unit-test]`
-    - [ ] T3.3 Implement the profile-change and tab-activation handlers in `16-google-accounts.js`, through `redirectFor` `[activity: frontend]`
-    - [ ] T3.4 Implement: the account number from `accountFor` when the live check says `authuser=<email>` isn't enough `[activity: frontend]`
-    - [ ] T3.5 Validate
-        - [ ] T3.5.1 Rules, `node --check`, bundle `[activity: lint-code, review-code]`
-        - [ ] T3.5.2 `npm test` `[activity: run-tests]`
+    - [x] T3.1 Prime Context
+        - [x] T3.1.1 Read how the window learns of a profile switch `[ref: src/modules/07-profile-menu.js; lines: 82-90, 210-220]` `[ref: payload/detractless/src/pages/newtab/profilesCore.js; lines: 183-195, 355-371]`
+    - [x] T3.2 Write Tests (`tests/unit/google_switch.test.js`, window harness)
+        - [x] T3.2.1 `redirectFor`: a Google or YouTube URL showing another account gets the profile's account (`authuser`, and a `/u/N/` part replaced); one already showing it, a non-Google URL, a look-alike host and an unlinked profile get `null` `[ref: REQ-3]` `[activity: unit-test]`
+        - [x] T3.2.2 A profile switch reloads the active tab when it is a Google or YouTube page, with the new account; a non-Google active tab is not touched `[ref: REQ-3]` `[activity: unit-test]`
+        - [x] T3.2.3 A background Google tab is not reloaded on the switch, but is when the user moves to it, once `[ref: REQ-3; E1]` `[activity: unit-test]`
+        - [x] T3.2.4 Switching to a profile with no linked account touches no tab `[ref: REQ-3]` `[activity: unit-test]`
+    - [x] T3.3 Implement the profile-change and tab-activation handlers in `16-google-accounts.js`, through `redirectFor` `[activity: frontend]`
+    - [x] T3.4 Implement: the account number from `accountFor` when the live check says `authuser=<email>` isn't enough `[activity: frontend]`
+    - [x] T3.5 Validate
+        - [x] T3.5.1 Rules, `node --check`, bundle `[activity: lint-code, review-code]`
+        - [x] T3.5.2 `npm test` `[activity: run-tests]`
         - [ ] T3.5.3 The user switches profile on YouTube and Gmail in Vivaldi `[activity: business-acceptance]`
+    - Built 2026-10-09 in `src/modules/17-google-switch.js` (split from 16 to keep each module to one job). It asks Google by account number (`authuser=N`, the /u/N/ path too), since the live check showed Search ignores an email. Tests: `tests/unit/google_switch.test.js` (5, failing before the code). T3.5.3 waits for the user's install.
 
 - [ ] T4 Phase 4 Google pages checked as they load, with loop guards (REQ-4, REQ-5). Needs Phase 3 (shares `redirectFor`)
 
-    - [ ] T4.1 Prime Context
-        - [ ] T4.1.1 Read how the page menu script is loaded into pages and tested `[ref: src/modules/03-bridge-content-scripts.js; lines: 14-45]` `[ref: tests/unit/page_ctxmenu.test.js]`
-    - [ ] T4.2 Write Tests (`tests/unit/google_page_check.test.js`)
-        - [ ] T4.2.1 The content script, loaded into a jsdom page at a Google URL, asks the window and replaces the location once when told to; it does nothing when told nothing `[ref: REQ-4]` `[activity: unit-test]`
-        - [ ] T4.2.2 Guard: a URL that already names an account is left alone, without asking the window `[ref: REQ-5]` `[activity: unit-test]`
-        - [ ] T4.2.3 Guard: the same tab and URL are not redirected twice within 5 seconds, even if the account still differs (no loop when Google refuses the account) `[ref: REQ-5]` `[activity: unit-test]`
-        - [ ] T4.2.4 Guard: after the user switches accounts in Google's own menu, that tab is left alone until the next profile switch `[ref: REQ-5; E3]` `[activity: unit-test]`
-        - [ ] T4.2.5 Guard: a linked email that isn't signed in causes no redirect `[ref: REQ-5]` `[activity: unit-test]`
-        - [ ] T4.2.6 The script is registered for `*.google.com`, `*.gmail.com` and `*.youtube.com` only, beside the page menu, and an old registration with the same id is updated, not duplicated `[ref: REQ-4]` `[activity: unit-test]`
-    - [ ] T4.3 Implement `components/atlas/atlas-google-account.js` and the `google-account-for-page` answer `[activity: frontend]`
-    - [ ] T4.4 Implement the guards in `redirectFor` (redirect history per tab in `chrome.storage.session`, manual-switch marks cleared on profile switch) and register the script in `03-bridge-content-scripts.js` `[activity: frontend]`
-    - [ ] T4.5 Validate
-        - [ ] T4.5.1 Rules, `node --check`, bundle `[activity: lint-code, review-code]`
-        - [ ] T4.5.2 `npm test` `[activity: run-tests]`
+    - [x] T4.1 Prime Context
+        - [x] T4.1.1 Read how the page menu script is loaded into pages and tested `[ref: src/modules/03-bridge-content-scripts.js; lines: 14-45]` `[ref: tests/unit/page_ctxmenu.test.js]`
+    - [x] T4.2 Write Tests (`tests/unit/google_page_check.test.js`)
+        - [x] T4.2.1 The content script, loaded into a jsdom page at a Google URL, asks the window and replaces the location once when told to; it does nothing when told nothing `[ref: REQ-4]` `[activity: unit-test]`
+        - [x] T4.2.2 Guard: a URL that already names an account is left alone, without asking the window `[ref: REQ-5]` `[activity: unit-test]`
+        - [x] T4.2.3 Guard: the same tab and URL are not redirected twice within 5 seconds, even if the account still differs (no loop when Google refuses the account) `[ref: REQ-5]` `[activity: unit-test]`
+        - [x] T4.2.4 Guard: after the user switches accounts in Google's own menu, that tab is left alone until the next profile switch `[ref: REQ-5; E3]` `[activity: unit-test]`
+        - [x] T4.2.5 Guard: a linked email that isn't signed in causes no redirect `[ref: REQ-5]` `[activity: unit-test]`
+        - [x] T4.2.6 The script is registered for `*.google.com`, `*.gmail.com` and `*.youtube.com` only, beside the page menu, and an old registration with the same id is updated, not duplicated `[ref: REQ-4]` `[activity: unit-test]`
+    - [x] T4.3 Implement `components/atlas/atlas-google-account.js` and the `google-account-for-page` answer `[activity: frontend]`
+    - [x] T4.4 Implement the guards in `redirectFor` (redirect history per tab in `chrome.storage.session`, manual-switch marks cleared on profile switch) and register the script in `03-bridge-content-scripts.js` `[activity: frontend]`
+    - [x] T4.5 Validate
+        - [x] T4.5.1 Rules, `node --check`, bundle `[activity: lint-code, review-code]`
+        - [x] T4.5.2 `npm test` `[activity: run-tests]`
         - [ ] T4.5.3 The user types `youtube.com` and opens Gmail from history under each profile in Vivaldi `[activity: business-acceptance]`
+    - Built 2026-10-09: `components/atlas/atlas-google-account.js`, registered in `03-bridge-content-scripts.js` for `*.google.com`, `*.gmail.com` and `*.youtube.com`, top frames only. Differences from the plan: the 5-second redirect memory lives in the page's own sessionStorage (one per tab and site), not chrome.storage.session; a manual switch in Google's menu is respected because Google puts the account in the address, which the page script then leaves alone (until the next profile switch, which forces); `accounts.google.com` is never redirected. Tests: `tests/unit/google_page_check.test.js` (6) and the registration check in `atlas_window.test.js`. T4.5.3 waits for the user's install.
 
 - [ ] T5 Integration & End-to-End Validation
 
