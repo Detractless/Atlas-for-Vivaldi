@@ -41,6 +41,33 @@
   const onPage = () => UI.current() === "profile";
   const redraw = () => UI.rerender();
 
+  /* The Google accounts the browser window found (src/modules/16-google-accounts.js
+     caches them in chrome.storage.local). Shown on the Google row; asked for
+     afresh each time a profile's page opens. */
+  let gaCache = null;
+  try {
+    chrome.storage.local.get(["atlasGoogleAccounts"], (r) => { gaCache = (r && r.atlasGoogleAccounts) || null; if (onPage()) redraw(); });
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "local" || !changes.atlasGoogleAccounts) return;
+      gaCache = changes.atlasGoogleAccounts.newValue || null;
+      if (onPage() && !typing()) redraw();
+    });
+  } catch (e) { /* no chrome.storage (page opened outside the browser): nothing found */ }
+
+  function askForAccounts() {
+    try { chrome.runtime.sendMessage({ atlas: { act: "google-accounts", refresh: true } }, () => void chrome.runtime.lastError); }
+    catch (e) { /* no browser window to ask: the cached list stays */ }
+  }
+
+  function accountsLine() {
+    if (!gaCache) return "Looking for the Google accounts signed into Vivaldi…";
+    if (gaCache.error) return `Couldn't read your Google accounts: ${gaCache.error}`;
+    const list = gaCache.accounts || [];
+    if (!list.length) return "No Google accounts are signed in to Vivaldi.";
+    return `Found ${list.length} Google account${list.length === 1 ? "" : "s"}: ` +
+      list.map((a) => a.email + (a.signedIn ? "" : " (signed out)")).join(", ");
+  }
+
   function head(p) {
     const id = esc(p.id);
     return `<div class="pfe-head">
@@ -67,8 +94,9 @@
   function googleRow(p) {
     const id = esc(p.id), linked = p.google ? p.google.email : "";
     const value = googleDraft !== null ? googleDraft : linked;
-    const desc = googleProblem ? `<span class="pf-notice">${esc(googleProblem)}</span>`
-      : "Google links you open from the new tab use this account while this profile is active";
+    const desc = (googleProblem ? `<span class="pf-notice">${esc(googleProblem)}</span>`
+      : "Google links you open from the new tab use this account while this profile is active") +
+      `<span class="pfe-ga" data-pfe-ga>${esc(accountsLine())}</span>`;
     return UI.row("Google account", desc,
       `<input class="pf-input" type="email" data-pfe-google="${id}" value="${esc(value)}" placeholder="you@gmail.com" aria-label="Google account email" spellcheck="false" autocomplete="off">` +
       (linked ? `<button class="sp-pill sm" data-pfe-google-unlink="${id}">Unlink</button>` : ""));
@@ -88,7 +116,7 @@
   }
 
   function render(id) {
-    if (id !== shownId) { shownId = id; confirming = false; notice = ""; googleDraft = null; googleProblem = ""; }
+    if (id !== shownId) { shownId = id; confirming = false; notice = ""; googleDraft = null; googleProblem = ""; askForAccounts(); }
     const s = AP.get(), p = profile(id);
     if (!s || !p) return '<p class="sp-row-desc">This profile no longer exists.</p>';
     return UI.section("", [head(p), fields(p)]) + UI.section("", [deleteCard(p, s)]);

@@ -34,3 +34,4 @@
 #sp-root .pfe-head-btns { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 #sp-root .pfe-head-btns .sp-pill, #sp-root .sp-row-ctrl .sp-pill.sm { height: 30px; padding: 0 12px; font-size: 13px; }
 #sp-root .sp-row-ctrl .pf-input { width: 240px; border-color: var(--sp-border); }
+#sp-root .pfe-ga { display: block; margin-top: 4px; color: var(--sp-text-3); }

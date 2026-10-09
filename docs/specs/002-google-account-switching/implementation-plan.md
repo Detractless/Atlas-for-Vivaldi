@@ -118,24 +118,25 @@ Requirements (acceptance criteria):
 
 - [ ] T1 Phase 1 Account detection, with a live check (REQ-1, REQ-6)
 
-    - [ ] T1.1 Prime Context
-        - [ ] T1.1.1 Read how the window side answers messages and registers page scripts `[ref: src/modules/04-bridge-messages.js; lines: 1-37]` `[ref: src/modules/03-bridge-content-scripts.js; lines: 1-45]`
-        - [ ] T1.1.2 Read the reference extension's account-list reader (summary above) and the profile edit page's Google row `[ref: payload/detractless/src/pages/newtab/profileEditPage.js; lines: 60-75, 125-150]`
-    - [ ] T1.2 Write Tests (`tests/unit/google_accounts_detect.test.js`)
-        - [ ] T1.2.1 `parseAccountList` reads a made-up reply in Google's shape: names, emails, photos, numbers (from `[7]`, else position), `\xNN` and `\/` escapes undone `[ref: REQ-1]` `[activity: unit-test]`
-        - [ ] T1.2.2 It returns `[]` (and never throws) for an empty reply, HTML with no script, a script with no quoted string, and JSON of the wrong shape `[ref: REQ-1]` `[activity: unit-test]`
-        - [ ] T1.2.3 In the window harness: `refreshGoogleAccounts` fetches the URL above with `credentials: "include"`, caches `{ accounts, at }`, and on a network error or bad reply caches `{ accounts: [], error }` instead `[ref: REQ-1]` `[activity: unit-test]`
-        - [ ] T1.2.4 The `google-accounts` message answers from the cache and refreshes when asked; `accountFor(email)` finds the number, case-insensitively, or returns null `[ref: REQ-1]` `[activity: unit-test]`
-        - [ ] T1.2.5 The cached list is not in a backup export, and `atlasGoogleAccounts` is listed in `atlasKeys.json` (the storage-key test) `[ref: REQ-1; Key decisions "Privacy"]` `[activity: unit-test]`
-    - [ ] T1.3 Implement
-        - [ ] T1.3.1 `src/modules/16-google-accounts.js`: parser, fetch, cache, `accountFor`, message handler; refresh at window start and when asked `[activity: frontend]`
-        - [ ] T1.3.2 `atlasKeys.json`: `local.atlasGoogleAccounts`, `backup: false` `[activity: frontend]`
-        - [ ] T1.3.3 A read-only line in the edit page's Google row: "N Google accounts found" or the reason none were `[activity: frontend]`
-    - [ ] T1.4 Implement: nothing on the new-tab link path changes in this phase (REQ-6) `[activity: frontend]`
-    - [ ] T1.5 Validate
-        - [ ] T1.5.1 Rules, `node --check`, `python3 scripts/bundle.py` `[activity: lint-code, review-code]`
-        - [ ] T1.5.2 `npm run build`, `npm test`, dry run `[activity: run-tests]`
+    - [x] T1.1 Prime Context
+        - [x] T1.1.1 Read how the window side answers messages and registers page scripts `[ref: src/modules/04-bridge-messages.js; lines: 1-37]` `[ref: src/modules/03-bridge-content-scripts.js; lines: 1-45]`
+        - [x] T1.1.2 Read the reference extension's account-list reader (summary above) and the profile edit page's Google row `[ref: payload/detractless/src/pages/newtab/profileEditPage.js; lines: 60-75, 125-150]`
+    - [x] T1.2 Write Tests (`tests/unit/google_accounts_detect.test.js`)
+        - [x] T1.2.1 `parseAccountList` reads a made-up reply in Google's shape: names, emails, photos, numbers (from `[7]`, else position), `\xNN` and `\/` escapes undone `[ref: REQ-1]` `[activity: unit-test]`
+        - [x] T1.2.2 It returns `[]` (and never throws) for an empty reply, HTML with no script, a script with no quoted string, and JSON of the wrong shape `[ref: REQ-1]` `[activity: unit-test]`
+        - [x] T1.2.3 In the window harness: `refreshGoogleAccounts` fetches the URL above with `credentials: "include"`, caches `{ accounts, at }`, and on a network error or bad reply caches `{ accounts: [], error }` instead `[ref: REQ-1]` `[activity: unit-test]`
+        - [x] T1.2.4 The `google-accounts` message answers from the cache and refreshes when asked; `accountFor(email)` finds the number, case-insensitively, or returns null `[ref: REQ-1]` `[activity: unit-test]`
+        - [x] T1.2.5 The cached list is not in a backup export, and `atlasGoogleAccounts` is listed in `atlasKeys.json` (the storage-key test) `[ref: REQ-1; Key decisions "Privacy"]` `[activity: unit-test]`
+    - [x] T1.3 Implement
+        - [x] T1.3.1 `src/modules/16-google-accounts.js`: parser, fetch, cache, `accountFor`, message handler; refresh at window start and when asked `[activity: frontend]`
+        - [x] T1.3.2 `atlasKeys.json`: `local.atlasGoogleAccounts`, `backup: false` `[activity: frontend]`
+        - [x] T1.3.3 A read-only line in the edit page's Google row: "N Google accounts found" or the reason none were `[activity: frontend]`
+    - [x] T1.4 Implement: nothing on the new-tab link path changes in this phase (REQ-6) `[activity: frontend]`
+    - [x] T1.5 Validate
+        - [x] T1.5.1 Rules, `node --check`, `python3 scripts/bundle.py` `[activity: lint-code, review-code]`
+        - [x] T1.5.2 `npm run build`, `npm test`, dry run `[activity: run-tests]`
         - [ ] T1.5.3 **Live check (gate).** The user installs and opens a profile's edit page: does it list their accounts? Then opens `https://mail.google.com/mail/?authuser=<email>` and `https://www.youtube.com/?authuser=<email>` for a second account: does each open as it? Record both answers here. If detection fails, Phases 2-4 still go ahead on the typed email (REQ-6) and the picker shows the reason; if `authuser=<email>` fails, switching uses the number from `accountFor` `[activity: business-acceptance]`
+    - Built 2026-10-09: `src/modules/16-google-accounts.js`, `local.atlasGoogleAccounts` in atlasKeys.json, and the "Found N Google accounts" line on the edit page's Google row (it also asks the browser window for a fresh list when a profile's page opens). Each account also carries `signedIn` (signed-out accounts stay in Google's list). Tests: `tests/unit/google_accounts_detect.test.js` (10, all failing before the code). The spelling speed test (`suggestions are fast`) failed in full runs at 1:30-1:36 while another job kept the computer at load 6-12; the last commit's suite failed it the same way at the same time, and it passes on its own. T1.5.3 waits for the user's install.
 
 - [ ] T2 Phase 2 Account picker on the profile edit page (REQ-2, REQ-6). Needs Phase 1. `[parallel: true]` with Phase 3
 

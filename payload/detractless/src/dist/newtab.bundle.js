@@ -293,6 +293,7 @@
       rhe_rules: { default: null, backup: true, note: "Element Remover rules (archived feature); still carried by backups." },
       activeDelays: { default: {}, note: "Service worker: search delays in progress." },
       atlasProfilesV2: { default: null, note: "Profiles state (profilesCore.js)." },
+      atlasGoogleAccounts: { default: null, note: "Google accounts signed into Vivaldi, read by the browser window (src/modules/16-google-accounts.js). Never backed up." },
       __atlas_localstorage__: { default: {}, note: "Backing store of the localStorage shim (atlas-localstorage-shim.js)." },
       "pastekit.settings": { default: null, archived: true, note: "PasteKit settings (archived feature). Left in place; no code reads it now." },
       savedTabGroups: { default: null, note: "Tab saver (service worker)." }

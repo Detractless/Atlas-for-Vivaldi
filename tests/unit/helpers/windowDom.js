@@ -89,6 +89,8 @@ async function openWindow(opts = {}) {
       window.matchMedia = (q) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
       window.indexedDB = new IDBFactory();
       window.IDBKeyRange = IDBKeyRange;
+      // opts.fetch answers network requests (Google's account list); by default the network is off.
+      window.fetch = opts.fetch || (() => Promise.reject(new Error("offline in tests")));
       fake = windowChrome(window, { sync: opts.sync, local: opts.local }, calls, listeners);
       window.chrome = fake.chrome;
       const rec = recorder("vivaldi", calls, listeners);
