@@ -14,10 +14,20 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
   });
 }
 
-/* 2. Mark the window while the active tab is the blank new tab, so the
-      stylesheet can keep the address field empty there. The field's value
-      is set by React without firing mutations, so it is polled. */
-var NEWTAB = 'atlas-blank.html';
+/* 2. Mark the window while the active tab is the Atlas new tab, so the
+      stylesheet can keep the address field empty there and the address bar's
+      engine button can show (19-addressbar-engine-picker.js). It is the
+      active tab's address that tells; the field's text can be cleared or
+      typed over, so it is only the fallback. Checked on tab changes. The new
+      tab was atlas-blank.html once and is index.html now (ATLAS_NEWTAB_URL);
+      until 2026-10-09 only the old name was checked, so the mark never came
+      on and the new tab's extension address showed in the field. */
+var NEWTAB_OLD = 'atlas-blank.html';
+
+function atlasIsNewTabUrl(url) {
+  var u = String(url || '');
+  return u.indexOf(ATLAS_NEWTAB_URL) === 0 || u.indexOf(NEWTAB_OLD) !== -1;
+}
 
 function activateSpellcheck(input) {
   if (!input) return;
@@ -27,16 +37,25 @@ function activateSpellcheck(input) {
   }
 }
 
-function syncNewTabClass() {
+function setNewTabClass(isNew) {
   var browser = document.getElementById ? document.getElementById('browser') : null;
+  if (!browser || browser.classList.contains('atlas-newtab') === isNew) return;
+  browser.classList.toggle('atlas-newtab', isNew);
+  if (typeof abeNewTabChanged === 'function') abeNewTabChanged();
+}
+
+function syncNewTabClass() {
   var input = document.querySelector ? (document.querySelector('.UrlBar-UrlField.url') ||
               document.querySelector('.UrlBar-AddressField input')) : null;
   if (input) activateSpellcheck(input);
-  if (!browser || !input) return;
-  var isNew = (input.value || '').indexOf(NEWTAB) !== -1;
-  if (browser.classList.contains('atlas-newtab') !== isNew) {
-    browser.classList.toggle('atlas-newtab', isNew);
-  }
+  var byField = function () { if (input) setNewTabClass(atlasIsNewTabUrl(input.value)); };
+  if (!chrome.tabs || !chrome.tabs.query) return byField();
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    void chrome.runtime.lastError;
+    var t = tabs && tabs[0];
+    if (t && (t.pendingUrl || t.url)) setNewTabClass(atlasIsNewTabUrl(t.pendingUrl || t.url));
+    else byField();
+  });
 }
 
 if (chrome.tabs && chrome.tabs.onActivated) {

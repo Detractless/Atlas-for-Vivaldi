@@ -6,13 +6,18 @@
    lists". Pick one and it is the new tab's engine too (selectedSearchEngine);
    when engines "always reset to the default", the pick lasts until you leave
    the field. Arrows move, Enter picks, Esc goes back to the bookmark pills
-   (18-addressbar-pills.js). ── */
+   (18-addressbar-pills.js).
+   On the Atlas new tab the button shows without clicking into the field too,
+   and the field is kept empty (20-addressbar-newtab.js). ── */
 
 var ABE_DEFAULT_ICON = 'src/assets/svg/default.api.svg';
 var ABE_REVERT_MS = 1500;   // after leaving the field, an "always reset" pick ends
 var ABE_LIST_SVG = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" ' +
   'stroke-linecap="round" aria-hidden="true"><path d="M5.5 4h8M5.5 8h8M5.5 12h8M2.5 4h0M2.5 8h0M2.5 12h0"/></svg>';
-var abe = { input: null, r: {}, icons: {}, open: false, list: [], at: -1, btn: null, card: null, requery: false, revert: 0 };
+var abe = {
+  input: null, r: {}, icons: {}, open: false, list: [], at: -1, btn: null, card: null,
+  requery: false, revert: 0, setting: false, watched: null, ro: null
+};
 
 function abeEngine(key) {
   var all = abe.r.customSearchEngines || {};
@@ -74,14 +79,22 @@ function abeEnsureButton() {
   b.setAttribute('aria-haspopup', 'listbox');
   b.appendChild(abeImg(ABE_DEFAULT_ICON));
   b.addEventListener('mousedown', function (e) { e.preventDefault(); });  // keep the field focused
-  b.addEventListener('click', function () { if (abe.open) abeCloseList(); else abeOpenList(); });
+  b.addEventListener('click', function () {
+    if (abe.open) return abeCloseList();
+    var field = abeFieldInput();
+    if (!abe.input && field) {   // at rest on the new tab: into the field first
+      field.focus();
+      if (abe.input !== field) abeOnFocus(field);
+    }
+    abeOpenList();
+  });
   (document.getElementById('browser') || document.body).appendChild(b);
   return (abe.btn = b);
 }
 
 /* The button with the current engine's logo, over Vivaldi's icon. */
 function abeShowButton() {
-  if (!abe.input) return;
+  if (!abeAnchor()) return;
   var b = abeEnsureButton(), key = addressBarEngineKey(abe.r), eng = abeEngine(key);
   var img = b.querySelector('img'), src = abeIcon(key);
   if (img.getAttribute('src') !== src) img.setAttribute('src', src);
@@ -92,12 +105,13 @@ function abeShowButton() {
   b.hidden = false;
   var browser = document.getElementById('browser');
   if (browser) browser.classList.add('atlas-enginebtn-on');
+  abeWatchToolbar();
   abePlace();
 }
 
 /* The button sits exactly over Vivaldi's left icon; the engine pills under the field. */
 function abePlace() {
-  var field = abe.input && abe.input.closest('.UrlBar-AddressField');
+  var anchor = abeAnchor(), field = anchor && anchor.closest('.UrlBar-AddressField');
   if (!field) return;
   var icon = field.querySelector('.SiteInfoButton') || field.querySelector('.toolbar-insideinput');
   var f = field.getBoundingClientRect(), r = icon ? icon.getBoundingClientRect() : null;
@@ -180,13 +194,12 @@ function abeCloseList() {
   if (browser) browser.classList.remove('atlas-engines-open');
 }
 
+/* Leaving the field: the engine pills close, and the button rests (abeRest). */
 function abeHide() {
   abeCloseList();
   abe.input = null;
   abe.requery = false;
-  if (abe.btn) abe.btn.hidden = true;
-  var browser = document.getElementById('browser');
-  if (browser) browser.classList.remove('atlas-enginebtn-on');
+  abeRest();
 }
 
 function abeSync() {
@@ -224,11 +237,9 @@ function abeEngineApplied() {
 }
 
 function abeRequery(input) {
-  var v = input.value, set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-  set.call(input, v + ' ');
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  set.call(input, v);
-  input.dispatchEvent(new Event('input', { bubbles: true }));
+  var v = input.value;
+  abeSetValue(input, v + ' ');
+  abeSetValue(input, v);
 }
 
 /* The keys while the engine pills show, before the bookmark pills or Vivaldi see them. */
@@ -249,15 +260,21 @@ function abeKey(e) {
   e.stopPropagation();
 }
 
+/* Into the field: the button shows, and on the new tab the field empties
+   once Vivaldi has filled it in. */
+function abeOnFocus(input) {
+  abe.input = input;
+  clearTimeout(abe.revert);
+  abeLoadIcons();
+  abeShowButton();
+  setTimeout(function () { if (abe.input === input) abeClearNewTabAddress(input); }, 0);
+}
+
 if (typeof document !== 'undefined' && document.addEventListener) {
-  document.addEventListener('focusin', function (e) {
-    if (!apbField(e.target)) return;
-    abe.input = e.target;
-    clearTimeout(abe.revert);
-    abeLoadIcons();
-    abeShowButton();
+  document.addEventListener('focusin', function (e) { if (apbField(e.target)) abeOnFocus(e.target); });
+  document.addEventListener('input', function (e) {
+    if (abe.open && !abe.setting && e.target === abe.input) abeCloseList();
   });
-  document.addEventListener('input', function (e) { if (abe.open && e.target === abe.input) abeCloseList(); });
   document.addEventListener('focusout', function (e) {
     if (!apbField(e.target)) return;
     abeHide();
@@ -270,20 +287,20 @@ if (typeof document !== 'undefined' && document.addEventListener) {
     }
   });
   window.addEventListener('keydown', abeKey, true);
-  window.addEventListener('resize', function () { if (abe.input) abePlace(); });
+  window.addEventListener('resize', function () { if (abeAnchor()) abePlace(); });
 }
 
 if (chrome.storage && chrome.storage.sync) {
   chrome.storage.sync.get(['customSearchEngines', 'defaultEngineKey', 'selectedSearchEngine', 'searchEngineBehavior'], function (r) {
     void chrome.runtime.lastError;
     abe.r = r || {};
-    if (abe.input) abeShowButton();
+    if (abeAnchor()) abeShowButton();
   });
   chrome.storage.onChanged.addListener(function (changes, area) {
     if (area !== 'sync') return;
     var hit = false;
     ENGINE_KEYS.forEach(function (k) { if (changes[k]) { abe.r[k] = changes[k].newValue; hit = true; } });
-    if (!hit || !abe.input) return;
+    if (!hit || !abeAnchor()) return;
     abeShowButton();
     if (abe.open) abeOpenList();
   });

@@ -36,16 +36,17 @@ function fakeEngines(defaultSearch) {
   return { state, api };
 }
 
-async function start({ sync = {}, engines = fakeEngines("g-google") } = {}) {
+async function start({ sync = {}, engines = fakeEngines("g-google"), value = "" } = {}) {
   const w = await openWindow({ sync: { customSearchEngines: ENGINES, defaultEngineKey: "google", ...sync }, searchEngines: engines.api });
   open.push(w);
   const doc = w.window.document;
   doc.getElementById("browser").insertAdjacentHTML("beforeend",
     '<div class="toolbar-mainbar"><div class="UrlBar-AddressField">' +
     '<div class="toolbar toolbar-small toolbar-insideinput"><button class="button-addressfield SiteInfoButton web"></button></div>' +
-    '<div class="UrlBar-UrlFieldWrapper"><input class="UrlBar-UrlField url vivaldi-addressfield" value=""></div>' +
+    '<div class="UrlBar-UrlFieldWrapper"><input class="UrlBar-UrlField url vivaldi-addressfield"></div>' +
     '<div class="OmniDropdown">suggestions</div></div></div>');
   w.input = doc.querySelector(".UrlBar-AddressField input.url");
+  w.input.value = value;
   w.engines = engines;
   return w;
 }
@@ -227,4 +228,73 @@ test("the new tab: ?engines opens the engine list, and a pick made elsewhere sho
   await t.chrome.storage.sync.set({ selectedSearchEngine: "bing" });
   await settle(t.window, 100);
   assert.match(icon(), /bing/);
+});
+
+// ── On the Atlas new tab (01-addressbar.js, 20-addressbar-newtab.js) ──
+
+const NEWTAB = "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/index.html";
+
+/* A tab switch. Atlas asks for the active tab's address; `url` answers it,
+   otherwise there is no answer and the field's text is used. */
+async function switchTab(w, url) {
+  const before = w.calls.length;
+  for (const fn of w.listeners["chrome.tabs.onActivated"] || []) fn({ tabId: 1 });
+  await wait(80);
+  if (url === undefined) return;
+  for (const c of w.calls.slice(before)) {
+    const q = c.name === "chrome.tabs.query" && c.args[0];
+    if (q && q.active && q.currentWindow && typeof c.args[1] === "function") c.args[1]([{ id: 1, url }]);
+  }
+  await wait(20);
+}
+
+test("the new tab is recognized by its address, index.html, even with the field cleared", async () => {
+  const w = await start({ value: NEWTAB });
+  await switchTab(w);
+  assert.ok(browserHas(w, "atlas-newtab"), "by the field's text");
+  w.input.value = "";
+  await switchTab(w, NEWTAB + "?settings=search");
+  assert.ok(browserHas(w, "atlas-newtab"), "by the tab's address");
+  await switchTab(w, "https://example.com/");
+  assert.ok(!browserHas(w, "atlas-newtab"), "a web page isn't the new tab");
+});
+
+test("on the new tab the engine logo shows without clicking into the field; elsewhere only in use", async () => {
+  const w = await start({ value: NEWTAB, sync: { selectedSearchEngine: "ddg" } });
+  await switchTab(w);
+  assert.ok(btn(w) && !btn(w).hidden, "shown at rest");
+  assert.equal(btnIcon(w), "src/assets/svg/duckduckgo.com.svg");
+  assert.ok(browserHas(w, "atlas-enginebtn-on"), "Vivaldi's magnifier steps aside");
+  await focus(w);
+  await blur(w);
+  assert.ok(!btn(w).hidden, "still there after leaving the field");
+  await switchTab(w, "https://example.com/");
+  assert.ok(btn(w).hidden, "not on a web page at rest");
+  assert.ok(!browserHas(w, "atlas-enginebtn-on"));
+});
+
+test("on the new tab, clicking into the field empties the extension address, and Esc can't bring it back", async () => {
+  const w = await start({ value: NEWTAB });
+  await switchTab(w);
+  await focus(w);
+  assert.equal(w.input.value, "", "empty, so the field shows its hint");
+  w.input.value = NEWTAB;   // what Vivaldi puts back on Esc
+  w.input.dispatchEvent(new w.window.KeyboardEvent("keyup", { key: "Escape", bubbles: true }));
+  await wait(20);
+  assert.equal(w.input.value, "");
+  const page = await start({ value: "https://example.com/a" });
+  await switchTab(page, "https://example.com/a");
+  await focus(page);
+  assert.equal(page.input.value, "https://example.com/a", "a web page's address stays");
+});
+
+test("on the new tab, clicking the logo at rest goes into the field and shows the engines", async () => {
+  const w = await start({ value: NEWTAB });
+  await switchTab(w);
+  press(w, btn(w), "click");
+  assert.equal(w.window.document.activeElement, w.input, "into the field");
+  assert.deepEqual(names(w), ["Google", "DuckDuckGo", "Engine lists"]);
+  await wait(20);
+  assert.equal(w.input.value, "", "emptied");
+  assert.deepEqual(names(w), ["Google", "DuckDuckGo", "Engine lists"], "emptying it doesn't close the engines");
 });

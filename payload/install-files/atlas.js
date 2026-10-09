@@ -33,10 +33,20 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
   });
 }
 
-/* 2. Mark the window while the active tab is the blank new tab, so the
-      stylesheet can keep the address field empty there. The field's value
-      is set by React without firing mutations, so it is polled. */
-var NEWTAB = 'atlas-blank.html';
+/* 2. Mark the window while the active tab is the Atlas new tab, so the
+      stylesheet can keep the address field empty there and the address bar's
+      engine button can show (19-addressbar-engine-picker.js). It is the
+      active tab's address that tells; the field's text can be cleared or
+      typed over, so it is only the fallback. Checked on tab changes. The new
+      tab was atlas-blank.html once and is index.html now (ATLAS_NEWTAB_URL);
+      until 2026-10-09 only the old name was checked, so the mark never came
+      on and the new tab's extension address showed in the field. */
+var NEWTAB_OLD = 'atlas-blank.html';
+
+function atlasIsNewTabUrl(url) {
+  var u = String(url || '');
+  return u.indexOf(ATLAS_NEWTAB_URL) === 0 || u.indexOf(NEWTAB_OLD) !== -1;
+}
 
 function activateSpellcheck(input) {
   if (!input) return;
@@ -46,16 +56,25 @@ function activateSpellcheck(input) {
   }
 }
 
-function syncNewTabClass() {
+function setNewTabClass(isNew) {
   var browser = document.getElementById ? document.getElementById('browser') : null;
+  if (!browser || browser.classList.contains('atlas-newtab') === isNew) return;
+  browser.classList.toggle('atlas-newtab', isNew);
+  if (typeof abeNewTabChanged === 'function') abeNewTabChanged();
+}
+
+function syncNewTabClass() {
   var input = document.querySelector ? (document.querySelector('.UrlBar-UrlField.url') ||
               document.querySelector('.UrlBar-AddressField input')) : null;
   if (input) activateSpellcheck(input);
-  if (!browser || !input) return;
-  var isNew = (input.value || '').indexOf(NEWTAB) !== -1;
-  if (browser.classList.contains('atlas-newtab') !== isNew) {
-    browser.classList.toggle('atlas-newtab', isNew);
-  }
+  var byField = function () { if (input) setNewTabClass(atlasIsNewTabUrl(input.value)); };
+  if (!chrome.tabs || !chrome.tabs.query) return byField();
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    void chrome.runtime.lastError;
+    var t = tabs && tabs[0];
+    if (t && (t.pendingUrl || t.url)) setNewTabClass(atlasIsNewTabUrl(t.pendingUrl || t.url));
+    else byField();
+  });
 }
 
 if (chrome.tabs && chrome.tabs.onActivated) {
@@ -2678,13 +2697,18 @@ if (chrome.storage && chrome.storage.sync) {
    lists". Pick one and it is the new tab's engine too (selectedSearchEngine);
    when engines "always reset to the default", the pick lasts until you leave
    the field. Arrows move, Enter picks, Esc goes back to the bookmark pills
-   (18-addressbar-pills.js). ── */
+   (18-addressbar-pills.js).
+   On the Atlas new tab the button shows without clicking into the field too,
+   and the field is kept empty (20-addressbar-newtab.js). ── */
 
 var ABE_DEFAULT_ICON = 'src/assets/svg/default.api.svg';
 var ABE_REVERT_MS = 1500;   // after leaving the field, an "always reset" pick ends
 var ABE_LIST_SVG = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" ' +
   'stroke-linecap="round" aria-hidden="true"><path d="M5.5 4h8M5.5 8h8M5.5 12h8M2.5 4h0M2.5 8h0M2.5 12h0"/></svg>';
-var abe = { input: null, r: {}, icons: {}, open: false, list: [], at: -1, btn: null, card: null, requery: false, revert: 0 };
+var abe = {
+  input: null, r: {}, icons: {}, open: false, list: [], at: -1, btn: null, card: null,
+  requery: false, revert: 0, setting: false, watched: null, ro: null
+};
 
 function abeEngine(key) {
   var all = abe.r.customSearchEngines || {};
@@ -2746,14 +2770,22 @@ function abeEnsureButton() {
   b.setAttribute('aria-haspopup', 'listbox');
   b.appendChild(abeImg(ABE_DEFAULT_ICON));
   b.addEventListener('mousedown', function (e) { e.preventDefault(); });  // keep the field focused
-  b.addEventListener('click', function () { if (abe.open) abeCloseList(); else abeOpenList(); });
+  b.addEventListener('click', function () {
+    if (abe.open) return abeCloseList();
+    var field = abeFieldInput();
+    if (!abe.input && field) {   // at rest on the new tab: into the field first
+      field.focus();
+      if (abe.input !== field) abeOnFocus(field);
+    }
+    abeOpenList();
+  });
   (document.getElementById('browser') || document.body).appendChild(b);
   return (abe.btn = b);
 }
 
 /* The button with the current engine's logo, over Vivaldi's icon. */
 function abeShowButton() {
-  if (!abe.input) return;
+  if (!abeAnchor()) return;
   var b = abeEnsureButton(), key = addressBarEngineKey(abe.r), eng = abeEngine(key);
   var img = b.querySelector('img'), src = abeIcon(key);
   if (img.getAttribute('src') !== src) img.setAttribute('src', src);
@@ -2764,12 +2796,13 @@ function abeShowButton() {
   b.hidden = false;
   var browser = document.getElementById('browser');
   if (browser) browser.classList.add('atlas-enginebtn-on');
+  abeWatchToolbar();
   abePlace();
 }
 
 /* The button sits exactly over Vivaldi's left icon; the engine pills under the field. */
 function abePlace() {
-  var field = abe.input && abe.input.closest('.UrlBar-AddressField');
+  var anchor = abeAnchor(), field = anchor && anchor.closest('.UrlBar-AddressField');
   if (!field) return;
   var icon = field.querySelector('.SiteInfoButton') || field.querySelector('.toolbar-insideinput');
   var f = field.getBoundingClientRect(), r = icon ? icon.getBoundingClientRect() : null;
@@ -2852,13 +2885,12 @@ function abeCloseList() {
   if (browser) browser.classList.remove('atlas-engines-open');
 }
 
+/* Leaving the field: the engine pills close, and the button rests (abeRest). */
 function abeHide() {
   abeCloseList();
   abe.input = null;
   abe.requery = false;
-  if (abe.btn) abe.btn.hidden = true;
-  var browser = document.getElementById('browser');
-  if (browser) browser.classList.remove('atlas-enginebtn-on');
+  abeRest();
 }
 
 function abeSync() {
@@ -2896,11 +2928,9 @@ function abeEngineApplied() {
 }
 
 function abeRequery(input) {
-  var v = input.value, set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-  set.call(input, v + ' ');
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  set.call(input, v);
-  input.dispatchEvent(new Event('input', { bubbles: true }));
+  var v = input.value;
+  abeSetValue(input, v + ' ');
+  abeSetValue(input, v);
 }
 
 /* The keys while the engine pills show, before the bookmark pills or Vivaldi see them. */
@@ -2921,15 +2951,21 @@ function abeKey(e) {
   e.stopPropagation();
 }
 
+/* Into the field: the button shows, and on the new tab the field empties
+   once Vivaldi has filled it in. */
+function abeOnFocus(input) {
+  abe.input = input;
+  clearTimeout(abe.revert);
+  abeLoadIcons();
+  abeShowButton();
+  setTimeout(function () { if (abe.input === input) abeClearNewTabAddress(input); }, 0);
+}
+
 if (typeof document !== 'undefined' && document.addEventListener) {
-  document.addEventListener('focusin', function (e) {
-    if (!apbField(e.target)) return;
-    abe.input = e.target;
-    clearTimeout(abe.revert);
-    abeLoadIcons();
-    abeShowButton();
+  document.addEventListener('focusin', function (e) { if (apbField(e.target)) abeOnFocus(e.target); });
+  document.addEventListener('input', function (e) {
+    if (abe.open && !abe.setting && e.target === abe.input) abeCloseList();
   });
-  document.addEventListener('input', function (e) { if (abe.open && e.target === abe.input) abeCloseList(); });
   document.addEventListener('focusout', function (e) {
     if (!apbField(e.target)) return;
     abeHide();
@@ -2942,22 +2978,95 @@ if (typeof document !== 'undefined' && document.addEventListener) {
     }
   });
   window.addEventListener('keydown', abeKey, true);
-  window.addEventListener('resize', function () { if (abe.input) abePlace(); });
+  window.addEventListener('resize', function () { if (abeAnchor()) abePlace(); });
 }
 
 if (chrome.storage && chrome.storage.sync) {
   chrome.storage.sync.get(['customSearchEngines', 'defaultEngineKey', 'selectedSearchEngine', 'searchEngineBehavior'], function (r) {
     void chrome.runtime.lastError;
     abe.r = r || {};
-    if (abe.input) abeShowButton();
+    if (abeAnchor()) abeShowButton();
   });
   chrome.storage.onChanged.addListener(function (changes, area) {
     if (area !== 'sync') return;
     var hit = false;
     ENGINE_KEYS.forEach(function (k) { if (changes[k]) { abe.r[k] = changes[k].newValue; hit = true; } });
-    if (!hit || !abe.input) return;
+    if (!hit || !abeAnchor()) return;
     abeShowButton();
     if (abe.open) abeOpenList();
+  });
+}
+
+  /* ═══ Module: 20-addressbar-newtab.js ═══ */
+/* ── 20-addressbar-newtab.js: the address bar on the Atlas new tab ──
+   On the new tab (#browser.atlas-newtab, set by 01-addressbar.js) the engine
+   button (19-addressbar-engine-picker.js) shows without clicking into the
+   field, and the field is kept empty: Vivaldi would fill in the new tab's
+   extension address when you click into it or press Esc. Elsewhere the
+   button shows only while the field is in use. ── */
+
+/* The window's address field, in use or not. */
+function abeFieldInput() {
+  return document.querySelector('.toolbar-mainbar .UrlBar-AddressField input.url') ||
+    document.querySelector('.UrlBar-AddressField input.url');
+}
+
+function abeOnNewTab() {
+  var browser = document.getElementById('browser');
+  return !!(browser && browser.classList.contains('atlas-newtab'));
+}
+
+/* The field the button belongs to: the one in use, or on the new tab the field at rest. */
+function abeAnchor() {
+  return abe.input || (abeOnNewTab() ? abeFieldInput() : null);
+}
+
+/* The field not in use: the button stays on the new tab; elsewhere Vivaldi's
+   own icon is back (the lock on a web page). Run again when the active tab
+   becomes or stops being the new tab (abeNewTabChanged, from 01). */
+function abeRest() {
+  if (abe.input) return;
+  if (abeOnNewTab() && abeFieldInput()) return abeShowButton();
+  if (abe.btn) abe.btn.hidden = true;
+  var browser = document.getElementById('browser');
+  if (browser) browser.classList.remove('atlas-enginebtn-on');
+}
+
+function abeNewTabChanged() {
+  abeRest();
+  if (abe.input) abeClearNewTabAddress(abe.input);
+}
+
+/* Set the field's text as typing would, so Vivaldi's own field follows. */
+function abeSetValue(input, v) {
+  abe.setting = true;
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, v);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  abe.setting = false;
+}
+
+/* On the new tab Vivaldi fills the field with the new tab's extension
+   address. Empty it, as deleting it by hand would, so the field shows its
+   "Search ... or enter an address" hint. */
+function abeClearNewTabAddress(input) {
+  if (input && abeOnNewTab() && atlasIsNewTabUrl(input.value)) abeSetValue(input, '');
+}
+
+/* Re-place the button when the toolbar changes size (a panel opening moves the field). */
+function abeWatchToolbar() {
+  var bar = document.querySelector('.toolbar-mainbar');
+  if (!bar || abe.watched === bar || typeof ResizeObserver === 'undefined') return;
+  if (abe.ro) abe.ro.disconnect();
+  abe.watched = bar;
+  abe.ro = new ResizeObserver(function () { if (abe.btn && !abe.btn.hidden) abePlace(); });
+  abe.ro.observe(bar);
+}
+
+if (typeof document !== 'undefined' && document.addEventListener) {
+  /* Esc puts the page's address back in the field; on the new tab, empty it again. */
+  document.addEventListener('keyup', function (e) {
+    var input = e.key === 'Escape' && apbField(e.target);
+    if (input) setTimeout(function () { abeClearNewTabAddress(input); }, 0);
   });
 }
 
