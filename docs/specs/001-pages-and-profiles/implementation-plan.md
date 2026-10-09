@@ -204,14 +204,15 @@ Requirements (acceptance criteria):
 
 - [ ] T5 Integration & End-to-End Validation
 
-    - [ ] T5.1 All node and Python tests pass (`npm test`), twice in a row
-    - [ ] T5.2 Integration: a subtitle edited in Settings → Pages shows in the switcher; a page added from the popup appears in Settings → Pages; profile edits reach the toolbar profile menu
-    - [ ] T5.3 End-to-end in the jsdom harness: add a page with a subtitle → add a bookmark to it → link a Google account to the active profile → open the bookmark with that account → switch profile → the same bookmark opens with the other account
-    - [ ] T5.4 Speed: the new tab still opens without a visible delay; the migration runs once, not on every load
-    - [ ] T5.5 Privacy: the linked email is only stored in `atlasProfilesV2` and only sent to Google as `authuser`; no other site gets it
-    - [ ] T5.6 Every REQ-1 to REQ-5 criterion checked off against the tests above
-    - [ ] T5.7 Every new behavior has a test that fails without it
-    - [ ] T5.8 `docs/cleanup-progress.md` and `README.md` updated
+    - [x] T5.1 All node and Python tests pass (`npm test`), twice in a row
+    - [x] T5.2 Integration: a subtitle edited in Settings → Pages shows in the switcher; a page added from the popup appears in Settings → Pages; profile edits reach the toolbar profile menu
+    - [x] T5.3 End-to-end in the jsdom harness: add a page with a subtitle → add a bookmark to it → link a Google account to the active profile → open the bookmark with that account → switch profile → the same bookmark opens with the other account
+    - [x] T5.4 Speed: the new tab still opens without a visible delay; the migration runs once, not on every load
+    - [x] T5.5 Privacy: the linked email is only stored in `atlasProfilesV2` and only sent to Google as `authuser`; no other site gets it
+    - [x] T5.6 Every REQ-1 to REQ-5 criterion checked off against the tests above
+    - [x] T5.7 Every new behavior has a test that fails without it
+    - [x] T5.8 `docs/cleanup-progress.md` and `README.md` updated
     - [ ] T5.9 `npm run build`, `python3 scripts/bundle.py`, dry run, then the user runs the real install and the DMG build
     - [ ] T5.10 All five requirements live in Vivaldi, checked by the user
-    - [ ] T5.11 The design decisions above still hold; any change is written down with its reason
+    - [x] T5.11 The design decisions above still hold; any change is written down with its reason
+    - Done 2026-10-09: `tests/unit/spec001_e2e.test.js` (5) covers T5.2-T5.5; these check flows across features already built, so they passed on arrival. T5.9: build, bundle check and dry run done; the real install and the DMG build are the user's. T5.10 waits for the user's live check. node 134/134 + 1 todo (the old Extensions-popover search bug), python 10/10, twice in a row.

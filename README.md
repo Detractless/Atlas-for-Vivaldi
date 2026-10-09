@@ -46,7 +46,11 @@ Vivaldi. Size, line-ending, storage-key and error-handling rules are tests too.
 | `src/modules/NN-*.js` | Browser-window code (menus, toolbar, profile menu, extensions popover, spelling). `scripts/bundle.py` joins them into `payload/install-files/atlas.js`. |
 | `payload/detractless/src/` | New-tab extension source. `npm run build` writes `src/dist/` (never edit dist by hand). |
 | `payload/detractless/src/constants/atlasKeys.json` | The one list of storage keys, defaults, database names and the extension id. |
-| `payload/detractless/src/settings/` | Settings registry (every setting saves at once and syncs across tabs) and the Settings page. |
+| `payload/detractless/src/settings/` | Settings registry (every setting saves at once and syncs across tabs) and the Settings page, including Settings > Pages. |
+| `payload/detractless/src/components/addPopup/` | The + button's popup: add a bookmark or a page (name and subtitle), or edit a page. |
+| `payload/detractless/src/pages/newtab/profile*.js` | Profiles: shared state (`profilesCore.js`), Settings > Profiles, and each profile's edit page with its Google account. |
+| `payload/detractless/src/services/pageSubtitle.js`, `googleAccount.js` | The page-subtitle rule, and opening Google links as the active profile's account. |
+| `docs/specs/` | Feature plans; `001-pages-and-profiles/` has the plan, the design mockups and the autopilot prompt. |
 | `payload/css-mods/` | The restyling CSS, copied to `Vivaldi/Atlas/css-mods`. |
 | `payload/extensions/harper/` | The Harper grammar-checker extension (pre-signed `.crx`; the signing key lives in `keys/`, git-ignored). |
 | `tests/unit/` | All tests. |

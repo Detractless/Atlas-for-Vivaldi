@@ -100,3 +100,12 @@ Per-phase gate: `node --test tests/unit/*.test.js`, `python3 -m unittest discove
 - Checked and not missing: every other file that copy has is older than this one, an archived feature (in `_old/`), or the old module names. The Oct 5 profile and menu work was already here.
 - Tests: node 94/94 + 1 todo, python 10/10. The spelling speed test (`suggestions are fast`) failed 2 of 6 full runs while the machine was busy (load average 5.6) and passed alone and in 3 runs at load 3.2.
 - Found after the reinstall: the restored address-bar code added a new copy of the engine at every Vivaldi start (Web Data had 24 identical "atlas-google" and 5 "atlas-reddit" engines; the old breadcrumbs in Local App Settings show "got 36 engines ... no match in list, adding" each start). Fixed in `15-addressbar-engine.js`: addresses compare with `%s` and `{searchTerms}` read as the same placeholder, and at each start extra copies of engines Atlas added are removed, keeping any copy Vivaldi uses as a default; engines the user added are never touched. Tests: 2 more in `atlas_window.test.js` (both fail on the previous build).
+
+## Spec 001: pages and profiles (2026-10-09)
+- Plan: `docs/specs/001-pages-and-profiles/implementation-plan.md` (every task ticked or marked with why not). Five phases, one commit each.
+- Phase 1, page subtitles: every page has a 3-5 word subtitle (max 32 characters) under its name in the switcher; pages without one get a starter subtitle, saved once.
+- Phase 2, one add popup (+ button) for a bookmark or a page, replacing the + menu and its four dialogs; Settings > Pages lists, edits, adds, reorders and deletes pages. Design A of `mockups.html`.
+- Phase 3, Settings > Profiles is a read-only list with Edit; each profile has its own edit page (picture, name, label, Delete). Hidden settings pages in `settings/shell.js`.
+- Phase 4, a profile can be linked to a Google account (typed email); Google links the new tab opens carry it. Address bar and account detection left out by decision.
+- Phase 5, end-to-end tests across all of it (`spec001_e2e.test.js`), README and this log.
+- Tests: node 134/134 + 1 todo, python 10/10.
