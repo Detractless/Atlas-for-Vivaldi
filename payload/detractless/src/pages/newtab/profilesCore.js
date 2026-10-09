@@ -3,7 +3,8 @@
    the same chrome.storage.
 
    State lives in chrome.storage.local["atlasProfilesV2"]:
-     { v:2, active, owner, share:{category:bool}, list:[{id,name,label,color,icon,db,settings}] }
+     { v:2, active, owner, share:{category:bool}, list:[{id,name,label,color,icon,google,db,settings}] }
+   `google` is { email } of the Google account the profile is linked to, or null.
    `owner` is the profile whose values currently sit in the live settings keys
    (chrome.storage.sync). The new tab and its bundle keep reading those live keys,
    so a switch is a snapshot swap: save the live values of every UNSHARED category
@@ -41,6 +42,13 @@
   /* Icons are our own resized data URLs. Anything else (a hand-edited backup)
      is dropped, because the value ends up inside a style attribute. */
   var ICON_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/=]+$/;
+  /* A linked Google account is kept only as a plain email address: no spaces,
+     quotes or angle brackets, since it is shown in Settings and put in links. */
+  var EMAIL_RE = /^[^\s@"'<>]+@[^\s@"'<>]+\.[^\s@"'<>]+$/;
+  function googleOf(g) {
+    var e = g && typeof g.email === 'string' ? g.email.trim() : '';
+    return EMAIL_RE.test(e) ? { email: e } : null;
+  }
   var uid = function () { return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); };
   var esc = function (t) { return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var cat = function (id) { return CATS.filter(function (c) { return c.id === id; })[0]; };
@@ -57,7 +65,8 @@
       if (!p || !p.id || typeof p.name !== 'string') return;
       out.list.push({
         id: String(p.id), name: p.name, label: typeof p.label === 'string' ? p.label : (p.plan || ''),
-        color: p.color | 0, icon: ICON_RE.test(p.icon) ? p.icon : '', db: typeof p.db === 'string' ? p.db : '',
+        color: p.color | 0, icon: ICON_RE.test(p.icon) ? p.icon : '', google: googleOf(p.google),
+        db: typeof p.db === 'string' ? p.db : '',
         settings: p.settings && typeof p.settings === 'object' ? p.settings : {}
       });
     });
@@ -200,7 +209,7 @@
     return mutate(function (s) {
       var id = uid();
       var p = { id: id, name: (opts.name || 'New profile').trim() || 'New profile', label: opts.label || '',
-        color: s.list.length % COLORS.length, icon: opts.icon || '',
+        color: s.list.length % COLORS.length, icon: opts.icon || '', google: null,
         db: s.share.bookmarks === false ? MAIN_DB + '-' + id : '', settings: {} };
       s.list.push(p);
       return p;
@@ -217,6 +226,9 @@
         p[k] = patch[k];
       });
       if (!p.name.trim()) p.name = 'Profile';
+      /* null unlinks; an address that isn't an email is ignored. */
+      if (patch.google === null) p.google = null;
+      else if (patch.google !== undefined && googleOf(patch.google)) p.google = googleOf(patch.google);
     });
   }
 
@@ -366,6 +378,6 @@
     dbName: dbName, allDbNames: allDbNames, exportAll: exportAll, importAll: importAll,
     holdReload: function (on) { held = !!on; if (!held && pending) { pending = false; maybeReload(); } },
     setSwitchHandler: function (fn) { switchHandler = fn; },
-    avatar: avatar, cornerUrl: cornerUrl, initials: initials, colorOf: colorOf, esc: esc
+    avatar: avatar, cornerUrl: cornerUrl, initials: initials, colorOf: colorOf, esc: esc, googleOf: googleOf
   };
 })();

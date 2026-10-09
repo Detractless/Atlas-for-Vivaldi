@@ -152,6 +152,26 @@ test("rename, label and icon edits; bad icons are dropped", async () => {
   assert.equal(AP.get().list[0].icon, "");
 });
 
+test("a profile keeps a linked Google account email; anything else is dropped", async () => {
+  const { AP, areas } = boot();
+  await AP.ready;
+  const google = (id) => clone(AP.get().list.find((q) => q.id === id).google);
+  assert.equal(google("school"), null, "no account until one is linked");
+  await AP.update("school", { google: { email: "  student@ksu.edu " } });
+  assert.deepEqual(google("school"), { email: "student@ksu.edu" });
+  assert.deepEqual(areas.local.atlasProfilesV2.list.find((q) => q.id === "school").google, { email: "student@ksu.edu" }, "saved");
+  await AP.update("school", { google: { email: "not an email" } });
+  assert.deepEqual(google("school"), { email: "student@ksu.edu" }, "an invalid email is ignored");
+  await AP.update("school", { google: null });
+  assert.equal(google("school"), null, "null unlinks");
+  const bundle = { state: { active: "x", list: [
+    { id: "x", name: "X", google: { email: "a@b.co" } },
+    { id: "y", name: "Y", google: { email: '"><img src=x>' } }] }, dbs: {} };
+  await AP.importAll(fakeBDB({}), bundle);
+  assert.deepEqual(google("x"), { email: "a@b.co" }, "a backup keeps it");
+  assert.equal(google("y"), null, "a hand-edited backup can't smuggle markup in");
+});
+
 test("per-profile bookmarks: the current profile keeps the main database", async () => {
   const { AP } = boot();
   await AP.ready;

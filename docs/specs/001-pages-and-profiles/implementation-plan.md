@@ -159,25 +159,26 @@ Requirements (acceptance criteria):
 
 - [ ] T3 Phase 3 Profile edit page (REQ-4). Independent of Phases 1-2. `[parallel: true]`
 
-    - [ ] T3.1 Prime Context
-        - [ ] T3.1.1 Read the profile model and its update rules `[ref: payload/detractless/src/pages/newtab/profilesCore.js; lines: 1-60, 185-230]`
-        - [ ] T3.1.2 Read the current Profiles settings page `[ref: payload/detractless/src/pages/newtab/profilesPage.js; lines: 38-139]`
-        - [ ] T3.1.3 Get D3 from the user
-    - [ ] T3.2 Write Tests
-        - [ ] T3.2.1 Settings shell: a hidden page opens with `go(id, arg)`, isn't in the side list, and Back returns to its parent `[ref: REQ-4]` `[activity: unit-test]`
-        - [ ] T3.2.2 Profiles list: rows show image, name and label read-only, each with Edit; no inline text boxes `[ref: REQ-4]` `[activity: unit-test]`
-        - [ ] T3.2.3 Edit page: changing name, label or image saves at once and the list and the toolbar avatar follow `[ref: REQ-4]` `[activity: unit-test]`
-        - [ ] T3.2.4 Delete: asks first; the last profile can't be deleted; deleting the active one switches to the first remaining `[ref: REQ-4; profiles-plan decision 4]` `[activity: unit-test]`
-        - [ ] T3.2.5 `profilesCore` keeps unknown-but-valid fields it should keep (`google`) through `normalize()` `[ref: REQ-4, REQ-5]` `[activity: unit-test]`
-    - [ ] T3.3 Implement
-        - [ ] T3.3.1 Hidden pages and `go(id, arg)` in `src/settings/shell.js` `[activity: frontend]`
-        - [ ] T3.3.2 Profiles list rows + Edit button; new `profileEditPage.js` (plain script, like `profilesPage.js`) `[activity: frontend]`
-        - [ ] T3.3.3 Fields from D3, if any, wired to existing settings `[activity: frontend]`
-    - [ ] T3.4 Implement: keep `storage_keys.test.js` pins in step with any new profile field `[activity: frontend]`
-    - [ ] T3.5 Validate
-        - [ ] T3.5.1 Rules and `node --check` `[activity: lint-code, review-code]`
-        - [ ] T3.5.2 Build and `npm test` `[activity: run-tests]`
+    - [x] T3.1 Prime Context
+        - [x] T3.1.1 Read the profile model and its update rules `[ref: payload/detractless/src/pages/newtab/profilesCore.js; lines: 1-60, 185-230]`
+        - [x] T3.1.2 Read the current Profiles settings page `[ref: payload/detractless/src/pages/newtab/profilesPage.js; lines: 38-139]`
+        - [x] T3.1.3 Get D3 from the user
+    - [x] T3.2 Write Tests
+        - [x] T3.2.1 Settings shell: a hidden page opens with `go(id, arg)`, isn't in the side list, and Back returns to its parent `[ref: REQ-4]` `[activity: unit-test]`
+        - [x] T3.2.2 Profiles list: rows show image, name and label read-only, each with Edit; no inline text boxes `[ref: REQ-4]` `[activity: unit-test]`
+        - [x] T3.2.3 Edit page: changing name, label or image saves at once and the list and the toolbar avatar follow `[ref: REQ-4]` `[activity: unit-test]`
+        - [x] T3.2.4 Delete: asks first; the last profile can't be deleted; deleting the active one switches to the first remaining `[ref: REQ-4; profiles-plan decision 4]` `[activity: unit-test]`
+        - [x] T3.2.5 `profilesCore` keeps unknown-but-valid fields it should keep (`google`) through `normalize()` `[ref: REQ-4, REQ-5]` `[activity: unit-test]`
+    - [x] T3.3 Implement
+        - [x] T3.3.1 Hidden pages and `go(id, arg)` in `src/settings/shell.js` `[activity: frontend]`
+        - [x] T3.3.2 Profiles list rows + Edit button; new `profileEditPage.js` (plain script, like `profilesPage.js`) `[activity: frontend]`
+        - [x] T3.3.3 Fields from D3, if any, wired to existing settings `[activity: frontend]`
+    - [x] T3.4 Implement: keep `storage_keys.test.js` pins in step with any new profile field `[activity: frontend]`
+    - [x] T3.5 Validate
+        - [x] T3.5.1 Rules and `node --check` `[activity: lint-code, review-code]`
+        - [x] T3.5.2 Build and `npm test` `[activity: run-tests]`
         - [ ] T3.5.3 User checks the edit page in Vivaldi `[activity: business-acceptance]`
+    - Done 2026-10-09 with D3 = no extra per-profile settings. The Google account field is built in Phase 4. Profiles got a `google` field ({email} or null) in profilesCore.js (normalize, update, backups). The image picker moved from the list to the edit page. T3.5.3 (live check) waits for the user's install.
 
 - [ ] T4 Phase 4 Google account per profile (REQ-5). Needs Phase 3 (the field lives on the edit page).
 

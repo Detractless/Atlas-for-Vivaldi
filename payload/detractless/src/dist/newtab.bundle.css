@@ -2121,3 +2121,24 @@ html.grayscale {
 #sp-root .pg-intro {
   margin: 12px 4px 0;
 }
+#sp-root .sp-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px -6px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--sp-text-2);
+  font-size: 13px;
+  cursor: pointer;
+}
+#sp-root .sp-back-link:hover {
+  background: var(--sp-nav-hover);
+  color: var(--sp-text);
+}
+#sp-root .sp-back-link svg {
+  width: 16px;
+  height: 16px;
+}

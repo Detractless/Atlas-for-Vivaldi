@@ -12,7 +12,8 @@
 #sp-root .pf-input:focus { border-color: var(--sp-text-3); background: var(--sp-bg); }
 #sp-root .pf-input::placeholder { color: var(--sp-text-3); }
 #sp-root .pf-name { font-weight: 500; }
-#sp-root .pf-label { height: 28px; font-size: 12px; color: var(--sp-text-2); }
+#sp-root .pf-label { font-size: 12px; line-height: 16px; color: var(--sp-text-2); }
+#sp-root .pf-label:empty::before { content: "No label"; color: var(--sp-text-3); }
 #sp-root .pf-actions { display: flex; align-items: center; gap: 8px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
 #sp-root .pf-badge { font-size: 12px; line-height: 16px; padding: 2px 10px; border-radius: 9999px; background: var(--sp-nav-active); color: var(--sp-text-2); }
 #sp-root .pf-ask { font-size: 13px; color: var(--sp-text-2); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -23,3 +24,13 @@
 #sp-root .pf-notice { font-size: 12px; color: var(--sp-danger); }
 #sp-root .pf-intro { margin: 0 0 12px; }
 #sp-root .pf-actions .sp-pill { height: 30px; padding: 0 12px; font-size: 13px; }
+
+/* The list's avatars are pictures, not buttons; the image is chosen on the edit page. */
+#sp-root .pf-av--static { display: inline-block; cursor: default; }
+
+/* One profile's edit page (profileEditPage.js) */
+#sp-root .pfe-head { display: flex; align-items: center; gap: 16px; margin: 0 0 16px; }
+#sp-root .pfe-head .pf-av, #sp-root .pfe-head .pf-avatar { width: 64px; height: 64px; }
+#sp-root .pfe-head-btns { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#sp-root .pfe-head-btns .sp-pill, #sp-root .sp-row-ctrl .sp-pill.sm { height: 30px; padding: 0 12px; font-size: 13px; }
+#sp-root .sp-row-ctrl .pf-input { width: 240px; border-color: var(--sp-border); }

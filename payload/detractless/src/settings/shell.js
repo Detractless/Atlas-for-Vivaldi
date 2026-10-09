@@ -10,8 +10,13 @@ import { importBookmarks, exportBookmarks } from '../pages/newtab/importExport.j
 import { resetAllData } from '../services/resetService.js';
 import { pageAction, resetPagesSection } from './pagesSection.js';
 
-let root = null, navEl = null, content = null, current = "search";
+let root = null, navEl = null, content = null, current = "search", currentArg = null;
 const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/* Hidden pages: registered but not in the side list, opened with go(id, arg)
+   from another page (a profile's edit page from Profiles). id -> { title(arg), parent }. */
+const HIDDEN = {};
 
 /** Build the page (hidden) and publish window.AtlasSettingsUI. Run once, before profilesPage.js. */
 export function installSettingsPage() {
@@ -31,7 +36,7 @@ export const isSettingsOpen = () => !!root && !root.hidden;
 
 /** Show Settings, on `pageId` when given (?settings=<id> and messages use this). */
 export function openSettings(pageId) {
-  if (pageId && PAGES[pageId]) current = pageId;
+  if (pageId && PAGES[pageId]) { current = pageId; currentArg = null; }
   if (!root.hidden && !pageId) return;
   root.hidden = false;
   resetState.confirming = false;
@@ -85,16 +90,24 @@ function renderNav(filter = "") {
     const items = g.items.filter((i) => i.label.toLowerCase().includes(f));
     if (!items.length) return "";
     return `<div class="sp-group-label">${g.group}</div>` + items.map((i) =>
-      `<button class="sp-nav-item" data-page="${i.id}" ${i.id === current ? 'aria-current="page"' : ""}>${svg(i.icon)}${i.label}${i.external ? svg(I.ext, "ext") : ""}</button>`
+      `<button class="sp-nav-item" data-page="${i.id}" ${i.id === navCurrent() ? 'aria-current="page"' : ""}>${svg(i.icon)}${i.label}${i.external ? svg(I.ext, "ext") : ""}</button>`
     ).join("");
   }).join("");
 }
 
+/** The side-list entry to mark: a hidden page marks its parent. */
+const navCurrent = () => (HIDDEN[current] ? HIDDEN[current].parent : current);
+const navItem = (id) => NAV.flatMap((g) => g.items).find((i) => i.id === id);
+
 function renderPage() {
   closeMenu();
-  const item = NAV.flatMap((g) => g.items).find((i) => i.id === current);
+  const hidden = HIDDEN[current];
+  const title = hidden ? hidden.title(currentArg) : navItem(current).label;
+  const back = hidden
+    ? `<button class="sp-back-link" data-back="${hidden.parent}">${svg('<path d="M16 10H4m5-5-5 5 5 5"/>')}${esc(navItem(hidden.parent).label)}</button>`
+    : "";
   const focusKey = focusedControl();
-  content.innerHTML = `<h1 class="sp-page-title">${item.label}</h1>` + PAGES[current]();
+  content.innerHTML = back + `<h1 class="sp-page-title">${esc(title)}</h1>` + PAGES[current](currentArg);
   if (focusKey) {
     const again = content.querySelector(`[${focusKey.attr}="${focusKey.value}"]`);
     if (again) again.focus();
@@ -119,10 +132,12 @@ function rerenderSoon() {
   rerenderTimer = setTimeout(() => { if (isSettingsOpen() && !menuIsOpen()) renderPage(); }, 0);
 }
 
-function go(id) {
+/** Open a page; `arg` is passed to a hidden page's render (which profile, say). */
+function go(id, arg = null) {
   if (id === "review") { window.open(REVIEW_URL, "_blank", "noopener"); return; }
   if (!PAGES[id]) return;
   current = id;
+  currentArg = arg;
   resetState.confirming = false;
   resetPagesSection();
   render();
@@ -154,6 +169,8 @@ function wireShell() {
 
 function wireContent() {
   content.addEventListener("click", (e) => {
+    const back = e.target.closest("[data-back]");
+    if (back) { go(back.dataset.back); return; }
     const t = e.target.closest("[data-toggle]");
     if (t) {
       const v = t.getAttribute("aria-checked") !== "true";
@@ -188,10 +205,16 @@ function runAction(act, el) {
 function publishApi() {
   window.AtlasSettingsUI = {
     current: () => current,
+    arg: () => currentArg,
     rerender: () => { if (isSettingsOpen()) renderPage(); },
     go, content, svg, row, card, section, I,
     register(def) {
       PAGES[def.id] = def.render;
+      if (def.hidden) {
+        HIDDEN[def.id] = { title: def.title || (() => def.label), parent: def.parent };
+        if (isSettingsOpen()) render();
+        return;
+      }
       const group = NAV.find((g) => g.group === (def.group || "Settings"));
       const at = group.items.findIndex((i) => i.id === def.before);
       group.items.splice(at < 0 ? group.items.length : at, 0, { id: def.id, label: def.label, icon: def.icon });

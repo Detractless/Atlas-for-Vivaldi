@@ -5570,7 +5570,10 @@
   var navEl = null;
   var content = null;
   var current = "search";
+  var currentArg = null;
   var $ = (id) => document.getElementById(id);
+  var esc3 = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  var HIDDEN = {};
   function installSettingsPage() {
     if (root) return;
     root = buildRoot();
@@ -5585,7 +5588,10 @@
   }
   var isSettingsOpen = () => !!root && !root.hidden;
   function openSettings(pageId) {
-    if (pageId && PAGES[pageId]) current = pageId;
+    if (pageId && PAGES[pageId]) {
+      current = pageId;
+      currentArg = null;
+    }
     if (!root.hidden && !pageId) return;
     root.hidden = false;
     resetState.confirming = false;
@@ -5633,15 +5639,19 @@
       const items = g.items.filter((i2) => i2.label.toLowerCase().includes(f));
       if (!items.length) return "";
       return `<div class="sp-group-label">${g.group}</div>` + items.map(
-        (i2) => `<button class="sp-nav-item" data-page="${i2.id}" ${i2.id === current ? 'aria-current="page"' : ""}>${svg(i2.icon)}${i2.label}${i2.external ? svg(I.ext, "ext") : ""}</button>`
+        (i2) => `<button class="sp-nav-item" data-page="${i2.id}" ${i2.id === navCurrent() ? 'aria-current="page"' : ""}>${svg(i2.icon)}${i2.label}${i2.external ? svg(I.ext, "ext") : ""}</button>`
       ).join("");
     }).join("");
   }
+  var navCurrent = () => HIDDEN[current] ? HIDDEN[current].parent : current;
+  var navItem = (id) => NAV.flatMap((g) => g.items).find((i2) => i2.id === id);
   function renderPage() {
     closeMenu();
-    const item = NAV.flatMap((g) => g.items).find((i2) => i2.id === current);
+    const hidden = HIDDEN[current];
+    const title = hidden ? hidden.title(currentArg) : navItem(current).label;
+    const back = hidden ? `<button class="sp-back-link" data-back="${hidden.parent}">${svg('<path d="M16 10H4m5-5-5 5 5 5"/>')}${esc3(navItem(hidden.parent).label)}</button>` : "";
     const focusKey = focusedControl();
-    content.innerHTML = `<h1 class="sp-page-title">${item.label}</h1>` + PAGES[current]();
+    content.innerHTML = back + `<h1 class="sp-page-title">${esc3(title)}</h1>` + PAGES[current](currentArg);
     if (focusKey) {
       const again = content.querySelector(`[${focusKey.attr}="${focusKey.value}"]`);
       if (again) again.focus();
@@ -5666,13 +5676,14 @@
       if (isSettingsOpen() && !menuIsOpen()) renderPage();
     }, 0);
   }
-  function go(id) {
+  function go(id, arg = null) {
     if (id === "review") {
       window.open(REVIEW_URL, "_blank", "noopener");
       return;
     }
     if (!PAGES[id]) return;
     current = id;
+    currentArg = arg;
     resetState.confirming = false;
     resetPagesSection();
     render();
@@ -5703,6 +5714,11 @@
   }
   function wireContent() {
     content.addEventListener("click", (e) => {
+      const back = e.target.closest("[data-back]");
+      if (back) {
+        go(back.dataset.back);
+        return;
+      }
       const t = e.target.closest("[data-toggle]");
       if (t) {
         const v = t.getAttribute("aria-checked") !== "true";
@@ -5740,6 +5756,7 @@
   function publishApi() {
     window.AtlasSettingsUI = {
       current: () => current,
+      arg: () => currentArg,
       rerender: () => {
         if (isSettingsOpen()) renderPage();
       },
@@ -5752,6 +5769,11 @@
       I,
       register(def) {
         PAGES[def.id] = def.render;
+        if (def.hidden) {
+          HIDDEN[def.id] = { title: def.title || (() => def.label), parent: def.parent };
+          if (isSettingsOpen()) render();
+          return;
+        }
         const group = NAV.find((g) => g.group === (def.group || "Settings"));
         const at = group.items.findIndex((i2) => i2.id === def.before);
         group.items.splice(at < 0 ? group.items.length : at, 0, { id: def.id, label: def.label, icon: def.icon });
