@@ -4,17 +4,27 @@
 var EXT_HIDDEN_PREF = 'vivaldi.address_bar.extensions.hidden_extensions', EXT_PAGE_SIZE = 8;
 var extPop = null, extPopPage = 0, extPopQuery = '', extPopAnchor = null;
 
-function closeExtPop() {
-  if (typeof Atlas.setPanelBlur === 'function') Atlas.setPanelBlur(false);
-  else if (typeof setPanelBlur === 'function') setPanelBlur(false);
-  if (!extPop) return;
+/* Take the popover off the screen but keep its search text and page: a redraw
+   (each keystroke, each page button) builds it again from them. Resetting them
+   here is what used to empty the search field after every letter and pin the
+   page buttons to page 1. */
+function removeExtPop() {
+  if (!extPop) return false;
   extPop.remove();
   extPop = null;
-  extPopPage = 0;
-  extPopQuery = '';
   document.removeEventListener('mousedown', extPopAway, true);
   document.removeEventListener('keydown', extPopKey, true);
   if (typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('blur', closeExtPop);
+  return true;
+}
+
+/* Close for good: the next opening starts with an empty search on page 1. */
+function closeExtPop() {
+  if (typeof Atlas.setPanelBlur === 'function') Atlas.setPanelBlur(false);
+  else if (typeof setPanelBlur === 'function') setPanelBlur(false);
+  extPopPage = 0;
+  extPopQuery = '';
+  if (!removeExtPop()) return;
 
   /* Force re-evaluation of hover on extensions toggle button */
   var tgl = document.querySelector('.toolbar-extensions [data-name="Extensions"]');
@@ -62,7 +72,7 @@ function renderExtPop(anchor) {
 }
 
 function drawExtPop(anchor, exts) {
-  closeExtPop();
+  removeExtPop();
   extPop = document.createElement('div');
   extPop.className = 'atlas-ext-pop';
 

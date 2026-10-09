@@ -37,9 +37,14 @@ const content = (t) => t.document.getElementById("sp-content");
 const title = (t) => text(t.document.querySelector("#sp-content .sp-page-title"));
 const storedProfile = async (t, id) => plain((await t.chrome.storage.local.get(["atlasProfilesV2"])).atlasProfilesV2).list.find((p) => p.id === id);
 
-/** A profile's ⋮ menu, then one of its items. */
+/** Right-click a profile to open its menu. */
+function rightClick(t, id) {
+  content(t).querySelector(`[data-pf-switch="${id}"]`).dispatchEvent(new t.window.MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 20 }));
+}
+
+/** A profile's right-click menu, then one of its items. */
 async function fromMenu(t, id, item) {
-  click(t.window, content(t).querySelector(`[data-pf-menu="${id}"]`));
+  rightClick(t, id);
   click(t.window, await waitFor(() => content(t).querySelector(`.sp-popmenu [${item}="${id}"]`), 2000, `${item} in the menu`));
 }
 
@@ -53,13 +58,13 @@ function change(t, el, value) {
   el.dispatchEvent(new t.window.Event("change", { bubbles: true }));
 }
 
-test("the profile list is read-only: one ⋮ per profile, no Switch button or Current badge", async () => {
+test("the profile list is read-only: no ⋮, Switch or Edit buttons, no Current badge", async () => {
   const t = await openProfiles();
   assert.equal(content(t).querySelectorAll(".pf-input").length, 0, "no text boxes in the list");
   const rows = [...content(t).querySelectorAll(".pf-row")];
   assert.deepEqual(rows.map((r) => text(r.querySelector(".pf-name"))), ["Pat", "Pat (School)"]);
   assert.deepEqual(rows.map((r) => text(r.querySelector(".pf-label"))), ["Personal", "School"]);
-  for (const id of ["personal", "school"]) assert.ok(content(t).querySelector(`[data-pf-menu="${id}"]`), `⋮ on ${id}`);
+  assert.equal(content(t).querySelector("[data-pf-menu], .pf-row .sp-kebab"), null, "no ⋮ buttons");
   assert.equal(content(t).querySelector(".pf-badge"), null, "no Current badge");
   assert.ok(![...content(t).querySelectorAll(".pf-row button")].some((b) => /^(Switch|Edit)$/.test(text(b))), "no Switch or Edit buttons");
   assert.deepEqual(t.errors, []);
@@ -79,7 +84,22 @@ test("clicking a profile switches to it; the active one is highlighted and nothi
   assert.deepEqual([...content(t).querySelectorAll(".pf-row .pf-name")].map(text), ["Pat", "Pat (School)"], "same order");
 });
 
-test("a profile's ⋮ menu has Edit and Delete; Delete asks first, right in the list", async () => {
+test("right-clicking a profile opens a menu with Edit and Delete; the menu key does too", async () => {
+  const t = await openProfiles();
+  rightClick(t, "school");
+  const menu = await waitFor(() => content(t).querySelector(".sp-popmenu"), 2000, "menu");
+  assert.deepEqual([...menu.querySelectorAll("button")].map(text), ["Edit", "Delete"]);
+  assert.ok(menu.closest('[data-pf-id="school"]'), "on that profile's row");
+  t.document.body.dispatchEvent(new t.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  await settle(t.window, 30);
+  const pick = content(t).querySelector('[data-pf-switch="personal"]');
+  pick.focus();
+  pick.dispatchEvent(new t.window.KeyboardEvent("keydown", { key: "ContextMenu", bubbles: true, cancelable: true }));
+  await waitFor(() => content(t).querySelector('[data-pf-id="personal"] .sp-popmenu'), 2000, "menu from the keyboard");
+  assert.equal(t.document.activeElement, content(t).querySelector('[data-pf-id="personal"] .sp-popmenu button'), "focus moves into the menu");
+});
+
+test("Delete in the right-click menu asks first, right in the list", async () => {
   const t = await openProfiles();
   await fromMenu(t, "school", "data-pf-delete");
   await settle(t.window, 50);
@@ -95,14 +115,20 @@ test("a profile's ⋮ menu has Edit and Delete; Delete asks first, right in the 
   assert.equal(content(t).querySelectorAll(".pf-row").length, 1);
 });
 
-test("the ⋮ menu closes on Escape without closing Settings", async () => {
+test("the right-click menu closes on Escape without closing Settings, and on a click elsewhere", async () => {
   const t = await openProfiles();
-  click(t.window, content(t).querySelector('[data-pf-menu="school"]'));
+  rightClick(t, "school");
   await waitFor(() => content(t).querySelector(".sp-popmenu"), 2000, "menu");
   t.document.body.dispatchEvent(new t.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
   await settle(t.window, 30);
   assert.equal(content(t).querySelector(".sp-popmenu"), null);
   assert.ok(!t.document.getElementById("sp-root").hidden);
+  rightClick(t, "school");
+  await waitFor(() => content(t).querySelector(".sp-popmenu"), 2000, "menu again");
+  click(t.window, content(t).querySelector(".sp-page-title"));
+  await settle(t.window, 30);
+  assert.equal(content(t).querySelector(".sp-popmenu"), null, "a click elsewhere closes it");
+  assert.equal((await t.chrome.storage.local.get(["atlasProfilesV2"])).atlasProfilesV2.active, "personal", "right-clicking didn't switch");
 });
 
 test("Edit opens a page of its own: titled with the name, not in the side list, Back returns", async () => {
@@ -164,7 +190,7 @@ test("the last profile can't be deleted", async () => {
   const t = await openNewTab({ local: { atlasProfilesV2: one } });
   click(t.window, t.document.getElementById("global-settings-btn"));
   click(t.window, await waitFor(() => t.document.querySelector('#sp-nav [data-page="profiles"]'), 2000, "Profiles"));
-  click(t.window, await waitFor(() => content(t).querySelector('[data-pf-menu="personal"]'), 2000, "⋮"));
+  (await waitFor(() => content(t).querySelector('[data-pf-switch="personal"]'), 2000, "the profile")).dispatchEvent(new t.window.MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
   const menu = await waitFor(() => content(t).querySelector(".sp-popmenu"), 2000, "menu");
   assert.equal(menu.querySelector("[data-pf-delete]"), null, "the last profile's menu has no Delete");
   click(t.window, menu.querySelector('[data-pf-edit="personal"]'));

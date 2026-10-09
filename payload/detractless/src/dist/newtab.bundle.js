@@ -5909,7 +5909,6 @@
       card,
       section,
       I,
-      kebab: KEBAB,
       register(def) {
         PAGES[def.id] = def.render;
         if (def.hidden) {

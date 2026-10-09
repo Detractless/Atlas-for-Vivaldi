@@ -4,7 +4,7 @@
 import { PAGES, NAV, REVIEW_URL, resetState } from './pages.js';
 import { CONTROLS } from './controls.js';
 import { onSettingChange } from './registry.js';
-import { I, svg, row, card, section, KEBAB } from './markup.js';
+import { I, svg, row, card, section } from './markup.js';
 import { initMenu, openMenu, closeMenu, menuIsOpen } from './menu.js';
 import { importBookmarks, exportBookmarks } from '../pages/newtab/importExport.js';
 import { resetAllData } from '../services/resetService.js';
@@ -210,7 +210,7 @@ function publishApi() {
     current: () => current,
     arg: () => currentArg,
     rerender: () => { if (isSettingsOpen()) renderPage(); },
-    go, content, svg, row, card, section, I, kebab: KEBAB,
+    go, content, svg, row, card, section, I,
     register(def) {
       PAGES[def.id] = def.render;
       if (def.hidden) {

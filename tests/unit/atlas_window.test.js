@@ -170,18 +170,49 @@ test("more than eight extensions get a search field and pages", async () => {
   assert.equal(pop.querySelector(".aep-pager span").textContent, "1 / 2");
 });
 
-/* KNOWN BUG (found 2026-10-08, left as is: fixing it changes behavior outside the
-   cleanup plan). drawExtPop starts with closeExtPop(), which resets extPopQuery,
-   so every keystroke redraws the full list and empties the search field. */
-test("typing in the popover search filters the list", { todo: "search field resets on every keystroke" }, async () => {
+const ELEVEN = Array.from({ length: 11 }, (_, i) => ({ id: String.fromCharCode(97 + i).repeat(32), name: `Ext ${String(i).padStart(2, "0")}`, type: "extension", enabled: true, icons: [] }));
+const popNames = (w) => [...w.window.document.querySelector(".atlas-ext-pop").querySelectorAll(".aep-name")].map((n) => n.textContent);
+
+/* The stand-in chrome answers getAll by itself a moment later (with nothing),
+   which redraws an empty popover; answer again after it so the page shows these. */
+async function openPopoverWith(w, exts) {
+  await openPopover(w, exts);
+  await new Promise((r) => setTimeout(r, 0));
+  answer(w, "chrome.management.getAll", exts);
+  return w.window.document.querySelector(".atlas-ext-pop");
+}
+
+test("typing in the popover search keeps the text and filters the list", async () => {
+  // Fixed 2026-10-09: every keystroke used to empty the field and show the whole list.
   const w = await start();
-  const many = Array.from({ length: 11 }, (_, i) => ({ id: String.fromCharCode(97 + i).repeat(32), name: `Ext ${String(i).padStart(2, "0")}`, type: "extension", enabled: true, icons: [] }));
-  const pop = await openPopover(w, many);
-  const search = pop.querySelector(".aep-search");
-  search.value = "ext 1";
-  search.dispatchEvent(new w.window.Event("input", { bubbles: true }));
-  const again = w.window.document.querySelector(".atlas-ext-pop");
-  assert.deepEqual([...again.querySelectorAll(".aep-name")].map((n) => n.textContent), ["Ext 10"]);
+  const pop = await openPopoverWith(w, ELEVEN);
+  const type = (value) => {
+    const box = w.window.document.querySelector(".atlas-ext-pop .aep-search");
+    box.value = value;
+    box.dispatchEvent(new w.window.Event("input", { bubbles: true }));
+  };
+  type("ext 1");
+  assert.deepEqual(popNames(w), ["Ext 10"]);
+  const box = w.window.document.querySelector(".atlas-ext-pop .aep-search");
+  assert.equal(box.value, "ext 1", "the text stays");
+  assert.equal(w.window.document.activeElement, box, "and the field keeps focus");
+  type("ext 0");
+  assert.deepEqual(popNames(w), ["Ext 00", "Ext 01", "Ext 02", "Ext 03", "Ext 04", "Ext 05", "Ext 06", "Ext 07"]);
+  assert.equal(w.window.document.querySelector(".atlas-ext-pop .aep-pager span").textContent, "1 / 2", "ten matches: two pages");
+  type("nothing like it");
+  assert.equal(w.window.document.querySelector(".atlas-ext-pop .aep-empty").textContent, "No matches");
+  assert.ok(pop, "opened");
+});
+
+test("the popover's page buttons move between pages", async () => {
+  const w = await start();
+  await openPopoverWith(w, ELEVEN);
+  const pager = () => w.window.document.querySelector(".atlas-ext-pop .aep-pager");
+  pager().lastElementChild.dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
+  assert.equal(pager().querySelector("span").textContent, "2 / 2");
+  assert.deepEqual(popNames(w), ["Ext 08", "Ext 09", "Ext 10"]);
+  pager().firstElementChild.dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
+  assert.equal(pager().querySelector("span").textContent, "1 / 2");
 });
 
 /* ── Corner avatar menu (07-profile-menu.js) and menus closing each other ── */

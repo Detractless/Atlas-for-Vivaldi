@@ -157,7 +157,7 @@ async function editPage(local) {
   const t = await openNewTab({ local: { atlasProfilesV2: profiles(), ...local } });
   click(t.window, t.document.getElementById("global-settings-btn"));
   click(t.window, await waitFor(() => t.document.querySelector('#sp-nav [data-page="profiles"]'), 2000, "Profiles"));
-  click(t.window, await waitFor(() => t.document.querySelector('#sp-content [data-pf-menu="school"]'), 2000, "the profile's ⋮ button"));
+  (await waitFor(() => t.document.querySelector('#sp-content [data-pf-switch="school"]'), 2000, "the profile")).dispatchEvent(new t.window.MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 20 }));
   click(t.window, await waitFor(() => t.document.querySelector('#sp-content [data-pf-edit="school"]'), 2000, "Edit in its menu"));
   await waitFor(() => t.document.querySelector("#sp-content [data-pfe-ga], #sp-content [data-pfe-pick]"), 2000, "the Google row");
   return t;
