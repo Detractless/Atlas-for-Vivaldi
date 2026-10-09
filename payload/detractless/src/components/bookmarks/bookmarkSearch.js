@@ -5,6 +5,7 @@ import {
 } from '../../pages/newtab/newtabState.js';
 import { initialSelectionIndex } from '../../utils/pillSelection.js';
 import { warn } from '../../services/log.js';
+import { forActiveAccount } from '../../services/googleAccount.js';
 
 
 /**
@@ -49,7 +50,7 @@ export function renderBookmarkSearchResults(matches) {
 
     item.addEventListener("click", () => {
       BookmarkDB.recordClick(bm.url).catch((e) => warn('recording a bookmark click failed', e));
-      window.location.href = bm.url;
+      window.location.href = forActiveAccount(bm.url);
     });
 
     resultsContainer.appendChild(item);

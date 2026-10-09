@@ -4,6 +4,7 @@ import { renderBookmarkSearchResults, updateSearchDropdownSelection, hideBookmar
 import { resolveEnterAction, searchTextFor } from '../../utils/pillSelection.js';
 import { updateCurrentEngine } from '../engines/enginesUI.js';
 import { attachScrollAffordance } from '../shared/scrollAffordance.js';
+import { forActiveAccount } from '../../services/googleAccount.js';
 
 export function initializeSearch() {
   const searchInput = document.getElementById("search-input");
@@ -122,7 +123,7 @@ async function submitSearch(e, ui, isSearchActive) {
   const forceSearch = e.shiftKey;
 
   if (resolveEnterAction(isSearchActive, searchDropdownIndex, items.length, forceSearch) === 'bookmark') {
-    window.location.href = items[searchDropdownIndex].dataset.url;
+    window.location.href = forActiveAccount(items[searchDropdownIndex].dataset.url);
     return;
   }
 
@@ -131,7 +132,7 @@ async function submitSearch(e, ui, isSearchActive) {
   if (!query) return;
   const targetUrl = (!forceSearch && isUrl(query)) ? await destinationUrl(query) : searchUrl(query, searchInput);
   if (targetUrl === null) return;
-  window.location.href = targetUrl; searchInput.value = "";
+  window.location.href = forActiveAccount(targetUrl); searchInput.value = "";
 }
 
 /** URL-shaped input: the address to open, or null when a file can't be opened. */

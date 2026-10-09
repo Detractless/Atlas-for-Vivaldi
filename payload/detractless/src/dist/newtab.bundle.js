@@ -1171,6 +1171,33 @@
     }
   }
 
+  // src/services/googleAccount.js
+  var GOOGLE_HOST = /(^|\.)(google\.com|youtube\.com)$/i;
+  var ACCOUNT_IN_PATH = /(^|\/)u\/\d+(\/|$)/;
+  function withGoogleAccount(url, email) {
+    if (!email) return url;
+    let u;
+    try {
+      u = new URL(url);
+    } catch (e) {
+      return url;
+    }
+    if (!/^https?:$/.test(u.protocol) || !GOOGLE_HOST.test(u.hostname)) return url;
+    if (ACCOUNT_IN_PATH.test(u.pathname)) {
+      u.pathname = u.pathname.replace(ACCOUNT_IN_PATH, (m, before, after) => `${before}u/${encodeURIComponent(email)}${after}`);
+    }
+    u.searchParams.set("authuser", email);
+    return u.toString();
+  }
+  function activeGoogleEmail() {
+    const ap = typeof window !== "undefined" ? window.AtlasProfiles : null;
+    const p2 = ap && ap.active ? ap.active() : null;
+    return p2 && p2.google && p2.google.email || "";
+  }
+  function forActiveAccount(url) {
+    return withGoogleAccount(url, activeGoogleEmail());
+  }
+
   // src/utils/pillSelection.js
   function initialSelectionIndex(matchCount) {
     return !matchCount || matchCount <= 0 ? -1 : 0;
@@ -1217,7 +1244,7 @@
       item.appendChild(nameDiv);
       item.addEventListener("click", () => {
         BookmarkDB.recordClick(bm.url).catch((e) => warn("recording a bookmark click failed", e));
-        window.location.href = bm.url;
+        window.location.href = forActiveAccount(bm.url);
       });
       resultsContainer.appendChild(item);
     });
@@ -1372,9 +1399,14 @@
       itemDiv.className = "bookmark-link";
       rowBookmarks.set(itemDiv, bookmark);
       const link = document.createElement("a");
-      link.href = bookmark.url;
+      link.href = forActiveAccount(bookmark.url);
       link.target = "_self";
       link.rel = "noopener noreferrer";
+      const refresh2 = () => {
+        link.href = forActiveAccount(bookmark.url);
+      };
+      link.addEventListener("mousedown", refresh2);
+      link.addEventListener("focus", refresh2);
       link.textContent = bookmark.name;
       link.style.flex = "1";
       link.style.textDecoration = "none";
@@ -3153,14 +3185,14 @@
     const items = isSearchActive ? pillItems(ui) : [];
     const forceSearch = e.shiftKey;
     if (resolveEnterAction(isSearchActive, searchDropdownIndex, items.length, forceSearch) === "bookmark") {
-      window.location.href = items[searchDropdownIndex].dataset.url;
+      window.location.href = forActiveAccount(items[searchDropdownIndex].dataset.url);
       return;
     }
     const query = searchTextFor(searchInput.value);
     if (!query) return;
     const targetUrl = !forceSearch && isUrl(query) ? await destinationUrl(query) : searchUrl(query, searchInput);
     if (targetUrl === null) return;
-    window.location.href = targetUrl;
+    window.location.href = forActiveAccount(targetUrl);
     searchInput.value = "";
   }
   async function destinationUrl(query) {

@@ -1,5 +1,5 @@
-// Settings > Profiles > one profile: image, name, label and Delete (spec 001,
-// phase 3). A hidden settings page (src/settings/shell.js): Edit on the
+// Settings > Profiles > one profile: image, name, label, Google account and
+// Delete (spec 001, phases 3 and 4). A hidden settings page (src/settings/shell.js): Edit on the
 // Profiles list opens it with the profile's id, and its Back link returns to
 // the list. Changes save at once through AtlasProfiles (profilesCore.js).
 (function () {
@@ -8,6 +8,8 @@
 
   const esc = AP.esc;
   let confirming = false, notice = "", shownId = null;
+  /* A Google address that isn't an email stays in the box with a note, unsaved. */
+  let googleDraft = null, googleProblem = "";
 
   const fileInput = document.createElement("input");
   fileInput.type = "file";
@@ -55,8 +57,21 @@
     const id = esc(p.id);
     return UI.card([
       UI.row("Name", "", `<input class="pf-input" data-pfe-name="${id}" value="${esc(p.name)}" maxlength="40" aria-label="Profile name" spellcheck="false" autocomplete="off">`),
-      UI.row("Label", "Such as Personal or School", `<input class="pf-input" data-pfe-label="${id}" value="${esc(p.label)}" maxlength="24" aria-label="Profile label" spellcheck="false" autocomplete="off">`)
+      UI.row("Label", "Such as Personal or School", `<input class="pf-input" data-pfe-label="${id}" value="${esc(p.label)}" maxlength="24" aria-label="Profile label" spellcheck="false" autocomplete="off">`),
+      googleRow(p)
     ]);
+  }
+
+  /* The Google account this profile opens Google links as (services/googleAccount.js
+     in the bundle). Typed in for now; detecting the signed-in accounts comes later. */
+  function googleRow(p) {
+    const id = esc(p.id), linked = p.google ? p.google.email : "";
+    const value = googleDraft !== null ? googleDraft : linked;
+    const desc = googleProblem ? `<span class="pf-notice">${esc(googleProblem)}</span>`
+      : "Google links you open from the new tab use this account while this profile is active";
+    return UI.row("Google account", desc,
+      `<input class="pf-input" type="email" data-pfe-google="${id}" value="${esc(value)}" placeholder="you@gmail.com" aria-label="Google account email" spellcheck="false" autocomplete="off">` +
+      (linked ? `<button class="sp-pill sm" data-pfe-google-unlink="${id}">Unlink</button>` : ""));
   }
 
   function deleteCard(p, s) {
@@ -73,7 +88,7 @@
   }
 
   function render(id) {
-    if (id !== shownId) { shownId = id; confirming = false; notice = ""; }
+    if (id !== shownId) { shownId = id; confirming = false; notice = ""; googleDraft = null; googleProblem = ""; }
     const s = AP.get(), p = profile(id);
     if (!s || !p) return '<p class="sp-row-desc">This profile no longer exists.</p>';
     return UI.section("", [head(p), fields(p)]) + UI.section("", [deleteCard(p, s)]);
@@ -97,6 +112,9 @@
       iconFor = b.dataset.pfeIcon; fileInput.value = ""; fileInput.click();
     } else if ((b = t("[data-pfe-clear-icon]"))) {
       AP.update(b.dataset.pfeClearIcon, { icon: "" }).then(redraw);
+    } else if ((b = t("[data-pfe-google-unlink]"))) {
+      googleDraft = null; googleProblem = "";
+      AP.update(b.dataset.pfeGoogleUnlink, { google: null }).then(redraw);
     } else if ((b = t("[data-pfe-delete]"))) {
       if (!b.disabled) { confirming = true; redraw(); }
     } else if (t("[data-pfe-delete-cancel]")) {
@@ -110,13 +128,25 @@
   /* Name and label commit on blur or Enter, so typing never redraws mid-word. */
   content.addEventListener("change", (e) => {
     if (!onPage()) return;
-    const n = e.target.closest("[data-pfe-name]"), l = e.target.closest("[data-pfe-label]");
+    const n = e.target.closest("[data-pfe-name]"), l = e.target.closest("[data-pfe-label]"), g = e.target.closest("[data-pfe-google]");
     if (n) AP.update(n.dataset.pfeName, { name: n.value.trim() || "Profile" }).then(redraw);
     else if (l) AP.update(l.dataset.pfeLabel, { label: l.value.trim() }).then(redraw);
+    else if (g) saveGoogle(g.dataset.pfeGoogle, g.value.trim());
   });
   content.addEventListener("keydown", (e) => {
     if (onPage() && e.key === "Enter" && e.target.matches && e.target.matches(".pf-input")) { e.preventDefault(); e.target.blur(); }
   });
+
+  /* Empty unlinks; an email links; anything else stays in the box with a note. */
+  function saveGoogle(id, email) {
+    if (email && !AP.googleOf({ email })) {
+      googleDraft = email; googleProblem = "That doesn't look like an email address.";
+      redraw();
+      return;
+    }
+    googleDraft = null; googleProblem = "";
+    AP.update(id, { google: email ? { email } : null }).then(redraw);
+  }
 
   fileInput.addEventListener("change", () => {
     const f = fileInput.files && fileInput.files[0], id = iconFor;

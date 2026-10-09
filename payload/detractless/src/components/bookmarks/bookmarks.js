@@ -14,6 +14,7 @@ import {
    add popup), so the writer never depends on the widget. */
 import { attachScrollAffordance } from '../shared/scrollAffordance.js';
 import { refreshBookmarkCache } from './bookmarkCache.js';
+import { forActiveAccount } from '../../services/googleAccount.js';
 
 export { refreshBookmarkCache } from './bookmarkCache.js';
 export { renderBookmarkSearchResults, updateSearchDropdownSelection, hideBookmarkSearchResults, sortByUsage } from './bookmarkSearch.js';
@@ -167,7 +168,10 @@ function renderGroup(groupName, capacity, metrics) {
     // R-018: the row no longer listens; the card does, and finds its way
     // back here through this Map.
     rowBookmarks.set(itemDiv, bookmark);
-    const link = document.createElement("a"); link.href = bookmark.url; link.target = "_self"; link.rel = "noopener noreferrer";
+    const link = document.createElement("a"); link.href = forActiveAccount(bookmark.url); link.target = "_self"; link.rel = "noopener noreferrer";
+    // The active profile's Google account may change while the page is open; read it again just before opening.
+    const refresh = () => { link.href = forActiveAccount(bookmark.url); };
+    link.addEventListener("mousedown", refresh); link.addEventListener("focus", refresh);
     link.textContent = bookmark.name; link.style.flex = "1"; link.style.textDecoration = "none"; link.style.color = "inherit";
     itemDiv.appendChild(link); listItem.appendChild(itemDiv); listDiv.appendChild(listItem);
   });

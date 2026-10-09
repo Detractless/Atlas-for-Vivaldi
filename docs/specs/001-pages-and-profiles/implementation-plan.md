@@ -182,24 +182,25 @@ Requirements (acceptance criteria):
 
 - [ ] T4 Phase 4 Google account per profile (REQ-5). Needs Phase 3 (the field lives on the edit page).
 
-    - [ ] T4.1 Prime Context
+    - [x] T4.1 Prime Context
         - [ ] T4.1.1 Read the user's Google extension (D4) and how it finds the signed-in accounts
-        - [ ] T4.1.2 Read where the new tab opens links `[ref: payload/detractless/src/components/bookmarks/bookmarks.js; lines: 172]` `[ref: payload/detractless/src/components/search/search.js; lines: 120-135]` `[ref: payload/detractless/src/components/bookmarks/bookmarkSearch.js; lines: 52]`
+        - [x] T4.1.2 Read where the new tab opens links `[ref: payload/detractless/src/components/bookmarks/bookmarks.js; lines: 172]` `[ref: payload/detractless/src/components/search/search.js; lines: 120-135]` `[ref: payload/detractless/src/components/bookmarks/bookmarkSearch.js; lines: 52]`
         - [ ] T4.1.3 Spike, live in Vivaldi: can the new tab read the account list? Decide picker vs typed email `[activity: research]`
-    - [ ] T4.2 Write Tests
-        - [ ] T4.2.1 `withGoogleAccount`: adds `authuser` to google.com, its subdomains (mail, drive, docs, calendar) and youtube.com; replaces an existing `authuser`; keeps other parameters and the hash; leaves non-Google URLs and look-alike hosts (`google.com.evil.test`) alone `[ref: REQ-5]` `[activity: unit-test]`
-        - [ ] T4.2.2 New tab: with an active profile linked to an email, a Google bookmark, a Google search and a bookmark-search result all open with that account; with no link they open unchanged `[ref: REQ-5]` `[activity: unit-test]`
-        - [ ] T4.2.3 Switching profile switches the account used, without a reload `[ref: REQ-5]` `[activity: unit-test]`
-        - [ ] T4.2.4 Edit page: link, change and unlink an account; a typed value must look like an email `[ref: REQ-5]` `[activity: unit-test]`
-    - [ ] T4.3 Implement
-        - [ ] T4.3.1 `src/services/googleAccount.js` (`withGoogleAccount`, `activeGoogleEmail`) `[activity: frontend]`
-        - [ ] T4.3.2 Apply it at the three link-opening points `[activity: frontend]`
-        - [ ] T4.3.3 Google account field on the edit page: picker if the spike worked, typed email if not `[activity: frontend]`
+    - [x] T4.2 Write Tests
+        - [x] T4.2.1 `withGoogleAccount`: adds `authuser` to google.com, its subdomains (mail, drive, docs, calendar) and youtube.com; replaces an existing `authuser`; keeps other parameters and the hash; leaves non-Google URLs and look-alike hosts (`google.com.evil.test`) alone `[ref: REQ-5]` `[activity: unit-test]`
+        - [x] T4.2.2 New tab: with an active profile linked to an email, a Google bookmark, a Google search and a bookmark-search result all open with that account; with no link they open unchanged `[ref: REQ-5]` `[activity: unit-test]`
+        - [x] T4.2.3 Switching profile switches the account used, without a reload `[ref: REQ-5]` `[activity: unit-test]`
+        - [x] T4.2.4 Edit page: link, change and unlink an account; a typed value must look like an email `[ref: REQ-5]` `[activity: unit-test]`
+    - [x] T4.3 Implement
+        - [x] T4.3.1 `src/services/googleAccount.js` (`withGoogleAccount`, `activeGoogleEmail`) `[activity: frontend]`
+        - [x] T4.3.2 Apply it at the three link-opening points `[activity: frontend]`
+        - [x] T4.3.3 Google account field on the edit page: picker if the spike worked, typed email if not `[activity: frontend]`
     - [ ] T4.4 Implement, only if D4 says so: address-bar searches follow the profile (the Google engine template in `src/modules/15-addressbar-engine.js` carries `authuser`) `[activity: frontend]`
-    - [ ] T4.5 Validate
-        - [ ] T4.5.1 Rules and `node --check` `[activity: lint-code, review-code]`
-        - [ ] T4.5.2 Build and `npm test` `[activity: run-tests]`
+    - [x] T4.5 Validate
+        - [x] T4.5.1 Rules and `node --check` `[activity: lint-code, review-code]`
+        - [x] T4.5.2 Build and `npm test` `[activity: run-tests]`
         - [ ] T4.5.3 User checks in Vivaldi: Gmail and Drive open as the linked account for each profile `[activity: business-acceptance]`
+    - Done 2026-10-09 with D4 = typed email, no detection, address bar left alone. Not done, by that decision: T4.1.1 and T4.1.3 (the user's Google extension and the detection spike; follow-up when it is shared) and T4.4 (address bar). Searches the browser runs with its own default engine (engine set to the browser default) don't carry the account either; a chosen Google engine does. Also covered: a /u/N/ account number in a Google path is replaced by the email, and bookmark links re-read the account just before opening. T4.5.3 (live check) waits for the user's install.
 
 - [ ] T5 Integration & End-to-End Validation
 
