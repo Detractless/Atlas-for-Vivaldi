@@ -7,9 +7,10 @@
    when engines "always reset to the default", the pick lasts until you leave
    the field. Arrows move, Enter picks, Esc goes back to the bookmark pills
    (18-addressbar-pills.js).
-   While the field holds an address rather than a search (a page's own
-   https://... after clicking in, or notion.so typed), the button steps aside
-   for Vivaldi's own icon (abeStepAside, 21-addressbar-address-check.js).
+   While the field still holds the page's own address, as it was when you
+   clicked in (or as Esc put it back), the button steps aside for Vivaldi's
+   own icon, the lock (abeStepAside). Once you type, the logo shows and stays,
+   whatever the text: Vivaldi's icon would only be its engine's logo again.
    On the Atlas new tab the button shows without clicking into the field too,
    and the field is kept empty (20-addressbar-newtab.js). ── */
 
@@ -19,7 +20,7 @@ var ABE_LIST_SVG = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" 
   'stroke-linecap="round" aria-hidden="true"><path d="M5.5 4h8M5.5 8h8M5.5 12h8M2.5 4h0M2.5 8h0M2.5 12h0"/></svg>';
 var abe = {
   input: null, r: {}, icons: {}, open: false, list: [], at: -1, btn: null, card: null,
-  requery: false, revert: 0, setting: false, watched: null, ro: null
+  requery: false, revert: 0, setting: false, watched: null, ro: null, typed: false, startValue: ''
 };
 
 function abeEngine(key) {
@@ -100,7 +101,7 @@ function abeEnsureButton() {
 /* The button with the current engine's logo, over Vivaldi's icon. */
 function abeShowButton() {
   if (!abeAnchor()) return;
-  if (abe.input && atlasLooksLikeAddress(abe.input.value)) return abeStepAside();
+  if (abeUntouched()) return abeStepAside();
   var b = abeEnsureButton(), key = addressBarEngineKey(abe.r), eng = abeEngine(key);
   var img = b.querySelector('img'), src = abeIcon(key);
   if (img.getAttribute('src') !== src) img.setAttribute('src', src);
@@ -116,8 +117,16 @@ function abeShowButton() {
   abePlace();
 }
 
-/* An address in the field, not a search: there is no engine to show, so
-   Vivaldi's own icon is back until the text reads as a search again. */
+/* The field in use holds the page's address as it was when you clicked in:
+   nothing typed yet, or typed back to it. An empty field, and the new tab's
+   own address (emptied in a moment), are not. */
+function abeUntouched() {
+  var v = abe.input && abe.input.value;
+  if (!v || atlasIsNewTabUrl(v)) return false;
+  return !abe.typed || v === abe.startValue;
+}
+
+/* Vivaldi's own icon is back until you type. */
 function abeStepAside() {
   abeCloseList();
   if (abe.btn) abe.btn.hidden = true;
@@ -274,25 +283,33 @@ function abeKey(e) {
   e.stopPropagation();
 }
 
-/* Into the field: the button shows, and on the new tab the field empties
-   once Vivaldi has filled it in. */
+/* Into the field: the button shows (or Vivaldi's icon, abeUntouched), and on
+   the new tab the field empties once Vivaldi has filled it in. The text is
+   noted again then too, in case Vivaldi changed it on the way in. */
 function abeOnFocus(input) {
   abe.input = input;
+  abe.typed = false;
+  abe.startValue = input.value;
   clearTimeout(abe.revert);
   abeLoadIcons();
   abeShowButton();
-  setTimeout(function () { if (abe.input === input) abeClearNewTabAddress(input); }, 0);
+  setTimeout(function () {
+    if (abe.input !== input) return;
+    if (!abe.typed) abe.startValue = input.value;
+    abeClearNewTabAddress(input);
+    abeShowButton();
+  }, 0);
 }
 
 if (typeof document !== 'undefined' && document.addEventListener) {
   document.addEventListener('focusin', function (e) { if (apbField(e.target)) abeOnFocus(e.target); });
   document.addEventListener('input', function (e) {
     if (e.target !== abe.input) return;
+    abe.typed = true;
     if (abe.open && !abe.setting) abeCloseList();
-    abeShowButton();   // a search or an address now?
+    abeShowButton();
   });
-  /* After the key too: Vivaldi changes the text itself (Esc puts the page's
-     address back, autocomplete finishes a word) without an input event. */
+  /* After the key too: Esc puts the page's address back without an input event. */
   document.addEventListener('keyup', function (e) { if (e.target === abe.input) abeShowButton(); });
   document.addEventListener('focusout', function (e) {
     if (!apbField(e.target)) return;
