@@ -2757,6 +2757,9 @@ if (chrome.storage && chrome.storage.sync) {
    when engines "always reset to the default", the pick lasts until you leave
    the field. Arrows move, Enter picks, Esc goes back to the bookmark pills
    (18-addressbar-pills.js).
+   While the field holds an address rather than a search (a page's own
+   https://... after clicking in, or notion.so typed), the button steps aside
+   for Vivaldi's own icon (abeStepAside, 21-addressbar-address-check.js).
    On the Atlas new tab the button shows without clicking into the field too,
    and the field is kept empty (20-addressbar-newtab.js). ── */
 
@@ -2847,6 +2850,7 @@ function abeEnsureButton() {
 /* The button with the current engine's logo, over Vivaldi's icon. */
 function abeShowButton() {
   if (!abeAnchor()) return;
+  if (abe.input && atlasLooksLikeAddress(abe.input.value)) return abeStepAside();
   var b = abeEnsureButton(), key = addressBarEngineKey(abe.r), eng = abeEngine(key);
   var img = b.querySelector('img'), src = abeIcon(key);
   if (img.getAttribute('src') !== src) img.setAttribute('src', src);
@@ -2860,6 +2864,15 @@ function abeShowButton() {
   abeWatchToolbar();
   abeWatchHover();
   abePlace();
+}
+
+/* An address in the field, not a search: there is no engine to show, so
+   Vivaldi's own icon is back until the text reads as a search again. */
+function abeStepAside() {
+  abeCloseList();
+  if (abe.btn) abe.btn.hidden = true;
+  atlasMark('atlas-enginebtn-on', false);
+  atlasMark('atlas-enginebtn-inuse', false);
 }
 
 /* The button sits exactly over Vivaldi's left icon; the engine pills under the field. */
@@ -3024,8 +3037,13 @@ function abeOnFocus(input) {
 if (typeof document !== 'undefined' && document.addEventListener) {
   document.addEventListener('focusin', function (e) { if (apbField(e.target)) abeOnFocus(e.target); });
   document.addEventListener('input', function (e) {
-    if (abe.open && !abe.setting && e.target === abe.input) abeCloseList();
+    if (e.target !== abe.input) return;
+    if (abe.open && !abe.setting) abeCloseList();
+    abeShowButton();   // a search or an address now?
   });
+  /* After the key too: Vivaldi changes the text itself (Esc puts the page's
+     address back, autocomplete finishes a word) without an input event. */
+  document.addEventListener('keyup', function (e) { if (e.target === abe.input) abeShowButton(); });
   document.addEventListener('focusout', function (e) {
     if (!apbField(e.target)) return;
     abeHide();
@@ -3067,7 +3085,7 @@ if (chrome.storage && chrome.storage.sync) {
    fill in the new tab's extension address when you click into it or press
    Esc; on hover its hint shows in place of that address (abeCopyHint). A
    new tab opens with the cursor in the field (abeFocusNewTab). Elsewhere the
-   button shows only while the field is in use. ── */
+   button shows only while the field is in use and holds a search. ── */
 
 /* The window's address field, in use or not. */
 function abeFieldInput() {
@@ -3201,6 +3219,53 @@ if (typeof document !== 'undefined' && document.addEventListener) {
     var input = e.key === 'Escape' && apbField(e.target);
     if (input) setTimeout(function () { abeClearNewTabAddress(input); }, 0);
   });
+}
+
+  /* ═══ Module: 21-addressbar-address-check.js ═══ */
+/* ── 21-addressbar-address-check.js: does the address field hold an address? ──
+   The engine button (19-addressbar-engine-picker.js) means "this will be
+   searched", so it steps aside while the field holds something that will be
+   opened as a site instead (2026-10-10): text with a scheme (https://,
+   vivaldi://, ...), www., localhost, an IP address, a file path, or
+   name.ending where the ending is one the new tab knows. Anything else, and
+   an empty field, is a search.
+
+   The endings are the new tab's own list (payload/detractless/src/utils/url.js,
+   KNOWN_TLDS), copied here because the window can't load the new tab's
+   modules; a test keeps the two the same. An ending not on the list is a
+   search, as on the new tab: https:// still opens it. ── */
+
+var ATLAS_KNOWN_ENDINGS = [
+  // generic
+  'com', 'org', 'net', 'edu', 'gov', 'mil', 'int', 'info', 'biz', 'name', 'pro',
+  'mobi', 'asia', 'tel', 'travel', 'jobs', 'aero', 'coop', 'museum',
+  // common modern generics
+  'app', 'dev', 'io', 'ai', 'co', 'me', 'tv', 'cc', 'xyz', 'online', 'site',
+  'tech', 'store', 'blog', 'cloud', 'page', 'live', 'shop', 'wiki', 'design',
+  'art', 'fun', 'space', 'world', 'today', 'news', 'media', 'email', 'link',
+  'click', 'host', 'press', 'club', 'life', 'vip', 'top', 'one', 'run', 'fm',
+  'gg', 'sh', 'ly', 'to', 'is', 'am', 'so', 'st', 'md', 'ms', 'im', 'ws',
+  // country codes in common use
+  'uk', 'de', 'fr', 'jp', 'cn', 'ru', 'br', 'in', 'au', 'ca', 'us', 'es', 'it',
+  'nl', 'se', 'no', 'fi', 'dk', 'pl', 'ch', 'at', 'be', 'cz', 'gr', 'pt', 'ro',
+  'hu', 'ie', 'nz', 'mx', 'kr', 'tw', 'hk', 'sg', 'za', 'il', 'tr', 'ua', 'ar',
+  'cl', 'pe', 'ph', 'th', 'vn', 'id', 'my', 'eu'
+];
+
+/* A hostname: dot-separated labels of letters, digits and hyphens, no empty labels. */
+var ATLAS_HOSTNAME = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+$/;
+
+function atlasLooksLikeAddress(text) {
+  var v = String(text || '').trim();
+  if (!v || atlasIsNewTabUrl(v)) return false;   // the new tab's own address reads as an empty field
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(v) || /^(about|mailto):\S/i.test(v)) return true;
+  if (/^([a-zA-Z]:[\/\\]|\\\\|\/[^\/\s])/.test(v)) return true;   // C:\..., \\server, /Users/...
+  if (/^(localhost|(\d{1,3}\.){3}\d{1,3})(:\d+)?([\/?#]\S*)?$/i.test(v)) return true;
+  if (/\s/.test(v) || v.indexOf('.') === -1) return false;
+  if (/^www\.\S/i.test(v)) return true;
+  var host = v.split(/[\/?#]/)[0].split(':')[0];
+  if (!ATLAS_HOSTNAME.test(host)) return false;
+  return ATLAS_KNOWN_ENDINGS.indexOf(host.slice(host.lastIndexOf('.') + 1).toLowerCase()) !== -1;
 }
 
 })();

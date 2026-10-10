@@ -7,7 +7,7 @@
    fill in the new tab's extension address when you click into it or press
    Esc; on hover its hint shows in place of that address (abeCopyHint). A
    new tab opens with the cursor in the field (abeFocusNewTab). Elsewhere the
-   button shows only while the field is in use. ── */
+   button shows only while the field is in use and holds a search. ── */
 
 /* The window's address field, in use or not. */
 function abeFieldInput() {

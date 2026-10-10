@@ -58,7 +58,9 @@ test("marks Atlas took off stay off after Vivaldi's rewrite", async () => {
   w.input.focus();
   w.input.dispatchEvent(new w.window.FocusEvent("focusin", { bubbles: true }));
   await wait(40);
-  assert.deepEqual(marks(w), ["atlas-enginebtn-inuse", "atlas-enginebtn-on"], "in use on a web page");
+  w.input.value = "cats";   // a search: the engine logo, not the page's address
+  w.input.dispatchEvent(new w.window.Event("input", { bubbles: true }));
+  assert.deepEqual(marks(w), ["atlas-enginebtn-inuse", "atlas-enginebtn-on"], "searching on a web page");
   w.input.blur();
   w.input.dispatchEvent(new w.window.FocusEvent("focusout", { bubbles: true }));
   await wait(20);

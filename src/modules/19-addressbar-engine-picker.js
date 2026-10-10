@@ -7,6 +7,9 @@
    when engines "always reset to the default", the pick lasts until you leave
    the field. Arrows move, Enter picks, Esc goes back to the bookmark pills
    (18-addressbar-pills.js).
+   While the field holds an address rather than a search (a page's own
+   https://... after clicking in, or notion.so typed), the button steps aside
+   for Vivaldi's own icon (abeStepAside, 21-addressbar-address-check.js).
    On the Atlas new tab the button shows without clicking into the field too,
    and the field is kept empty (20-addressbar-newtab.js). ── */
 
@@ -97,6 +100,7 @@ function abeEnsureButton() {
 /* The button with the current engine's logo, over Vivaldi's icon. */
 function abeShowButton() {
   if (!abeAnchor()) return;
+  if (abe.input && atlasLooksLikeAddress(abe.input.value)) return abeStepAside();
   var b = abeEnsureButton(), key = addressBarEngineKey(abe.r), eng = abeEngine(key);
   var img = b.querySelector('img'), src = abeIcon(key);
   if (img.getAttribute('src') !== src) img.setAttribute('src', src);
@@ -110,6 +114,15 @@ function abeShowButton() {
   abeWatchToolbar();
   abeWatchHover();
   abePlace();
+}
+
+/* An address in the field, not a search: there is no engine to show, so
+   Vivaldi's own icon is back until the text reads as a search again. */
+function abeStepAside() {
+  abeCloseList();
+  if (abe.btn) abe.btn.hidden = true;
+  atlasMark('atlas-enginebtn-on', false);
+  atlasMark('atlas-enginebtn-inuse', false);
 }
 
 /* The button sits exactly over Vivaldi's left icon; the engine pills under the field. */
@@ -274,8 +287,13 @@ function abeOnFocus(input) {
 if (typeof document !== 'undefined' && document.addEventListener) {
   document.addEventListener('focusin', function (e) { if (apbField(e.target)) abeOnFocus(e.target); });
   document.addEventListener('input', function (e) {
-    if (abe.open && !abe.setting && e.target === abe.input) abeCloseList();
+    if (e.target !== abe.input) return;
+    if (abe.open && !abe.setting) abeCloseList();
+    abeShowButton();   // a search or an address now?
   });
+  /* After the key too: Vivaldi changes the text itself (Esc puts the page's
+     address back, autocomplete finishes a word) without an input event. */
+  document.addEventListener('keyup', function (e) { if (e.target === abe.input) abeShowButton(); });
   document.addEventListener('focusout', function (e) {
     if (!apbField(e.target)) return;
     abeHide();
