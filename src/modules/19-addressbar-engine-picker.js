@@ -105,11 +105,8 @@ function abeShowButton() {
   b.setAttribute('aria-label', b.title);
   b.setAttribute('aria-expanded', String(abe.open));
   b.hidden = false;
-  var browser = document.getElementById('browser');
-  if (browser) {
-    browser.classList.add('atlas-enginebtn-on');
-    browser.classList.toggle('atlas-enginebtn-inuse', !!abe.input);  // at rest it shows only on hover
-  }
+  atlasMark('atlas-enginebtn-on', true);
+  atlasMark('atlas-enginebtn-inuse', !!abe.input);  // at rest it shows only on hover
   abeWatchToolbar();
   abeWatchHover();
   abePlace();
@@ -184,8 +181,7 @@ function abeRender() {
   c.appendChild(wrap);
   c.appendChild(hint);
   c.hidden = false;
-  var browser = document.getElementById('browser');
-  if (browser) browser.classList.add('atlas-engines-open');
+  atlasMark('atlas-engines-open', true);
   if (abe.btn) abe.btn.setAttribute('aria-expanded', 'true');
   abePlace();
 }
@@ -196,8 +192,7 @@ function abeCloseList() {
   abe.at = -1;
   if (abe.card) abe.card.hidden = true;
   if (abe.btn) abe.btn.setAttribute('aria-expanded', 'false');
-  var browser = document.getElementById('browser');
-  if (browser) browser.classList.remove('atlas-engines-open');
+  atlasMark('atlas-engines-open', false);
 }
 
 /* Leaving the field: the engine pills close, and the button rests (abeRest). */

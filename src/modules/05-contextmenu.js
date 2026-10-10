@@ -4,8 +4,7 @@ var uiMenu = null;
 var activeContextTab = null;
 
 function closeUiMenu() {
-  var bHost = document.getElementById('browser') || document.body;
-  if (bHost) bHost.classList.remove('atlas-menu-open');
+  atlasMark('atlas-menu-open', false);
   if (activeContextTab) {
     activeContextTab.classList.remove('atlas-tab-context-active');
     var p = activeContextTab.closest ? activeContextTab.closest('.tab-position') : null;
@@ -47,7 +46,7 @@ function showUiMenu(x, y, items, tabNode) {
     activeContextTab = tabNode;
   }
   var host = document.getElementById('browser') || document.body;
-  host.classList.add('atlas-menu-open');
+  atlasMark('atlas-menu-open', true);
   uiMenu = document.createElement('div');
   uiMenu.className = 'atlas-profile-menu';
   items.forEach(function (it) { uiMenu.appendChild(uiMenuEntry(it)); });

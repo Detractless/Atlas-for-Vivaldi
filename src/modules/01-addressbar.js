@@ -39,8 +39,8 @@ function activateSpellcheck(input) {
 
 function setNewTabClass(isNew) {
   var browser = document.getElementById ? document.getElementById('browser') : null;
-  if (!browser || browser.classList.contains('atlas-newtab') === isNew) return;
-  browser.classList.toggle('atlas-newtab', isNew);
+  if (!browser || atlasMarked('atlas-newtab') === isNew) return;
+  atlasMark('atlas-newtab', isNew);
   if (typeof abeNewTabChanged === 'function') abeNewTabChanged();
 }
 

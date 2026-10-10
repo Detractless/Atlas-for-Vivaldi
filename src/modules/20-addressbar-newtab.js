@@ -14,8 +14,7 @@ function abeFieldInput() {
 }
 
 function abeOnNewTab() {
-  var browser = document.getElementById('browser');
-  return !!(browser && browser.classList.contains('atlas-newtab'));
+  return atlasMarked('atlas-newtab');
 }
 
 /* The field the button belongs to: the one in use, or on the new tab the field at rest. */
@@ -30,8 +29,8 @@ function abeRest() {
   if (abe.input) return;
   if (abeOnNewTab() && abeFieldInput()) return abeShowButton();
   if (abe.btn) abe.btn.hidden = true;
-  var browser = document.getElementById('browser');
-  if (browser) browser.classList.remove('atlas-enginebtn-on', 'atlas-enginebtn-inuse');
+  atlasMark('atlas-enginebtn-on', false);
+  atlasMark('atlas-enginebtn-inuse', false);
 }
 
 function abeNewTabChanged() {
@@ -81,16 +80,14 @@ function abeWatchHover() {
 }
 
 function abeHoverOn() {
-  var browser = document.getElementById('browser');
-  if (browser) browser.classList.add('atlas-urlbar-hover');
+  atlasMark('atlas-urlbar-hover', true);
 }
 
 /* Moving between the bar and the logo isn't leaving. */
 function abeHoverOff(e) {
   var to = e && e.relatedTarget;
   if (to && ((abe.btn && abe.btn.contains(to)) || (abe.hoverField && abe.hoverField.contains(to)))) return;
-  var browser = document.getElementById('browser');
-  if (browser) browser.classList.remove('atlas-urlbar-hover');
+  atlasMark('atlas-urlbar-hover', false);
 }
 
 if (typeof document !== 'undefined' && document.addEventListener) {

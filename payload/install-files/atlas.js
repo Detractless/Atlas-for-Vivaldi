@@ -16,6 +16,48 @@ function atlasWarn(where, err) {
   try { console.warn('[Atlas] ' + where, err); } catch (e) { /* no console in this context */ }
 }
 
+/* Atlas's marks (atlas-* classes) on the window's #browser element, which the
+   stylesheets follow. Vivaldi rebuilds that element's whole class list now and
+   then (when the window gains or loses focus, among others), and that erased
+   them: the address bar's engine logo then sat over Vivaldi's own icon
+   (2026-10-09). So every mark goes through atlasMark, which keeps a record,
+   and a watch on #browser puts recorded marks back as soon as Vivaldi's list
+   replaces them, before the window redraws. */
+var atlasMarks = {};
+var atlasMarkWatch = { el: null, mo: null };
+
+function atlasMark(name, on) {
+  atlasMarks[name] = !!on;
+  var browser = atlasMarkHost();
+  if (browser) browser.classList.toggle(name, !!on);
+}
+
+/* Whether a mark is on, by the record: right even while Vivaldi's rewrite waits to be undone. */
+function atlasMarked(name) {
+  return !!atlasMarks[name];
+}
+
+function atlasMarkHost() {
+  var browser = typeof document !== 'undefined' && document.getElementById ? document.getElementById('browser') : null;
+  if (browser && atlasMarkWatch.el !== browser && typeof MutationObserver !== 'undefined') {
+    if (atlasMarkWatch.mo) atlasMarkWatch.mo.disconnect();
+    atlasMarkWatch.el = browser;
+    atlasMarkWatch.mo = new MutationObserver(atlasMarkRestore);
+    atlasMarkWatch.mo.observe(browser, { attributes: true, attributeFilter: ['class'] });
+    atlasMarkRestore();   // a new #browser: the marks go on it too
+  }
+  return browser;
+}
+
+/* Only adds what the record has on, so it settles after one pass. */
+function atlasMarkRestore() {
+  var browser = atlasMarkWatch.el;
+  if (!browser) return;
+  Object.keys(atlasMarks).forEach(function (name) {
+    if (atlasMarks[name] && !browser.classList.contains(name)) browser.classList.add(name);
+  });
+}
+
   /* ═══ Module: 01-addressbar.js ═══ */
 /* ── 01-addressbar.js: Address field focus blur release, blank new tab marker, spellcheck activation ── */
 
@@ -58,8 +100,8 @@ function activateSpellcheck(input) {
 
 function setNewTabClass(isNew) {
   var browser = document.getElementById ? document.getElementById('browser') : null;
-  if (!browser || browser.classList.contains('atlas-newtab') === isNew) return;
-  browser.classList.toggle('atlas-newtab', isNew);
+  if (!browser || atlasMarked('atlas-newtab') === isNew) return;
+  atlasMark('atlas-newtab', isNew);
   if (typeof abeNewTabChanged === 'function') abeNewTabChanged();
 }
 
@@ -343,8 +385,7 @@ var uiMenu = null;
 var activeContextTab = null;
 
 function closeUiMenu() {
-  var bHost = document.getElementById('browser') || document.body;
-  if (bHost) bHost.classList.remove('atlas-menu-open');
+  atlasMark('atlas-menu-open', false);
   if (activeContextTab) {
     activeContextTab.classList.remove('atlas-tab-context-active');
     var p = activeContextTab.closest ? activeContextTab.closest('.tab-position') : null;
@@ -386,7 +427,7 @@ function showUiMenu(x, y, items, tabNode) {
     activeContextTab = tabNode;
   }
   var host = document.getElementById('browser') || document.body;
-  host.classList.add('atlas-menu-open');
+  atlasMark('atlas-menu-open', true);
   uiMenu = document.createElement('div');
   uiMenu.className = 'atlas-profile-menu';
   items.forEach(function (it) { uiMenu.appendChild(uiMenuEntry(it)); });
@@ -2580,11 +2621,8 @@ function apbRefresh() {
   }
   if (apbState.list.length) card.appendChild(apbPills());
   card.hidden = !long && !apbState.list.length;
-  var browser = document.getElementById('browser');
-  if (browser) {
-    browser.classList.toggle('atlas-pills-open', apbState.list.length > 0);
-    browser.classList.toggle('atlas-urlcard-open', !card.hidden);  // the field squares its bottom to join the card
-  }
+  atlasMark('atlas-pills-open', apbState.list.length > 0);
+  atlasMark('atlas-urlcard-open', !card.hidden);  // the field squares its bottom to join the card
   apbPlace(card, input);
 }
 
@@ -2628,8 +2666,8 @@ function apbClose() {
   apbState.list = [];
   apbState.at = -1;
   if (apbCard) apbCard.hidden = true;
-  var browser = document.getElementById('browser');
-  if (browser) browser.classList.remove('atlas-pills-open', 'atlas-urlcard-open');
+  atlasMark('atlas-pills-open', false);
+  atlasMark('atlas-urlcard-open', false);
 }
 
 function apbOpen(b) {
@@ -2796,11 +2834,8 @@ function abeShowButton() {
   b.setAttribute('aria-label', b.title);
   b.setAttribute('aria-expanded', String(abe.open));
   b.hidden = false;
-  var browser = document.getElementById('browser');
-  if (browser) {
-    browser.classList.add('atlas-enginebtn-on');
-    browser.classList.toggle('atlas-enginebtn-inuse', !!abe.input);  // at rest it shows only on hover
-  }
+  atlasMark('atlas-enginebtn-on', true);
+  atlasMark('atlas-enginebtn-inuse', !!abe.input);  // at rest it shows only on hover
   abeWatchToolbar();
   abeWatchHover();
   abePlace();
@@ -2875,8 +2910,7 @@ function abeRender() {
   c.appendChild(wrap);
   c.appendChild(hint);
   c.hidden = false;
-  var browser = document.getElementById('browser');
-  if (browser) browser.classList.add('atlas-engines-open');
+  atlasMark('atlas-engines-open', true);
   if (abe.btn) abe.btn.setAttribute('aria-expanded', 'true');
   abePlace();
 }
@@ -2887,8 +2921,7 @@ function abeCloseList() {
   abe.at = -1;
   if (abe.card) abe.card.hidden = true;
   if (abe.btn) abe.btn.setAttribute('aria-expanded', 'false');
-  var browser = document.getElementById('browser');
-  if (browser) browser.classList.remove('atlas-engines-open');
+  atlasMark('atlas-engines-open', false);
 }
 
 /* Leaving the field: the engine pills close, and the button rests (abeRest). */
@@ -3020,8 +3053,7 @@ function abeFieldInput() {
 }
 
 function abeOnNewTab() {
-  var browser = document.getElementById('browser');
-  return !!(browser && browser.classList.contains('atlas-newtab'));
+  return atlasMarked('atlas-newtab');
 }
 
 /* The field the button belongs to: the one in use, or on the new tab the field at rest. */
@@ -3036,8 +3068,8 @@ function abeRest() {
   if (abe.input) return;
   if (abeOnNewTab() && abeFieldInput()) return abeShowButton();
   if (abe.btn) abe.btn.hidden = true;
-  var browser = document.getElementById('browser');
-  if (browser) browser.classList.remove('atlas-enginebtn-on', 'atlas-enginebtn-inuse');
+  atlasMark('atlas-enginebtn-on', false);
+  atlasMark('atlas-enginebtn-inuse', false);
 }
 
 function abeNewTabChanged() {
@@ -3087,16 +3119,14 @@ function abeWatchHover() {
 }
 
 function abeHoverOn() {
-  var browser = document.getElementById('browser');
-  if (browser) browser.classList.add('atlas-urlbar-hover');
+  atlasMark('atlas-urlbar-hover', true);
 }
 
 /* Moving between the bar and the logo isn't leaving. */
 function abeHoverOff(e) {
   var to = e && e.relatedTarget;
   if (to && ((abe.btn && abe.btn.contains(to)) || (abe.hoverField && abe.hoverField.contains(to)))) return;
-  var browser = document.getElementById('browser');
-  if (browser) browser.classList.remove('atlas-urlbar-hover');
+  atlasMark('atlas-urlbar-hover', false);
 }
 
 if (typeof document !== 'undefined' && document.addEventListener) {

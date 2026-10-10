@@ -102,11 +102,8 @@ function apbRefresh() {
   }
   if (apbState.list.length) card.appendChild(apbPills());
   card.hidden = !long && !apbState.list.length;
-  var browser = document.getElementById('browser');
-  if (browser) {
-    browser.classList.toggle('atlas-pills-open', apbState.list.length > 0);
-    browser.classList.toggle('atlas-urlcard-open', !card.hidden);  // the field squares its bottom to join the card
-  }
+  atlasMark('atlas-pills-open', apbState.list.length > 0);
+  atlasMark('atlas-urlcard-open', !card.hidden);  // the field squares its bottom to join the card
   apbPlace(card, input);
 }
 
@@ -150,8 +147,8 @@ function apbClose() {
   apbState.list = [];
   apbState.at = -1;
   if (apbCard) apbCard.hidden = true;
-  var browser = document.getElementById('browser');
-  if (browser) browser.classList.remove('atlas-pills-open', 'atlas-urlcard-open');
+  atlasMark('atlas-pills-open', false);
+  atlasMark('atlas-urlcard-open', false);
 }
 
 function apbOpen(b) {
