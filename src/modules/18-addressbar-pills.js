@@ -8,7 +8,8 @@
      pills, ordered by how often you open them: the same rule and the same
      "Bookmark pills" setting as the new tab's search. No match, no pills.
    The first pill is picked; the arrows move the pick, Enter opens it in this
-   tab, a click opens one, and Shift+Enter is left to Vivaldi (it searches).
+   tab, a click opens one, and Shift+Enter searches what you typed, in this
+   tab too (apbSearchHere).
    While pills show, Vivaldi's own suggestion list steps aside.
 
    The bookmarks are read from the new tab's own database (same extension,
@@ -159,6 +160,24 @@ function apbOpen(b) {
   chrome.tabs.update({ url: b.url }, function () { void chrome.runtime.lastError; });
 }
 
+/* Shift+Enter while pills show: not the picked bookmark but what was typed,
+   searched (or opened, if it is an address) as Enter does without pills.
+   Vivaldi's own Shift+Enter opens a new tab, so the pills close and Vivaldi's
+   field gets a plain Enter instead: a keypress, which is what it submits on
+   (2026-10-09). The field stays in use, so typing more brings pills back. */
+function apbSearchHere(input) {
+  apbState.list = [];
+  apbState.at = -1;
+  if (apbCard) apbCard.hidden = true;
+  atlasMark('atlas-pills-open', false);
+  atlasMark('atlas-urlcard-open', false);
+  var ev = new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, charCode: 13, bubbles: true, cancelable: true });
+  ['keyCode', 'charCode', 'which'].forEach(function (k) {   // read by Vivaldi's field (React) to tell Enter
+    if (ev[k] !== 13) Object.defineProperty(ev, k, { value: 13 });
+  });
+  input.dispatchEvent(ev);
+}
+
 /* The keys, caught before Vivaldi's field sees them, only while pills show. */
 function apbKey(e) {
   if (!apbField(e.target) || !apbState.list.length) return;
@@ -167,6 +186,8 @@ function apbKey(e) {
     apbState.at = (apbState.at + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
   } else if (e.key === 'Enter' && !e.shiftKey && apbState.at >= 0) {
     apbOpen(apbState.list[apbState.at]);
+  } else if (e.key === 'Enter' && e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey) {
+    apbSearchHere(e.target);
   } else {
     return;
   }

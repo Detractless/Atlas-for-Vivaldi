@@ -33,29 +33,36 @@ async function stored(t, key) {
   return plain(await t.chrome.storage.sync.get([key]))[key];
 }
 
-test("the search bar toggle saves at once, with no Save button", async () => {
+test("a toggle saves at once, with no Save button", async () => {
   const t = await openNewTab();
-  const content = await openSettingsAt(t, "search");
-  click(t.window, content.querySelector('[data-toggle="spotlight"]'));
+  const content = await openSettingsAt(t, "focus");
+  click(t.window, content.querySelector('[data-toggle="grayscale"]'));
   await settle(t.window, 50);
-  assert.equal(await stored(t, "spotlightVisible"), false, "saved without leaving Settings");
-  assert.ok(t.document.getElementById("search-page").classList.contains("hide-spotlight"));
+  assert.equal(await stored(t, "grayscale"), true, "saved without leaving Settings");
+  assert.ok(t.document.documentElement.classList.contains("grayscale"));
   assert.equal(t.document.getElementById("save-settings"), null, "no Save button any more");
   click(t.window, t.document.getElementById("sp-back"));
   assert.ok(t.document.getElementById("sp-root").hidden, "Back to dashboard closes");
-  assert.ok(t.document.getElementById("search-page").classList.contains("hide-spotlight"), "still off after closing");
+  assert.ok(t.document.documentElement.classList.contains("grayscale"), "still on after closing");
   assert.deepEqual(t.errors, []);
+});
+
+test("Search has no search bar setting any more: the address bar searches", async () => {
+  const t = await openNewTab();
+  const content = await openSettingsAt(t, "search");
+  assert.equal(content.querySelector('[data-toggle="spotlight"]'), null);
+  assert.ok(!/Search bar/.test(text(content)), "no Search bar row");
+  assert.match(text(content), /Which engine the address bar starts with/);
 });
 
 test("a change saved in another tab shows up live", async () => {
   const t = await openNewTab();
-  await t.chrome.storage.sync.set({ spotlightVisible: false, grayscale: true });
+  await t.chrome.storage.sync.set({ grayscale: true });
   await settle(t.window, 50);
-  assert.ok(t.document.getElementById("search-page").classList.contains("hide-spotlight"));
   assert.ok(t.document.documentElement.classList.contains("grayscale"));
-  await t.chrome.storage.sync.remove("spotlightVisible");
+  await t.chrome.storage.sync.remove("grayscale");
   await settle(t.window, 50);
-  assert.ok(!t.document.getElementById("search-page").classList.contains("hide-spotlight"), "removed key = default (on)");
+  assert.ok(!t.document.documentElement.classList.contains("grayscale"), "removed key = default (off)");
 });
 
 test("UI scale applies, saves, and the first-paint cache matches storage", async () => {
@@ -142,17 +149,17 @@ test("Escape closes Settings, and ?settings=focus opens it on Focus", async () =
 test("switching profile swaps settings in place, without reloading", async () => {
   const profiles = {
     v: 2, active: "personal", owner: "personal",
-    share: { bookmarks: true, theme: true, appearance: true, search: false, focus: true },
+    share: { bookmarks: true, theme: true, appearance: true, search: true, focus: false },
     list: [
       { id: "personal", name: "Pat", label: "Personal", color: 0, icon: "", db: "", settings: {} },
-      { id: "school", name: "Pat (School)", label: "School", color: 1, icon: "", db: "", settings: { spotlightVisible: false } },
+      { id: "school", name: "Pat (School)", label: "School", color: 1, icon: "", db: "", settings: { grayscale: true } },
     ],
   };
   const t = await openNewTab({ local: { atlasProfilesV2: profiles } });
   const content = await openSettingsAt(t, "profiles");
-  assert.ok(!t.document.getElementById("search-page").classList.contains("hide-spotlight"));
+  assert.ok(!t.document.documentElement.classList.contains("grayscale"));
   click(t.window, await waitFor(() => content.querySelector('[data-pf-switch="school"]'), 2000, "Switch button"));
-  await waitFor(() => t.document.getElementById("search-page").classList.contains("hide-spotlight"), 3000, "school's search bar setting");
+  await waitFor(() => t.document.documentElement.classList.contains("grayscale"), 3000, "school's grayscale setting");
   await settle(t.window, 200);
   assert.equal(t.window.__navigations, undefined, "no reload");
   assert.ok(!t.document.getElementById("sp-root").hidden, "Settings stays open");

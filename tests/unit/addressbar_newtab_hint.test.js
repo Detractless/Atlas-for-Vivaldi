@@ -4,6 +4,8 @@
 // its hint, "Search … or enter an address", only once clicked into. Now the
 // hint shows on hover in place of that address, copied from the field so it
 // names the engine in use.
+// Also: with the new tab's own search bar gone, opening a new tab puts the
+// cursor in the address bar.
 "use strict";
 
 const test = require("node:test");
@@ -62,4 +64,61 @@ test("the stylesheet shows the hint on hover in place of the new tab's address",
     "where and as Vivaldi draws its own hint");
   assert.match(css, /#browser\.atlas-urlbar-hover \.UrlBar-AddressField:not\(:focus-within\) \.UrlBar-UrlFieldWrapper \{\r\n  opacity: 1;/,
     "and it stays while the pointer is on the logo");
+});
+
+// ── The cursor on a new tab (abeFocusNewTab) ──
+
+/* Atlas asks for this window's active tab; answer every such question asked since `from`. */
+function answerActive(w, from, tabs) {
+  for (const c of w.calls.slice(from)) {
+    const q = c.name === "chrome.tabs.query" && c.args[0];
+    if (q && q.active && q.currentWindow && typeof c.args[1] === "function") c.args[1](tabs);
+  }
+}
+const fire = (w, name, ...args) => { for (const fn of w.listeners[name] || []) fn(...args); };
+
+test("opening a new tab puts the cursor in the address bar, and again once it has loaded", async () => {
+  const w = await start(NEWTAB);
+  const doc = w.window.document;
+  assert.notEqual(doc.activeElement, w.input, "switching to a new tab already open leaves the cursor alone");
+  let from = w.calls.length;
+  fire(w, "chrome.tabs.onCreated", { id: 5, active: true, pendingUrl: NEWTAB });
+  await wait(300);
+  answerActive(w, from, [{ id: 5, url: NEWTAB }]);
+  await wait(20);
+  assert.equal(doc.activeElement, w.input, "in the address bar");
+  w.input.blur();   // the page takes the focus as it loads
+  from = w.calls.length;
+  fire(w, "chrome.tabs.onUpdated", 5, { status: "complete" }, { id: 5 });
+  await wait(20);
+  answerActive(w, from, [{ id: 5, url: NEWTAB }]);
+  await wait(20);
+  assert.equal(doc.activeElement, w.input, "back in the address bar");
+  assert.deepEqual(w.errors, []);
+});
+
+test("a new tab in another window, a web page, or typing elsewhere keeps the cursor where it is", async () => {
+  const w = await start(NEWTAB);
+  const doc = w.window.document;
+  let from = w.calls.length;
+  fire(w, "chrome.tabs.onCreated", { id: 7, active: true, pendingUrl: NEWTAB });
+  await wait(300);
+  answerActive(w, from, [{ id: 5, url: NEWTAB }]);   // this window's active tab is another one
+  await wait(20);
+  assert.notEqual(doc.activeElement, w.input, "another window's new tab");
+  from = w.calls.length;
+  fire(w, "chrome.tabs.onCreated", { id: 8, active: true, pendingUrl: "https://example.com/" });
+  await wait(300);
+  answerActive(w, from, [{ id: 8, url: "https://example.com/" }]);
+  await wait(20);
+  assert.notEqual(doc.activeElement, w.input, "a tab opened on a web page");
+  doc.getElementById("browser").insertAdjacentHTML("beforeend", '<input class="find-in-page">');
+  const other = doc.querySelector(".find-in-page");
+  other.focus();
+  from = w.calls.length;
+  fire(w, "chrome.tabs.onCreated", { id: 9, active: true, pendingUrl: NEWTAB });
+  await wait(300);
+  answerActive(w, from, [{ id: 9, url: NEWTAB }]);
+  await wait(20);
+  assert.equal(doc.activeElement, other, "not over typing elsewhere in the window");
 });

@@ -35,7 +35,6 @@ const theme = {
 
 export const CONTROLS = {
   grayscale: flag("grayscale"),
-  spotlight: flag("spotlightVisible"),
   showQuery: flag("showQueryOnDelay"),
   engine: choice("searchEngineBehavior", { "remember": "Remember last selected", "always-default": "Always reset to default" }),
   pills: choice("bookmarkPillBehavior", { "prefix": "When typing ./", "always": "Always" }),

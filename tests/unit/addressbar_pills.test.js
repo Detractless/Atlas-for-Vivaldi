@@ -113,14 +113,20 @@ test("arrows move the pick, Enter opens it, and Vivaldi never sees those keys", 
   assert.ok(!card(w) || card(w).hidden, "the card closes");
 });
 
-test("Shift+Enter is left to Vivaldi, which searches the typed text", async () => {
+test("Shift+Enter searches the typed text in this tab: Vivaldi gets a plain Enter, not its new-tab Shift+Enter", async () => {
   const w = await start();
+  const presses = [];
+  w.input.addEventListener("keypress", (e) => presses.push({ key: e.key, which: e.which, charCode: e.charCode, shift: e.shiftKey }));
   await focus(w);
   await type(w, "notion");
   const ev = key(w, "Enter", { shiftKey: true });
-  assert.equal(ev.defaultPrevented, false);
+  assert.ok(ev.defaultPrevented, "Vivaldi never sees the Shift+Enter, which would open a new tab");
+  assert.deepEqual(presses, [{ key: "Enter", which: 13, charCode: 13, shift: false }], "the Enter its field submits on");
+  assert.deepEqual(names(w), [], "the pills close");
+  assert.ok(!w.window.document.getElementById("browser").classList.contains("atlas-pills-open"));
   await wait(20);
-  assert.deepEqual(opened(w), []);
+  assert.deepEqual(opened(w), [], "not the bookmark");
+  assert.ok(!key(w, "Enter", { shiftKey: true }).defaultPrevented, "with no pills, Shift+Enter is Vivaldi's own");
 });
 
 test("a pill can be clicked", async () => {

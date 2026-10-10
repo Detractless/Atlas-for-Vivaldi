@@ -2,7 +2,7 @@ import { DEFAULT_THEME } from '../../constants/defaults.js';
 
 export let appThemeConfig = DEFAULT_THEME;
 
-export let currentTheme = "dark", currentPage = "search", currentBookmarkPage = 1, bookmarks = {}, fadeInEnabled = true, spotlightVisible = true, uiScale = 1.0;
+export let currentTheme = "dark", currentPage = "search", currentBookmarkPage = 1, bookmarks = {}, fadeInEnabled = true, spotlightVisible = false, uiScale = 1.0;
 export let searchEngineBehavior = "remember", bookmarkPillBehavior = "always", activeTabs = [];
 export let searchEngines = {}, currentEngine = "default", defaultEngineKey = "default";
 export let searchDelaySeconds = 0, delayUpdateInterval = null;
@@ -20,7 +20,10 @@ export function setCurrentPage(v) { currentPage = v; }
 export function setCurrentBookmarkPage(v) { currentBookmarkPage = v; }
 export function setBookmarks(v) { bookmarks = v; }
 export function setFadeInEnabled(v) { fadeInEnabled = v; }
-export function setSpotlightVisible(v) { spotlightVisible = v; }
+/* The new tab's search bar is gone (2026-10-09): the address bar searches, with
+   the same engines and bookmark pills. A saved spotlightVisible stays as it was
+   (backups, profiles) but no longer shows the bar. */
+export function setSpotlightVisible() { spotlightVisible = false; }
 export function setUiScale(v) { uiScale = v; }
 /* R-015: currentModalStep/totalModalSteps and their setters stood here.
    The add form is one screen now, so there is no step to track. */

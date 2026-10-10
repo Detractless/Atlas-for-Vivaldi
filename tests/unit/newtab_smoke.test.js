@@ -12,20 +12,21 @@ const text = (el) => (el ? el.textContent.replace(/\s+/g, " ").trim() : "");
 const switcherLabels = (doc) =>
   [...doc.querySelectorAll("#tabs-container .switcher-item .label")].map((li) => li.firstChild.textContent);
 
-test("search bar renders on a fresh new tab", async () => {
+test("the new tab has no search bar: the address bar searches", async () => {
   const t = await openNewTab();
-  const doc = t.document;
-  assert.ok(doc.getElementById("search-input"), "search input exists");
-  const page = doc.getElementById("search-page");
-  assert.ok(page.classList.contains("active"), "search page is showing");
-  assert.ok(!page.classList.contains("hide-spotlight"), "search bar is not hidden");
+  const page = t.document.getElementById("search-page");
+  assert.ok(page.classList.contains("active"), "the home page is showing");
+  assert.ok(page.classList.contains("hide-spotlight"), "without the search bar");
+  await settle(t.window, 200);
+  assert.notEqual(t.document.activeElement, t.document.getElementById("search-input"), "nothing typed goes to a hidden box");
   assert.deepEqual(t.errors, []);
   t.window.close();
 });
 
-test("a stored 'search bar off' hides the search bar", async () => {
-  const t = await openNewTab({ sync: { spotlightVisible: false } });
+test("a saved 'search bar on' no longer shows it, and stays saved as it was", async () => {
+  const t = await openNewTab({ sync: { spotlightVisible: true } });
   assert.ok(t.document.getElementById("search-page").classList.contains("hide-spotlight"));
+  assert.equal((await t.chrome.storage.sync.get(["spotlightVisible"])).spotlightVisible, true, "user data untouched");
   assert.deepEqual(t.errors, []);
   t.window.close();
 });

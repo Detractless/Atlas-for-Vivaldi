@@ -22,6 +22,8 @@ export function defineAllSettings() {
   defined = true;
 
   // ── Search ──
+  // The search bar no longer shows (setSpotlightVisible, newtabState.js); the
+  // setting stays so saved values, backups and profiles keep it.
   defineSetting({
     key: 'spotlightVisible',
     apply: (v) => { setSpotlightVisible(v); applySpotlightVisibility(); },

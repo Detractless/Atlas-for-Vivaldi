@@ -17,8 +17,7 @@ const toggleFor = (key) => toggle(key, CONTROLS[key].get());
 
 function searchPage() {
   return section("", [card([
-    row("Search bar", "Show the search bar on your new tab", toggleFor("spotlight")),
-    row("Engine preference", "Which engine the search bar starts with", selectFor("engine")),
+    row("Engine preference", "Which engine the address bar starts with", selectFor("engine")),
     row("Bookmark pills", "When bookmark pills appear while typing", selectFor("pills"))
   ])]);
 }

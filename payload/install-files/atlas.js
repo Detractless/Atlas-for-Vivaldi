@@ -2527,7 +2527,8 @@ if (window.AtlasProfiles && chrome.tabs) {
      pills, ordered by how often you open them: the same rule and the same
      "Bookmark pills" setting as the new tab's search. No match, no pills.
    The first pill is picked; the arrows move the pick, Enter opens it in this
-   tab, a click opens one, and Shift+Enter is left to Vivaldi (it searches).
+   tab, a click opens one, and Shift+Enter searches what you typed, in this
+   tab too (apbSearchHere).
    While pills show, Vivaldi's own suggestion list steps aside.
 
    The bookmarks are read from the new tab's own database (same extension,
@@ -2678,6 +2679,24 @@ function apbOpen(b) {
   chrome.tabs.update({ url: b.url }, function () { void chrome.runtime.lastError; });
 }
 
+/* Shift+Enter while pills show: not the picked bookmark but what was typed,
+   searched (or opened, if it is an address) as Enter does without pills.
+   Vivaldi's own Shift+Enter opens a new tab, so the pills close and Vivaldi's
+   field gets a plain Enter instead: a keypress, which is what it submits on
+   (2026-10-09). The field stays in use, so typing more brings pills back. */
+function apbSearchHere(input) {
+  apbState.list = [];
+  apbState.at = -1;
+  if (apbCard) apbCard.hidden = true;
+  atlasMark('atlas-pills-open', false);
+  atlasMark('atlas-urlcard-open', false);
+  var ev = new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, charCode: 13, bubbles: true, cancelable: true });
+  ['keyCode', 'charCode', 'which'].forEach(function (k) {   // read by Vivaldi's field (React) to tell Enter
+    if (ev[k] !== 13) Object.defineProperty(ev, k, { value: 13 });
+  });
+  input.dispatchEvent(ev);
+}
+
 /* The keys, caught before Vivaldi's field sees them, only while pills show. */
 function apbKey(e) {
   if (!apbField(e.target) || !apbState.list.length) return;
@@ -2686,6 +2705,8 @@ function apbKey(e) {
     apbState.at = (apbState.at + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
   } else if (e.key === 'Enter' && !e.shiftKey && apbState.at >= 0) {
     apbOpen(apbState.list[apbState.at]);
+  } else if (e.key === 'Enter' && e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey) {
+    apbSearchHere(e.target);
   } else {
     return;
   }
@@ -3044,8 +3065,9 @@ if (chrome.storage && chrome.storage.sync) {
    bar (#browser.atlas-urlbar-hover) or the field is in use
    (#browser.atlas-enginebtn-inuse). The field is kept empty: Vivaldi would
    fill in the new tab's extension address when you click into it or press
-   Esc; on hover its hint shows in place of that address (abeCopyHint).
-   Elsewhere the button shows only while the field is in use. ── */
+   Esc; on hover its hint shows in place of that address (abeCopyHint). A
+   new tab opens with the cursor in the field (abeFocusNewTab). Elsewhere the
+   button shows only while the field is in use. ── */
 
 /* The window's address field, in use or not. */
 function abeFieldInput() {
@@ -3139,6 +3161,38 @@ function abeHoverOff(e) {
   var to = e && e.relatedTarget;
   if (to && ((abe.btn && abe.btn.contains(to)) || (abe.hoverField && abe.hoverField.contains(to)))) return;
   atlasMark('atlas-urlbar-hover', false);
+}
+
+/* A new tab opened in this window: the cursor goes to the address bar, as it
+   went to the new tab's own search box before that was removed (2026-10-09).
+   Tried once the new tab is up, and again when it has loaded in case the page
+   took the focus, for a few seconds at most; never over typing elsewhere in
+   the window, and not when you switch back to a new tab already open. */
+var ABE_FOCUS_WINDOW_MS = 3000;
+var abeFocusFor = { id: null, until: 0 };
+
+function abeFocusNewTab(tab) {
+  if (!tab) return;
+  abeFocusFor = { id: tab.id, until: Date.now() + ABE_FOCUS_WINDOW_MS };
+  setTimeout(abeFocusIfNewTab, 250);
+}
+
+function abeFocusIfNewTab() {
+  if (abeFocusFor.id === null || Date.now() > abeFocusFor.until) return;
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    void chrome.runtime.lastError;
+    var t = tabs && tabs[0], input = abeFieldInput(), a = document.activeElement;
+    if (!t || t.id !== abeFocusFor.id || !input || a === input || !atlasIsNewTabUrl(t.pendingUrl || t.url)) return;
+    if (a && a !== document.body && a.matches && a.matches('input, textarea, [contenteditable="true"]')) return;
+    input.focus();
+  });
+}
+
+if (chrome.tabs && chrome.tabs.onCreated) chrome.tabs.onCreated.addListener(abeFocusNewTab);
+if (chrome.tabs && chrome.tabs.onUpdated) {
+  chrome.tabs.onUpdated.addListener(function (id, info) {
+    if (id === abeFocusFor.id && info && info.status === 'complete') abeFocusIfNewTab();
+  });
 }
 
 if (typeof document !== 'undefined' && document.addEventListener) {

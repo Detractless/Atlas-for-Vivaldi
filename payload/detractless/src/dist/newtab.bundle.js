@@ -979,7 +979,7 @@
   var currentBookmarkPage = 1;
   var bookmarks = {};
   var fadeInEnabled = true;
-  var spotlightVisible = true;
+  var spotlightVisible = false;
   var uiScale = 1;
   var searchEngineBehavior = "remember";
   var bookmarkPillBehavior = "always";
@@ -1010,8 +1010,8 @@
   function setFadeInEnabled(v) {
     fadeInEnabled = v;
   }
-  function setSpotlightVisible(v) {
-    spotlightVisible = v;
+  function setSpotlightVisible() {
+    spotlightVisible = false;
   }
   function setUiScale(v) {
     uiScale = v;
@@ -5363,7 +5363,6 @@
   };
   var CONTROLS = {
     grayscale: flag("grayscale"),
-    spotlight: flag("spotlightVisible"),
     showQuery: flag("showQueryOnDelay"),
     engine: choice("searchEngineBehavior", { "remember": "Remember last selected", "always-default": "Always reset to default" }),
     pills: choice("bookmarkPillBehavior", { "prefix": "When typing ./", "always": "Always" }),
@@ -5531,8 +5530,7 @@
   var toggleFor = (key) => toggle(key, CONTROLS[key].get());
   function searchPage() {
     return section("", [card([
-      row("Search bar", "Show the search bar on your new tab", toggleFor("spotlight")),
-      row("Engine preference", "Which engine the search bar starts with", selectFor("engine")),
+      row("Engine preference", "Which engine the address bar starts with", selectFor("engine")),
       row("Bookmark pills", "When bookmark pills appear while typing", selectFor("pills"))
     ])]);
   }

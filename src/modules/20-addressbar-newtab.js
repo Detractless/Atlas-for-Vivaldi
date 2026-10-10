@@ -5,8 +5,9 @@
    bar (#browser.atlas-urlbar-hover) or the field is in use
    (#browser.atlas-enginebtn-inuse). The field is kept empty: Vivaldi would
    fill in the new tab's extension address when you click into it or press
-   Esc; on hover its hint shows in place of that address (abeCopyHint).
-   Elsewhere the button shows only while the field is in use. ── */
+   Esc; on hover its hint shows in place of that address (abeCopyHint). A
+   new tab opens with the cursor in the field (abeFocusNewTab). Elsewhere the
+   button shows only while the field is in use. ── */
 
 /* The window's address field, in use or not. */
 function abeFieldInput() {
@@ -100,6 +101,38 @@ function abeHoverOff(e) {
   var to = e && e.relatedTarget;
   if (to && ((abe.btn && abe.btn.contains(to)) || (abe.hoverField && abe.hoverField.contains(to)))) return;
   atlasMark('atlas-urlbar-hover', false);
+}
+
+/* A new tab opened in this window: the cursor goes to the address bar, as it
+   went to the new tab's own search box before that was removed (2026-10-09).
+   Tried once the new tab is up, and again when it has loaded in case the page
+   took the focus, for a few seconds at most; never over typing elsewhere in
+   the window, and not when you switch back to a new tab already open. */
+var ABE_FOCUS_WINDOW_MS = 3000;
+var abeFocusFor = { id: null, until: 0 };
+
+function abeFocusNewTab(tab) {
+  if (!tab) return;
+  abeFocusFor = { id: tab.id, until: Date.now() + ABE_FOCUS_WINDOW_MS };
+  setTimeout(abeFocusIfNewTab, 250);
+}
+
+function abeFocusIfNewTab() {
+  if (abeFocusFor.id === null || Date.now() > abeFocusFor.until) return;
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    void chrome.runtime.lastError;
+    var t = tabs && tabs[0], input = abeFieldInput(), a = document.activeElement;
+    if (!t || t.id !== abeFocusFor.id || !input || a === input || !atlasIsNewTabUrl(t.pendingUrl || t.url)) return;
+    if (a && a !== document.body && a.matches && a.matches('input, textarea, [contenteditable="true"]')) return;
+    input.focus();
+  });
+}
+
+if (chrome.tabs && chrome.tabs.onCreated) chrome.tabs.onCreated.addListener(abeFocusNewTab);
+if (chrome.tabs && chrome.tabs.onUpdated) {
+  chrome.tabs.onUpdated.addListener(function (id, info) {
+    if (id === abeFocusFor.id && info && info.status === 'complete') abeFocusIfNewTab();
+  });
 }
 
 if (typeof document !== 'undefined' && document.addEventListener) {
