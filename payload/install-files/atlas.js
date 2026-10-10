@@ -3044,7 +3044,8 @@ if (chrome.storage && chrome.storage.sync) {
    bar (#browser.atlas-urlbar-hover) or the field is in use
    (#browser.atlas-enginebtn-inuse). The field is kept empty: Vivaldi would
    fill in the new tab's extension address when you click into it or press
-   Esc. Elsewhere the button shows only while the field is in use. ── */
+   Esc; on hover its hint shows in place of that address (abeCopyHint).
+   Elsewhere the button shows only while the field is in use. ── */
 
 /* The window's address field, in use or not. */
 function abeFieldInput() {
@@ -3066,7 +3067,7 @@ function abeAnchor() {
    becomes or stops being the new tab (abeNewTabChanged, from 01). */
 function abeRest() {
   if (abe.input) return;
-  if (abeOnNewTab() && abeFieldInput()) return abeShowButton();
+  if (abeOnNewTab() && abeFieldInput()) { abeCopyHint(); return abeShowButton(); }
   if (abe.btn) abe.btn.hidden = true;
   atlasMark('atlas-enginebtn-on', false);
   atlasMark('atlas-enginebtn-inuse', false);
@@ -3119,7 +3120,18 @@ function abeWatchHover() {
 }
 
 function abeHoverOn() {
+  abeCopyHint();
   atlasMark('atlas-urlbar-hover', true);
+}
+
+/* The hint the new tab's field shows on hover in place of the new tab's own
+   address (03-addressbar.css): the one Vivaldi gives an empty field, which
+   names the engine in use. Copied again on every hover, so it follows a pick. */
+function abeCopyHint() {
+  var input = abeFieldInput(), box = input && input.closest('.UrlField');
+  if (!box) return;
+  var hint = input.getAttribute('placeholder') || '';
+  if (box.getAttribute('data-atlas-hint') !== hint) box.setAttribute('data-atlas-hint', hint);
 }
 
 /* Moving between the bar and the logo isn't leaving. */

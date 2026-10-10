@@ -72,12 +72,32 @@
   opacity: 0;
 }
 
-/* On the blank new tab there is no URL to show at all — reveal it only when
-   the field is actually focused for typing. (#browser.atlas-newtab is set by
-   atlas.js.) */
-#browser.atlas-newtab .UrlBar-AddressField:not(:focus-within) .UrlBar-UrlFieldWrapper,
+/* On the new tab (#browser.atlas-newtab, set by atlas.js) the engine logo
+   stands in for the site-info button (section 4d). The field's text shows on
+   hover as on any page, but Vivaldi keeps the new tab's own address in the
+   field while it isn't in use (chrome-extension://…, drawn on
+   .UrlFragment-Wrapper). Not that: the hint an empty field shows, "Search …
+   or enter an address", copied from the field onto .UrlField[data-atlas-hint]
+   by 20-addressbar-newtab.js and drawn as Vivaldi draws its own (input padding
+   0 3px, placeholder at .66). A field that is empty shows Vivaldi's own. */
 #browser.atlas-newtab .UrlBar-AddressField:not(:focus-within) > .toolbar-insideinput {
   opacity: 0 !important;
+}
+/* The pointer on the logo, which floats over the field, still counts as on the bar (4d). */
+#browser.atlas-urlbar-hover .UrlBar-AddressField:not(:focus-within) .UrlBar-UrlFieldWrapper {
+  opacity: 1;
+  transition-delay: 0.18s;
+}
+#browser.atlas-newtab .UrlBar-AddressField:not(:focus-within) .UrlField:not(.UrlField--IsEmpty) .UrlFragment-Wrapper {
+  visibility: hidden !important;
+}
+#browser.atlas-newtab .UrlBar-AddressField:not(:focus-within) .UrlField[data-atlas-hint]:not(.UrlField--IsEmpty)::after {
+  content: attr(data-atlas-hint);
+  position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+  box-sizing: border-box; padding: 0 3px;
+  font: inherit; line-height: 24px; color: inherit; opacity: .66;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none;
 }
 
 /* The rendered URL (a block whose 16.9px line sits at the top of its 24px
