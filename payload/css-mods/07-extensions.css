@@ -23,14 +23,12 @@
   left: auto !important;   /* Vivaldi sets left:0 here; with right:4px that would stretch it full-width */
   right: 4px;
   top: 50%;
-  /* Drawn as the engine logo is at the pill's other end (03-addressbar.css 4d,
-     over Vivaldi's 22px in-field buttons): 22px, 6px corners, a 16px icon, the
-     logo's hover shade. It used to be Vivaldi's 34px toolbar button scaled to
-     0.72, whose hover came out lighter and tighter-cornered than the logo's.
-     22px sits inside the 30px pill, 4px clear each side. */
-  transform: translateY(-50%);
+  /* scale(0.72): the raw toggle is 34px tall and poked 2px past the 30px pill
+     top and bottom, which read as the address bar getting thicker. Scaled it
+     sits fully inside the pill (measured 24px span, 3px clear each side). */
+  transform: translateY(-50%) scale(0.72);
   width: max-content !important;
-  min-width: 0 !important;
+  min-width: 0;
   opacity: 1;
   overflow: visible;
   pointer-events: auto;
@@ -49,11 +47,8 @@
    from Vivaldi's own common.css. Suppress it when docked inside the pill. */
 #browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked .ExtensionToggleIcon,
 #browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked .ExtensionToggleIcon.ExtensionToggleIcon--Expanded {
-  width: 22px !important;
-  height: 22px !important;
-  min-width: 0 !important;
   background-color: transparent !important;
-  border-radius: 6px !important;
+  border-radius: 8px !important;
   box-shadow: none !important;
 }
 
@@ -61,15 +56,10 @@
    general L389 rule targets, so border-radius, colours, and states need their
    own explicit rules here. */
 #browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button {
-  width: 22px !important;
-  height: 22px !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  padding: 0 !important;
   background-color: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
-  border-radius: 6px !important;
+  border-radius: 8px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -81,23 +71,18 @@
   justify-content: center !important;
   margin: 0 !important;
 }
-#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked .button-icon,
-#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button svg {
-  width: 16px !important;
-  height: 16px !important;
-}
-#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button:hover  { background-color: var(--atlas-hover-2) !important; }
-#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button:active  { background-color: var(--atlas-hover-3) !important; }
-/* While a native extension popup is open Vivaldi sets button-on on the toggle:
-   the shade the engine logo keeps while its list is open. */
-#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button.button-on { background-color: var(--atlas-hover-2) !important; }
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button:hover  { background-color: var(--atlas-hover-1) !important; }
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button:active  { background-color: var(--atlas-hover-2) !important; }
+/* While a native extension popup is open Vivaldi sets button-on on the toggle.
+   Match hover-1 (not hover-3) so it stays visually lightweight inside the pill. */
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button.button-on { background-color: var(--atlas-hover-1) !important; }
 
 #browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button.atlas-fallback-ext-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   cursor: pointer;
   color: var(--atlas-icon);
@@ -168,10 +153,11 @@
 }
 #browser .atlas-ext-pop .aep-search:focus { background-color: var(--atlas-hover-2); }
 #browser .atlas-ext-pop .aep-search::placeholder { color: var(--atlas-text-2); }
-/* Eight row slots, always: the popover is one constant size however many
-   extensions exist; overflow pages, it never grows. */
+/* Six row slots, always: the popover is one constant size however many
+   extensions exist; overflow pages, it never grows. Six 36px rows keep it no
+   taller than the old eight 30px ones were. */
 #browser .atlas-ext-pop .aep-rows {
-  height: 288px;
+  height: 216px;
   display: flex;
   flex-direction: column;
 }

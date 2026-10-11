@@ -1356,7 +1356,7 @@ function openExtensionAction(extId, done) {
    "Manage extensions" as a row with the profile menu's gear, holding the page
    arrows when there are pages. ── */
 
-var EXT_HIDDEN_PREF = 'vivaldi.address_bar.extensions.hidden_extensions', EXT_PAGE_SIZE = 8;
+var EXT_HIDDEN_PREF = 'vivaldi.address_bar.extensions.hidden_extensions', EXT_PAGE_SIZE = 6;
 var extPop = null, extPopPage = 0, extPopQuery = '', extPopAnchor = null;
 
 /* Take the popover off the screen but keep its search text and page: a redraw

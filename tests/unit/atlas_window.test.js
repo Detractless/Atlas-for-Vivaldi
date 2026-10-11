@@ -164,12 +164,12 @@ test("right-clicking an extension in the popover shows its menu", async () => {
   assert.deepEqual(menuLabels(w), ["Options", "Details", "Disable", "Remove…"]);
 });
 
-test("more than eight extensions get a search field and pages", async () => {
+test("more than six extensions get a search field and pages", async () => {
   const w = await start();
   const many = Array.from({ length: 11 }, (_, i) => ({ id: String.fromCharCode(97 + i).repeat(32), name: `Ext ${String(i).padStart(2, "0")}`, type: "extension", enabled: true, icons: [] }));
   const pop = await openPopover(w, many);
   assert.ok(pop.querySelector(".aep-search"), "search field");
-  assert.equal(pop.querySelectorAll(".aep-row").length, 8);
+  assert.equal(pop.querySelectorAll(".aep-row").length, 6);
   assert.equal(pop.querySelector(".aep-pager span").textContent, "1 / 2");
   assert.ok(pop.querySelector(".aep-foot > .aep-manage + .aep-pager"), "the page arrows sit in the Manage extensions row");
   assert.equal(pop.querySelector(":scope > .aep-pager"), null, "no row of their own");
@@ -212,7 +212,7 @@ test("typing in the popover search keeps the text and filters the list", async (
   assert.equal(box.value, "ext 1", "the text stays");
   assert.equal(w.window.document.activeElement, box, "and the field keeps focus");
   type("ext 0");
-  assert.deepEqual(popNames(w), ["Ext 00", "Ext 01", "Ext 02", "Ext 03", "Ext 04", "Ext 05", "Ext 06", "Ext 07"]);
+  assert.deepEqual(popNames(w), ["Ext 00", "Ext 01", "Ext 02", "Ext 03", "Ext 04", "Ext 05"]);
   assert.equal(w.window.document.querySelector(".atlas-ext-pop .aep-pager span").textContent, "1 / 2", "ten matches: two pages");
   type("nothing like it");
   assert.equal(w.window.document.querySelector(".atlas-ext-pop .aep-empty").textContent, "No matches");
@@ -225,7 +225,7 @@ test("the popover's page buttons move between pages", async () => {
   const pager = () => w.window.document.querySelector(".atlas-ext-pop .aep-pager");
   pager().lastElementChild.dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
   assert.equal(pager().querySelector("span").textContent, "2 / 2");
-  assert.deepEqual(popNames(w), ["Ext 08", "Ext 09", "Ext 10"]);
+  assert.deepEqual(popNames(w), ["Ext 06", "Ext 07", "Ext 08", "Ext 09", "Ext 10"]);
   pager().firstElementChild.dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
   assert.equal(pager().querySelector("span").textContent, "1 / 2");
 });
