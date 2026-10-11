@@ -23,12 +23,14 @@
   left: auto !important;   /* Vivaldi sets left:0 here; with right:4px that would stretch it full-width */
   right: 4px;
   top: 50%;
-  /* scale(0.72): the raw toggle is 34px tall and poked 2px past the 30px pill
-     top and bottom, which read as the address bar getting thicker. Scaled it
-     sits fully inside the pill (measured 24px span, 3px clear each side). */
-  transform: translateY(-50%) scale(0.72);
+  /* Drawn as the engine logo is at the pill's other end (03-addressbar.css 4d,
+     over Vivaldi's 22px in-field buttons): 22px, 6px corners, a 16px icon, the
+     logo's hover shade. It used to be Vivaldi's 34px toolbar button scaled to
+     0.72, whose hover came out lighter and tighter-cornered than the logo's.
+     22px sits inside the 30px pill, 4px clear each side. */
+  transform: translateY(-50%);
   width: max-content !important;
-  min-width: 0;
+  min-width: 0 !important;
   opacity: 1;
   overflow: visible;
   pointer-events: auto;
@@ -47,8 +49,11 @@
    from Vivaldi's own common.css. Suppress it when docked inside the pill. */
 #browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked .ExtensionToggleIcon,
 #browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked .ExtensionToggleIcon.ExtensionToggleIcon--Expanded {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 0 !important;
   background-color: transparent !important;
-  border-radius: 8px !important;
+  border-radius: 6px !important;
   box-shadow: none !important;
 }
 
@@ -56,10 +61,15 @@
    general L389 rule targets, so border-radius, colours, and states need their
    own explicit rules here. */
 #browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
   background-color: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
-  border-radius: 8px !important;
+  border-radius: 6px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -71,18 +81,23 @@
   justify-content: center !important;
   margin: 0 !important;
 }
-#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button:hover  { background-color: var(--atlas-hover-1) !important; }
-#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button:active  { background-color: var(--atlas-hover-2) !important; }
-/* While a native extension popup is open Vivaldi sets button-on on the toggle.
-   Match hover-1 (not hover-3) so it stays visually lightweight inside the pill. */
-#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button.button-on { background-color: var(--atlas-hover-1) !important; }
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked .button-icon,
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button:hover  { background-color: var(--atlas-hover-2) !important; }
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button:active  { background-color: var(--atlas-hover-3) !important; }
+/* While a native extension popup is open Vivaldi sets button-on on the toggle:
+   the shade the engine logo keeps while its list is open. */
+#browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button.button-on { background-color: var(--atlas-hover-2) !important; }
 
 #browser .UrlBar-AddressField > .toolbar-extensions.atlas-ext-docked button.atlas-fallback-ext-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   cursor: pointer;
   color: var(--atlas-icon);
@@ -116,29 +131,39 @@
   padding-right: 34px !important;   /* clears the scaled icon (icon left edge ~27px in) */
 }
 
+/* The popover is drawn as the profile menu is (05-menus.css, .atlas-newmenu):
+   240px, 36px rows with 14px text and 20px icons, a divider, then "Manage
+   extensions" as a row of its own, holding the page arrows when there are
+   pages. */
 #browser .atlas-ext-pop {
   position: fixed;
   z-index: 10000;
-  width: 264px;
+  box-sizing: border-box;
+  width: 240px;
   padding: 6px;
   border-radius: 12px;
   background-color: var(--atlas-menu);
   border: 1px solid var(--atlas-border);
   box-shadow: var(--atlas-shadow);
   color: var(--atlas-text-1);
-  font-size: 13px;
+  font-size: 14px;
+  user-select: none;
 }
-#browser .atlas-ext-pop .aep-searchwrap { padding: 2px 2px 6px; }
+#browser .atlas-ext-pop .aep-searchwrap { position: relative; padding: 0 0 4px; }
+#browser .atlas-ext-pop .aep-searchwrap svg {
+  position: absolute; left: 10px; top: 8px; width: 20px; height: 20px; pointer-events: none;
+  fill: none; stroke: var(--atlas-text-2); stroke-width: 1.5; stroke-linecap: round;
+}
 #browser .atlas-ext-pop .aep-search {
+  box-sizing: border-box;
   width: 100%;
-  height: 30px;
-  padding: 0 12px;
+  height: 36px;
+  padding: 0 10px 0 40px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 7px;
   background-color: var(--atlas-hover-1);
   color: var(--atlas-text-1);
   font: inherit;
-  font-size: 12.5px;
   outline: none;
 }
 #browser .atlas-ext-pop .aep-search:focus { background-color: var(--atlas-hover-2); }
@@ -146,22 +171,34 @@
 /* Eight row slots, always: the popover is one constant size however many
    extensions exist; overflow pages, it never grows. */
 #browser .atlas-ext-pop .aep-rows {
-  height: 240px;
+  height: 288px;
   display: flex;
   flex-direction: column;
 }
-#browser .atlas-ext-pop .aep-row {
+#browser .atlas-ext-pop .aep-row,
+#browser .atlas-ext-pop .aep-manage {
   display: flex;
   align-items: center;
-  gap: 9px;
-  height: 30px;
-  padding: 0 8px;
+  gap: 10px;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 0;
   border-radius: 7px;
-  cursor: default; /* rows act now: click = options/details, right-click = menu */
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease;
 }
-#browser .atlas-ext-pop .aep-row:hover { background-color: var(--atlas-hover-2); }
-#browser .atlas-ext-pop .aep-icon { width: 16px; height: 16px; flex: none; }
-#browser .atlas-ext-pop .aep-name {
+#browser .atlas-ext-pop .aep-row:hover,
+#browser .atlas-ext-pop .aep-manage:hover { background-color: var(--atlas-hover-2); }
+#browser .atlas-ext-pop .aep-row:active,
+#browser .atlas-ext-pop .aep-manage:active { background-color: var(--atlas-hover-3); }
+#browser .atlas-ext-pop .aep-icon { width: 20px; height: 20px; flex: none; object-fit: contain; }
+#browser .atlas-ext-pop .aep-name,
+#browser .atlas-ext-pop .aep-label {
   flex: 1;
   min-width: 0;
   white-space: nowrap;
@@ -169,17 +206,27 @@
   text-overflow: ellipsis;
 }
 #browser .atlas-ext-pop .aep-empty {
-  padding: 14px 8px;
+  padding: 14px 10px;
   text-align: center;
   color: var(--atlas-text-2);
-  font-size: 12.5px;
+  font-size: 13px;
+}
+#browser .atlas-ext-pop .aep-sep {
+  height: 1px;
+  margin: 4px;
+  background-color: var(--atlas-border);
+}
+#browser .atlas-ext-pop .aep-foot { display: flex; align-items: center; gap: 2px; }
+#browser .atlas-ext-pop .aep-manage { flex: 1; min-width: 0; }
+#browser .atlas-ext-pop .aep-manage svg {
+  width: 20px; height: 20px; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
 }
 #browser .atlas-ext-pop .aep-pager {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 4px 0 2px;
+  gap: 2px;
+  flex: none;
 }
 #browser .atlas-ext-pop .aep-pager span {
   font-size: 11.5px;
@@ -189,28 +236,14 @@
 #browser .atlas-ext-pop .aep-pager button {
   width: 24px;
   height: 24px;
+  padding: 0;
   border: 0;
   border-radius: 6px;
   background: transparent;
   color: var(--atlas-text-1);
   font-size: 15px;
   line-height: 1;
-  cursor: default;
+  cursor: pointer;
 }
 #browser .atlas-ext-pop .aep-pager button:hover:not(:disabled) { background-color: var(--atlas-hover-2); }
-#browser .atlas-ext-pop .aep-pager button:disabled { color: var(--atlas-text-2); opacity: .5; }
-#browser .atlas-ext-pop .aep-foot {
-  display: block;
-  width: 100%;
-  margin-top: 4px;
-  padding: 7px 8px;
-  border: 0;
-  border-top: 1px solid var(--atlas-border);
-  border-radius: 0 0 7px 7px;
-  background: transparent;
-  color: var(--atlas-text-2);
-  font: inherit;
-  text-align: center;
-  cursor: default;
-}
-#browser .atlas-ext-pop .aep-foot:hover { color: var(--atlas-text-1); background-color: var(--atlas-hover-1); }
+#browser .atlas-ext-pop .aep-pager button:disabled { color: var(--atlas-text-2); opacity: .5; cursor: default; }

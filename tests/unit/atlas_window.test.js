@@ -148,7 +148,10 @@ test("the Extensions button opens the Atlas popover, enabled extensions sorted",
   assert.ok(pop, "popover shown");
   assert.deepEqual([...pop.querySelectorAll(".aep-name")].map((n) => n.textContent), ["Alpha", "Bravo"]);
   assert.equal(pop.querySelector(".aep-foot").textContent, "Manage extensions");
-  pop.querySelector(".aep-foot").dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
+  assert.ok(pop.querySelector(".aep-sep + .aep-foot"), "a divider, then the last row");
+  assert.ok(pop.querySelector(".aep-manage svg"), "with the profile menu's gear");
+  assert.equal(pop.querySelector(".aep-pager"), null, "one page: no page arrows");
+  pop.querySelector(".aep-manage").dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
   assert.ok(w.calls.some((c) => c.name === "chrome.tabs.create" && plain(c.args[0]).url === "vivaldi://extensions"));
   assert.equal(w.window.document.querySelector(".atlas-ext-pop"), null, "popover closes");
 });
@@ -168,6 +171,18 @@ test("more than eight extensions get a search field and pages", async () => {
   assert.ok(pop.querySelector(".aep-search"), "search field");
   assert.equal(pop.querySelectorAll(".aep-row").length, 8);
   assert.equal(pop.querySelector(".aep-pager span").textContent, "1 / 2");
+  assert.ok(pop.querySelector(".aep-foot > .aep-manage + .aep-pager"), "the page arrows sit in the Manage extensions row");
+  assert.equal(pop.querySelector(":scope > .aep-pager"), null, "no row of their own");
+});
+
+test("extension icons are the ones sharp at the rows' 20px", async () => {
+  const w = await start();
+  const icons = (...sizes) => sizes.map((size) => ({ size, url: `icon${size}.png` }));
+  const pop = await openPopoverWith(w, [
+    { id: "a".repeat(32), name: "Alpha", type: "extension", enabled: true, icons: icons(128, 16, 48, 32) },
+    { id: "b".repeat(32), name: "Bravo", type: "extension", enabled: true, icons: icons(16, 32) },
+  ]);
+  assert.deepEqual([...pop.querySelectorAll(".aep-icon")].map((i) => i.getAttribute("src")), ["icon48.png", "icon32.png"]);
 });
 
 const ELEVEN = Array.from({ length: 11 }, (_, i) => ({ id: String.fromCharCode(97 + i).repeat(32), name: `Ext ${String(i).padStart(2, "0")}`, type: "extension", enabled: true, icons: [] }));

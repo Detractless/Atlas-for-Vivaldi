@@ -1351,7 +1351,10 @@ function openExtensionAction(extId, done) {
 
   /* ═══ Module: 10-extensions-popover.js ═══ */
 /* ── 10-extensions-popover.js: the Atlas Extensions popover (search, pages,
-   per-extension menu) that replaces Vivaldi's own extensions dropdown. ── */
+   per-extension menu) that replaces Vivaldi's own extensions dropdown. Drawn
+   as the profile menu is (07-extensions.css): extension rows, a divider, then
+   "Manage extensions" as a row with the profile menu's gear, holding the page
+   arrows when there are pages. ── */
 
 var EXT_HIDDEN_PREF = 'vivaldi.address_bar.extensions.hidden_extensions', EXT_PAGE_SIZE = 8;
 var extPop = null, extPopPage = 0, extPopQuery = '', extPopAnchor = null;
@@ -1406,9 +1409,11 @@ function extPopKey(e) {
   if (e.key === 'Escape') { closeExtPop(); e.stopPropagation(); }
 }
 
+/* The icon drawn at 20px: the smallest still sharp on a Retina screen (40px), else the largest. */
 function smallIcon(ext) {
   if (!ext.icons || !ext.icons.length) return '';
-  var best = ext.icons.slice().sort(function (a, b) { return a.size - b.size; }).filter(function (i) { return i.size >= 16; })[0] || ext.icons[0];
+  var bySize = ext.icons.slice().sort(function (a, b) { return a.size - b.size; });
+  var best = bySize.filter(function (i) { return i.size >= 40; })[0] || bySize[bySize.length - 1];
   return best.url;
 }
 
@@ -1447,8 +1452,10 @@ function drawExtPop(anchor, exts) {
   }
   slice.forEach(function (ext) { rowsBox.appendChild(extPopRow(ext)); });
 
-  if (filtered.length > EXT_PAGE_SIZE) extPop.appendChild(extPopPager(anchor, exts, pages));
-  extPop.appendChild(extPopFoot());
+  var sep = document.createElement('div');
+  sep.className = 'aep-sep';
+  extPop.appendChild(sep);
+  extPop.appendChild(extPopFoot(filtered.length > EXT_PAGE_SIZE ? extPopPager(anchor, exts, pages) : null));
   (document.getElementById('browser') || document.body).appendChild(extPop);
   placeExtPop(anchor);
 
@@ -1464,6 +1471,7 @@ function drawExtPop(anchor, exts) {
 function extPopSearch(anchor, exts) {
   var sw = document.createElement('div');
   sw.className = 'aep-searchwrap';
+  sw.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l3.5 3.5"/></svg>';
   var si = document.createElement('input');
   si.className = 'aep-search';
   si.type = 'text';
@@ -1549,14 +1557,20 @@ function extPopPager(anchor, exts, pages) {
   return pager;
 }
 
-function extPopFoot() {
-  var foot = document.createElement('button');
+/* The last row: "Manage extensions", with the page arrows beside it when there are pages. */
+function extPopFoot(pager) {
+  var foot = document.createElement('div');
   foot.className = 'aep-foot';
-  foot.textContent = 'Manage extensions';
-  foot.addEventListener('click', function () {
+  var manage = document.createElement('button');
+  manage.type = 'button';
+  manage.className = 'aep-manage';
+  manage.innerHTML = PI.gear + '<span class="aep-label">Manage extensions</span>';
+  manage.addEventListener('click', function () {
     closeExtPop();
     chrome.tabs.create({ url: 'vivaldi://extensions' });
   });
+  foot.appendChild(manage);
+  if (pager) foot.appendChild(pager);
   return foot;
 }
 
