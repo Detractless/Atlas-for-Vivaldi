@@ -1,6 +1,7 @@
 // Clicking away from the address field after typing puts the page's address
 // back (src/modules/21-addressbar-revert.js): Atlas runs Vivaldi's own reset
-// for the tab the field was editing. Vivaldi's core is faked here: a module
+// for the tab the field was editing, once the bar has faded out of sight,
+// never while you can still see it. Vivaldi's core is faked here: a module
 // list with the reset among other modules, reached the way Atlas reaches the
 // real one (chrome.extension.getViews, then Vivaldi's module loader).
 "use strict";
@@ -16,6 +17,7 @@ test.afterEach(() => { for (const w of open) w.window.close(); open = []; });
 const PAGE = "https://docs.google.com/document/d/1Xq7/edit";
 const NEWTAB = "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/index.html";
 const TAB = 7;
+const FADE = 600;   // past the bar's fade-out (ABR_FADE_MS) and one more look
 
 /* Vivaldi's core document: its module loader, with the address field's actions
    (the reset) beside the store that also names URLFIELD_RESET, and others. */
@@ -72,10 +74,15 @@ function type(w, text) {
   w.input.value = text;
   w.input.dispatchEvent(new w.window.Event("input", { bubbles: true }));
 }
-/* Focus goes elsewhere in the window: the page, a tab. */
-async function clickAway(w) {
+/* Focus goes elsewhere in the window: the page, a tab; then the bar fades out. */
+async function clickAway(w, ms = FADE) {
   w.window.document.getElementById("elsewhere").focus();
-  await wait(20);
+  await wait(ms);
+}
+/* The pointer onto or off the bar. */
+function hover(w, on) {
+  const bar = w.input.closest(".UrlBar-AddressField");
+  bar.dispatchEvent(new w.window.MouseEvent(on ? "mouseenter" : "mouseleave", { bubbles: false }));
 }
 
 test("clicking away after typing puts the tab's address back", async () => {
@@ -101,8 +108,56 @@ test("the tab noted on the way in is the one put back; coming straight back in k
   type(w, "dogs");
   w.window.document.getElementById("elsewhere").focus();
   await focus(w, 9);   // back in the field before its turn came
-  await wait(20);
+  await wait(FADE);
   assert.deepEqual(w.resets, [3], "the field is in use again: nothing put back");
+});
+
+test("the address goes back only once the bar has faded out, not while it shows", async () => {
+  const w = await start();
+  await focus(w);
+  type(w, "cats");
+  await clickAway(w, 150);
+  assert.deepEqual(w.resets, [], "still fading out: the typing stays");
+  await wait(FADE - 150);
+  assert.deepEqual(w.resets, [TAB], "out of sight: the address is back");
+});
+
+test("with the pointer still on the bar the typing stays, until it leaves and the bar fades", async () => {
+  const w = await start();
+  await focus(w);
+  type(w, "cats");
+  hover(w, true);
+  await clickAway(w, 1000);
+  assert.deepEqual(w.resets, [], "the bar is showing under the pointer");
+  hover(w, false);
+  await wait(150);
+  assert.deepEqual(w.resets, [], "fading out");
+  await wait(FADE - 150);
+  assert.deepEqual(w.resets, [TAB]);
+  assert.deepEqual(w.errors, []);
+});
+
+test("coming back into the field while it fades keeps the typing; leaving again puts it back", async () => {
+  const w = await start();
+  await focus(w);
+  type(w, "cats");
+  await clickAway(w, 100);
+  await focus(w);
+  await wait(FADE);
+  assert.deepEqual(w.resets, [], "the typing is in use again");
+  await clickAway(w);
+  assert.deepEqual(w.resets, [TAB], "no new typing needed: the old typing goes");
+});
+
+test("coming back into the field on another tab puts the first tab back at once", async () => {
+  const w = await start();
+  await focus(w, 3);
+  type(w, "cats");
+  await clickAway(w, 100);
+  await focus(w, 9);
+  assert.deepEqual(w.resets, [3], "tab 3 is out of sight");
+  await wait(FADE);
+  assert.deepEqual(w.resets, [3], "the field on tab 9 is in use and untouched");
 });
 
 test("a field you never typed in is left alone", async () => {
@@ -119,7 +174,7 @@ test("Vivaldi losing focus to another app keeps the typing", async () => {
   type(w, "half a thou");
   // The window loses focus; the field stays the window's focused element.
   w.input.dispatchEvent(new w.window.FocusEvent("focusout", { bubbles: true }));
-  await wait(20);
+  await wait(FADE);
   assert.equal(w.window.document.activeElement, w.input);
   assert.deepEqual(w.resets, []);
 });
