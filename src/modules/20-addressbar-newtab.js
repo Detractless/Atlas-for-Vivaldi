@@ -25,14 +25,17 @@ function abeAnchor() {
 }
 
 /* The field not in use: the button stays on the new tab; elsewhere Vivaldi's
-   own icon is back (the lock on a web page). Run again when the active tab
-   becomes or stops being the new tab (abeNewTabChanged, from 01). */
+   own icon is back (the lock on a web page). Left after typing, the logo stays
+   and fades with the bar, and goes once the address is back (abrKeepsLogo, 21).
+   Run again when the active tab becomes or stops being the new tab
+   (abeNewTabChanged, from 01). */
 function abeRest() {
   if (abe.input) return;
   if (abeOnNewTab() && abeFieldInput()) { abeCopyHint(); return abeShowButton(); }
+  atlasMark('atlas-enginebtn-inuse', false);
+  if (abrKeepsLogo()) return;
   if (abe.btn) abe.btn.hidden = true;
   atlasMark('atlas-enginebtn-on', false);
-  atlasMark('atlas-enginebtn-inuse', false);
 }
 
 function abeNewTabChanged() {

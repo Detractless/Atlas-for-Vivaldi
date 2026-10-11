@@ -79,6 +79,12 @@ async function clickAway(w, ms = FADE) {
   w.window.document.getElementById("elsewhere").focus();
   await wait(ms);
 }
+/* The engine logo is on the bar, over Vivaldi's own icon; "fading" once the field is no longer in use. */
+const browserHas = (w, c) => w.window.document.getElementById("browser").classList.contains(c);
+const logoOn = (w) => {
+  const b = w.window.document.querySelector(".atlas-enginebtn");
+  return !!b && !b.hidden && browserHas(w, "atlas-enginebtn-on");
+};
 /* The pointer onto or off the bar. */
 function hover(w, on) {
   const bar = w.input.closest(".UrlBar-AddressField");
@@ -158,6 +164,51 @@ test("coming back into the field on another tab puts the first tab back at once"
   assert.deepEqual(w.resets, [3], "tab 3 is out of sight");
   await wait(FADE);
   assert.deepEqual(w.resets, [3], "the field on tab 9 is in use and untouched");
+});
+
+test("the engine logo stays and fades with the bar, never showing Vivaldi's engine icon", async () => {
+  const w = await start();
+  await focus(w);
+  type(w, "cats");
+  assert.ok(logoOn(w));
+  await clickAway(w, 100);
+  assert.ok(logoOn(w), "still over Vivaldi's icon while the bar fades");
+  assert.ok(!browserHas(w, "atlas-enginebtn-inuse"), "fading: no longer the field in use");
+  await wait(FADE - 100);
+  assert.deepEqual(w.resets, [TAB]);
+  assert.equal(logoOn(w), false, "the address is back: Vivaldi's lock");
+  assert.deepEqual(w.errors, []);
+});
+
+test("with the pointer on the bar the logo stays too, until the bar fades", async () => {
+  const w = await start();
+  await focus(w);
+  type(w, "cats");
+  hover(w, true);
+  await clickAway(w, 1000);
+  assert.ok(logoOn(w));
+  hover(w, false);
+  await wait(FADE);
+  assert.equal(logoOn(w), false);
+});
+
+test("Enter: the logo goes at once, for the page that is loading", async () => {
+  const w = await start();
+  await focus(w);
+  type(w, "notion.com");
+  w.input.dispatchEvent(new w.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  await clickAway(w, 20);
+  assert.equal(logoOn(w), false);
+});
+
+test("Vivaldi losing focus to another app: the logo doesn't linger", async () => {
+  const w = await start();
+  await focus(w);
+  type(w, "cats");
+  w.input.dispatchEvent(new w.window.FocusEvent("focusout", { bubbles: true }));
+  await wait(20);
+  assert.equal(logoOn(w), false);
+  assert.deepEqual(w.resets, []);
 });
 
 test("a field you never typed in is left alone", async () => {

@@ -3120,14 +3120,17 @@ function abeAnchor() {
 }
 
 /* The field not in use: the button stays on the new tab; elsewhere Vivaldi's
-   own icon is back (the lock on a web page). Run again when the active tab
-   becomes or stops being the new tab (abeNewTabChanged, from 01). */
+   own icon is back (the lock on a web page). Left after typing, the logo stays
+   and fades with the bar, and goes once the address is back (abrKeepsLogo, 21).
+   Run again when the active tab becomes or stops being the new tab
+   (abeNewTabChanged, from 01). */
 function abeRest() {
   if (abe.input) return;
   if (abeOnNewTab() && abeFieldInput()) { abeCopyHint(); return abeShowButton(); }
+  atlasMark('atlas-enginebtn-inuse', false);
+  if (abrKeepsLogo()) return;
   if (abe.btn) abe.btn.hidden = true;
   atlasMark('atlas-enginebtn-on', false);
-  atlasMark('atlas-enginebtn-inuse', false);
 }
 
 function abeNewTabChanged() {
@@ -3251,7 +3254,8 @@ if (typeof document !== 'undefined' && document.addEventListener) {
    It happens out of sight: once the bar's text has faded out (03-addressbar.css),
    with the field no longer in use and the pointer off the bar. Until then the
    typing stays; coming back into the field keeps it, and it goes back the
-   next time you leave.
+   next time you leave. The engine logo stays over Vivaldi's icon meanwhile,
+   fading with the bar, so Vivaldi's own engine icon never shows (abeRest, 20).
 
    Left alone: Enter (the page you asked for is loading, and Vivaldi clears the
    field itself then), Vivaldi losing focus to another app (the field is still
@@ -3264,7 +3268,7 @@ if (typeof document !== 'undefined' && document.addEventListener) {
 var ABR_ENTER_MS = 1500;   // focus leaving this soon after Enter is the page loading
 var ABR_FADE_MS = 350;     // the bar's text fades out over .3s once it is neither hovered nor in use (03-addressbar.css)
 var ABR_LOOK_MS = 100;     // how often a waiting reset looks at the bar
-var abr = { core: undefined, tabId: null, asked: 0, enterAt: 0, waiting: null, carry: false };
+var abr = { core: undefined, tabId: null, asked: 0, enterAt: 0, waiting: null, carry: false, logo: false };
 
 /* Vivaldi's own address-field actions ({updateState, reset}), or null. */
 function abrVivaldiField() {
@@ -3297,6 +3301,17 @@ function abrReset(tabId) {
   if (field) field.reset(tabId);
 }
 
+/* Leaving after typing, the engine logo stays until the address is back (abeRest, 20). */
+function abrKeepsLogo() {
+  return !!(abr && abr.logo);
+}
+
+function abrDropLogo() {
+  if (!abr.logo) return;
+  abr.logo = false;
+  abeRest();
+}
+
 /* Into the field: note which tab it is editing, since by the time it loses
    focus another tab may be the active one (a click on a tab). A reset still
    waiting for the bar to fade stops: on this tab the typing is in use again
@@ -3308,6 +3323,7 @@ function abrOnFocus() {
   abr.tabId = null;
   abr.enterAt = 0;
   abr.carry = false;
+  abr.logo = false;
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     void chrome.runtime.lastError;
     var tab = tabs && tabs[0];
@@ -3320,12 +3336,14 @@ function abrOnFocus() {
   });
 }
 
+/* Runs before abeHide (19) leaves the field, so the logo can stay. */
 function abrOnBlur(input) {
-  var typed = abe.typed || abr.carry, tabId = abr.tabId, entered = Date.now() - abr.enterAt < ABR_ENTER_MS;
+  var typed = abe.typed || abr.carry, entered = Date.now() - abr.enterAt < ABR_ENTER_MS;
+  var tabId = abr.tabId, goesBack = typed && !entered && tabId !== null;
+  abr.logo = goesBack && atlasMarked('atlas-enginebtn-on');
   setTimeout(function () {
-    if (document.activeElement === input) return;   // still the field in use: back in it, or Vivaldi left for another app
-    if (!typed || entered || tabId === null) return;
-    abrWaitUntilHidden(tabId);
+    if (document.activeElement === input) return abrDropLogo();   // still the field in use: back in it, or Vivaldi left for another app
+    if (goesBack) abrWaitUntilHidden(tabId);
   }, 0);
 }
 
@@ -3350,14 +3368,14 @@ function abrWaitUntilHidden(tabId) {
     if (abr.waiting !== wait) return;
     if (abrBarShown()) hiddenSince = 0;
     else if (!hiddenSince) hiddenSince = Date.now();
-    else if (Date.now() - hiddenSince >= ABR_FADE_MS) { abr.waiting = null; return abrReset(tabId); }
+    else if (Date.now() - hiddenSince >= ABR_FADE_MS) { abr.waiting = null; abrReset(tabId); return abrDropLogo(); }
     setTimeout(look, ABR_LOOK_MS);
   })();
 }
 
 if (typeof document !== 'undefined' && document.addEventListener) {
   document.addEventListener('focusin', function (e) { if (apbField(e.target)) abrOnFocus(); });
-  document.addEventListener('focusout', function (e) { if (apbField(e.target)) abrOnBlur(e.target); });
+  document.addEventListener('focusout', function (e) { if (apbField(e.target)) abrOnBlur(e.target); }, true);
   /* Enter that opens a page in this tab; Cmd/Ctrl/Alt+Enter open it elsewhere, and this tab's field still goes back. */
   window.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && apbField(e.target) && !e.metaKey && !e.ctrlKey && !e.altKey) abr.enterAt = Date.now();
