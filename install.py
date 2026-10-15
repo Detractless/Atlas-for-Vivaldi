@@ -35,6 +35,7 @@ def main():
     ap = argparse.ArgumentParser(description="Atlas for Vivaldi installer")
     ap.add_argument("--yes", "-y", action="store_true", help="skip the confirmation prompt")
     ap.add_argument("--no-launch", action="store_true", help="do not reopen Vivaldi when done")
+    ap.add_argument("--no-close", action="store_true", help="do not close running Vivaldi")
     ap.add_argument("--skip-detractless", action="store_true", help="do not install Detractless")
     ap.add_argument("--dry-run", action="store_true", help="print every change, touch nothing")
     args = ap.parse_args()
@@ -53,7 +54,7 @@ def main():
     res = find_vivaldi_res()
     app_root = res.parent.parent.parent  # ...\Application\<ver>\resources\vivaldi
 
-    if not args.yes and not util.DRY:
+    if not args.yes and not util.DRY and not args.no_close:
         print()
         say("Vivaldi will be CLOSED during installation and reopened when finished.")
         try:
@@ -62,7 +63,8 @@ def main():
             print()
             fail("Cancelled.")
 
-    close_vivaldi()
+    if not args.no_close:
+        close_vivaldi()
 
     staging_ctx = MacOSStagingContext(res)
     with staging_ctx as target_res:
