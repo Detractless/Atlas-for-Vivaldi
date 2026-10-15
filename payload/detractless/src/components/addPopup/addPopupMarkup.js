@@ -1,75 +1,78 @@
-/* The add popup's HTML (addPopup.js wires it). Every value that came from the
-   user (page names, group names, a page being edited) goes through esc(). */
-
-import { NEW_GROUP } from '../../utils/addBookmarkFlow.js';
+/* The add popup's HTML (addPopup.js wires it): the frame, and each screen drawn from what has been
+   answered so far. Every value that came from the user (names, pages, groups, addresses) goes through esc(). */
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-function textField(name, label, value, placeholder, extra = '') {
-  return `<label class="add-popup-field"${extra}>
-      <span class="add-popup-label">${label}</span>
-      <input class="add-popup-input" type="text" data-field="${name}" value="${esc(value)}" placeholder="${esc(placeholder)}" autocomplete="off" spellcheck="false">
-      <span class="add-popup-error" data-error-for="${name}" role="alert"></span>
-    </label>`;
-}
+const CHEV = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>';
+const TICK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7"/></svg>';
+const SEARCH = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12"/></svg>';
 
-function selectField(name, label, optionsHtml) {
-  return `<label class="add-popup-field add-popup-field--select">
-      <span class="add-popup-label">${label}</span>
-      <select class="add-popup-input" data-field="${name}">${optionsHtml}</select>
-      <span class="add-popup-error" data-error-for="${name}" role="alert"></span>
-    </label>`;
-}
-
-function pageOptions(pages, startPage) {
-  if (!pages.length) return '<option value="">No pages yet</option>';
-  return pages.map((t) => `<option value="${esc(t.id)}"${t.id === startPage ? ' selected' : ''}>${esc(t.label)}</option>`).join('');
-}
-
-/** The group list for one page: its groups, then "New group…". */
-export function groupOptions(groups) {
-  return '<option value="">Choose a group</option>' +
-    groups.map((g) => `<option value="${esc(g)}">${esc(g)}</option>`).join('') +
-    `<option value="${esc(NEW_GROUP)}">New group…</option>`;
-}
-
-/**
- * @param {object} o
- * @param {object|null} o.editing  the page being edited, or null when adding
- * @param {Array} o.pages  bookmark pages, in switcher order
- * @param {*} o.startPage  the page chosen at first
- * @param {number} o.pageCount  used for the new page's placeholder name
- */
-export function popupMarkup({ editing, pages, startPage, pageCount }) {
-  const modes = editing ? '' : `
-    <div class="add-popup-modes" role="group" aria-label="What to add">
-      <button type="button" class="add-popup-mode" data-add-mode="bookmark" aria-pressed="true">Bookmark</button>
-      <button type="button" class="add-popup-mode" data-add-mode="page" aria-pressed="false">Page</button>
-    </div>`;
-  const bookmarkFields = editing ? '' : `
-    <div class="picker-well add-popup-well" data-mode-fields="bookmark">
-      ${textField('name', 'Name', '', 'GitHub')}
-      ${textField('url', 'URL', '', 'https://example.com')}
-      ${selectField('page', 'Page', pageOptions(pages, startPage))}
-      ${selectField('group', 'Group', groupOptions([]))}
-      ${textField('newGroup', 'New group name', '', 'WORK', ' data-newgroup hidden')}
-    </div>`;
-  const pageFields = `
-    <div class="picker-well add-popup-well" data-mode-fields="page"${editing ? '' : ' hidden'}>
-      ${textField('pageName', 'Name', editing ? editing.label : '', `Page ${pageCount}`)}
-      ${textField('sub', 'Subtitle', editing ? (editing.sub || '') : '', 'Three to five words')}
-    </div>
-    <div class="add-popup-count" aria-live="polite"></div>`;
+/** The frame: a title (the question), the step, one screen, and the buttons. */
+export function frameMarkup({ title, step, total, body, left, right }) {
+  const dots = total > 1 ? `<span class="add-popup-dots" aria-hidden="true">${Array.from({ length: total }, (_, i) => `<i${i === step - 1 ? ' class="on"' : ''}></i>`).join('')}</span>` : '';
+  const stepText = total > 1 ? `<div class="add-popup-step">Step ${step} of ${total} ${dots}</div>` : '';
   return `
     <div class="picker-card add-popup-card">
-      <div class="picker-title">${editing ? 'Edit page' : 'Add'}</div>
-      ${modes}
-      ${bookmarkFields}
-      ${pageFields}
-      <div class="picker-foot">
-        <button type="button" class="picker-btn" data-add-cancel>Cancel</button>
-        <button type="button" class="picker-btn picker-btn--primary" data-add-save>${editing ? 'Save' : 'Add'}</button>
-      </div>
-      <button type="button" class="close-btn picker-hidden-close" hidden></button>
+      <div class="add-popup-head"><div class="add-popup-title" data-title>${esc(title)}</div>${stepText}</div>
+      <div class="add-popup-body">${body}</div>
+      <div class="add-popup-foot">${left}<div class="add-popup-foot-right">${right}</div></div>
     </div>`;
+}
+
+export const button = (attr, label, primary = false, disabled = false) =>
+  `<button type="button" class="add-popup-btn${primary ? ' add-popup-btn--primary' : ''}" ${attr}${disabled ? ' disabled' : ''}>${esc(label)}</button>`;
+
+const errorSlot = (name) => `<span class="add-popup-error" data-error-for="${name}" role="alert"></span>`;
+
+/** The address-bar card: the field, a faint line, the pills, and a hint, as one shape. */
+function joinedCard({ field, icon, value, placeholder, pillsHtml, hint, hasPills }) {
+  return `<div class="ap-card${hasPills ? ' ap-card--open' : ''}" data-card="${field}">
+      <div class="ap-field"><span class="ap-icon">${icon}</span>
+        <input class="ap-input" type="text" data-field="${field}" value="${esc(value)}" placeholder="${esc(placeholder)}" autocomplete="off" spellcheck="false"></div>
+      <div class="ap-drop" data-drop="${field}"${hasPills ? '' : ' hidden'}>${pillsHtml}<div class="ap-hint" data-hint>${hint}</div></div>
+    </div>${errorSlot(field)}`;
+}
+
+export const pillsMarkup = (pills, at, attr) =>
+  `<div class="ap-pills" role="listbox">${pills.map((p, i) =>
+    `<button type="button" class="ap-pill" role="option" ${attr}="${esc(p.value)}" aria-selected="${i === at}">${esc(p.label)}</button>`).join('')}</div>`;
+
+/** What sits under the address field: the site pills and the hint. */
+export const siteDrop = (pills, at) => ({
+  pillsHtml: pillsMarkup(pills, at, 'data-site'),
+  hint: pills.length ? `Enter picks ${esc(pills[Math.max(at, 0)].label)} &middot; &uarr;&darr; to move` : '',
+});
+
+/** Screen 1 of a bookmark: which website. */
+export function websiteScreen({ urlText, pills, at }) {
+  const drop = siteDrop(pills, at);
+  return joinedCard({ field: 'url', icon: SEARCH, value: urlText, placeholder: 'Type a website', ...drop, hasPills: pills.length > 0 });
+}
+
+/** A drop-down pill: the choice shows on it, and it opens a short list. */
+export function dropdown({ key, label, value, items }) {
+  const rows = items.map((it) => `<button type="button" class="ap-dd-item" role="option" data-dd-item="${key}" data-value="${esc(it.value)}" aria-selected="${String(it.value) === String(value)}">${esc(it.label)}${String(it.value) === String(value) ? TICK : ''}</button>`).join('');
+  const current = items.find((it) => String(it.value) === String(value));
+  const more = items.length > 5 ? `<div class="ap-dd-note">${items.length - 5} more, scroll</div>` : '';
+  return `<div class="ap-dd-wrap" data-dd-wrap="${key}"><div class="ap-label">${esc(label)}</div>
+      <button type="button" class="ap-dd" data-dd="${key}" aria-haspopup="listbox" aria-expanded="false"><span data-dd-label="${key}">${esc(current ? current.label : 'Choose')}</span>${CHEV}</button>
+      <div class="ap-dd-menu" data-dd-menu="${key}" role="listbox" hidden><div class="ap-dd-rows">${rows}</div>${more}</div>${errorSlot(key)}</div>`;
+}
+
+/** Screen 2 of a bookmark: the name, and where it goes. */
+export function placeScreen({ name, namePills, pageItems, page, groupItems, group, newGroup, showNewGroup }) {
+  const nameCard = joinedCard({
+    field: 'name', icon: SEARCH, value: name, placeholder: 'Name',
+    pillsHtml: pillsMarkup(namePills, namePills.findIndex((p) => p.value === name), 'data-name-pill'),
+    hint: 'Pick a name, or keep typing your own', hasPills: namePills.length > 0,
+  });
+  return `${nameCard}
+    <div class="ap-cols">${dropdown({ key: 'page', label: 'Page', value: page, items: pageItems })}${dropdown({ key: 'group', label: 'Group', value: group, items: groupItems })}</div>
+    <div data-newgroup${showNewGroup ? '' : ' hidden'}><div class="ap-label">New group name</div>
+      <div class="ap-plain"><input class="ap-input" type="text" data-field="newGroup" value="${esc(newGroup)}" placeholder="WORK" autocomplete="off" spellcheck="false"></div>${errorSlot('newGroup')}</div>`;
+}
+
+/** A plain one-line field (page name, subtitle). */
+export function plainField({ field, value, placeholder, aside = '', label = '' }) {
+  return `${label ? `<div class="ap-label">${esc(label)}</div>` : ''}<div class="ap-plain"><input class="ap-input" type="text" data-field="${field}" value="${esc(value)}" placeholder="${esc(placeholder)}" autocomplete="off" spellcheck="false">${aside}</div>${errorSlot(field)}`;
 }

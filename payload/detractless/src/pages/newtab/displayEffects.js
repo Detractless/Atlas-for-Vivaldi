@@ -43,11 +43,6 @@ export function applyScale(value) {
   }
 }
 
-/** Grayscale removes colour from the whole new tab (html.grayscale in settingsPage.css). */
-export function applyGrayscale(on) {
-  document.documentElement.classList.toggle("grayscale", !!on);
-}
-
 export function showPage(pageName) {
   document.querySelectorAll(".page").forEach((page) => page.classList.remove("active"));
   const targetPage = document.getElementById(`${pageName}-page`);

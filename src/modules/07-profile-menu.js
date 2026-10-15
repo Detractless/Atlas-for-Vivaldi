@@ -30,7 +30,7 @@ var menu = null;
    open one and message it once loaded. Settings can name a page (Profiles). */
 function toNewTab(act, page) {
   var extUrl = 'chrome-extension://' + ATLAS_EXT_ID + '/';
-  var targetUrl = extUrl + 'index.html' + (act === 'open-add' ? '?add=1' : (page ? '?settings=' + page : '') + '#settings');
+  var targetUrl = extUrl + 'index.html' + (page ? '?settings=' + page : '') + '#settings';
   var msg = { atlas: { act: act } };
   if (page) msg.atlas.page = page;
 
@@ -60,7 +60,6 @@ function toNewTab(act, page) {
   });
 }
 function openNewTabSettings(page) { toNewTab('open-settings', page); }
-function openNewTabAdd() { toNewTab('open-add'); }
 
 function setPanelBlur(on) {
   var b = document.getElementById('browser');
@@ -91,12 +90,16 @@ function applyCorner() {
 function pIcon(d) { return '<svg viewBox="0 0 20 20" aria-hidden="true">' + d + '</svg>'; }
 var PI = {
   plus: pIcon('<path d="M10 4.5v11M4.5 10h11"/>'),
+  back: pIcon('<path d="m12 4-6 6 6 6"/>'),
+  bm: pIcon('<path d="M5.5 3.5h9v13l-4.5-3.2-4.5 3.2z"/>'),
+  page: pIcon('<rect x="3.5" y="3.5" width="13" height="13" rx="3.5"/><path d="M3.5 8h13"/>'),
   clock: pIcon('<circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 1.5"/>'),
   down: pIcon('<path d="M10 3.5v9M6.5 9.5 10 13l3.5-3.5M4 16.5h12"/>'),
   gear: pIcon('<circle cx="10" cy="10" r="2.4"/><path d="M8.6 2.8h2.8l.4 2 1.6.9 1.9-.7 1.4 2.4-1.5 1.3v1.8l1.5 1.3-1.4 2.4-1.9-.7-1.6.9-.4 2H8.6l-.4-2-1.6-.9-1.9.7-1.4-2.4 1.5-1.3V9.1L3.3 7.8l1.4-2.4 1.9.7 1.6-.9z"/>')
 };
 var PACTS = {
-  add: function () { openNewTabAdd(); },
+  'add-bookmark': function () { Atlas.openAdd('bookmark'); },
+  'add-page': function () { Atlas.openAdd('page'); },
   history: function () { chrome.tabs.create({ url: 'vivaldi://history' }); },
   downloads: function () { chrome.tabs.create({ url: 'vivaldi://downloads' }); },
   ext: function () { openNewTabSettings(); },
@@ -114,6 +117,9 @@ function openMenu(btn) {
   menu = document.createElement('div');
   menu.className = 'atlas-profile-menu atlas-nosurf-menu atlas-newmenu';
   menu.setAttribute('role', 'menu');
+  /* 'main' is the profiles and the rows; 'add' is what is left after Add page or bookmark is clicked:
+     two choices and a way back, so the menu is shorter. */
+  var view = 'main';
 
   function row(act, icon, label) {
     return '<button type="button" class="apm-item" role="menuitem" data-act="' + act + '">' +
@@ -121,6 +127,14 @@ function openMenu(btn) {
   }
   function fill() {
     var s = ap && ap.get(), head = '';
+    if (view === 'add') {
+      menu.innerHTML = '<button type="button" class="apm-head" data-back aria-label="Back">' + PI.back + '<span>Add</span></button>' +
+        '<div class="apm-sep"></div>' + row('add-bookmark', PI.bm, 'Add bookmark') + row('add-page', PI.page, 'Add page');
+      menu.style.top = Math.round(r.bottom + 6) + 'px';
+      menu.style.right = Math.round(window.innerWidth - r.right) + 'px';
+      addDropTail(menu, r);
+      return;
+    }
     if (s) {
       var cur = ap.active();
       head = '<div class="apm-strip">' + s.list.map(function (q) {
@@ -146,6 +160,8 @@ function openMenu(btn) {
     var pk = t && t.closest('[data-pick]'), act = t && t.closest('[data-act]');
     if (pk && ap) ap.switchTo(pk.getAttribute('data-pick')).then(function () { if (menu) fill(); });
     else if (t && t.closest('[data-add]')) { closeMenu(); openNewTabSettings('profiles'); }
+    else if (t && t.closest('[data-back]')) { view = 'main'; fill(); }
+    else if (act && act.getAttribute('data-act') === 'add') { view = 'add'; fill(); }
     else if (act) { var f = PACTS[act.getAttribute('data-act')]; closeMenu(); try { f(); } catch (err) { atlasWarn('profile menu action failed', err); } }
   });
 

@@ -49,14 +49,15 @@ test("a bookmark can be added through the + popup", async () => {
   const set = (name, value) => {
     const el = p.querySelector(`[data-field="${name}"]`);
     el.value = value;
-    el.dispatchEvent(new win.Event("change", { bubbles: true }));
+    el.dispatchEvent(new win.Event("input", { bubbles: true }));
   };
-  set("name", "Smoke Test Site");
   set("url", "https://smoke.example.com");
-  const essentials = [...p.querySelector('[data-field="page"]').options].find((o) => o.textContent === "Essentials");
-  set("page", essentials.value);
-  await waitFor(() => [...p.querySelector('[data-field="group"]').options].some((o) => o.textContent === "PRODUCTIVITY"), 2000, "groups");
-  set("group", "PRODUCTIVITY");
+  click(win, p.querySelector("[data-add-next]"));
+  await settle(win, 40);
+  set("name", "Smoke Test Site");
+  await waitFor(() => [...p.querySelectorAll('[data-dd-item="group"]')].some((i) => i.textContent.startsWith("PRODUCTIVITY")), 2000, "groups");
+  click(win, p.querySelector('[data-dd="group"]'));
+  click(win, [...p.querySelectorAll('[data-dd-item="group"]')].find((i) => i.textContent.startsWith("PRODUCTIVITY")));
   click(win, p.querySelector("[data-add-save]"));
   await settle(win, 300);
 

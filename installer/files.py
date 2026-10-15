@@ -37,7 +37,6 @@ DETRACTLESS_FILES = (
     "src/pages/newtab/profilesPage.js",
     "src/pages/newtab/profileEditPage.js",
     "src/pages/newtab/profilesPage.css",
-    "src/pages/newtab/newtabBridge.js",
 )
 
 

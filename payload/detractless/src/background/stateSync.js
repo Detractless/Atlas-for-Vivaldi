@@ -1,6 +1,7 @@
 import { setTabLimit, setManagementMethod, setSearchDelayMs, setManagedEngines, setActiveDelays } from './workerState.js';
 import { enforceTabLimit } from './tabLimiter.js';
 import { pruneActiveDelays, checkPendingIncrease, checkPendingDelayDecrease } from './pendingChanges.js';
+import { migrateGrayscale } from './saturationMigration.js';
 import { syncDefault } from '../constants/storageKeys.js';
 import { storageGet, storageSet } from '../services/storage.js';
 
@@ -33,6 +34,7 @@ const initializeState = async () => {
     setTimeout(() => enforceTabLimit(), 1000)
     checkPendingIncrease()
     checkPendingDelayDecrease()
+    migrateGrayscale().catch((e) => console.error('Folding Grayscale into the color level failed:', e))
 
     console.log("Detractless background state initialized")
   } catch (e) {

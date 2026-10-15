@@ -2,10 +2,13 @@
 // HTML; settings/shell.js renders it and wires the clicks.
 import { CONTROLS, labelOf } from './controls.js';
 import { getSetting } from './registry.js';
-import { I, row, card, section, select, toggle, modeThumb, scalePreview } from './markup.js';
+import { I, row, card, section, select, toggle, lockedSlider, lockButton, modeThumb, scalePreview, saturationPreview } from './markup.js';
+import { lockNote, lockSecondsLeft } from '../utils/saturationLock.js';
+import { formatTimeCompact } from '../utils/formatDuration.js';
 import { pendingIncreaseText } from '../components/tabLimiter/tabLimiterUI.js';
 import { pendingDecreaseText } from '../components/searchDelay/searchDelay.js';
 import { pagesPage } from './pagesSection.js';
+import { usagePage } from './usagePage.js';
 
 export const REVIEW_URL = "https://chromewebstore.google.com/detail/ipgmbcinekdcmhhnbanlahedgpehffab";
 
@@ -33,6 +36,12 @@ function appearancePage() {
   ]);
 }
 
+/** Under "Color saturation": what the lock does, or until when it holds. */
+export const SATURATION_HELP = "Lock it to stop going back to color for 30 minutes.";
+export const clockTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+export const saturationNote = () => lockNote(getSetting("saturationLock"), clockTime) || SATURATION_HELP;
+export const lockCountdown = () => formatTimeCompact(lockSecondsLeft(getSetting("saturationLock")));
+
 function focusPage() {
   const limitNote = pendingIncreaseText(getSetting("pendingIncrease")) || "Decreases apply now. Increases take 30 minutes.";
   const delayNote = pendingDecreaseText(getSetting("pendingDelayDecrease")) ||
@@ -46,7 +55,8 @@ function focusPage() {
     row("Show the search query", "While you wait", toggleFor("showQuery"))
   ])]) +
   section("Display", [card([
-    row("Grayscale", "Remove color from the new tab", toggleFor("grayscale"))
+    row("Color saturation", saturationNote(), lockedSlider("saturation", CONTROLS.saturation.get(), CONTROLS.saturation.max()) + lockButton(CONTROLS.saturation.locked(), lockCountdown())) +
+      saturationPreview(CONTROLS.saturation.get())
   ])]);
 }
 
@@ -71,16 +81,18 @@ export const PAGES = {
   search: searchPage,
   appearance: appearancePage,
   focus: focusPage,
+  usage: usagePage,
   backup: backupPage,
   reset: resetPage,
 };
 
 export const NAV = [
-  { group: "Settings", items: [
+  { group: "General", items: [
     { id: "search", label: "Search", icon: I.search },
     { id: "pages", label: "Pages", icon: I.pages },
     { id: "appearance", label: "Appearance", icon: I.sun },
-    { id: "focus", label: "Focus", icon: I.focus }
+    { id: "focus", label: "Focus", icon: I.focus },
+    { id: "usage", label: "Usage", icon: I.chart }
   ] },
   { group: "Data", items: [
     { id: "backup", label: "Backup", icon: I.db },

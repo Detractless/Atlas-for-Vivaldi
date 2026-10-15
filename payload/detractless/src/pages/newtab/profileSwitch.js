@@ -17,6 +17,20 @@ export function installProfileSwitch() {
   if (ap && ap.setSwitchHandler) ap.setSwitchHandler(applyProfileSwitch);
 }
 
+/** Bookmarks or pages were added from the address bar (background/addFlow.js): show them. */
+export function installDataChanged() {
+  try {
+    chrome.runtime.onMessage.addListener((msg) => { if (msg && msg.atlas && msg.atlas.act === 'data-changed') refreshAfterOutsideAdd(); });
+  } catch (e) { /* not an extension page: nothing to listen to */ }
+}
+
+async function refreshAfterOutsideAdd() {
+  await refreshBookmarkCache();
+  await initializeTabs();
+  if (currentPage === 'bookmarks' && activeTabs.some((t) => String(t.id) === String(currentBookmarkPage))) loadBookmarks();
+  if (window.AtlasSettingsUI) window.AtlasSettingsUI.rerender();
+}
+
 export async function applyProfileSwitch() {
   const ap = window.AtlasProfiles;
   if (ap && BookmarkDB.dbName !== ap.dbName()) {

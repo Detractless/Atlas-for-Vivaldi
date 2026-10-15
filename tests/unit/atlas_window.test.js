@@ -40,7 +40,7 @@ test("the context-menu content script is registered", async () => {
   await new Promise((r) => setTimeout(r, 20));
   const registered = w.calls.filter((c) => c.name === "chrome.scripting.registerContentScripts").map((c) => plain(c.args[0])[0].id);
   // Called twice: the stand-in answers once by itself ("none registered") and once here.
-  assert.deepEqual([...new Set(registered)], ["atlas-ctxmenu", "atlas-google-account"], "the page menu, and the Google account check (spec 002)");
+  assert.deepEqual([...new Set(registered)], ["atlas-ctxmenu", "atlas-google-account", "atlas-usage"], "the page menu, the Google account check (spec 002), and the usage totals");
   const swept = w.calls.find((c) => c.name === "chrome.scripting.unregisterContentScripts");
   assert.deepEqual(plain(swept.args[0]), { ids: ["detractless-rules"] }, "an archived script registration is removed");
 });

@@ -161,6 +161,16 @@ test("with the pills setting on \"When typing ./\", only ./ shows them", async (
   assert.equal(names(w).length, 3);
 });
 
+test("with the pills setting on Never, no pills show, even after ./", async () => {
+  const w = await start({ sync: { bookmarkPillBehavior: "never" } });
+  await focus(w);
+  await type(w, "no");
+  assert.deepEqual(names(w), []);
+  await type(w, "./no");
+  assert.deepEqual(names(w), []);
+  assert.ok(!w.window.document.getElementById("browser").classList.contains("atlas-pills-open"));
+});
+
 test("a long address shows in full, wrapped, in the card", async () => {
   const w = await start();
   Object.defineProperty(w.input, "scrollWidth", { configurable: true, get: () => 900 });

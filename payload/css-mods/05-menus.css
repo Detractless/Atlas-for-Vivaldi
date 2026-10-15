@@ -189,4 +189,7 @@
 #browser .atlas-newmenu .apm-plan { font-size: 12px; line-height: 14px; color: var(--atlas-text-2); }
 #browser .atlas-newmenu .apm-item { justify-content: flex-start; gap: 10px; min-height: 36px; cursor: pointer; font-size: 14px; }
 #browser .atlas-newmenu .apm-item:hover { background-color: var(--atlas-hover-2); }
+#browser .atlas-newmenu .apm-head { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 32px; padding: 0 8px 0 4px; border: 0; border-radius: 8px; background: transparent; color: var(--atlas-text-2); font: inherit; font-size: 13px; cursor: pointer; text-align: left; }
+#browser .atlas-newmenu .apm-head:hover { background-color: var(--atlas-hover-2); color: var(--atlas-text-1); }
+#browser .atlas-newmenu .apm-head svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 #browser .atlas-newmenu .apm-item svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }

@@ -1,14 +1,16 @@
 // src/settings/shell.js — the full-page Settings UI: sidebar, page content,
 // opening and closing. Every control saves the moment it changes (registry.js),
 // so there is no Save button and nothing to discard: "Back to dashboard" closes.
-import { PAGES, NAV, REVIEW_URL, resetState } from './pages.js';
+import { PAGES, NAV, REVIEW_URL, resetState, saturationNote, lockCountdown } from './pages.js';
+import { activeLock } from '../utils/saturationLock.js';
 import { CONTROLS } from './controls.js';
-import { onSettingChange } from './registry.js';
-import { I, svg, row, card, section } from './markup.js';
+import { onSettingChange, getSetting } from './registry.js';
+import { I, svg, row, card, section, LOCK_ICON as LOCKED_ICON, UNLOCK_ICON as UNLOCKED_ICON } from './markup.js';
 import { initMenu, openMenu, closeMenu, menuIsOpen } from './menu.js';
 import { importBookmarks, exportBookmarks } from '../pages/newtab/importExport.js';
 import { resetAllData } from '../services/resetService.js';
 import { pageAction, resetPagesSection, wirePagesSection } from './pagesSection.js';
+import { usageAction } from './usagePage.js';
 
 /* `current` is null until Settings first opens, which then shows the first page in the list (Profiles). */
 let root = null, navEl = null, content = null, current = null, currentArg = null;
@@ -30,7 +32,14 @@ export function installSettingsPage() {
   wireShell();
   wireContent();
   wirePagesSection(content, () => renderPage());
-  onSettingChange(() => rerenderSoon());
+  onSettingChange((key, value) => {
+    // A slider updates in place: redrawing the page would replace it mid-drag and end the drag.
+    if (typeof value === "number" && showSlider(key, value)) return;
+    if (key === "saturationLock" && showLock()) return;
+    rerenderSoon();
+  });
+  // The time left on the lock counts down, and the locked stretch frees itself when it ends.
+  setInterval(showLock, 1000);
   publishApi();
 }
 
@@ -170,7 +179,58 @@ function wireShell() {
   });
 }
 
+/** Show a slider's value (its number, and the saturation preview) without redrawing the page.
+    Returns false when that slider is not on screen. */
+function showSlider(key, v) {
+  const sl = content.querySelector('[data-slider="' + key + '"]');
+  if (!sl) return false;
+  if (document.activeElement !== sl) sl.value = String(v);
+  const valDisp = sl.closest(".sp-slider-wrap").querySelector(".sp-slider-val");
+  if (valDisp) valDisp.textContent = v + "%";
+  if (key === "saturation") {
+    const sample = content.querySelector("#sp-sat-sample");
+    if (sample) sample.style.filter = "saturate(" + v + "%)";
+  }
+  return true;
+}
+
+/** The locked stretch and the note under the slider, redrawn in place (never the slider itself). */
+function showLock() {
+  const sl = content && content.querySelector('[data-slider="saturation"]');
+  if (!sl) return false;
+  const l = activeLock(getSetting("saturationLock"));
+  const zone = content.querySelector('[data-lockzone="saturation"]');
+  if (zone) {
+    zone.hidden = !l;
+    if (l) zone.style.setProperty("--lock-at", String(l.ceiling));
+  }
+  const desc = sl.closest(".sp-row") && sl.closest(".sp-row").querySelector(".sp-row-desc");
+  if (desc) desc.textContent = saturationNote();
+  const locked = !!l, btn = content.querySelector("[data-lockbtn]");
+  if (btn) { btn.classList.toggle("on", locked); btn.disabled = locked; btn.setAttribute("aria-pressed", String(locked)); btn.innerHTML = locked ? LOCKED_ICON : UNLOCKED_ICON; }
+  const count = content.querySelector("[data-lockcount]");
+  if (count) count.textContent = locked ? lockCountdown() : "";
+  return true;
+}
+
 function wireContent() {
+  content.addEventListener("input", (e) => {
+    const sl = e.target.closest("[data-slider]");
+    if (sl) {
+      const ctl = CONTROLS[sl.dataset.slider];
+      let v = parseInt(sl.value, 10);
+      // The locked stretch cannot be reached: the thumb stops at its edge.
+      const max = ctl.max ? ctl.max() : 100;
+      if (v > max) { v = max; sl.value = String(max); }
+      ctl.set(v);
+      showSlider(sl.dataset.slider, v);
+    }
+  });
+  // Let go of the slider: save now rather than at the next step.
+  content.addEventListener("change", (e) => {
+    const sl = e.target.closest("[data-slider]");
+    if (sl && CONTROLS[sl.dataset.slider].flush) CONTROLS[sl.dataset.slider].flush();
+  });
   content.addEventListener("click", (e) => {
     const back = e.target.closest("[data-back]");
     if (back) { go(back.dataset.back); return; }
@@ -196,6 +256,8 @@ function wireContent() {
 
 function runAction(act, el) {
   if (act.startsWith("page-")) pageAction(act, el.dataset.id, renderPage, el);
+  else if (act.startsWith("usage-")) usageAction(act, el, renderPage);
+  else if (act === "saturation-lock") CONTROLS.saturation.lock();
   else if (act === "export") exportBookmarks();
   else if (act === "import") $("import-file").click();
   else if (act === "reset-ask") { resetState.confirming = true; renderPage(); }
@@ -218,7 +280,7 @@ function publishApi() {
         if (isSettingsOpen()) render();
         return;
       }
-      const group = NAV.find((g) => g.group === (def.group || "Settings"));
+      const group = NAV.find((g) => g.group === (def.group || "General"));
       const at = group.items.findIndex((i) => i.id === def.before);
       group.items.splice(at < 0 ? group.items.length : at, 0, { id: def.id, label: def.label, icon: def.icon });
       if (new URLSearchParams(location.search).get("settings") === def.id) current = def.id;

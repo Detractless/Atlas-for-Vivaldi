@@ -9,7 +9,8 @@ export const I = {
   reset: '<path d="M4 10a6 6 0 1 0 2-4.5M4 3.5v3h3"/>',
   star: '<path d="m10 3 2.1 4.4 4.9.6-3.6 3.3.9 4.8L10 13.7 5.7 16l.9-4.8L3 7.9l4.9-.6z"/>',
   ext: '<path d="M7 13 13 7M8 7h5v5"/>',
-  pages: '<rect x="3" y="4" width="14" height="12" rx="2"/><path d="M3 8h14"/>'
+  pages: '<rect x="3" y="4" width="14" height="12" rx="2"/><path d="M3 8h14"/>',
+  chart: '<path d="M4 16V9M10 16V4M16 16v-5"/>'
 };
 
 export const svg = (d, cls = "") =>
@@ -30,6 +31,21 @@ export const select = (key, label, sm = false) =>
   `<button class="sp-pill${sm ? " sm" : ""}" data-select="${key}"><span>${label}</span>${CHEV}</button>`;
 export const toggle = (key, on) =>
   `<button class="sp-toggle" role="switch" data-toggle="${key}" aria-checked="${on}"></button>`;
+export const slider = (key, val, min = 0, max = 100) =>
+  `<div class="sp-slider-wrap"><input type="range" class="sp-slider" data-slider="${key}" min="${min}" max="${max}" value="${val}"><span class="sp-slider-val">${val}%</span></div>`;
+
+export const LOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
+export const UNLOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.8-1"/></svg>';
+/** The lock at the right end of the slider's row: open and pressable, or closed with the time left beside it. */
+export const lockButton = (locked, countdown) =>
+  `<span class="sp-lockcount" data-lockcount>${locked ? countdown : ""}</span>` +
+  `<button type="button" class="sp-lockbtn${locked ? " on" : ""}" data-action="saturation-lock" data-lockbtn aria-pressed="${locked}"${locked ? " disabled" : ""} ` +
+  `aria-label="${locked ? "Locked: it cannot be undone early" : "Lock the slider for 30 minutes"}" title="${locked ? "Locked until the time is up" : "Lock it: you can go grayer but not back for 30 minutes"}">${locked ? LOCK_ICON : UNLOCK_ICON}</button>`;
+/** A slider whose stretch above `ceiling` is locked: hatched, with a lock on it. ceiling 100 = nothing locked. */
+export const lockedSlider = (key, val, ceiling) =>
+  `<div class="sp-slider-wrap"><div class="sp-slider-box"><input type="range" class="sp-slider" data-slider="${key}" min="0" max="100" value="${val}">` +
+  `<span class="sp-lockzone" data-lockzone="${key}" style="--lock-at:${ceiling}"${ceiling < 100 ? "" : " hidden"}>${LOCK_ICON}</span></div>` +
+  `<span class="sp-slider-val">${val}%</span></div>`;
 
 /** A small picture of the page in one theme, used as a radio button. */
 export function modeThumb(id, checked, bg, panel, line) {
@@ -46,11 +62,14 @@ export function modeThumb(id, checked, bg, panel, line) {
     </button>`;
 }
 
-/** The UI scale applies to the new tab, not to Settings itself, so Settings shows this sample at the chosen size. */
 export const scalePreview = (scale) =>
   `<div class="sp-scale-preview" aria-hidden="true"><div class="sp-scale-sample" style="zoom:${scale}">` +
   `<div class="sp-scale-bar">${svg(I.search)}<span>Search the web</span></div>` +
   `<div class="sp-scale-pills"><span>Notion</span><span>Gmail</span><span>Calendar</span></div></div></div>`;
+
+/** Live saturation preview showing a colorful fruit image that desaturates as the slider moves. */
+export const saturationPreview = (sat) =>
+  `<div class="sp-sat-preview" aria-hidden="true"><img class="sp-sat-img" id="sp-sat-sample" src="src/assets/saturation-preview.jpg" alt="" style="filter:saturate(${sat}%);"></div>`;
 
 /** The ⋮ ("more") button's icon, and the drag handle's. */
 export const KEBAB =

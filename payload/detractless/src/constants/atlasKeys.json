@@ -38,7 +38,9 @@
     "searchDelaySeconds": { "default": 0, "backup": true, "importWhen": "defined", "profile": "focus" },
     "pendingDelayDecrease": { "default": null, "backup": false, "note": "A search-delay decrease waiting out its 30 minutes." },
     "showQueryOnDelay": { "default": true, "backup": true, "importWhen": "defined", "profile": "focus" },
-    "grayscale": { "default": false, "backup": true, "importWhen": "defined", "profile": "focus" },
+    "grayscale": { "default": null, "backup": false, "note": "Legacy: the old on/off switch. Read once and folded into saturation (utils/saturationLock.js legacySaturation), then removed." },
+    "saturation": { "default": 100, "backup": true, "importWhen": "defined", "profile": "focus", "note": "Color level for web pages, 0 to 100. 100 is full color." },
+    "saturationLock": { "default": null, "backup": false, "profile": "focus", "note": "After going grayer, the stretch above it is locked for 30 minutes: { ceiling, until }." },
     "bookmarks-migrated": { "default": null, "backup": false, "note": "Legacy: set once bookmarks moved from sync storage to IndexedDB." },
     "bookmarks-page-1": { "default": null, "backup": false, "note": "Legacy bookmark storage, read once by migrateFromChromeStorage." },
     "bookmarks-page-2": { "default": null, "backup": false, "note": "Legacy, as bookmarks-page-1." },
@@ -53,11 +55,13 @@
     "_themeCache": { "default": null, "note": "Theme preference copy for first paint in other pages." },
     "rhe_rules": { "default": null, "backup": true, "note": "Element Remover rules (archived feature); still carried by backups." },
     "activeDelays": { "default": {}, "note": "Service worker: search delays in progress." },
+    "atlas_usage": { "default": null, "backup": false, "note": "Usage totals per site and hour (utils/usageLog.js), written by the service worker, shown in Settings > Usage. Never backed up." },
     "atlasProfilesV2": { "default": null, "note": "Profiles state (profilesCore.js)." },
     "atlasGoogleAccounts": { "default": null, "note": "Google accounts signed into Vivaldi, read by the browser window (src/modules/16-google-accounts.js). Never backed up." },
     "__atlas_localstorage__": { "default": {}, "note": "Backing store of the localStorage shim (atlas-localstorage-shim.js)." },
     "pastekit.settings": { "default": null, "archived": true, "note": "PasteKit settings (archived feature). Left in place; no code reads it now." },
-    "savedTabGroups": { "default": null, "note": "Tab saver (service worker)." }
+    "savedTabGroups": { "default": null, "note": "Tab saver (service worker)." },
+    "atlas_scroll_telemetry": { "default": {}, "archived": true, "note": "The first scroll logs (replaced by atlas_usage, 2026-10-15). Left in place; nothing writes or reads it now." }
   },
   "session": {
     "rheTabStates": { "default": null, "archived": true, "note": "Element Remover per-tab state (archived feature). Left in place; no code reads it now." }

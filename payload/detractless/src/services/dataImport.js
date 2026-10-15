@@ -3,6 +3,7 @@ import { pruneOrphanedPages } from './orphanCleanup.js';
 import { BACKUP_SYNC_KEYS } from '../constants/storageKeys.js';
 import { storageSet } from './storage.js';
 import { warn } from './log.js';
+import { legacySaturation } from '../utils/saturationLock.js';
 
 // Atlas: restore the backup's profiles first, then the usual import fills the active one.
 export async function persistImportData(importData) {
@@ -56,6 +57,9 @@ async function persistImportDataCore(importData) {
 /** The chrome.storage.sync values an import restores (big images go to IndexedDB). */
 async function settingsFromImport(importData) {
   const storageData = {};
+  // A backup from before the color slider: fold its Grayscale switch into the level it was showing.
+  const legacy = legacySaturation(importData.grayscale, importData.saturation);
+  if (legacy !== undefined) importData = { ...importData, saturation: legacy };
   // Which keys, and whether a falsy value counts, come from atlasKeys.json.
   for (const { key, importWhen } of BACKUP_SYNC_KEYS) {
     const value = importData[key];

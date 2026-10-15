@@ -63,10 +63,11 @@ test("Edit opens the popup filled in; saving updates Settings, the switcher and 
   const t = await openPagesSettings();
   await fromMenu(t, "1", "Edit");
   const p = await waitFor(() => t.document.querySelector(".add-popup"), 2000, "popup");
-  assert.equal(text(p.querySelector(".picker-title")), "Edit page");
+  assert.equal(text(p.querySelector("[data-title]")), "Edit page");
   assert.equal(p.querySelector('[data-field="pageName"]').value, "College");
   assert.equal(p.querySelector('[data-field="sub"]').value, "Classes and due dates");
   assert.equal(p.querySelector("[data-add-mode]"), null, "editing a page has no Bookmark | Page switch");
+  assert.equal(p.querySelector(".add-popup-step"), null, "editing is one screen, with no steps");
   setField(t, p, "pageName", "School");
   setField(t, p, "sub", "Classes, labs and exams");
   click(t.window, p.querySelector("[data-add-save]"));
@@ -82,8 +83,11 @@ test("Add page opens the popup in Page mode, and the new page joins the list", a
   const t = await openPagesSettings();
   click(t.window, t.document.querySelector('#sp-content [data-action="page-add"]'));
   const p = await waitFor(() => t.document.querySelector(".add-popup"), 2000, "popup");
-  assert.equal(p.querySelector('[data-add-mode="page"]').getAttribute("aria-pressed"), "true");
+  assert.equal(p.dataset.kind, "page");
+  assert.equal(text(p.querySelector("[data-title]")), "What is the page called?");
   setField(t, p, "pageName", "Gym");
+  click(t.window, p.querySelector("[data-add-next]"));
+  await settle(t.window, 40);
   setField(t, p, "sub", "Workouts and meal plans");
   click(t.window, p.querySelector("[data-add-save]"));
   await waitFor(() => rows(t).length === 4, 2000, "a fourth row");
@@ -173,11 +177,11 @@ test("Delete in the ⋮ menu asks first; Cancel keeps the page; confirming remov
   assert.deepEqual(switcher(t), ["Dashboard", "College"]);
 });
 
-test("Settings lists Profiles, Search, Pages, Appearance, Focus, then the data pages, and opens on Profiles", async () => {
+test("Settings lists Profiles, Search, Pages, Appearance, Focus, Usage, then the data pages, and opens on Profiles", async () => {
   const t = await openNewTab({ local: { hasSeededDefaults: true }, sync: { activeTabs: PAGES } });
   click(t.window, t.document.getElementById("global-settings-btn"));
   await waitFor(() => t.document.querySelector('#sp-nav [data-page="profiles"]'), 2000, "Profiles in the list");
   assert.deepEqual([...t.document.querySelectorAll("#sp-nav [data-page]")].map((b) => b.dataset.page),
-    ["profiles", "search", "pages", "appearance", "focus", "backup", "reset", "review"]);
+    ["profiles", "search", "pages", "appearance", "focus", "usage", "backup", "reset", "review"]);
   await waitFor(() => text(t.document.querySelector("#sp-content .sp-page-title")) === "Profiles", 2000, "opens on Profiles");
 });

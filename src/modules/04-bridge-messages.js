@@ -22,6 +22,11 @@ if (chrome.runtime && chrome.runtime.onMessage) {
     } else if (m.act === 'savepage') {
       var u = m.url || (sender && sender.tab && sender.tab.url);
       if (u) chrome.downloads.download({ url: u, saveAs: true }, function () { void chrome.runtime.lastError; });
+    } else if (m.act === 'focus-addressbar') {
+      var winId = (sender && sender.tab && sender.tab.windowId) || undefined;
+      var myWin = (typeof window !== 'undefined' && window.vivaldiWindowId) || undefined;
+      if (winId && myWin && winId !== myWin) return;
+      if (typeof Atlas.focusAddressBar === 'function') Atlas.focusAddressBar();
     }
   });
 }

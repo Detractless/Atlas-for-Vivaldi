@@ -1,0 +1,97 @@
+/* ============================================================================
+   08-addbar.css: "Add bookmark" and "Add page" in the address bar
+   (src/modules/23-addbar-core.js and 24-addbar-screens.js).
+
+   The profile menu's Add bookmark / Add page open here, on whatever page you are on. A field sits over
+   the address bar and a card grows under it, as one shape (the same shape as the address bar's own card,
+   03-addressbar.css section 4c: fill, border, faint line, pills), a little bigger. The page behind dims.
+   ========================================================================= */
+
+#browser .atlas-addscrim {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 2147482900;
+  background: rgba(0, 0, 0, .28);
+}
+#browser.theme-dark .atlas-addscrim { background: rgba(0, 0, 0, .4); }
+
+#browser .atlas-addfield {
+  position: fixed; z-index: 2147483100; box-sizing: border-box; height: 40px;
+  display: flex; align-items: center; gap: 10px; padding: 0 12px 0 14px;
+  background: linear-gradient(var(--atlas-hover-2), var(--atlas-hover-2)), var(--atlas-bar);
+  border: 1px solid var(--atlas-border); border-bottom-color: transparent; border-radius: 8px 8px 0 0;
+  color: var(--atlas-text-1); font: 15px/24px system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+#browser .atlas-addicon { width: 18px; height: 18px; flex: none; color: var(--atlas-text-2); }
+#browser .atlas-addicon svg, #browser .atlas-addddbtn svg, #browser .atlas-addrow svg {
+  width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+}
+#browser .atlas-addchip {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 10px; flex: none; white-space: nowrap;
+  border-radius: 9999px; background: var(--atlas-hover-3); color: var(--atlas-text-1); font-size: 12px; line-height: 16px;
+}
+#browser .atlas-addinput, #browser .atlas-addtext {
+  flex: 1; min-width: 0; padding: 0; border: 0; outline: none; background: transparent;
+  color: var(--atlas-text-1); caret-color: var(--atlas-text-1); font: inherit;
+}
+#browser .atlas-addinput::placeholder, #browser .atlas-addtext::placeholder { color: var(--atlas-text-2); }
+
+#browser .atlas-addcard {
+  position: fixed; z-index: 2147483000; box-sizing: border-box; padding: 14px;
+  background: linear-gradient(var(--atlas-hover-2), var(--atlas-hover-2)), var(--atlas-bar);
+  color: var(--atlas-text-1); border: 1px solid var(--atlas-border); border-top: 0; border-radius: 0 0 8px 8px;
+  box-shadow: var(--atlas-shadow); clip-path: inset(0 -40px -280px -40px);   /* no shadow up over the field; room below for the drop-down lists */
+  font: 14px/20px system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+#browser .atlas-addcard::before { content: ""; position: absolute; top: 0; left: 12px; right: 12px; height: 1px; background: var(--atlas-hover-2); }
+
+#browser .atlas-addhead { display: flex; align-items: baseline; justify-content: space-between; margin: 2px 2px 12px; }
+#browser .atlas-addq { font-size: 16px; line-height: 24px; font-weight: 500; }
+#browser .atlas-addsteps { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--atlas-text-2); }
+#browser .atlas-addsteps i { width: 6px; height: 6px; border-radius: 50%; background: var(--atlas-hover-3); display: inline-block; }
+#browser .atlas-addsteps i.on { background: var(--atlas-text-1); }
+
+#browser .atlas-addpills { display: flex; flex-wrap: wrap; gap: 6px; }
+#browser .atlas-addpill {
+  padding: 6px 14px; border: 0; border-radius: 9999px; cursor: pointer; white-space: nowrap;
+  background: var(--atlas-hover-2); color: var(--atlas-text-1); font: inherit; font-size: 14px;
+}
+#browser .atlas-addpill:hover { background: var(--atlas-hover-3); }
+#browser .atlas-addpill[aria-selected="true"] { background: var(--atlas-text-1); color: var(--atlas-bar); }
+#browser .atlas-addhint { margin-top: 10px; color: var(--atlas-text-2); font-size: 12px; line-height: 16px; opacity: .85; }
+#browser .atlas-addhint:empty { display: none; }
+#browser .atlas-addlabel { margin: 0 4px 4px; font-size: 12px; line-height: 16px; color: var(--atlas-text-2); }
+
+#browser .atlas-addcols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+#browser .atlas-adddd { position: relative; }
+#browser .atlas-addddbtn {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; height: 38px; padding: 0 14px;
+  border: 0; border-radius: 9999px; background: var(--atlas-hover-2); color: var(--atlas-text-1); font: inherit; font-size: 14px; cursor: pointer; text-align: left;
+}
+#browser .atlas-addddbtn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#browser .atlas-addddbtn svg { width: 16px; height: 16px; flex: none; color: var(--atlas-text-2); }
+#browser .atlas-addmenu {
+  position: absolute; z-index: 5; left: 0; right: 0; top: 62px; padding: 6px;
+  background: var(--atlas-menu); border: 1px solid var(--atlas-border); border-radius: 16px; box-shadow: var(--atlas-shadow);
+}
+#browser .atlas-addmenu[hidden] { display: none; }
+#browser .atlas-addrows { max-height: 170px; overflow-y: auto; }
+#browser .atlas-addrow {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; height: 34px; padding: 0 12px;
+  border: 0; border-radius: 10px; background: transparent; color: var(--atlas-text-1); font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+}
+#browser .atlas-addrow:hover, #browser .atlas-addrow[aria-selected="true"] { background: var(--atlas-hover-2); }
+#browser .atlas-addrow svg { width: 15px; height: 15px; flex: none; }
+#browser .atlas-addnote { padding: 4px 12px 2px; font-size: 11px; color: var(--atlas-text-2); }
+#browser [data-ab-newgroup] { margin-top: 12px; }
+#browser [data-ab-newgroup][hidden] { display: none; }
+#browser .atlas-addtext { display: block; width: 100%; height: 38px; padding: 0 14px; border-radius: 9999px; background: var(--atlas-hover-2); }
+
+#browser .atlas-adderror { margin: 10px 2px 0; font-size: 12px; line-height: 16px; color: var(--atlas-error, #d14343); }
+#browser .atlas-adderror:empty { display: none; }
+#browser .atlas-addfoot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+#browser .atlas-addbtn {
+  height: 36px; padding: 0 18px; border-radius: 9999px; border: 1px solid var(--atlas-border); background: transparent;
+  color: var(--atlas-text-1); font: inherit; font-size: 14px; line-height: 34px; cursor: pointer;
+}
+#browser .atlas-addbtn:hover { background: var(--atlas-hover-2); }
+#browser .atlas-addbtn.pri { background: var(--atlas-text-1); color: var(--atlas-bar); border-color: transparent; font-weight: 500; }
+#browser .atlas-addbtn:disabled { opacity: .4; cursor: default; pointer-events: none; }

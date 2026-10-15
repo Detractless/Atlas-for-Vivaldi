@@ -8,7 +8,8 @@ import {
   setSpotlightVisible, setSearchEngineBehavior, setBookmarkPillBehavior, setFadeInEnabled,
   setAppThemeConfig, setSearchDelaySeconds,
 } from '../pages/newtab/newtabState.js';
-import { applySpotlightVisibility, applyFadeIn, applyScale, applyGrayscale } from '../pages/newtab/displayEffects.js';
+import { applySpotlightVisibility, applyFadeIn, applyScale } from '../pages/newtab/displayEffects.js';
+import { requestSaturation } from '../components/colorLock/colorLock.js';
 import { applyThemeConfig } from '../pages/newtab/theme.js';
 import { updateCurrentEngine } from '../components/engines/enginesUI.js';
 import { requestTabLimit } from '../components/tabLimiter/tabLimiterUI.js';
@@ -61,5 +62,6 @@ export function defineAllSettings() {
   defineSetting({ key: 'searchDelaySeconds', apply: (v) => setSearchDelaySeconds(v), write: requestSearchDelay });
   defineSetting({ key: 'pendingDelayDecrease' });
   defineSetting({ key: 'showQueryOnDelay' });
-  defineSetting({ key: 'grayscale', apply: (v) => applyGrayscale(v) });
+  defineSetting({ key: 'saturation', write: requestSaturation });
+  defineSetting({ key: 'saturationLock' });
 }

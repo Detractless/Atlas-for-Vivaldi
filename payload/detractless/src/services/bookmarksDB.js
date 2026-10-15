@@ -47,15 +47,15 @@ export const BookmarkDB = {
         if (!db.objectStoreNames.contains('uiPrefs')) {
           const store = db.createObjectStore('uiPrefs', { keyPath: 'key' });
           // One-time migration from localStorage on first upgrade to v4.
-          const themePref = localStorage.getItem('themePref');
-          const uiScaleStr = localStorage.getItem('uiScale');
+          const stash = typeof localStorage !== 'undefined' ? localStorage : null;   // not there in the service worker
+          const themePref = stash && stash.getItem('themePref');
+          const uiScaleStr = stash && stash.getItem('uiScale');
           if (themePref) store.put({ key: 'themePref', value: themePref });
           if (uiScaleStr !== null) {
             const scale = parseFloat(uiScaleStr);
             if (!isNaN(scale)) store.put({ key: 'uiScale', value: scale });
           }
-          localStorage.removeItem('themePref');
-          localStorage.removeItem('uiScale');
+          if (stash) { stash.removeItem('themePref'); stash.removeItem('uiScale'); }
         }
         // v6. `notes` is LIVE AGAIN: the side-panel notes feature reads and writes
         // it through listNotes/saveNote/deleteNote below. Keeping the store rather

@@ -178,7 +178,34 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
       if (typeof target.blur === 'function') target.blur();
     }
   }, true);
+
+  /* 5. Double-tap Command (macOS) or Control (Windows) focuses the address bar */
+  var _lastUiModDown = 0;
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Meta' || e.key === 'Control') {
+      if (e.repeat) return;
+      var now = Date.now();
+      if (now - _lastUiModDown < 350) {
+        focusAddressBar();
+        _lastUiModDown = 0;
+      } else {
+        _lastUiModDown = now;
+      }
+    } else {
+      _lastUiModDown = 0;
+    }
+  }, true);
 }
+
+function focusAddressBar() {
+  var input = document.querySelector ? (document.querySelector('.UrlBar-UrlField.url') ||
+              document.querySelector('.UrlBar-AddressField input')) : null;
+  if (input) {
+    input.focus();
+    if (typeof input.select === 'function') input.select();
+  }
+}
+Atlas.focusAddressBar = focusAddressBar;
 
 
   /* ═══ Module: 02-bridge-setup.js ═══ */
@@ -283,7 +310,11 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
     /* Spec 002: Google pages open as the active profile's account (17-google-switch.js
        answers it). Top frames only: allFrames is left off. */
     { id: 'atlas-google-account', matches: ['*://*.google.com/*', '*://*.gmail.com/*', '*://*.youtube.com/*'],
-      js: ['components/atlas/atlas-google-account.js'], runAt: 'document_start' }
+      js: ['components/atlas/atlas-google-account.js'], runAt: 'document_start' },
+    /* Usage totals: how long a site is in front of you and what you do there (Settings > Usage). */
+    { id: 'atlas-usage', matches: ['http://*/*', 'https://*/*'],
+      excludeMatches: ['https://chromewebstore.google.com/*'],
+      js: ['components/atlas/atlas-usage.js'], runAt: 'document_idle' }
   ];
   /* Registrations persist in the profile, and a plain register throws
      "Duplicate" for an existing id. UPDATE existing ones in place (so a params
@@ -292,7 +323,7 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
      restoring tab loads with no context-menu script. Only ids we no longer
      want (the archived Remover and PasteKit scripts, atlas-remover-rules from an
      earlier build) are swept. */
-  var OUR_CS_IDS = ['atlas-ctxmenu', 'atlas-google-account', 'detractless-rules', 'detractless-pastekit', 'atlas-remover-rules'];
+  var OUR_CS_IDS = ['atlas-ctxmenu', 'atlas-google-account', 'atlas-usage', 'detractless-rules', 'detractless-pastekit', 'atlas-remover-rules'];
   var WANTED_IDS = DESIRED_CS.map(function (c) { return c.id; });
   chrome.scripting.getRegisteredContentScripts(function (existing) {
     void chrome.runtime.lastError;
@@ -364,6 +395,11 @@ if (chrome.runtime && chrome.runtime.onMessage) {
     } else if (m.act === 'savepage') {
       var u = m.url || (sender && sender.tab && sender.tab.url);
       if (u) chrome.downloads.download({ url: u, saveAs: true }, function () { void chrome.runtime.lastError; });
+    } else if (m.act === 'focus-addressbar') {
+      var winId = (sender && sender.tab && sender.tab.windowId) || undefined;
+      var myWin = (typeof window !== 'undefined' && window.vivaldiWindowId) || undefined;
+      if (winId && myWin && winId !== myWin) return;
+      if (typeof Atlas.focusAddressBar === 'function') Atlas.focusAddressBar();
     }
   });
 }
@@ -946,7 +982,7 @@ var menu = null;
    open one and message it once loaded. Settings can name a page (Profiles). */
 function toNewTab(act, page) {
   var extUrl = 'chrome-extension://' + ATLAS_EXT_ID + '/';
-  var targetUrl = extUrl + 'index.html' + (act === 'open-add' ? '?add=1' : (page ? '?settings=' + page : '') + '#settings');
+  var targetUrl = extUrl + 'index.html' + (page ? '?settings=' + page : '') + '#settings';
   var msg = { atlas: { act: act } };
   if (page) msg.atlas.page = page;
 
@@ -976,7 +1012,6 @@ function toNewTab(act, page) {
   });
 }
 function openNewTabSettings(page) { toNewTab('open-settings', page); }
-function openNewTabAdd() { toNewTab('open-add'); }
 
 function setPanelBlur(on) {
   var b = document.getElementById('browser');
@@ -1007,12 +1042,16 @@ function applyCorner() {
 function pIcon(d) { return '<svg viewBox="0 0 20 20" aria-hidden="true">' + d + '</svg>'; }
 var PI = {
   plus: pIcon('<path d="M10 4.5v11M4.5 10h11"/>'),
+  back: pIcon('<path d="m12 4-6 6 6 6"/>'),
+  bm: pIcon('<path d="M5.5 3.5h9v13l-4.5-3.2-4.5 3.2z"/>'),
+  page: pIcon('<rect x="3.5" y="3.5" width="13" height="13" rx="3.5"/><path d="M3.5 8h13"/>'),
   clock: pIcon('<circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 1.5"/>'),
   down: pIcon('<path d="M10 3.5v9M6.5 9.5 10 13l3.5-3.5M4 16.5h12"/>'),
   gear: pIcon('<circle cx="10" cy="10" r="2.4"/><path d="M8.6 2.8h2.8l.4 2 1.6.9 1.9-.7 1.4 2.4-1.5 1.3v1.8l1.5 1.3-1.4 2.4-1.9-.7-1.6.9-.4 2H8.6l-.4-2-1.6-.9-1.9.7-1.4-2.4 1.5-1.3V9.1L3.3 7.8l1.4-2.4 1.9.7 1.6-.9z"/>')
 };
 var PACTS = {
-  add: function () { openNewTabAdd(); },
+  'add-bookmark': function () { Atlas.openAdd('bookmark'); },
+  'add-page': function () { Atlas.openAdd('page'); },
   history: function () { chrome.tabs.create({ url: 'vivaldi://history' }); },
   downloads: function () { chrome.tabs.create({ url: 'vivaldi://downloads' }); },
   ext: function () { openNewTabSettings(); },
@@ -1030,6 +1069,9 @@ function openMenu(btn) {
   menu = document.createElement('div');
   menu.className = 'atlas-profile-menu atlas-nosurf-menu atlas-newmenu';
   menu.setAttribute('role', 'menu');
+  /* 'main' is the profiles and the rows; 'add' is what is left after Add page or bookmark is clicked:
+     two choices and a way back, so the menu is shorter. */
+  var view = 'main';
 
   function row(act, icon, label) {
     return '<button type="button" class="apm-item" role="menuitem" data-act="' + act + '">' +
@@ -1037,6 +1079,14 @@ function openMenu(btn) {
   }
   function fill() {
     var s = ap && ap.get(), head = '';
+    if (view === 'add') {
+      menu.innerHTML = '<button type="button" class="apm-head" data-back aria-label="Back">' + PI.back + '<span>Add</span></button>' +
+        '<div class="apm-sep"></div>' + row('add-bookmark', PI.bm, 'Add bookmark') + row('add-page', PI.page, 'Add page');
+      menu.style.top = Math.round(r.bottom + 6) + 'px';
+      menu.style.right = Math.round(window.innerWidth - r.right) + 'px';
+      addDropTail(menu, r);
+      return;
+    }
     if (s) {
       var cur = ap.active();
       head = '<div class="apm-strip">' + s.list.map(function (q) {
@@ -1062,6 +1112,8 @@ function openMenu(btn) {
     var pk = t && t.closest('[data-pick]'), act = t && t.closest('[data-act]');
     if (pk && ap) ap.switchTo(pk.getAttribute('data-pick')).then(function () { if (menu) fill(); });
     else if (t && t.closest('[data-add]')) { closeMenu(); openNewTabSettings('profiles'); }
+    else if (t && t.closest('[data-back]')) { view = 'main'; fill(); }
+    else if (act && act.getAttribute('data-act') === 'add') { view = 'add'; fill(); }
     else if (act) { var f = PACTS[act.getAttribute('data-act')]; closeMenu(); try { f(); } catch (err) { atlasWarn('profile menu action failed', err); } }
   });
 
@@ -1741,36 +1793,48 @@ Atlas.closeExtPop = closeExtPop;
   function ensureExtDocked() {
     var field = document.querySelector('.toolbar-mainbar > .UrlBar-AddressField');
     if (!field) return;
-    var ext = document.querySelector('.toolbar-extensions');
-    if (!ext) {
-      ext = document.createElement('div');
-      ext.className = 'toolbar-extensions atlas-ext-docked';
-      field.appendChild(ext);
-    } else {
-      if (ext.parentElement !== field || field.lastElementChild !== ext) {
-        field.appendChild(ext);
+
+    var allExts = document.querySelectorAll('.toolbar-extensions');
+    if (!allExts || !allExts.length) return;
+
+    // Locate the native container (preferring one with Vivaldi's native buttons)
+    var nativeExt = null;
+    var toRemove = [];
+
+    for (var i = 0; i < allExts.length; i++) {
+      var el = allExts[i];
+      if (el.querySelector('button:not(.atlas-fallback-ext-btn)')) {
+        if (!nativeExt) nativeExt = el;
+        else toRemove.push(el);
       }
-      ext.classList.add('atlas-ext-docked');
     }
 
-    // Ensure puzzle button is present even if 0 extensions are installed
-    var nativeBtn = ext.querySelector('button:not(.atlas-fallback-ext-btn)');
-    var fallbackBtn = ext.querySelector('.atlas-fallback-ext-btn');
-    if (nativeBtn) {
-      if (fallbackBtn) fallbackBtn.remove();
-    } else if (!fallbackBtn) {
-      var btn = document.createElement('button');
-      btn.className = 'button-toolbar ExtensionToggleIcon atlas-fallback-ext-btn';
-      btn.setAttribute('data-name', 'Extensions');
-      btn.setAttribute('title', 'Extensions');
-      btn.setAttribute('tabindex', '-1');
-      btn.setAttribute('type', 'button');
-      btn.innerHTML = '<span class="button-icon">' +
-        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
-        '<path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v3.8h1.5a2.5 2.5 0 0 1 0 5H2V20a2 2 0 0 0 2 2h3.8v-1.5a2.5 2.5 0 0 1 5 0V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z"/>' +
-        '</svg>' +
-        '</span>';
-      ext.appendChild(btn);
+    if (!nativeExt) {
+      nativeExt = allExts[0];
+      for (var j = 1; j < allExts.length; j++) {
+        toRemove.push(allExts[j]);
+      }
+    } else {
+      for (var k = 0; k < allExts.length; k++) {
+        if (allExts[k] !== nativeExt && toRemove.indexOf(allExts[k]) === -1) {
+          toRemove.push(allExts[k]);
+        }
+      }
+    }
+
+    for (var r = 0; r < toRemove.length; r++) {
+      toRemove[r].remove();
+    }
+
+    if (nativeExt.parentElement !== field || field.lastElementChild !== nativeExt) {
+      field.appendChild(nativeExt);
+    }
+    nativeExt.classList.add('atlas-ext-docked');
+
+    var nativeBtn = nativeExt.querySelector('button:not(.atlas-fallback-ext-btn)');
+    var fallbackBtn = nativeExt.querySelector('.atlas-fallback-ext-btn');
+    if (nativeBtn && fallbackBtn) {
+      fallbackBtn.remove();
     }
   }
 
@@ -1781,25 +1845,31 @@ Atlas.closeExtPop = closeExtPop;
     if (_dockMutating) return;
     _dockMutating = true;
     try {
+      attachBarObserver();
       ensureExtDocked();
     } finally {
       _dockMutating = false;
     }
   }
 
-  runDocking();
-
-  var bar = document.querySelector('.toolbar-mainbar');
-  if (bar && typeof MutationObserver !== 'undefined') {
-    new MutationObserver(function () {
-      if (_dockMutating || _dockRafScheduled) return;
-      _dockRafScheduled = true;
-      requestAnimationFrame(function () {
-        _dockRafScheduled = false;
-        runDocking();
+  var _barObserver = null;
+  function attachBarObserver() {
+    if (_barObserver) return;
+    var bar = document.querySelector('.toolbar-mainbar');
+    if (bar && typeof MutationObserver !== 'undefined') {
+      _barObserver = new MutationObserver(function () {
+        if (_dockMutating || _dockRafScheduled) return;
+        _dockRafScheduled = true;
+        requestAnimationFrame(function () {
+          _dockRafScheduled = false;
+          runDocking();
+        });
       });
-    }).observe(bar, { childList: true });
+      _barObserver.observe(bar, { childList: true });
+    }
   }
+
+  runDocking();
 
   var _dockAttempts = 0;
   var _dockTimer = setInterval(function () {
@@ -2550,7 +2620,7 @@ if (window.AtlasProfiles && chrome.tabs) {
 
 var APB_HALF_LIFE = 7 * 24 * 60 * 60 * 1000;   // how fast a past visit stops counting (as the new tab)
 var apbBookmarks = [];      // [{ name, url, score }]
-var apbBehavior = 'always'; // 'always' | 'prefix' (only after ./)
+var apbBehavior = 'always'; // 'always' | 'prefix' (only after ./) | 'never'
 var apbState = { input: null, typed: false, list: [], at: -1 };
 var apbCard = null;
 
@@ -2598,6 +2668,7 @@ function apbFlatten(pages, uses) {
 function apbMatches(value) {
   if (!apbState.typed) return [];
   var v = String(value || '');
+  if (apbBehavior === 'never') return [];
   if (apbBehavior !== 'always' && v.indexOf('./') !== 0) return [];
   var q = (v.indexOf('./') === 0 ? v.slice(2) : v).trim().toLowerCase();
   if (!q) return [];
@@ -3394,6 +3465,604 @@ if (typeof document !== 'undefined' && document.addEventListener) {
   window.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && apbField(e.target) && !e.metaKey && !e.ctrlKey && !e.altKey) abr.enterAt = Date.now();
   }, true);
+}
+
+  /* ═══ Module: 22-page-saturation.js ═══ */
+/* ── 22-page-saturation.js: the Focus colour filter, drawn on the tab's page
+   container instead of inside each web page. ──
+   A filter added by a script inside the page arrived after the page's first
+   frames (the saved level is read asynchronously, and every navigation is a new
+   document), so each load flashed in colour. A filter on the page's <webview> in
+   this window is already there when the next page starts, and stays through every
+   navigation. Pages of the browser itself (Atlas's new tab and settings, Vivaldi's
+   own) are marked and left in full colour.
+   The level is the Color saturation slider (Settings > Focus): 100 is full color and draws no filter.
+   Older settings had a Grayscale on/off switch beside it; effectiveLevel() reads both until the
+   service worker has folded the switch into the slider. */
+(function () {
+  'use strict';
+
+  var STYLE_ID = 'atlas-page-filter';
+  var CACHE_KEY = 'atlas-page-saturation';   // last level, so a restart paints before storage answers
+  var NOFILTER = 'data-atlas-nofilter';
+  var STACK = '#webpage-stack';
+  var INTERNAL = /^(chrome|chrome-extension|vivaldi|devtools|about):/i;
+
+  var level = null;   // null = filter off; otherwise 0..100
+  var urls = {};      // tab id -> last known address
+
+  function isInternal(url) { return !url || INTERNAL.test(url); }
+
+  function paint() {
+    var el = document.getElementById(STYLE_ID);
+    if (level === null) { if (el) el.remove(); return; }
+    var css = STACK + ' .webpageview webview:not([' + NOFILTER + ']) { filter: saturate(' + level + '%); }';
+    if (!el) {
+      el = document.createElement('style');
+      el.id = STYLE_ID;
+      (document.head || document.documentElement).appendChild(el);
+    }
+    if (el.textContent !== css) el.textContent = css;
+  }
+
+  /* The level that is showing, from what is saved: the slider, or the old switch plus its level. */
+  function effectiveLevel(r) {
+    r = r || {};
+    var sat = typeof r.saturation === 'number' ? r.saturation : undefined;
+    if (r.grayscale === true) return sat !== undefined ? sat : 0;
+    if (r.grayscale === false) return 100;
+    return sat !== undefined ? sat : 100;
+  }
+
+  function setLevel(n) {
+    level = n >= 100 || isNaN(n) ? null : Math.max(0, n);
+    try { localStorage.setItem(CACHE_KEY, level === null ? '' : String(level)); } catch (e) { void e; }
+    paint();
+  }
+
+  /* Whether this page's container carries the filter follows the tab's address. A tab
+     whose address is not known yet counts as internal: a new tab must never paint grey. */
+  function mark(wv) {
+    var exempt = isInternal(urls[wv.getAttribute('tab_id')]);
+    if (wv.hasAttribute(NOFILTER) !== exempt) wv.toggleAttribute(NOFILTER, exempt);
+  }
+
+  function remember(id, url) {
+    if (url) urls[id] = url;
+    var wv = document.querySelector(STACK + ' webview[tab_id="' + id + '"]');
+    if (wv) mark(wv);
+  }
+
+  function markAll() {
+    var wvs = document.querySelectorAll(STACK + ' webview[tab_id]');
+    for (var i = 0; i < wvs.length; i++) {
+      var id = wvs[i].getAttribute('tab_id');
+      if (!(id in urls)) learn(id);
+      mark(wvs[i]);
+    }
+  }
+
+  function learn(id) {
+    urls[id] = '';   // asked once; the answer marks it
+    if (!chrome.tabs || !chrome.tabs.get) return;
+    chrome.tabs.get(parseInt(id, 10), function (t) {
+      void chrome.runtime.lastError;
+      if (t) remember(id, t.url || t.pendingUrl);
+    });
+  }
+
+  function readSettings() {
+    chrome.storage.sync.get(['grayscale', 'saturation'], function (r) {
+      void chrome.runtime.lastError;
+      setLevel(effectiveLevel(r));
+    });
+  }
+
+  /* New pages appear in the stack as tabs open or restore: mark them in the same task,
+     before the window next paints (an observer callback runs ahead of the redraw). */
+  function watchStack() {
+    var stack = document.querySelector(STACK);
+    if (!stack) { var t = setTimeout(watchStack, 200); if (t && typeof t.unref === 'function') t.unref(); return; }
+    markAll();
+    if (typeof MutationObserver !== 'undefined') {
+      new MutationObserver(onStackChange).observe(stack, { childList: true, subtree: true });
+    }
+  }
+
+  /* Vivaldi's own pages redraw inside the stack all the time: only a new <webview> matters. */
+  function onStackChange(muts) {
+    for (var i = 0; i < muts.length; i++) {
+      for (var j = 0; j < muts[i].addedNodes.length; j++) {
+        var n = muts[i].addedNodes[j];
+        if (n.nodeType === 1 && (n.tagName === 'WEBVIEW' || (n.querySelector && n.querySelector('webview')))) { markAll(); return; }
+      }
+    }
+  }
+
+  if (typeof document === 'undefined' || !document.querySelector) return;
+
+  try {
+    var cached = localStorage.getItem(CACHE_KEY);
+    if (cached) setLevel(parseInt(cached, 10));
+  } catch (e) { void e; }
+
+  if (chrome.storage && chrome.storage.sync && chrome.storage.sync.get) readSettings();
+  if (chrome.storage && chrome.storage.onChanged && chrome.storage.onChanged.addListener) {
+    chrome.storage.onChanged.addListener(function (ch, area) {
+      if (area === 'sync' && (ch.grayscale || ch.saturation)) readSettings();
+    });
+  }
+  if (chrome.tabs) {
+    if (chrome.tabs.onCreated) chrome.tabs.onCreated.addListener(function (t) { remember(t.id, t.url || t.pendingUrl); });
+    if (chrome.tabs.onUpdated) chrome.tabs.onUpdated.addListener(function (id, info, t) { remember(id, (info && info.url) || (t && t.url)); });
+    if (chrome.tabs.onRemoved) chrome.tabs.onRemoved.addListener(function (id) { delete urls[id]; });
+    if (chrome.tabs.query) chrome.tabs.query({}, function (tabs) {
+      (tabs || []).forEach(function (t) { remember(t.id, t.url || t.pendingUrl); });
+    });
+  }
+  watchStack();
+
+})();
+
+  /* ═══ Module: 23-addbar-core.js ═══ */
+/* ── 23-addbar-core.js: "Add bookmark" and "Add page" in the address bar ──
+   The profile menu's Add bookmark / Add page open here, on whatever page you are on: the address bar
+   grows into the container (a field over the bar, a card under it, the page behind dimmed). The
+   screens are in 24-addbar-screens.js. This file holds the state, the questions put to the service
+   worker (background/addFlow.js, which owns the bookmark database and the page list), and the
+   opening, placing and closing.
+   One flow at a time: `ab` is the open flow, or null. */
+
+var AB_SUB_MIN = 3, AB_SUB_MAX = 5, AB_SUB_CHARS = 32;   // the subtitle rule, as services/pageSubtitle.js
+var AB_NEW_GROUP = 'new-group ';                          // the "+ New group" choice, as utils/addBookmarkFlow.js
+var AB_MIN_WIDTH = 520;
+var ab = null;
+
+function abEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+/* Ask the service worker; always answers, with { error } when it could not. */
+function abAsk(msg) {
+  return new Promise(function (resolve) {
+    try {
+      chrome.runtime.sendMessage(msg, function (r) { void chrome.runtime.lastError; resolve(r || { error: 'No answer. Reload the browser and try again.' }); });
+    } catch (e) {
+      resolve({ error: 'Could not reach Atlas. Reload the browser and try again.' });
+    }
+  });
+}
+
+function abDb() {
+  var ap = window.AtlasProfiles;
+  return ap && ap.dbName ? ap.dbName() : 'DetractlessBookmarks';
+}
+
+function abSubCount(text) {
+  var t = String(text || '').replace(/\s+/g, ' ').trim();
+  return { words: t ? t.split(' ').length : 0, chars: t.length };
+}
+
+function abSubProblem(text) {
+  var c = abSubCount(text);
+  if (c.words < AB_SUB_MIN) return 'Use at least ' + AB_SUB_MIN + ' words';
+  if (c.words > AB_SUB_MAX) return 'Use at most ' + AB_SUB_MAX + ' words';
+  if (c.chars > AB_SUB_CHARS) return 'Keep it to ' + AB_SUB_CHARS + ' characters';
+  return null;
+}
+
+function abFresh(kind) {
+  return {
+    kind: kind, step: 1, token: 0, busy: false, menu: null,
+    urlText: '', name: '', nameTouched: false, sites: [], siteAt: 0, names: [], thisUrl: '',
+    pages: [], page: null, groups: [], group: null, newGroup: '',
+    pageName: '', sub: '',
+    pageCount: 1, scrim: null, field: null, card: null
+  };
+}
+
+/* ── where it goes: over the address field, the same middle, never narrower than it can use ── */
+
+function abFieldRect() {
+  var field = document.querySelector('.UrlBar-AddressField');
+  var r = field && field.getBoundingClientRect();
+  if (r && r.width > 0) return { left: r.left, top: r.top, width: r.width, height: r.height };
+  var w = Math.min(620, window.innerWidth - 24);
+  return { left: (window.innerWidth - w) / 2, top: 8, width: w, height: 32 };
+}
+
+function abPlace() {
+  if (!ab) return;
+  var r = abFieldRect();
+  var width = Math.min(Math.max(r.width, AB_MIN_WIDTH), window.innerWidth - 24);
+  var left = Math.max(12, Math.min(r.left + r.width / 2 - width / 2, window.innerWidth - width - 12));
+  var top = Math.max(2, r.top + r.height / 2 - 20);
+  ab.field.style.cssText = 'left:' + Math.round(left) + 'px;top:' + Math.round(top) + 'px;width:' + Math.round(width) + 'px';
+  ab.card.style.cssText = 'left:' + Math.round(left) + 'px;top:' + Math.round(top + 40) + 'px;width:' + Math.round(width) + 'px';
+  var stack = document.getElementById('webpage-stack');
+  var sr = stack && stack.getBoundingClientRect();
+  ab.scrim.style.top = Math.round(sr && sr.height > 0 ? sr.top : top + 40) + 'px';
+}
+
+function abDiv(cls, role) {
+  var el = document.createElement('div');
+  el.className = cls;
+  if (role) el.setAttribute('role', role);
+  return el;
+}
+
+function abOnKey(e) {
+  if (e.key !== 'Escape' || !ab) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (ab.menu) abCloseMenus(); else abClose();
+}
+
+function abClose() {
+  if (!ab) return;
+  [ab.scrim, ab.field, ab.card].forEach(function (el) { if (el && el.parentNode) el.parentNode.removeChild(el); });
+  document.removeEventListener('keydown', abOnKey, true);
+  window.removeEventListener('resize', abPlace);
+  window.removeEventListener('blur', abClose);
+  atlasMark('atlas-add-open', false);
+  ab = null;
+}
+
+/** Open the flow: mode is 'bookmark' or 'page'. */
+function abOpen(mode) {
+  abClose();
+  if (typeof Atlas.closeUiMenu === 'function') Atlas.closeUiMenu();
+  ab = abFresh(mode === 'page' ? 'page' : 'bookmark');
+  var host = document.getElementById('browser') || document.body;
+  ab.scrim = abDiv('atlas-addscrim');
+  ab.field = abDiv('atlas-addfield');
+  ab.card = abDiv('atlas-addcard', 'dialog');
+  ab.card.setAttribute('aria-label', ab.kind === 'page' ? 'Add page' : 'Add bookmark');
+  [ab.scrim, ab.field, ab.card].forEach(function (el) { host.appendChild(el); });
+  ab.scrim.addEventListener('mousedown', function (e) { e.preventDefault(); abClose(); });
+  atlasMark('atlas-add-open', true);
+  document.addEventListener('keydown', abOnKey, true);
+  window.addEventListener('resize', abPlace);
+  window.addEventListener('blur', abClose);
+  abPlace();
+  abWire();
+  abRender();
+  abLoad(ab);
+}
+
+/* The page you are on (for the first pill) and the pages bookmarks can go on, then the first pills. */
+function abLoad(flow) {
+  if (flow.kind === 'bookmark') {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      var t = tabs && tabs[0];
+      if (ab === flow && t && /^https?:/.test(t.url || '')) flow.thisUrl = t.url;
+      abSuggest();
+    });
+  }
+  abAsk({ action: 'addInfo' }).then(function (r) {
+    if (ab !== flow) return;
+    flow.pages = r.pages || [];
+    flow.pageCount = flow.pages.length + 1;   // the new page's default name is Page N
+    if (flow.page === null && flow.pages.length) flow.page = flow.pages[0].id;
+    var input = flow.kind === 'page' && flow.step === 1 && flow.field.querySelector('input');
+    if (input) input.placeholder = 'Page ' + flow.pageCount;
+  });
+}
+
+/* Pills for what is typed. Several calls may overlap while typing: only the newest answer is used. */
+var abSuggestTimer = 0;
+function abSuggest() {
+  clearTimeout(abSuggestTimer);
+  abSuggestTimer = setTimeout(function () {
+    var flow = ab;
+    if (!flow || flow.kind !== 'bookmark' || flow.step !== 1) return;
+    var token = ++flow.token;
+    abAsk({ action: 'addSuggest', db: abDb(), typed: flow.urlText, thisUrl: flow.thisUrl }).then(function (r) {
+      if (ab !== flow || flow.token !== token || flow.step !== 1) return;
+      flow.sites = r.sites || [];
+      flow.names = r.names || [];
+      flow.siteAt = Math.min(flow.siteAt, Math.max(flow.sites.length - 1, 0));
+      abPaintPills();
+    });
+  }, 60);
+}
+
+/* Going to another tab leaves the flow behind. */
+if (chrome.tabs && chrome.tabs.onActivated) chrome.tabs.onActivated.addListener(function () { abClose(); });
+
+Atlas.openAdd = abOpen;
+Atlas.closeAdd = abClose;
+
+  /* ═══ Module: 24-addbar-screens.js ═══ */
+/* ── 24-addbar-screens.js: the screens of the address bar's Add flow, and what they do ──
+   Add bookmark: which website, then the name and where it goes. Add page: its name, then a
+   subtitle. The question is the card's title; the bar holds the answer being typed.
+   Looks: the address bar's own card (css-mods/03-addressbar.css 4c), a little bigger (css-mods/08-addbar.css). */
+
+var AB_ICON_BM = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5h8v11l-4-2.8-4 2.8z"/></svg>';
+var AB_ICON_PAGE = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="3"/><path d="M2.5 6.5h11"/></svg>';
+var AB_ICON_CHEV = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>';
+var AB_ICON_TICK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7"/></svg>';
+
+function abButton(attr, label, primary, disabled) {
+  return '<button type="button" class="atlas-addbtn' + (primary ? ' pri' : '') + '" ' + attr + (disabled ? ' disabled' : '') + '>' + abEsc(label) + '</button>';
+}
+
+function abPills(list, at, attr) {
+  return '<div class="atlas-addpills" role="listbox">' + list.map(function (p, i) {
+    return '<button type="button" class="atlas-addpill" role="option" ' + attr + '="' + abEsc(p.value) + '" aria-selected="' + (i === at) + '">' + abEsc(p.label) + '</button>';
+  }).join('') + '</div>';
+}
+
+function abDropdown(key, label, items, value) {
+  var cur = items.filter(function (it) { return String(it.value) === String(value); })[0];
+  var rows = items.map(function (it) {
+    var on = String(it.value) === String(value);
+    return '<button type="button" class="atlas-addrow" role="option" data-ab-item="' + key + '" data-value="' + abEsc(it.value) + '" aria-selected="' + on + '">' + abEsc(it.label) + (on ? AB_ICON_TICK : '') + '</button>';
+  }).join('');
+  var more = items.length > 5 ? '<div class="atlas-addnote">' + (items.length - 5) + ' more, scroll</div>' : '';
+  return '<div class="atlas-adddd" data-ab-wrap="' + key + '"><div class="atlas-addlabel">' + abEsc(label) + '</div>' +
+    '<button type="button" class="atlas-addddbtn" data-ab-dd="' + key + '" aria-haspopup="listbox" aria-expanded="false"><span>' + abEsc(cur ? cur.label : 'Choose') + '</span>' + AB_ICON_CHEV + '</button>' +
+    '<div class="atlas-addmenu" data-ab-menu="' + key + '" role="listbox" hidden><div class="atlas-addrows">' + rows + '</div>' + more + '</div></div>';
+}
+
+function abPageItems() { return ab.pages.map(function (p) { return { value: String(p.id), label: p.label }; }); }
+function abGroupItems() {
+  return ab.groups.map(function (g) { return { value: g, label: g }; }).concat([{ value: AB_NEW_GROUP, label: '+ New group' }]);
+}
+
+function abHead(q, step, total) {
+  var dots = '';
+  for (var i = 0; i < total; i++) dots += '<i' + (i === step - 1 ? ' class="on"' : '') + '></i>';
+  return '<div class="atlas-addhead"><div class="atlas-addq" data-ab-title>' + abEsc(q) + '</div><div class="atlas-addsteps">Step ' + step + ' of ' + total + ' ' + dots + '</div></div>';
+}
+
+/* What each screen shows: { q, chip, icon, value, placeholder, body, left, right }. */
+function abScreen() {
+  var a = ab, bm = a.kind === 'bookmark';
+  if (bm && a.step === 1) {
+    return { q: 'Which website?', chip: 'Add bookmark', icon: AB_ICON_BM, value: a.urlText, placeholder: 'Type a website',
+      body: '<div data-ab-drop>' + abDropInner() + '</div>', left: abButton('data-ab-cancel', 'Cancel'), right: abButton('data-ab-next', 'Next', true, !a.urlText.trim()) };
+  }
+  if (bm) {
+    var names = a.names.map(function (n) { return { label: n, value: n }; });
+    var at = names.map(function (n) { return n.value; }).indexOf(a.name);
+    return { q: 'Name and place', chip: 'Add bookmark', icon: AB_ICON_BM, value: a.name, placeholder: 'Name',
+      body: (names.length ? abPills(names, at, 'data-ab-name') + '<div class="atlas-addhint">Pick a name, or keep typing your own</div>' : '') +
+        '<div class="atlas-addcols" data-ab-cols>' + abColsInner() + '</div>' + abNewGroupField(),
+      left: abButton('data-ab-back', 'Back'), right: abButton('data-ab-save', 'Add', true) };
+  }
+  if (a.step === 1) {
+    return { q: 'What is the page called?', chip: 'Add page', icon: AB_ICON_PAGE, value: a.pageName, placeholder: 'Page ' + a.pageCount,
+      body: '<div class="atlas-addhint">Shows in the page switcher on the new tab.</div>', left: abButton('data-ab-cancel', 'Cancel'), right: abButton('data-ab-next', 'Next', true) };
+  }
+  return { q: 'Give it a short subtitle', chip: 'Add page', icon: AB_ICON_PAGE, value: a.sub, placeholder: 'Three to five words',
+    body: '<div class="atlas-addhint" data-ab-count></div>', left: abButton('data-ab-back', 'Back'), right: abButton('data-ab-save', 'Add', true) };
+}
+
+function abDropInner() {
+  var pills = ab.sites.map(function (s) { return { label: s.label, value: s.value }; });
+  if (!pills.length) return '';
+  return abPills(pills, ab.siteAt, 'data-ab-site') + '<div class="atlas-addhint">Enter picks ' + abEsc(pills[ab.siteAt].value) + ' &middot; &uarr;&darr; to move</div>';
+}
+
+function abColsInner() {
+  return abDropdown('page', 'Page', abPageItems(), ab.page === null ? '' : ab.page) + abDropdown('group', 'Group', abGroupItems(), ab.group);
+}
+
+function abNewGroupField() {
+  return '<div data-ab-newgroup' + (ab.group === AB_NEW_GROUP ? '' : ' hidden') + '><div class="atlas-addlabel">New group name</div>' +
+    '<input class="atlas-addtext" type="text" data-ab-field="newGroup" value="' + abEsc(ab.newGroup) + '" placeholder="WORK" autocomplete="off" spellcheck="false"></div>';
+}
+
+function abFieldName() {
+  return ab.kind === 'bookmark' ? (ab.step === 1 ? 'url' : 'name') : (ab.step === 1 ? 'pageName' : 'sub');
+}
+
+function abRender() {
+  if (!ab) return;
+  var s = abScreen();
+  ab.menu = null;
+  ab.field.innerHTML = '<span class="atlas-addicon">' + s.icon + '</span><span class="atlas-addchip">' + abEsc(s.chip) + '</span>' +
+    '<input class="atlas-addinput" type="text" data-ab-field="' + abFieldName() + '" value="' + abEsc(s.value) + '" placeholder="' + abEsc(s.placeholder) + '" autocomplete="off" spellcheck="false">';
+  ab.card.innerHTML = abHead(s.q, ab.step, 2) + s.body + '<div class="atlas-adderror" data-ab-error role="alert"></div>' +
+    '<div class="atlas-addfoot">' + s.left + s.right + '</div>';
+  abUpdateCount();
+  var input = ab.field.querySelector('input');
+  setTimeout(function () { if (input && ab) input.focus(); }, 0);
+}
+
+function abPaintPills() {
+  var drop = ab && ab.card.querySelector('[data-ab-drop]');
+  if (!drop) return;
+  drop.innerHTML = abDropInner();
+  var next = ab.card.querySelector('[data-ab-next]');
+  if (next) next.disabled = !ab.urlText.trim();
+}
+
+function abPaintPlace() {
+  var cols = ab && ab.card.querySelector('[data-ab-cols]');
+  if (!cols) return;
+  cols.innerHTML = abColsInner();
+  ab.menu = null;
+  var wrap = ab.card.querySelector('[data-ab-newgroup]');
+  if (wrap) wrap.hidden = ab.group !== AB_NEW_GROUP;
+}
+
+function abUpdateCount() {
+  var slot = ab && ab.card.querySelector('[data-ab-count]');
+  if (!slot) return;
+  var c = abSubCount(ab.sub);
+  slot.textContent = c.words + ' of ' + AB_SUB_MIN + '-' + AB_SUB_MAX + ' words · ' + c.chars + ' / ' + AB_SUB_CHARS;
+}
+
+function abError(text) {
+  var slot = ab && ab.card.querySelector('[data-ab-error]');
+  if (slot) slot.textContent = text || '';
+}
+
+/* ── the pages' groups, and the drop-down lists ── */
+
+function abLoadGroups() {
+  var flow = ab, page = flow.page;
+  if (page === null || page === undefined) { flow.groups = []; if (flow.group === null) flow.group = AB_NEW_GROUP; abPaintPlace(); return; }
+  abAsk({ action: 'addGroups', db: abDb(), page: page }).then(function (r) {
+    if (ab !== flow || flow.page !== page) return;   // the page changed while this was loading
+    flow.groups = r.groups || [];
+    if (flow.group === null || (flow.group !== AB_NEW_GROUP && flow.groups.indexOf(flow.group) < 0)) {
+      flow.group = flow.groups.length ? flow.groups[0] : AB_NEW_GROUP;
+    }
+    abPaintPlace();
+  });
+}
+
+function abCloseMenus() {
+  if (!ab) return;
+  Array.prototype.forEach.call(ab.card.querySelectorAll('[data-ab-menu]'), function (m) { m.hidden = true; });
+  Array.prototype.forEach.call(ab.card.querySelectorAll('[data-ab-dd]'), function (b) { b.setAttribute('aria-expanded', 'false'); });
+  ab.menu = null;
+}
+
+function abToggleMenu(key) {
+  var was = ab.menu === key;
+  abCloseMenus();
+  if (was) return;
+  var m = ab.card.querySelector('[data-ab-menu="' + key + '"]');
+  if (!m) return;
+  m.hidden = false;
+  ab.menu = key;
+  ab.card.querySelector('[data-ab-dd="' + key + '"]').setAttribute('aria-expanded', 'true');
+}
+
+function abChoose(key, value) {
+  if (key === 'page') {
+    var id = ab.pages.filter(function (p) { return String(p.id) === value; })[0];
+    if (!id) return;
+    ab.page = id.id; ab.group = null; ab.groups = [];
+    abPaintPlace();
+    abLoadGroups();
+  } else {
+    ab.group = value;
+    abPaintPlace();
+    if (value === AB_NEW_GROUP) { var f = ab.card.querySelector('[data-ab-field="newGroup"]'); if (f) f.focus(); }
+  }
+  abCloseMenus();
+}
+
+/* ── moving on, and saving ── */
+
+function abNext() {
+  var flow = ab;
+  abError('');
+  if (flow.kind === 'bookmark') {
+    var text = flow.urlText.trim();
+    if (!text) { abError('Give the bookmark a URL.'); return; }
+    abAsk({ action: 'addSuggest', db: abDb(), typed: text, thisUrl: '' }).then(function (r) {
+      if (ab !== flow) return;
+      flow.names = r.names || [];
+      if (!flow.nameTouched) flow.name = flow.names[0] || text.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/[\/?#].*$/, '');
+      flow.step = 2;
+      abRender();
+      abLoadGroups();
+    });
+    return;
+  }
+  flow.step = 2;
+  abRender();
+}
+
+function abBack() {
+  ab.step = 1;
+  abRender();
+  abSuggest();
+}
+
+function abPickSite(domain) {
+  ab.urlText = domain;
+  ab.siteAt = 0;
+  abNext();
+}
+
+function abSave() {
+  var flow = ab;
+  if (flow.busy) return;
+  abError('');
+  var job;
+  if (flow.kind === 'page') {
+    var problem = abSubProblem(flow.sub);
+    if (problem) { abError(problem); return; }
+    job = abAsk({ action: 'addPage', label: flow.pageName, sub: flow.sub });
+  } else {
+    var group = flow.group === AB_NEW_GROUP ? flow.newGroup.trim().toUpperCase() : flow.group;
+    if (!flow.name.trim()) { abError('Give the bookmark a name.'); return; }
+    if (flow.page === null) { abError('Add a page first, then a bookmark to it.'); return; }
+    if (!group) { abError(flow.group === AB_NEW_GROUP ? 'Give the new group a name.' : 'Choose a group.'); return; }
+    job = abAsk({ action: 'addBookmark', db: abDb(), name: flow.name, url: flow.urlText.trim(), page: flow.page, group: group, newGroup: flow.group === AB_NEW_GROUP });
+  }
+  flow.busy = true;
+  job.then(function (r) {
+    flow.busy = false;
+    if (ab !== flow) return;
+    if (r && r.ok) abClose(); else abError((r && r.error) || 'That did not work. Try again.');
+  });
+}
+
+/* ── events ── */
+
+function abWire() {
+  var flow = ab;
+  flow.card.addEventListener('mousedown', function (e) { if (!e.target.closest('input')) e.preventDefault(); });   // keep the cursor in the bar
+  flow.card.addEventListener('click', function (e) {
+    var t = e.target;
+    if (t.closest('[data-ab-cancel]')) return abClose();
+    if (t.closest('[data-ab-next]')) return abNext();
+    if (t.closest('[data-ab-back]')) return abBack();
+    if (t.closest('[data-ab-save]')) return abSave();
+    var site = t.closest('[data-ab-site]');
+    if (site) return abPickSite(site.getAttribute('data-ab-site'));
+    var np = t.closest('[data-ab-name]');
+    if (np) {
+      flow.name = np.getAttribute('data-ab-name'); flow.nameTouched = true;
+      flow.field.querySelector('input').value = flow.name;
+      Array.prototype.forEach.call(flow.card.querySelectorAll('[data-ab-name]'), function (p) { p.setAttribute('aria-selected', String(p === np)); });
+      return;
+    }
+    var dd = t.closest('[data-ab-dd]');
+    if (dd) return abToggleMenu(dd.getAttribute('data-ab-dd'));
+    var item = t.closest('[data-ab-item]');
+    if (item) return abChoose(item.getAttribute('data-ab-item'), item.getAttribute('data-value'));
+    if (flow.menu) abCloseMenus();
+  });
+  function onInput(e) {
+    var name = e.target.getAttribute && e.target.getAttribute('data-ab-field');
+    if (!name) return;
+    abError('');
+    if (name === 'url') { flow.urlText = e.target.value; flow.siteAt = 0; abPaintPills(); abSuggest(); }
+    else if (name === 'name') { flow.name = e.target.value; flow.nameTouched = true; }
+    else if (name === 'newGroup') flow.newGroup = e.target.value;
+    else if (name === 'pageName') flow.pageName = e.target.value;
+    else if (name === 'sub') { flow.sub = e.target.value; abUpdateCount(); }
+  }
+  flow.field.addEventListener('input', onInput);
+  flow.card.addEventListener('input', onInput);
+  function onKey(e) {
+    var field = e.target.getAttribute && e.target.getAttribute('data-ab-field');
+    if (!field) return;
+    if (field === 'url' && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && flow.sites.length) {
+      e.preventDefault();
+      flow.siteAt = (flow.siteAt + (e.key === 'ArrowDown' ? 1 : flow.sites.length - 1)) % flow.sites.length;
+      abPaintPills();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (field === 'url') { if (flow.sites.length) abPickSite(flow.sites[flow.siteAt].value); else abNext(); }
+      else if (flow.card.querySelector('[data-ab-next]')) abNext();
+      else abSave();
+    }
+  }
+  flow.field.addEventListener('keydown', onKey);
+  flow.card.addEventListener('keydown', onKey);
 }
 
 })();

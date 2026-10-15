@@ -9,6 +9,7 @@ const assert = require("node:assert/strict");
 const path = require("path");
 const esbuild = require("esbuild");
 const { openNewTab, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
+const { openAdd } = require("./helpers/addFlow");
 const { openWindow } = require("./helpers/windowDom");
 
 test.afterEach(closeAll);
@@ -27,11 +28,10 @@ function profiles(active) {
   };
 }
 
-async function popup(t, mode) {
-  click(t.window, t.document.getElementById("global-add-btn"));
-  const p = await waitFor(() => t.document.querySelector(".add-popup"), 2000, "add popup");
-  if (mode === "page") click(t.window, p.querySelector('[data-add-mode="page"]'));
-  return p;
+async function popup(t, mode) { return openAdd(t, mode); }
+async function next(t, p) {
+  click(t.window, p.querySelector("[data-add-next]"));
+  await waitFor(() => !p.querySelector("[data-add-next]"), 2000, "next screen");
 }
 function set(t, p, name, value) {
   const el = p.querySelector(`[data-field="${name}"]`);
@@ -53,15 +53,19 @@ test("a page with a subtitle, a bookmark on it, opened as one Google account, th
 
   let p = await popup(t, "page");
   set(t, p, "pageName", "Classes");
+  await next(t, p);
   set(t, p, "sub", "Courses and due dates");
   await save(t, p);
   assert.equal(text(doc.querySelector(".switcher-label")), "Classes", "the new page opens");
 
   p = await popup(t);
-  assert.equal(p.querySelector('[data-field="page"] option:checked').textContent, "Classes", "the open page is chosen");
-  set(t, p, "name", "Drive");
   set(t, p, "url", "drive.google.com/drive/u/0/my-drive");
-  set(t, p, "group", "new-group ");
+  await next(t, p);
+  assert.equal(p.querySelector('[data-dd-label="page"]').textContent, "Classes", "the open page is chosen");
+  set(t, p, "name", "Drive");
+  await waitFor(() => p.querySelector('[data-dd-item="group"]'), 2000, "group list");
+  p.querySelector('[data-dd="group"]').click();
+  [...p.querySelectorAll('[data-dd-item="group"]')].find((i) => i.textContent.startsWith("+ New group")).click();
   set(t, p, "newGroup", "school");
   await save(t, p);
 
@@ -87,6 +91,7 @@ test("a page added from the + popup shows up in Settings > Pages", async () => {
   const t = await openNewTab();
   const p = await popup(t, "page");
   set(t, p, "pageName", "Reading");
+  await next(t, p);
   set(t, p, "sub", "Books to read next");
   await save(t, p);
   click(t.window, t.document.getElementById("global-settings-btn"));

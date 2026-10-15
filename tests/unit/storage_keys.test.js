@@ -29,6 +29,7 @@ const DYNAMIC_OK = {
 function sourceFiles() {
   return execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { cwd: ROOT, encoding: "utf8" })
     .split("\n").filter((f) => /\.(m?js)$/.test(f))
+    .filter((f) => fs.existsSync(path.join(ROOT, f))) // a file deleted but not yet committed is still in the git list
     .filter((f) => !/(^|\/)(_old|dist|vendor|node_modules|tests)\//.test(f) && !f.startsWith("tests/"))
     .filter((f) => !f.startsWith("payload/extensions/")) // Harper is a separate extension with its own storage
     .filter((f) => f !== "payload/install-files/atlas.js" && !f.endsWith("atlas-spelling.js")); // generated from src/modules

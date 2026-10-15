@@ -117,5 +117,32 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
       if (typeof target.blur === 'function') target.blur();
     }
   }, true);
+
+  /* 5. Double-tap Command (macOS) or Control (Windows) focuses the address bar */
+  var _lastUiModDown = 0;
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Meta' || e.key === 'Control') {
+      if (e.repeat) return;
+      var now = Date.now();
+      if (now - _lastUiModDown < 350) {
+        focusAddressBar();
+        _lastUiModDown = 0;
+      } else {
+        _lastUiModDown = now;
+      }
+    } else {
+      _lastUiModDown = 0;
+    }
+  }, true);
 }
+
+function focusAddressBar() {
+  var input = document.querySelector ? (document.querySelector('.UrlBar-UrlField.url') ||
+              document.querySelector('.UrlBar-AddressField input')) : null;
+  if (input) {
+    input.focus();
+    if (typeof input.select === 'function') input.select();
+  }
+}
+Atlas.focusAddressBar = focusAddressBar;
 

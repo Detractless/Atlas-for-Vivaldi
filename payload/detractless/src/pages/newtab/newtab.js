@@ -19,7 +19,7 @@ import { setImportCompleteCallback } from './importExport.js';
 import { runOrphanRepairOnce } from '../../services/orphanCleanup.js';
 import { spotlightVisible, setCurrentBookmarkPage, activeTabs, currentEngine } from './newtabState.js';
 import { loadBookmarkData } from './bookmarkData.js';
-import { installProfileSwitch } from './profileSwitch.js';
+import { installProfileSwitch, installDataChanged } from './profileSwitch.js';
 import { defineAllSettings } from '../../settings/definitions.js';
 import { loadSettings, watchSettings } from '../../settings/registry.js';
 import { installSettingsPage, openSettings } from '../../settings/shell.js';
@@ -57,6 +57,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   wireCallbacks();
   initFeatures();
   installProfileSwitch();
+  installDataChanged();
   wireSettingsOpeners();
 
   document.querySelectorAll(".modal").forEach(modal => modal.addEventListener("click", e => e.stopPropagation()));

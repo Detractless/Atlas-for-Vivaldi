@@ -149,8 +149,8 @@
   }
   function dayKey(ts) {
     const d = new Date(ts);
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const pad2 = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
   }
   function toEntry(tab, closedAt) {
     return {
@@ -382,61 +382,130 @@
     }
   }
 
-  // src/background/messaging.js
-  var ok = (sendResponse) => sendResponse({ success: true });
-  function delayStatus(url) {
-    const delayInfo = activeDelays[standardiseUrl(url, managedEngines)];
-    if (!delayInfo) return { inDelay: false };
-    const elapsed = Date.now() - delayInfo.startTime;
-    const remaining = Math.max(0, searchDelayMs - elapsed);
-    return {
-      inDelay: true,
-      completed: delayInfo.completed,
-      remainingSeconds: Math.ceil(remaining / 1e3),
-      showRevealButton: remaining === 0 && !delayInfo.completed
-    };
-  }
-  function markDelayCompleted(url) {
-    const stdUrl = standardiseUrl(url, managedEngines);
-    if (activeDelays[stdUrl]) {
-      activeDelays[stdUrl].completed = true;
-      pruneActiveDelays();
-      storageSet("local", { activeDelays });
-    }
-  }
-  var ACTIONS = {
-    // --- Tab Limiter Messages ---
-    enforceLimit: (m, send) => {
-      enforceTabLimit().then(() => ok(send));
-    },
-    startIncrease: (m, send) => {
-      checkPendingIncrease();
-      ok(send);
-    },
-    cancelIncrease: (m, send) => ok(send),
-    // --- Search Delay Messages ---
-    updateSearchDelay: (m, send) => {
-      setSearchDelayMs(m.delaySeconds * 1e3);
-      ok(send);
-    },
-    startDelayDecrease: (m, send) => {
-      checkPendingDelayDecrease();
-      ok(send);
-    },
-    cancelDelayDecrease: (m, send) => ok(send),
-    checkDelayStatus: (m, send) => send(delayStatus(m.url)),
-    markDelayCompleted: (m, send) => {
-      markDelayCompleted(m.url);
-      ok(send);
-    }
+  // src/utils/usageLog.js
+  var STORE_VERSION = 1;
+  var HOUR_DAYS = 14;
+  var DAY_DAYS = 180;
+  var DAY_MS = 24 * 60 * 60 * 1e3;
+  var FIELDS = {
+    visibleMs: 12e4,
+    handsOnMs: 12e4,
+    mediaFrontMs: 12e4,
+    mediaBackMs: 12e4,
+    scrollMs: 12e4,
+    pageViews: 500,
+    imagesSeen: 2e3,
+    clicks: 5e3,
+    keys: 5e3,
+    scrollScreens: 2e3
   };
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (Object.prototype.hasOwnProperty.call(ACTIONS, message.action)) {
-      ACTIONS[message.action](message, sendResponse);
-      return true;
+  var pad = (n) => String(n).padStart(2, "0");
+  var dayKey2 = (ms) => {
+    const d = new Date(ms);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  var hourKey = (ms) => `${dayKey2(ms)}T${pad(new Date(ms).getHours())}`;
+  function keyStart(key) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}))?$/.exec(key);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], m[4] ? +m[4] : 0).getTime() : NaN;
+  }
+  function cleanHost(host) {
+    const h = String(host || "").toLowerCase().replace(/^www\./, "");
+    return h.length > 0 && h.length <= 100 && /^[a-z0-9.-]+$/.test(h) && h.indexOf("..") === -1 ? h : "";
+  }
+  function cleanDelta(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [field, cap2] of Object.entries(FIELDS)) {
+      const n = Number(raw[field]);
+      if (Number.isFinite(n) && n > 0) out[field] = Math.round(Math.min(n, cap2) * 100) / 100;
     }
-    return false;
-  });
+    return out;
+  }
+  var hasUsage = (delta) => Object.keys(delta || {}).length > 0;
+  var blank = () => Object.fromEntries(Object.keys(FIELDS).map((f) => [f, 0]));
+  function addInto(bucket, host, delta) {
+    const row = bucket[host] || (bucket[host] = blank());
+    for (const f of Object.keys(FIELDS)) row[f] = Math.round(((row[f] || 0) + (delta[f] || 0)) * 100) / 100;
+  }
+  function addUsage(store, host, delta, now = Date.now()) {
+    const next = { v: STORE_VERSION, hours: { ...store && store.hours || {} }, days: { ...store && store.days || {} } };
+    const hk = hourKey(now);
+    next.hours[hk] = { ...next.hours[hk] || {} };
+    next.hours[hk][host] = { ...next.hours[hk][host] || {} };
+    addInto(next.hours[hk], host, delta);
+    const hourCutoff = now - HOUR_DAYS * DAY_MS, dayCutoff = now - DAY_DAYS * DAY_MS;
+    for (const key of Object.keys(next.hours)) {
+      const start = keyStart(key);
+      if (!(start < hourCutoff)) continue;
+      const dk = key.slice(0, 10);
+      next.days[dk] = { ...next.days[dk] || {} };
+      for (const [h, row] of Object.entries(next.hours[key])) addInto(next.days[dk], h, row);
+      delete next.hours[key];
+    }
+    for (const key of Object.keys(next.days)) if (keyStart(key) < dayCutoff) delete next.days[key];
+    return next;
+  }
+
+  // src/background/usageLog.js
+  var chain = Promise.resolve();
+  function recordUsage(message) {
+    const host = cleanHost(message && message.host);
+    const delta = cleanDelta(message && message.delta);
+    if (!host || !hasUsage(delta)) return Promise.resolve(false);
+    const job = chain.then(async () => {
+      const stored = await storageGet("local", ["atlas_usage"]);
+      await storageSet("local", { atlas_usage: addUsage(stored.atlas_usage, host, delta, Date.now()) });
+      return true;
+    });
+    chain = job.catch((e) => {
+      console.error("Recording usage failed:", e);
+    });
+    return job.catch(
+      () => false
+      /* the failure was logged just above */
+    );
+  }
+  function clearUsage() {
+    const job = chain.then(() => storageRemove("local", "atlas_usage"));
+    chain = job.catch((e) => {
+      console.error("Clearing usage failed:", e);
+    });
+    return job;
+  }
+
+  // src/services/mergeSync.js
+  var TOMBSTONE_WINDOW_MS = 90 * 24 * 60 * 60 * 1e3;
+
+  // src/services/bookmarkSync.js
+  function newBookmarkId() {
+    return typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID() || `bm-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+  function dematerialize(nested, now = Date.now()) {
+    const records = [];
+    let sortIndex = 0;
+    for (const [pageKey, groups] of Object.entries(nested || {})) {
+      if (!pageKey.startsWith("page")) continue;
+      const page = Number(pageKey.slice(4));
+      if (Number.isNaN(page)) continue;
+      for (const [group, list] of Object.entries(groups || {})) {
+        for (const bm of list || []) {
+          if (!bm || bm.name === void 0 && bm.url === void 0) continue;
+          records.push({
+            id: newBookmarkId(),
+            page,
+            group,
+            name: bm.name,
+            url: bm.url,
+            sortIndex: sortIndex++,
+            updatedAt: now,
+            deletedAt: null
+          });
+        }
+      }
+    }
+    return records;
+  }
 
   // src/constants/atlasKeys.json
   var atlasKeys_default = {
@@ -481,7 +550,9 @@
       searchDelaySeconds: { default: 0, backup: true, importWhen: "defined", profile: "focus" },
       pendingDelayDecrease: { default: null, backup: false, note: "A search-delay decrease waiting out its 30 minutes." },
       showQueryOnDelay: { default: true, backup: true, importWhen: "defined", profile: "focus" },
-      grayscale: { default: false, backup: true, importWhen: "defined", profile: "focus" },
+      grayscale: { default: null, backup: false, note: "Legacy: the old on/off switch. Read once and folded into saturation (utils/saturationLock.js legacySaturation), then removed." },
+      saturation: { default: 100, backup: true, importWhen: "defined", profile: "focus", note: "Color level for web pages, 0 to 100. 100 is full color." },
+      saturationLock: { default: null, backup: false, profile: "focus", note: "After going grayer, the stretch above it is locked for 30 minutes: { ceiling, until }." },
       "bookmarks-migrated": { default: null, backup: false, note: "Legacy: set once bookmarks moved from sync storage to IndexedDB." },
       "bookmarks-page-1": { default: null, backup: false, note: "Legacy bookmark storage, read once by migrateFromChromeStorage." },
       "bookmarks-page-2": { default: null, backup: false, note: "Legacy, as bookmarks-page-1." },
@@ -496,11 +567,13 @@
       _themeCache: { default: null, note: "Theme preference copy for first paint in other pages." },
       rhe_rules: { default: null, backup: true, note: "Element Remover rules (archived feature); still carried by backups." },
       activeDelays: { default: {}, note: "Service worker: search delays in progress." },
+      atlas_usage: { default: null, backup: false, note: "Usage totals per site and hour (utils/usageLog.js), written by the service worker, shown in Settings > Usage. Never backed up." },
       atlasProfilesV2: { default: null, note: "Profiles state (profilesCore.js)." },
       atlasGoogleAccounts: { default: null, note: "Google accounts signed into Vivaldi, read by the browser window (src/modules/16-google-accounts.js). Never backed up." },
       __atlas_localstorage__: { default: {}, note: "Backing store of the localStorage shim (atlas-localstorage-shim.js)." },
       "pastekit.settings": { default: null, archived: true, note: "PasteKit settings (archived feature). Left in place; no code reads it now." },
-      savedTabGroups: { default: null, note: "Tab saver (service worker)." }
+      savedTabGroups: { default: null, note: "Tab saver (service worker)." },
+      atlas_scroll_telemetry: { default: {}, archived: true, note: "The first scroll logs (replaced by atlas_usage, 2026-10-15). Left in place; nothing writes or reads it now." }
     },
     session: {
       rheTabStates: { default: null, archived: true, note: "Element Remover per-tab state (archived feature). Left in place; no code reads it now." }
@@ -523,6 +596,663 @@
     return entry.default === void 0 ? void 0 : JSON.parse(JSON.stringify(entry.default));
   }
   var BACKUP_SYNC_KEYS = Object.keys(atlasKeys_default.sync).filter((k) => atlasKeys_default.sync[k].backup).map((k) => ({ key: k, importWhen: atlasKeys_default.sync[k].importWhen || "defined" }));
+
+  // src/services/bookmarksDB.js
+  var BookmarkDB = {
+    dbName: BOOKMARKS_DB,
+    // v6 added the `notes` and `events` stores. Both features have been removed and
+    // nothing reads these any more.
+    // v7 adds `bookmarkRecords` (Phase 12): bookmarks as merge-owned records so an
+    // import merges instead of clobbering. The old nested `bookmarks` store is
+    // KEPT, not dropped — it is the backout snapshot until Phase 12 is proven.
+    version: 7,
+    db: null,
+    async init() {
+      if (!this.fixedName && window.AtlasProfiles) {
+        await window.AtlasProfiles.ready;
+        this.dbName = window.AtlasProfiles.dbName();
+      }
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(this.dbName, this.version);
+        request.onerror = () => reject(request.error);
+        request.onblocked = () => {
+          console.warn("[BookmarkDB] init blocked by another open connection");
+          if (this.db) {
+            try {
+              this.db.close();
+            } catch (_) {
+            }
+            this.db = null;
+          }
+          reject(new Error("BookmarkDB init blocked by open connection"));
+        };
+        request.onsuccess = () => {
+          this.db = request.result;
+          this.db.onversionchange = () => {
+            if (this.db) {
+              try {
+                this.db.close();
+              } catch (_) {
+              }
+              this.db = null;
+            }
+          };
+          resolve(this.db);
+        };
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          db.onversionchange = () => {
+            try {
+              db.close();
+            } catch (_) {
+            }
+          };
+          if (!db.objectStoreNames.contains("bookmarks")) db.createObjectStore("bookmarks", { keyPath: "page" });
+          if (!db.objectStoreNames.contains("icons")) db.createObjectStore("icons");
+          if (!db.objectStoreNames.contains("usage")) db.createObjectStore("usage", { keyPath: "url" });
+          if (!db.objectStoreNames.contains("uiPrefs")) {
+            const store = db.createObjectStore("uiPrefs", { keyPath: "key" });
+            const stash = typeof localStorage !== "undefined" ? localStorage : null;
+            const themePref = stash && stash.getItem("themePref");
+            const uiScaleStr = stash && stash.getItem("uiScale");
+            if (themePref) store.put({ key: "themePref", value: themePref });
+            if (uiScaleStr !== null) {
+              const scale = parseFloat(uiScaleStr);
+              if (!isNaN(scale)) store.put({ key: "uiScale", value: scale });
+            }
+            if (stash) {
+              stash.removeItem("themePref");
+              stash.removeItem("uiScale");
+            }
+          }
+          if (!db.objectStoreNames.contains("notes")) db.createObjectStore("notes", { keyPath: "id" });
+          if (!db.objectStoreNames.contains("events")) db.createObjectStore("events", { keyPath: "id" });
+          if (!db.objectStoreNames.contains("bookmarkRecords")) {
+            db.createObjectStore("bookmarkRecords", { keyPath: "id" });
+          }
+        };
+      });
+    },
+    async getUiPref(key) {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const tx = this.db.transaction(["uiPrefs"], "readonly");
+        const req = tx.objectStore("uiPrefs").get(key);
+        req.onsuccess = () => resolve(req.result ? req.result.value : void 0);
+        req.onerror = () => reject(req.error);
+      });
+    },
+    async setUiPref(key, value) {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const tx = this.db.transaction(["uiPrefs"], "readwrite");
+        const req = tx.objectStore("uiPrefs").put({ key, value });
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    },
+    async clearUiPrefs() {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const tx = this.db.transaction(["uiPrefs"], "readwrite");
+        const req = tx.objectStore("uiPrefs").clear();
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    },
+    async getBookmarks(pageNumber) {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction(["bookmarks"], "readonly");
+        const store = transaction.objectStore("bookmarks");
+        const request = store.get(pageNumber);
+        request.onsuccess = () => resolve(request.result ? request.result.data : {});
+        request.onerror = () => reject(request.error);
+      });
+    },
+    async saveBookmarks(pageNumber, bookmarksData) {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction(["bookmarks"], "readwrite");
+        const store = transaction.objectStore("bookmarks");
+        const request = store.put({ page: pageNumber, data: bookmarksData });
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    },
+    async saveIcon(id, data) {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction(["icons"], "readwrite");
+        const store = transaction.objectStore("icons");
+        const request = store.put(data, id);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    },
+    async getIcon(id) {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction(["icons"], "readonly");
+        const store = transaction.objectStore("icons");
+        const request = store.get(id);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    },
+    async deleteIcon(id) {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction(["icons"], "readwrite");
+        const store = transaction.objectStore("icons");
+        const request = store.delete(id);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    },
+    async deleteBookmarks(pageNumber) {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction(["bookmarks"], "readwrite");
+        const store = transaction.objectStore("bookmarks");
+        const request = store.delete(pageNumber);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    },
+    async getAllBookmarks() {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction(["bookmarks"], "readonly");
+        const store = transaction.objectStore("bookmarks");
+        const request = store.getAll();
+        request.onsuccess = () => {
+          const result = {};
+          request.result.forEach((item) => {
+            result[`page${item.page}`] = item.data;
+          });
+          resolve(result);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    },
+    // ── Bookmark records (Phase 12) ──────────────────────────────────────────
+    //
+    // The nested `bookmarks` store above is the OLD form. Records are the new
+    // merge-owned form. During Phase 12 both exist; the nested store is the backout
+    // snapshot. `getAllBookmarks` still reads nested here (Landing A) and is
+    // repointed to materialise from records in Landing B — which is why the
+    // migration below uses its own raw reader rather than getAllBookmarks, so it
+    // keeps reading the ORIGINAL nested data whatever getAllBookmarks becomes.
+    /** Raw read of the nested `bookmarks` store, independent of getAllBookmarks. */
+    async _getAllNestedBookmarks() {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const request = this.db.transaction(["bookmarks"], "readonly").objectStore("bookmarks").getAll();
+        request.onsuccess = () => {
+          const result = {};
+          request.result.forEach((item) => {
+            result[`page${item.page}`] = item.data;
+          });
+          resolve(result);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    },
+    /* ── Notes (side panel) ──────────────────────────────────────────────
+         Deliberately in THIS database rather than a new one, and deliberately in the
+         `notes` store v6 already created. Two consequences worth stating: reset
+         covers notes for free, because resetService deletes this database whole; and
+         notes are NOT in the pastekit database, so the whole-store lock that gates
+         snippets does not gate them. A note is not a secret and must not be
+         unreachable because the snippet store happens to be locked.
+    
+         A note: { id, title, body, updatedAt }. */
+    async listNotes() {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const request = this.db.transaction(["notes"], "readonly").objectStore("notes").getAll();
+        request.onsuccess = () => {
+          const notes = request.result || [];
+          notes.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+          resolve(notes);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    },
+    async saveNote(note) {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const record = {
+          id: note.id || `note-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          title: note.title || "",
+          body: note.body || "",
+          updatedAt: Date.now()
+        };
+        const tx = this.db.transaction(["notes"], "readwrite");
+        const request = tx.objectStore("notes").put(record);
+        request.onsuccess = () => resolve(record);
+        request.onerror = () => reject(request.error);
+      });
+    },
+    async deleteNote(id) {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const tx = this.db.transaction(["notes"], "readwrite");
+        const request = tx.objectStore("notes").delete(id);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    },
+    async getBookmarkRecords() {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const request = this.db.transaction(["bookmarkRecords"], "readonly").objectStore("bookmarkRecords").getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+    },
+    /** Rewrite the whole records set in one transaction (clear then put). */
+    async putBookmarkRecords(records) {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const tx = this.db.transaction(["bookmarkRecords"], "readwrite");
+        const store = tx.objectStore("bookmarkRecords");
+        store.clear();
+        for (const record of records) store.put(record);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+      });
+    },
+    /**
+     * One-time, NON-DESTRUCTIVE migration: dematerialise the nested bookmarks into
+     * records. The nested store is left untouched. Gated by a flag so it runs once;
+     * it also no-ops if records already exist, so a device that has synced records
+     * down before its own migration ran does not clobber them.
+     */
+    async migrateBookmarksToRecords() {
+      if (!this.db) await this.init();
+      if (await this.getUiPref("bookmarksMigratedToRecords")) return;
+      const existing = await this.getBookmarkRecords();
+      if (existing.length === 0) {
+        const nested = await this._getAllNestedBookmarks();
+        await this.putBookmarkRecords(dematerialize(nested, Date.now()));
+      }
+      await this.setUiPref("bookmarksMigratedToRecords", true);
+    },
+    async importAllBookmarks(data) {
+      if (!this.db) await this.init();
+      const promises = [];
+      Object.keys(data).forEach((key) => {
+        if (key.startsWith("page")) {
+          const pageNum = Number(key.replace("page", ""));
+          if (!isNaN(pageNum)) promises.push(this.saveBookmarks(pageNum, data[key]));
+        }
+      });
+      return Promise.all(promises);
+    },
+    async recordClick(url) {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction(["usage"], "readwrite");
+        const store = transaction.objectStore("usage");
+        const getReq = store.get(url);
+        getReq.onsuccess = () => {
+          const existing = getReq.result ? getReq.result.timestamps : [];
+          const updated = [Date.now(), ...existing].slice(0, 30);
+          const putReq = store.put({ url, timestamps: updated });
+          putReq.onsuccess = () => resolve();
+          putReq.onerror = () => reject(putReq.error);
+        };
+        getReq.onerror = () => reject(getReq.error);
+      });
+    },
+    async getAllUsageScores() {
+      if (!this.db) await this.init();
+      const HALF_LIFE_MS = 7 * 24 * 60 * 60 * 1e3;
+      return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction(["usage"], "readonly");
+        const store = transaction.objectStore("usage");
+        const request = store.getAll();
+        request.onsuccess = () => {
+          const now = Date.now();
+          const scores = /* @__PURE__ */ new Map();
+          request.result.forEach(({ url, timestamps }) => {
+            const score = timestamps.reduce((sum, ts) => sum + Math.exp(-(now - ts) / HALF_LIFE_MS), 0);
+            scores.set(url, score);
+          });
+          resolve(scores);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    },
+    async migrateFromChromeStorage() {
+      return new Promise((resolve) => {
+        storageGet("sync", ["bookmarks-page-1", "bookmarks-page-2", "bookmarks-page-3", "bookmarks-migrated"]).then(async (result) => {
+          if (result["bookmarks-migrated"]) {
+            resolve(false);
+            return;
+          }
+          let hasMigrated = false;
+          if (result["bookmarks-page-1"]) {
+            await this.saveBookmarks(1, result["bookmarks-page-1"]);
+            hasMigrated = true;
+          }
+          if (result["bookmarks-page-2"]) {
+            await this.saveBookmarks(2, result["bookmarks-page-2"]);
+            hasMigrated = true;
+          }
+          if (result["bookmarks-page-3"]) {
+            await this.saveBookmarks(3, result["bookmarks-page-3"]);
+            hasMigrated = true;
+          }
+          if (hasMigrated) {
+            storageSet("sync", { "bookmarks-migrated": true });
+            storageRemove("sync", ["bookmarks-page-1", "bookmarks-page-2", "bookmarks-page-3"]);
+          }
+          resolve(hasMigrated);
+        });
+      });
+    }
+  };
+
+  // src/services/siteSuggestions.js
+  var TWO_PART_SUFFIXES = /* @__PURE__ */ new Set([
+    "co.uk",
+    "org.uk",
+    "ac.uk",
+    "gov.uk",
+    "com.au",
+    "net.au",
+    "org.au",
+    "co.nz",
+    "co.jp",
+    "co.in",
+    "com.br",
+    "com.mx",
+    "co.za",
+    "com.sg",
+    "com.hk",
+    "com.tr",
+    "co.kr"
+  ]);
+  var IPV4 = /^\d+(\.\d+){3}$/;
+  var SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i;
+  function hostOf(text) {
+    const t = String(text ?? "").trim();
+    if (!t || /\s/.test(t)) return "";
+    try {
+      const u = new URL(SCHEME.test(t) ? t : "https://" + t);
+      return u.hostname.toLowerCase().replace(/^www\./, "");
+    } catch (e) {
+      return "";
+    }
+  }
+  function mainDomain(host) {
+    const h = String(host || "");
+    if (!h || IPV4.test(h) || h.indexOf(".") === -1) return h;
+    const parts = h.split(".");
+    if (parts.length <= 2) return h;
+    const last2 = parts.slice(-2).join(".");
+    return TWO_PART_SUFFIXES.has(last2) ? parts.slice(-3).join(".") : last2;
+  }
+  var cap = (s) => s ? s[0].toUpperCase() + s.slice(1) : s;
+  function nameFor(domain) {
+    const parts = String(domain || "").split(".");
+    if (parts.length < 2) return cap(parts[0] || "");
+    const label = TWO_PART_SUFFIXES.has(parts.slice(-2).join(".")) && parts.length >= 3 ? parts[parts.length - 3] : parts[parts.length - 2];
+    return cap(label);
+  }
+  function nameChoices(urlText) {
+    const host = hostOf(urlText);
+    if (!host || IPV4.test(host)) return host ? [host] : [];
+    const domain = mainDomain(host);
+    const plain = nameFor(domain), address = cap(domain);
+    return plain && plain !== address ? [plain, address] : [address];
+  }
+  function tally(items) {
+    const by = /* @__PURE__ */ new Map();
+    for (const it of items || []) {
+      let u;
+      try {
+        u = new URL(it.url);
+      } catch (e) {
+        continue;
+      }
+      if (u.protocol !== "http:" && u.protocol !== "https:") continue;
+      const domain = mainDomain(u.hostname.toLowerCase().replace(/^www\./, ""));
+      if (!domain) continue;
+      const row = by.get(domain) || { domain, visits: 0, last: 0 };
+      row.visits += it.visitCount || 1;
+      row.last = Math.max(row.last, it.lastVisitTime || 0);
+      by.set(domain, row);
+    }
+    return [...by.values()].sort((a, b) => b.visits - a.visits || b.last - a.last);
+  }
+  function loadSites(maxResults = 3e3) {
+    return new Promise((resolve) => {
+      const api = globalThis.chrome && globalThis.chrome.history;
+      if (!api || !api.search) {
+        resolve([]);
+        return;
+      }
+      try {
+        api.search({ text: "", maxResults, startTime: 0 }, (items) => {
+          void (globalThis.chrome.runtime && globalThis.chrome.runtime.lastError);
+          resolve(tally(items));
+        });
+      } catch (e) {
+        resolve([]);
+      }
+    });
+  }
+  function matchSites(sites2, typed, limit = 8, skip = /* @__PURE__ */ new Set()) {
+    const q = (hostOf(typed) || String(typed || "").trim().toLowerCase()).replace(/^www\./, "");
+    const pool = sites2.filter((s) => !skip.has(s.domain));
+    if (!q) return pool.slice(0, limit);
+    const starts = pool.filter((s) => s.domain.startsWith(q));
+    const has = pool.filter((s) => !s.domain.startsWith(q) && s.domain.includes(q));
+    return [...starts, ...has].slice(0, limit);
+  }
+
+  // src/constants/defaults.js
+  var DEFAULT_THEME = atlasKeys_default.sync.Theme.default;
+  var DEFAULT_TABS = [{ id: "search", label: "Dashboard", sub: "Everything at a glance", type: "search" }];
+
+  // src/services/pageSubtitle.js
+  var MIN_WORDS = 3;
+  var MAX_WORDS = 5;
+  var MAX_CHARS = 32;
+  var HOME_SUBTITLE = DEFAULT_TABS[0].sub;
+  function cleanSubtitle(text) {
+    return String(text ?? "").replace(/\s+/g, " ").trim();
+  }
+  function subtitleProblem(text) {
+    const t = cleanSubtitle(text);
+    const words = t ? t.split(" ").length : 0;
+    if (words < MIN_WORDS) return `Use at least ${MIN_WORDS} words`;
+    if (words > MAX_WORDS) return `Use at most ${MAX_WORDS} words`;
+    if (t.length > MAX_CHARS) return `Keep it to ${MAX_CHARS} characters`;
+    return null;
+  }
+
+  // src/background/addFlow.js
+  var DB_NAME = /^[A-Za-z0-9_.-]{1,80}$/;
+  var SITES_FRESH_MS = 60 * 1e3;
+  var sites = { at: 0, list: [] };
+  async function withDb(name, work) {
+    if (!DB_NAME.test(String(name || ""))) throw new Error("Not a bookmark database name");
+    const handle = Object.assign(Object.create(BookmarkDB), { fixedName: true, dbName: name, db: null });
+    try {
+      return await work(handle);
+    } finally {
+      try {
+        if (handle.db) handle.db.close();
+      } catch (e) {
+      }
+    }
+  }
+  async function visitedSites() {
+    if (Date.now() - sites.at > SITES_FRESH_MS) sites = { at: Date.now(), list: await loadSites() };
+    return sites.list;
+  }
+  async function savedDomains(db) {
+    const all = await withDb(db, (h) => h.getAllBookmarks());
+    const out = /* @__PURE__ */ new Set();
+    for (const groups of Object.values(all || {})) {
+      for (const list of Object.values(groups || {})) {
+        for (const b of list || []) {
+          const d = mainDomain(hostOf(b && b.url));
+          if (d) out.add(d);
+        }
+      }
+    }
+    return out;
+  }
+  async function addInfo() {
+    const { activeTabs } = await storageGet("sync", ["activeTabs"]);
+    const pages = (Array.isArray(activeTabs) ? activeTabs : []).filter((t) => t && t.type !== "search").map((t) => ({ id: t.id, label: String(t.label || "") }));
+    return { pages };
+  }
+  async function addGroups(m) {
+    return { groups: await withDb(m.db, async (h) => Object.keys(await h.getBookmarks(m.page) || {}).sort()) };
+  }
+  async function addSuggest(m) {
+    const typed = String(m.typed || "");
+    const saved = await savedDomains(m.db).catch((e) => {
+      console.error("Reading the saved sites failed:", e);
+      return /* @__PURE__ */ new Set();
+    });
+    const list = matchSites(await visitedSites(), typed, 8, saved).map((s) => ({ label: s.domain, value: s.domain }));
+    const here = mainDomain(hostOf(m.thisUrl));
+    const q = hostOf(typed) || typed.trim().toLowerCase();
+    if (here && !saved.has(here) && (!q || here.includes(q))) {
+      return { sites: [{ label: `${here} \xB7 this page`, value: here }, ...list.filter((s) => s.value !== here)].slice(0, 8), names: nameChoices(typed) };
+    }
+    return { sites: list, names: nameChoices(typed) };
+  }
+  async function addBookmarkTo(m) {
+    const name = String(m.name || "").trim(), url = String(m.url || "").trim(), group = String(m.group || "").trim();
+    if (!name || !url || !group || m.page === void 0 || m.page === null) return { error: "Something is missing" };
+    const finalUrl = /^https?:\/\//.test(url) ? url : `https://${url}`;
+    return withDb(m.db, async (h) => {
+      const groups = await h.getBookmarks(m.page) || {};
+      if (m.newGroup && groups[group]) return { error: `${group} already exists on this page.` };
+      (groups[group] = groups[group] || []).push({ name, url: finalUrl });
+      await h.saveBookmarks(m.page, groups);
+      return { ok: true };
+    });
+  }
+  async function addPageTo(m) {
+    const problem = subtitleProblem(m.sub);
+    if (problem) return { error: problem };
+    const { activeTabs } = await storageGet("sync", ["activeTabs"]);
+    if (!Array.isArray(activeTabs)) return { error: "Open a new tab once first, to set up your pages." };
+    const page = { id: Date.now(), label: String(m.label || "").trim() || `Page ${activeTabs.length}`, type: "bookmarks", sub: cleanSubtitle(m.sub) };
+    await storageSet("sync", { activeTabs: [...activeTabs, page] });
+    return { ok: true, id: page.id };
+  }
+
+  // src/background/messaging.js
+  var ok = (sendResponse) => sendResponse({ success: true });
+  function answer(work, sendResponse) {
+    work.then(sendResponse, (e) => {
+      console.error("Answering a request failed:", e);
+      sendResponse({ error: "That did not work. Try again." });
+    });
+  }
+  function announce(result) {
+    if (result && result.ok) chrome.runtime.sendMessage({ atlas: { act: "data-changed" } }, () => void chrome.runtime.lastError);
+    return result;
+  }
+  function delayStatus(url) {
+    const delayInfo = activeDelays[standardiseUrl(url, managedEngines)];
+    if (!delayInfo) return { inDelay: false };
+    const elapsed = Date.now() - delayInfo.startTime;
+    const remaining = Math.max(0, searchDelayMs - elapsed);
+    return {
+      inDelay: true,
+      completed: delayInfo.completed,
+      remainingSeconds: Math.ceil(remaining / 1e3),
+      showRevealButton: remaining === 0 && !delayInfo.completed
+    };
+  }
+  function markDelayCompleted(url) {
+    const stdUrl = standardiseUrl(url, managedEngines);
+    if (activeDelays[stdUrl]) {
+      activeDelays[stdUrl].completed = true;
+      pruneActiveDelays();
+      storageSet("local", { activeDelays });
+    }
+  }
+  var ACTIONS = {
+    // --- Tab Limiter Messages ---
+    enforceLimit: (m, send) => {
+      enforceTabLimit().then(() => ok(send));
+    },
+    startIncrease: (m, send) => {
+      checkPendingIncrease();
+      ok(send);
+    },
+    cancelIncrease: (m, send) => ok(send),
+    // --- Search Delay Messages ---
+    updateSearchDelay: (m, send) => {
+      setSearchDelayMs(m.delaySeconds * 1e3);
+      ok(send);
+    },
+    startDelayDecrease: (m, send) => {
+      checkPendingDelayDecrease();
+      ok(send);
+    },
+    cancelDelayDecrease: (m, send) => ok(send),
+    checkDelayStatus: (m, send) => send(delayStatus(m.url)),
+    markDelayCompleted: (m, send) => {
+      markDelayCompleted(m.url);
+      ok(send);
+    },
+    // --- Usage totals (components/atlas/atlas-usage.js sends these) ---
+    recordUsage: (m, send) => {
+      recordUsage(m).then(() => ok(send));
+    },
+    clearUsage: (m, send) => {
+      clearUsage().then(() => ok(send));
+    },
+    // --- Add bookmark / Add page in the address bar (src/modules/23-addbar-core.js) ---
+    addInfo: (m, send) => answer(addInfo(m), send),
+    addGroups: (m, send) => answer(addGroups(m), send),
+    addSuggest: (m, send) => answer(addSuggest(m), send),
+    addBookmark: (m, send) => answer(addBookmarkTo(m).then(announce), send),
+    addPage: (m, send) => answer(addPageTo(m).then(announce), send)
+  };
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (Object.prototype.hasOwnProperty.call(ACTIONS, message.action)) {
+      ACTIONS[message.action](message, sendResponse);
+      return true;
+    }
+    return false;
+  });
+
+  // src/utils/saturationLock.js
+  var LOCK_MS = 30 * 60 * 1e3;
+  var clampSaturation = (v) => {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 100;
+  };
+  function legacySaturation(grayscale, saturation) {
+    if (grayscale === void 0 || grayscale === null) return void 0;
+    if (grayscale === true) return typeof saturation === "number" ? clampSaturation(saturation) : 0;
+    return 100;
+  }
+
+  // src/background/saturationMigration.js
+  async function migrateGrayscale() {
+    const stored = await storageGet("sync", ["grayscale", "saturation"]);
+    const level = legacySaturation(stored.grayscale, stored.saturation);
+    if (level === void 0) return;
+    await storageSet("sync", { saturation: level });
+    await storageRemove("sync", "grayscale");
+  }
 
   // src/background/stateSync.js
   var SEEDED_KEYS = ["tabLimit", "managementMethod", "searchDelaySeconds", "showQueryOnDelay", "customSearchEngines"];
@@ -547,6 +1277,7 @@
       setTimeout(() => enforceTabLimit(), 1e3);
       checkPendingIncrease();
       checkPendingDelayDecrease();
+      migrateGrayscale().catch((e) => console.error("Folding Grayscale into the color level failed:", e));
       console.log("Detractless background state initialized");
     } catch (e) {
       console.error("Error initializing background state:", e);

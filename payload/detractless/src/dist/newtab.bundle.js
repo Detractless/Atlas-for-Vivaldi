@@ -277,7 +277,9 @@
       searchDelaySeconds: { default: 0, backup: true, importWhen: "defined", profile: "focus" },
       pendingDelayDecrease: { default: null, backup: false, note: "A search-delay decrease waiting out its 30 minutes." },
       showQueryOnDelay: { default: true, backup: true, importWhen: "defined", profile: "focus" },
-      grayscale: { default: false, backup: true, importWhen: "defined", profile: "focus" },
+      grayscale: { default: null, backup: false, note: "Legacy: the old on/off switch. Read once and folded into saturation (utils/saturationLock.js legacySaturation), then removed." },
+      saturation: { default: 100, backup: true, importWhen: "defined", profile: "focus", note: "Color level for web pages, 0 to 100. 100 is full color." },
+      saturationLock: { default: null, backup: false, profile: "focus", note: "After going grayer, the stretch above it is locked for 30 minutes: { ceiling, until }." },
       "bookmarks-migrated": { default: null, backup: false, note: "Legacy: set once bookmarks moved from sync storage to IndexedDB." },
       "bookmarks-page-1": { default: null, backup: false, note: "Legacy bookmark storage, read once by migrateFromChromeStorage." },
       "bookmarks-page-2": { default: null, backup: false, note: "Legacy, as bookmarks-page-1." },
@@ -292,11 +294,13 @@
       _themeCache: { default: null, note: "Theme preference copy for first paint in other pages." },
       rhe_rules: { default: null, backup: true, note: "Element Remover rules (archived feature); still carried by backups." },
       activeDelays: { default: {}, note: "Service worker: search delays in progress." },
+      atlas_usage: { default: null, backup: false, note: "Usage totals per site and hour (utils/usageLog.js), written by the service worker, shown in Settings > Usage. Never backed up." },
       atlasProfilesV2: { default: null, note: "Profiles state (profilesCore.js)." },
       atlasGoogleAccounts: { default: null, note: "Google accounts signed into Vivaldi, read by the browser window (src/modules/16-google-accounts.js). Never backed up." },
       __atlas_localstorage__: { default: {}, note: "Backing store of the localStorage shim (atlas-localstorage-shim.js)." },
       "pastekit.settings": { default: null, archived: true, note: "PasteKit settings (archived feature). Left in place; no code reads it now." },
-      savedTabGroups: { default: null, note: "Tab saver (service worker)." }
+      savedTabGroups: { default: null, note: "Tab saver (service worker)." },
+      atlas_scroll_telemetry: { default: {}, archived: true, note: "The first scroll logs (replaced by atlas_usage, 2026-10-15). Left in place; nothing writes or reads it now." }
     },
     session: {
       rheTabStates: { default: null, archived: true, note: "Element Remover per-tab state (archived feature). Left in place; no code reads it now." }
@@ -406,15 +410,18 @@
           if (!db.objectStoreNames.contains("usage")) db.createObjectStore("usage", { keyPath: "url" });
           if (!db.objectStoreNames.contains("uiPrefs")) {
             const store2 = db.createObjectStore("uiPrefs", { keyPath: "key" });
-            const themePref = localStorage.getItem("themePref");
-            const uiScaleStr = localStorage.getItem("uiScale");
+            const stash = typeof localStorage !== "undefined" ? localStorage : null;
+            const themePref = stash && stash.getItem("themePref");
+            const uiScaleStr = stash && stash.getItem("uiScale");
             if (themePref) store2.put({ key: "themePref", value: themePref });
             if (uiScaleStr !== null) {
               const scale = parseFloat(uiScaleStr);
               if (!isNaN(scale)) store2.put({ key: "uiScale", value: scale });
             }
-            localStorage.removeItem("themePref");
-            localStorage.removeItem("uiScale");
+            if (stash) {
+              stash.removeItem("themePref");
+              stash.removeItem("uiScale");
+            }
           }
           if (!db.objectStoreNames.contains("notes")) db.createObjectStore("notes", { keyPath: "id" });
           if (!db.objectStoreNames.contains("events")) db.createObjectStore("events", { keyPath: "id" });
@@ -851,13 +858,13 @@
       }
     });
     const foot = el("div", "picker-foot");
-    const back = el("button", "picker-btn", "Back");
-    back.type = "button";
-    back.addEventListener("click", onBack);
+    const back2 = el("button", "picker-btn", "Back");
+    back2.type = "button";
+    back2.addEventListener("click", onBack);
     const save2 = el("button", "picker-btn picker-btn--primary", "Save");
     save2.type = "button";
     save2.addEventListener("click", commit);
-    foot.append(back, save2);
+    foot.append(back2, save2);
     pane.appendChild(foot);
     return pane;
   }
@@ -882,10 +889,10 @@
     host.appendChild(well);
     pane.appendChild(host);
     const foot = el("div", "picker-foot");
-    const back = el("button", "picker-btn", "Back");
-    back.type = "button";
-    back.addEventListener("click", onBack);
-    foot.appendChild(back);
+    const back2 = el("button", "picker-btn", "Back");
+    back2.type = "button";
+    back2.addEventListener("click", onBack);
+    foot.appendChild(back2);
     pane.appendChild(foot);
     return pane;
   }
@@ -1772,10 +1779,10 @@
     const min = activeTabs[0] && activeTabs[0].type === "search" ? 1 : 0;
     const to = Math.max(min, Math.min(index, activeTabs.length - 1));
     if (to === from) return;
-    const next = activeTabs.slice();
-    const [page] = next.splice(from, 1);
-    next.splice(to, 0, page);
-    setActiveTabs(next);
+    const next2 = activeTabs.slice();
+    const [page] = next2.splice(from, 1);
+    next2.splice(to, 0, page);
+    setActiveTabs(next2);
     saveTabs();
     renderTabs();
   }
@@ -1817,31 +1824,31 @@
       newGroupName: ""
     };
   }
-  function currentStep(state2) {
-    return STEPS[state2.stepIndex] || null;
+  function currentStep(state3) {
+    return STEPS[state3.stepIndex] || null;
   }
-  function setValue(state2, key, value) {
-    const next = { ...state2, [key]: value };
-    if (key === "page" && String(value) !== String(state2.page)) {
-      next.group = null;
-      next.newGroupName = "";
+  function setValue(state3, key, value) {
+    const next2 = { ...state3, [key]: value };
+    if (key === "page" && String(value) !== String(state3.page)) {
+      next2.group = null;
+      next2.newGroupName = "";
     }
     if (key === "group" && value !== NEW_GROUP) {
-      next.newGroupName = "";
+      next2.newGroupName = "";
     }
-    return next;
+    return next2;
   }
-  function validateStep(state2, step = currentStep(state2)) {
+  function validateStep(state3, step = currentStep(state3)) {
     switch (step) {
       case "name":
-        return state2.name.trim() ? null : "Give the bookmark a name.";
+        return state3.name.trim() ? null : "Give the bookmark a name.";
       case "url":
-        return state2.url.trim() ? null : "Give the bookmark a URL.";
+        return state3.url.trim() ? null : "Give the bookmark a URL.";
       case "page":
-        return state2.page === null || state2.page === void 0 ? "Choose a page." : null;
+        return state3.page === null || state3.page === void 0 ? "Choose a page." : null;
       case "group":
-        if (state2.group === null) return "Choose a group.";
-        if (state2.group === NEW_GROUP && !state2.newGroupName.trim()) {
+        if (state3.group === null) return "Choose a group.";
+        if (state3.group === NEW_GROUP && !state3.newGroupName.trim()) {
           return "Give the new group a name.";
         }
         return null;
@@ -1850,65 +1857,168 @@
     }
   }
 
+  // src/services/siteSuggestions.js
+  var TWO_PART_SUFFIXES = /* @__PURE__ */ new Set([
+    "co.uk",
+    "org.uk",
+    "ac.uk",
+    "gov.uk",
+    "com.au",
+    "net.au",
+    "org.au",
+    "co.nz",
+    "co.jp",
+    "co.in",
+    "com.br",
+    "com.mx",
+    "co.za",
+    "com.sg",
+    "com.hk",
+    "com.tr",
+    "co.kr"
+  ]);
+  var IPV4 = /^\d+(\.\d+){3}$/;
+  var SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i;
+  function hostOf(text) {
+    const t = String(text ?? "").trim();
+    if (!t || /\s/.test(t)) return "";
+    try {
+      const u = new URL(SCHEME.test(t) ? t : "https://" + t);
+      return u.hostname.toLowerCase().replace(/^www\./, "");
+    } catch (e) {
+      return "";
+    }
+  }
+  function mainDomain(host) {
+    const h = String(host || "");
+    if (!h || IPV4.test(h) || h.indexOf(".") === -1) return h;
+    const parts = h.split(".");
+    if (parts.length <= 2) return h;
+    const last2 = parts.slice(-2).join(".");
+    return TWO_PART_SUFFIXES.has(last2) ? parts.slice(-3).join(".") : last2;
+  }
+  var cap = (s) => s ? s[0].toUpperCase() + s.slice(1) : s;
+  function nameFor(domain) {
+    const parts = String(domain || "").split(".");
+    if (parts.length < 2) return cap(parts[0] || "");
+    const label = TWO_PART_SUFFIXES.has(parts.slice(-2).join(".")) && parts.length >= 3 ? parts[parts.length - 3] : parts[parts.length - 2];
+    return cap(label);
+  }
+  function nameChoices(urlText) {
+    const host = hostOf(urlText);
+    if (!host || IPV4.test(host)) return host ? [host] : [];
+    const domain = mainDomain(host);
+    const plain = nameFor(domain), address = cap(domain);
+    return plain && plain !== address ? [plain, address] : [address];
+  }
+  function tally(items) {
+    const by = /* @__PURE__ */ new Map();
+    for (const it of items || []) {
+      let u;
+      try {
+        u = new URL(it.url);
+      } catch (e) {
+        continue;
+      }
+      if (u.protocol !== "http:" && u.protocol !== "https:") continue;
+      const domain = mainDomain(u.hostname.toLowerCase().replace(/^www\./, ""));
+      if (!domain) continue;
+      const row2 = by.get(domain) || { domain, visits: 0, last: 0 };
+      row2.visits += it.visitCount || 1;
+      row2.last = Math.max(row2.last, it.lastVisitTime || 0);
+      by.set(domain, row2);
+    }
+    return [...by.values()].sort((a, b) => b.visits - a.visits || b.last - a.last);
+  }
+  function loadSites(maxResults = 3e3) {
+    return new Promise((resolve) => {
+      const api = globalThis.chrome && globalThis.chrome.history;
+      if (!api || !api.search) {
+        resolve([]);
+        return;
+      }
+      try {
+        api.search({ text: "", maxResults, startTime: 0 }, (items) => {
+          void (globalThis.chrome.runtime && globalThis.chrome.runtime.lastError);
+          resolve(tally(items));
+        });
+      } catch (e) {
+        resolve([]);
+      }
+    });
+  }
+  function matchSites(sites, typed, limit = 8, skip = /* @__PURE__ */ new Set()) {
+    const q = (hostOf(typed) || String(typed || "").trim().toLowerCase()).replace(/^www\./, "");
+    const pool = sites.filter((s) => !skip.has(s.domain));
+    if (!q) return pool.slice(0, limit);
+    const starts = pool.filter((s) => s.domain.startsWith(q));
+    const has = pool.filter((s) => !s.domain.startsWith(q) && s.domain.includes(q));
+    return [...starts, ...has].slice(0, limit);
+  }
+
   // src/components/addPopup/addPopupMarkup.js
   var esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  function textField(name, label, value, placeholder, extra = "") {
-    return `<label class="add-popup-field"${extra}>
-      <span class="add-popup-label">${label}</span>
-      <input class="add-popup-input" type="text" data-field="${name}" value="${esc(value)}" placeholder="${esc(placeholder)}" autocomplete="off" spellcheck="false">
-      <span class="add-popup-error" data-error-for="${name}" role="alert"></span>
-    </label>`;
-  }
-  function selectField(name, label, optionsHtml) {
-    return `<label class="add-popup-field add-popup-field--select">
-      <span class="add-popup-label">${label}</span>
-      <select class="add-popup-input" data-field="${name}">${optionsHtml}</select>
-      <span class="add-popup-error" data-error-for="${name}" role="alert"></span>
-    </label>`;
-  }
-  function pageOptions(pages, startPage) {
-    if (!pages.length) return '<option value="">No pages yet</option>';
-    return pages.map((t) => `<option value="${esc(t.id)}"${t.id === startPage ? " selected" : ""}>${esc(t.label)}</option>`).join("");
-  }
-  function groupOptions(groups) {
-    return '<option value="">Choose a group</option>' + groups.map((g) => `<option value="${esc(g)}">${esc(g)}</option>`).join("") + `<option value="${esc(NEW_GROUP)}">New group\u2026</option>`;
-  }
-  function popupMarkup({ editing, pages, startPage, pageCount }) {
-    const modes = editing ? "" : `
-    <div class="add-popup-modes" role="group" aria-label="What to add">
-      <button type="button" class="add-popup-mode" data-add-mode="bookmark" aria-pressed="true">Bookmark</button>
-      <button type="button" class="add-popup-mode" data-add-mode="page" aria-pressed="false">Page</button>
-    </div>`;
-    const bookmarkFields = editing ? "" : `
-    <div class="picker-well add-popup-well" data-mode-fields="bookmark">
-      ${textField("name", "Name", "", "GitHub")}
-      ${textField("url", "URL", "", "https://example.com")}
-      ${selectField("page", "Page", pageOptions(pages, startPage))}
-      ${selectField("group", "Group", groupOptions([]))}
-      ${textField("newGroup", "New group name", "", "WORK", " data-newgroup hidden")}
-    </div>`;
-    const pageFields = `
-    <div class="picker-well add-popup-well" data-mode-fields="page"${editing ? "" : " hidden"}>
-      ${textField("pageName", "Name", editing ? editing.label : "", `Page ${pageCount}`)}
-      ${textField("sub", "Subtitle", editing ? editing.sub || "" : "", "Three to five words")}
-    </div>
-    <div class="add-popup-count" aria-live="polite"></div>`;
+  var CHEV = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>';
+  var TICK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7"/></svg>';
+  var SEARCH = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12"/></svg>';
+  function frameMarkup({ title, step, total, body, left, right }) {
+    const dots = total > 1 ? `<span class="add-popup-dots" aria-hidden="true">${Array.from({ length: total }, (_, i2) => `<i${i2 === step - 1 ? ' class="on"' : ""}></i>`).join("")}</span>` : "";
+    const stepText = total > 1 ? `<div class="add-popup-step">Step ${step} of ${total} ${dots}</div>` : "";
     return `
     <div class="picker-card add-popup-card">
-      <div class="picker-title">${editing ? "Edit page" : "Add"}</div>
-      ${modes}
-      ${bookmarkFields}
-      ${pageFields}
-      <div class="picker-foot">
-        <button type="button" class="picker-btn" data-add-cancel>Cancel</button>
-        <button type="button" class="picker-btn picker-btn--primary" data-add-save>${editing ? "Save" : "Add"}</button>
-      </div>
-      <button type="button" class="close-btn picker-hidden-close" hidden></button>
+      <div class="add-popup-head"><div class="add-popup-title" data-title>${esc(title)}</div>${stepText}</div>
+      <div class="add-popup-body">${body}</div>
+      <div class="add-popup-foot">${left}<div class="add-popup-foot-right">${right}</div></div>
     </div>`;
+  }
+  var button = (attr, label, primary = false, disabled = false) => `<button type="button" class="add-popup-btn${primary ? " add-popup-btn--primary" : ""}" ${attr}${disabled ? " disabled" : ""}>${esc(label)}</button>`;
+  var errorSlot = (name) => `<span class="add-popup-error" data-error-for="${name}" role="alert"></span>`;
+  function joinedCard({ field: field2, icon, value, placeholder, pillsHtml, hint, hasPills }) {
+    return `<div class="ap-card${hasPills ? " ap-card--open" : ""}" data-card="${field2}">
+      <div class="ap-field"><span class="ap-icon">${icon}</span>
+        <input class="ap-input" type="text" data-field="${field2}" value="${esc(value)}" placeholder="${esc(placeholder)}" autocomplete="off" spellcheck="false"></div>
+      <div class="ap-drop" data-drop="${field2}"${hasPills ? "" : " hidden"}>${pillsHtml}<div class="ap-hint" data-hint>${hint}</div></div>
+    </div>${errorSlot(field2)}`;
+  }
+  var pillsMarkup = (pills, at, attr) => `<div class="ap-pills" role="listbox">${pills.map((p2, i2) => `<button type="button" class="ap-pill" role="option" ${attr}="${esc(p2.value)}" aria-selected="${i2 === at}">${esc(p2.label)}</button>`).join("")}</div>`;
+  var siteDrop = (pills, at) => ({
+    pillsHtml: pillsMarkup(pills, at, "data-site"),
+    hint: pills.length ? `Enter picks ${esc(pills[Math.max(at, 0)].label)} &middot; &uarr;&darr; to move` : ""
+  });
+  function websiteScreen({ urlText, pills, at }) {
+    const drop = siteDrop(pills, at);
+    return joinedCard({ field: "url", icon: SEARCH, value: urlText, placeholder: "Type a website", ...drop, hasPills: pills.length > 0 });
+  }
+  function dropdown({ key, label, value, items }) {
+    const rows = items.map((it) => `<button type="button" class="ap-dd-item" role="option" data-dd-item="${key}" data-value="${esc(it.value)}" aria-selected="${String(it.value) === String(value)}">${esc(it.label)}${String(it.value) === String(value) ? TICK : ""}</button>`).join("");
+    const current2 = items.find((it) => String(it.value) === String(value));
+    const more = items.length > 5 ? `<div class="ap-dd-note">${items.length - 5} more, scroll</div>` : "";
+    return `<div class="ap-dd-wrap" data-dd-wrap="${key}"><div class="ap-label">${esc(label)}</div>
+      <button type="button" class="ap-dd" data-dd="${key}" aria-haspopup="listbox" aria-expanded="false"><span data-dd-label="${key}">${esc(current2 ? current2.label : "Choose")}</span>${CHEV}</button>
+      <div class="ap-dd-menu" data-dd-menu="${key}" role="listbox" hidden><div class="ap-dd-rows">${rows}</div>${more}</div>${errorSlot(key)}</div>`;
+  }
+  function placeScreen({ name, namePills, pageItems: pageItems2, page, groupItems: groupItems2, group, newGroup, showNewGroup }) {
+    const nameCard = joinedCard({
+      field: "name",
+      icon: SEARCH,
+      value: name,
+      placeholder: "Name",
+      pillsHtml: pillsMarkup(namePills, namePills.findIndex((p2) => p2.value === name), "data-name-pill"),
+      hint: "Pick a name, or keep typing your own",
+      hasPills: namePills.length > 0
+    });
+    return `${nameCard}
+    <div class="ap-cols">${dropdown({ key: "page", label: "Page", value: page, items: pageItems2 })}${dropdown({ key: "group", label: "Group", value: group, items: groupItems2 })}</div>
+    <div data-newgroup${showNewGroup ? "" : " hidden"}><div class="ap-label">New group name</div>
+      <div class="ap-plain"><input class="ap-input" type="text" data-field="newGroup" value="${esc(newGroup)}" placeholder="WORK" autocomplete="off" spellcheck="false"></div>${errorSlot("newGroup")}</div>`;
+  }
+  function plainField({ field: field2, value, placeholder, aside = "", label = "" }) {
+    return `${label ? `<div class="ap-label">${esc(label)}</div>` : ""}<div class="ap-plain"><input class="ap-input" type="text" data-field="${field2}" value="${esc(value)}" placeholder="${esc(placeholder)}" autocomplete="off" spellcheck="false">${aside}</div>${errorSlot(field2)}`;
   }
 
   // src/components/addPopup/addPopup.js
   var bookmarkPages = () => activeTabs.filter((t) => t.type !== "search");
+  var savedDomains = () => new Set((allCachedBookmarks || []).map((b) => mainDomain(hostOf(b && b.url))).filter(Boolean));
   function openAddPopup(opts = {}) {
     document.querySelectorAll(".add-popup").forEach((n) => n.remove());
     const editing = opts.page || null;
@@ -1918,28 +2028,43 @@
     overlay.className = "modal show picker-modal add-popup";
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
-    overlay.setAttribute("aria-label", editing ? "Edit page" : "Add a bookmark or a page");
-    overlay.innerHTML = popupMarkup({
-      editing,
-      pages,
-      startPage,
-      pageCount: pages.length + 1
-    });
+    overlay.setAttribute("aria-label", editing ? "Edit page" : opts.mode === "page" ? "Add page" : "Add bookmark");
     document.body.appendChild(overlay);
-    const popup = { overlay, editing, opts, $: (sel) => overlay.querySelector(sel) };
+    const popup = {
+      overlay,
+      opts,
+      editing,
+      kind: editing || opts.mode === "page" ? "page" : "bookmark",
+      step: 1,
+      flow: createFlowState(startPage === void 0 ? null : startPage),
+      urlText: "",
+      nameTouched: false,
+      sites: [],
+      siteAt: 0,
+      groups: [],
+      groupsFor: null,
+      menu: null,
+      pageName: editing ? editing.label : "",
+      sub: editing ? editing.sub || "" : "",
+      pageCount: pages.length + 1
+    };
     wire(popup);
-    setMode(popup, editing ? "page" : opts.mode || "bookmark");
-    if (!editing) loadGroups(popup);
+    render(popup);
+    if (popup.kind === "bookmark") {
+      loadSites().then((sites) => {
+        popup.sites = sites;
+        if (overlay.isConnected && popup.step === 1) paintSites(popup);
+      });
+    }
     return popup;
   }
   function close(popup) {
     popup.overlay.remove();
   }
-  function field(popup, name) {
-    return popup.$(`[data-field="${name}"]`);
-  }
+  var $ = (popup, sel) => popup.overlay.querySelector(sel);
+  var field = (popup, name) => $(popup, `[data-field="${name}"]`);
   function showError(popup, name, message) {
-    const slot = popup.$(`[data-error-for="${name}"]`);
+    const slot = $(popup, `[data-error-for="${name}"]`);
     if (slot) slot.textContent = message || "";
   }
   function clearErrors(popup) {
@@ -1947,128 +2072,310 @@
       s.textContent = "";
     });
   }
-  function setMode(popup, mode) {
-    popup.mode = mode;
-    popup.overlay.querySelectorAll("[data-add-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.addMode === mode)));
-    popup.overlay.querySelectorAll("[data-mode-fields]").forEach((w) => {
-      w.hidden = w.dataset.modeFields !== mode;
-    });
+  function sitePills(popup) {
+    return matchSites(popup.sites, popup.urlText, 8, savedDomains()).map((s) => ({ label: s.domain, value: s.domain }));
+  }
+  function pageItems() {
+    return bookmarkPages().map((t) => ({ value: String(t.id), label: t.label }));
+  }
+  function groupItems(popup) {
+    return [...popup.groups.map((g) => ({ value: g, label: g })), { value: NEW_GROUP, label: "+ New group" }];
+  }
+  function render(popup) {
+    const { kind, step, editing } = popup;
+    let frame;
+    if (kind === "bookmark" && step === 1) {
+      const pills = sitePills(popup);
+      popup.siteAt = Math.min(popup.siteAt, Math.max(pills.length - 1, 0));
+      frame = {
+        title: "Which website?",
+        total: 2,
+        body: websiteScreen({ urlText: popup.urlText, pills, at: popup.siteAt }),
+        left: button("data-add-cancel", "Cancel"),
+        right: button("data-add-next", "Next", true, !popup.urlText.trim())
+      };
+    } else if (kind === "bookmark") {
+      const names = nameChoices(popup.urlText).map((n) => ({ label: n, value: n }));
+      frame = {
+        title: "Name and place",
+        total: 2,
+        body: placeScreen({
+          name: popup.flow.name,
+          namePills: names,
+          pageItems: pageItems(),
+          page: popup.flow.page === null ? "" : String(popup.flow.page),
+          groupItems: groupItems(popup),
+          group: popup.flow.group,
+          newGroup: popup.flow.newGroupName,
+          showNewGroup: popup.flow.group === NEW_GROUP
+        }),
+        left: button("data-add-back", "Back"),
+        right: button("data-add-save", "Add", true)
+      };
+    } else if (editing) {
+      frame = {
+        title: "Edit page",
+        total: 1,
+        body: plainField({ field: "pageName", label: "Name", value: popup.pageName, placeholder: `Page ${popup.pageCount}` }) + plainField({ field: "sub", label: "Subtitle", value: popup.sub, placeholder: "Three to five words", aside: '<span class="ap-count" data-count></span>' }),
+        left: button("data-add-cancel", "Cancel"),
+        right: button("data-add-save", "Save", true)
+      };
+    } else if (step === 1) {
+      frame = {
+        title: "What is the page called?",
+        total: 2,
+        body: plainField({ field: "pageName", value: popup.pageName, placeholder: `Page ${popup.pageCount}` }),
+        left: button("data-add-cancel", "Cancel"),
+        right: button("data-add-next", "Next", true)
+      };
+    } else {
+      frame = {
+        title: "Give it a short subtitle",
+        total: 2,
+        body: plainField({ field: "sub", value: popup.sub, placeholder: "Three to five words", aside: '<span class="ap-count" data-count></span>' }),
+        left: button("data-add-back", "Back"),
+        right: button("data-add-save", "Add", true)
+      };
+    }
+    popup.menu = null;
+    popup.overlay.innerHTML = frameMarkup({ ...frame, step });
+    popup.overlay.dataset.kind = kind;
+    popup.overlay.dataset.step = String(step);
     clearErrors(popup);
     updateCount(popup);
-    const first = field(popup, mode === "page" ? "pageName" : "name");
+    if (kind === "bookmark" && step === 2) loadGroups(popup);
+    const first = popup.overlay.querySelector(".ap-input");
     if (first) requestAnimationFrame(() => first.focus());
   }
+  function paintSites(popup) {
+    const drop = $(popup, '[data-drop="url"]');
+    if (!drop) return;
+    const pills = sitePills(popup);
+    popup.siteAt = Math.min(popup.siteAt, Math.max(pills.length - 1, 0));
+    const parts = siteDrop(pills, popup.siteAt);
+    drop.innerHTML = `${parts.pillsHtml}<div class="ap-hint" data-hint>${parts.hint}</div>`;
+    drop.hidden = pills.length === 0;
+    const card2 = $(popup, '[data-card="url"]');
+    if (card2) card2.classList.toggle("ap-card--open", pills.length > 0);
+    const next2 = $(popup, "[data-add-next]");
+    if (next2) next2.disabled = !popup.urlText.trim();
+  }
+  function paintPlace(popup) {
+    const cols = $(popup, ".ap-cols");
+    if (!cols) return;
+    cols.innerHTML = dropdown({ key: "page", label: "Page", value: popup.flow.page === null ? "" : String(popup.flow.page), items: pageItems() }) + dropdown({ key: "group", label: "Group", value: popup.flow.group, items: groupItems(popup) });
+    popup.menu = null;
+    const wrap = $(popup, "[data-newgroup]");
+    if (wrap) wrap.hidden = popup.flow.group !== NEW_GROUP;
+  }
   async function loadGroups(popup) {
-    const pageSel = field(popup, "page");
-    const groupSel = field(popup, "group");
-    const id = pageIdFrom(pageSel.value);
-    const asked = pageSel.value;
-    const saved = id === void 0 ? null : await BookmarkDB.getBookmarks(id);
-    if (pageSel.value !== asked) return;
-    const kept = groupSel.value;
-    groupSel.innerHTML = groupOptions(saved ? Object.keys(saved).sort() : []);
-    if ([...groupSel.options].some((o) => o.value === kept)) groupSel.value = kept;
-    toggleNewGroup(popup);
-  }
-  function pageIdFrom(value) {
-    const tab = bookmarkPages().find((t) => String(t.id) === String(value));
-    return tab ? tab.id : void 0;
-  }
-  function toggleNewGroup(popup) {
-    const wrap = popup.$("[data-newgroup]");
-    if (wrap) wrap.hidden = field(popup, "group").value !== NEW_GROUP;
+    const id = popup.flow.page;
+    const asked = String(id);
+    popup.groupsFor = asked;
+    const saved = id === null || id === void 0 ? null : await BookmarkDB.getBookmarks(id);
+    if (popup.groupsFor !== asked || !popup.overlay.isConnected) return;
+    popup.groups = saved ? Object.keys(saved).sort() : [];
+    let group = popup.flow.group;
+    if (group === null || group !== NEW_GROUP && !popup.groups.includes(group)) group = popup.groups.length ? popup.groups[0] : NEW_GROUP;
+    popup.flow = setValue(popup.flow, "group", group);
+    paintPlace(popup);
   }
   function updateCount(popup) {
-    const slot = popup.$(".add-popup-count");
+    const slot = $(popup, "[data-count]");
     if (!slot) return;
-    const sub = cleanSubtitle(field(popup, "sub").value);
+    const sub = cleanSubtitle(popup.sub);
     const words = sub ? sub.split(" ").length : 0;
     slot.textContent = `${words} of ${MIN_WORDS}-${MAX_WORDS} words \xB7 ${sub.length} / ${MAX_CHARS}`;
-    slot.hidden = popup.mode !== "page";
+  }
+  function next(popup) {
+    clearErrors(popup);
+    if (popup.kind === "bookmark") {
+      popup.flow = setValue(popup.flow, "url", popup.urlText.trim());
+      const problem = validateStep(popup.flow, "url");
+      if (problem) {
+        showError(popup, "url", problem);
+        return;
+      }
+      if (!popup.nameTouched) popup.flow = setValue(popup.flow, "name", nameChoices(popup.urlText)[0] || hostOf(popup.urlText) || "");
+    }
+    popup.step = 2;
+    render(popup);
+  }
+  function back(popup) {
+    popup.step = 1;
+    render(popup);
+  }
+  function pickSite(popup, domain) {
+    popup.urlText = domain;
+    popup.siteAt = 0;
+    next(popup);
+  }
+  function closeMenus(popup) {
+    popup.overlay.querySelectorAll("[data-dd-menu]").forEach((m) => {
+      m.hidden = true;
+    });
+    popup.overlay.querySelectorAll("[data-dd]").forEach((b) => b.setAttribute("aria-expanded", "false"));
+    popup.menu = null;
+  }
+  function toggleMenu(popup, key) {
+    const wasOpen = popup.menu === key;
+    closeMenus(popup);
+    if (wasOpen) return;
+    const menu2 = $(popup, `[data-dd-menu="${key}"]`);
+    if (!menu2) return;
+    menu2.hidden = false;
+    popup.menu = key;
+    const btn = $(popup, `[data-dd="${key}"]`);
+    if (btn) btn.setAttribute("aria-expanded", "true");
+  }
+  function choose(popup, key, value) {
+    if (key === "page") {
+      const tab = bookmarkPages().find((t) => String(t.id) === value);
+      if (!tab) return;
+      popup.flow = setValue(popup.flow, "page", tab.id);
+      popup.groups = [];
+      paintPlace(popup);
+      loadGroups(popup);
+    } else if (key === "group") {
+      popup.flow = setValue(popup.flow, "group", value);
+      paintPlace(popup);
+      if (value === NEW_GROUP) {
+        const f = field(popup, "newGroup");
+        if (f) f.focus();
+      }
+    }
+    closeMenus(popup);
   }
   function wire(popup) {
     const { overlay } = popup;
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) return close(popup);
-      const modeBtn = e.target.closest("[data-add-mode]");
-      if (modeBtn) return setMode(popup, modeBtn.dataset.addMode);
-      if (e.target.closest("[data-add-cancel]") || e.target.closest(".close-btn")) return close(popup);
-      if (e.target.closest("[data-add-save]")) save(popup);
+      const t = e.target;
+      if (t.closest("[data-add-cancel]")) return close(popup);
+      if (t.closest("[data-add-next]")) return next(popup);
+      if (t.closest("[data-add-back]")) return back(popup);
+      if (t.closest("[data-add-save]")) return void save(popup);
+      const site = t.closest("[data-site]");
+      if (site) return pickSite(popup, site.dataset.site);
+      const namePill = t.closest("[data-name-pill]");
+      if (namePill) {
+        popup.flow = setValue(popup.flow, "name", namePill.dataset.namePill);
+        popup.nameTouched = true;
+        const input = field(popup, "name");
+        if (input) {
+          input.value = namePill.dataset.namePill;
+          input.focus();
+        }
+        overlay.querySelectorAll("[data-name-pill]").forEach((p2) => p2.setAttribute("aria-selected", String(p2 === namePill)));
+        return;
+      }
+      const dd = t.closest("[data-dd]");
+      if (dd) return toggleMenu(popup, dd.dataset.dd);
+      const item = t.closest("[data-dd-item]");
+      if (item) return choose(popup, item.dataset.ddItem, item.dataset.value);
+      if (popup.menu) closeMenus(popup);
     });
     overlay.addEventListener("input", (e) => {
       const name = e.target.dataset && e.target.dataset.field;
       if (!name) return;
       showError(popup, name, "");
-      if (name === "sub") updateCount(popup);
-    });
-    overlay.addEventListener("change", (e) => {
-      const name = e.target.dataset && e.target.dataset.field;
-      if (name) showError(popup, name, "");
-      if (name === "page") loadGroups(popup);
-      if (name === "group") toggleNewGroup(popup);
+      if (name === "url") {
+        popup.urlText = e.target.value;
+        popup.siteAt = 0;
+        paintSites(popup);
+      } else if (name === "name") {
+        popup.flow = setValue(popup.flow, "name", e.target.value);
+        popup.nameTouched = true;
+      } else if (name === "newGroup") popup.flow = setValue(popup.flow, "newGroupName", e.target.value);
+      else if (name === "pageName") popup.pageName = e.target.value;
+      else if (name === "sub") {
+        popup.sub = e.target.value;
+        updateCount(popup);
+      }
     });
     overlay.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && e.target.matches("input")) {
+      if (e.key === "Escape") {
         e.preventDefault();
-        save(popup);
+        e.stopPropagation();
+        if (popup.menu) closeMenus(popup);
+        else close(popup);
+        return;
       }
+      const input = e.target && e.target.matches && e.target.matches("input") ? e.target : null;
+      if (!input) return;
+      const isUrl2 = input.dataset.field === "url";
+      if (isUrl2 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+        const n = sitePills(popup).length;
+        if (!n) return;
+        e.preventDefault();
+        popup.siteAt = (popup.siteAt + (e.key === "ArrowDown" ? 1 : n - 1)) % n;
+        paintSites(popup);
+        return;
+      }
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      if (isUrl2) {
+        const pills = sitePills(popup);
+        if (pills.length) pickSite(popup, pills[popup.siteAt].value);
+        else next(popup);
+      } else if ($(popup, "[data-add-next]")) next(popup);
+      else save(popup);
     });
   }
   async function save(popup) {
     clearErrors(popup);
-    const ok = popup.mode === "page" ? savePage(popup) : await saveBookmark(popup);
+    const ok = popup.kind === "page" ? savePage(popup) : await saveBookmark(popup);
     if (!ok) return;
     close(popup);
     if (popup.opts.onSaved) popup.opts.onSaved();
   }
-  function bookmarkAnswers(popup) {
-    let state2 = createFlowState(pageIdFrom(field(popup, "page").value) ?? null);
-    state2 = setValue(state2, "name", field(popup, "name").value);
-    state2 = setValue(state2, "url", field(popup, "url").value);
-    const group = field(popup, "group").value;
-    state2 = setValue(state2, "group", group || null);
-    return setValue(state2, "newGroupName", field(popup, "newGroup").value.trim().toUpperCase());
-  }
   async function saveBookmark(popup) {
-    const state2 = bookmarkAnswers(popup);
+    const state3 = setValue(popup.flow, "newGroupName", popup.flow.newGroupName.trim().toUpperCase());
     const errors = {
-      name: validateStep(state2, "name"),
-      url: validateStep(state2, "url"),
-      page: state2.page === null ? "Add a page first, then a bookmark to it." : null
+      name: validateStep(state3, "name"),
+      url: validateStep(state3, "url"),
+      page: state3.page === null ? "Add a page first, then a bookmark to it." : null
     };
-    const groupError = validateStep(state2, "group");
-    if (groupError) errors[state2.group === NEW_GROUP ? "newGroup" : "group"] = groupError;
-    if (!errors.page && state2.group === NEW_GROUP && state2.newGroupName) {
-      const existing = await BookmarkDB.getBookmarks(state2.page);
-      if (existing && existing[state2.newGroupName]) errors.newGroup = `${state2.newGroupName} already exists on this page.`;
+    const groupError = validateStep(state3, "group");
+    if (groupError) errors[state3.group === NEW_GROUP ? "newGroup" : "group"] = groupError;
+    if (!errors.page && state3.group === NEW_GROUP && state3.newGroupName) {
+      const existing = await BookmarkDB.getBookmarks(state3.page);
+      if (existing && existing[state3.newGroupName]) errors.newGroup = `${state3.newGroupName} already exists on this page.`;
     }
     const wrong = Object.keys(errors).filter((k) => errors[k]);
-    wrong.forEach((k) => showError(popup, k, errors[k]));
     if (wrong.length) {
+      if (errors.url) {
+        popup.step = 1;
+        render(popup);
+      }
+      wrong.forEach((k) => showError(popup, k, errors[k]));
       const first = field(popup, wrong[0]);
       if (first) first.focus();
       return false;
     }
     await addBookmark({
-      name: state2.name.trim(),
-      url: state2.url.trim(),
-      page: state2.page,
-      group: state2.group === NEW_GROUP ? state2.newGroupName : state2.group
+      name: state3.name.trim(),
+      url: state3.url.trim(),
+      page: state3.page,
+      group: state3.group === NEW_GROUP ? state3.newGroupName : state3.group
     });
     return true;
   }
   function savePage(popup) {
-    const nameEl = field(popup, "pageName");
-    const label = nameEl.value.trim() || nameEl.placeholder;
-    const sub = field(popup, "sub").value;
-    const problem = subtitleProblem(sub);
+    const label = popup.pageName.trim() || `Page ${popup.pageCount}`;
+    const problem = subtitleProblem(popup.sub);
     if (problem) {
+      if (popup.step === 1 && !popup.editing) {
+        popup.step = 2;
+        render(popup);
+      }
       showError(popup, "sub", problem);
-      field(popup, "sub").focus();
+      const el3 = field(popup, "sub");
+      if (el3) el3.focus();
       return false;
     }
-    if (popup.editing) updatePage(popup.editing.id, { label, sub: cleanSubtitle(sub) });
-    else createPage(label, cleanSubtitle(sub));
+    if (popup.editing) updatePage(popup.editing.id, { label, sub: cleanSubtitle(popup.sub) });
+    else createPage(label, cleanSubtitle(popup.sub));
     return true;
   }
   function initAddPopup() {
@@ -2203,13 +2510,10 @@
       document.body.style.marginTop = "";
     } else {
       document.body.style.zoom = value;
-      const pct = (1 / value - 1) * 50;
-      document.body.style.marginLeft = `${pct}vw`;
-      document.body.style.marginTop = `${pct}vh`;
+      const pct2 = (1 / value - 1) * 50;
+      document.body.style.marginLeft = `${pct2}vw`;
+      document.body.style.marginTop = `${pct2}vh`;
     }
-  }
-  function applyGrayscale(on) {
-    document.documentElement.classList.toggle("grayscale", !!on);
   }
   function showPage(pageName) {
     document.querySelectorAll(".page").forEach((page) => page.classList.remove("active"));
@@ -2925,6 +3229,11 @@
     if (minutes > 0) return `${minutes}m ${seconds}s`;
     return `${seconds}s`;
   }
+  function formatTimeCompact(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  }
 
   // src/services/tabService.js
   async function getTabCount() {
@@ -3143,7 +3452,7 @@
     searchInput.addEventListener("input", () => onSearchInput(ui));
     searchInput.addEventListener("focus", () => {
       const v = searchInput.value;
-      if (v.startsWith("./") || getBookmarkPillBehavior() === "always" && v.trim().length > 0) {
+      if (getBookmarkPillBehavior() !== "never" && (v.startsWith("./") || getBookmarkPillBehavior() === "always" && v.trim().length > 0)) {
         searchInput.dispatchEvent(new Event("input"));
       }
     });
@@ -3171,7 +3480,9 @@
   }
   function onSearchInput(ui) {
     const val = ui.searchInput.value;
-    if (val.startsWith("./")) {
+    if (getBookmarkPillBehavior() === "never") {
+      hideBookmarkSearchResults();
+    } else if (val.startsWith("./")) {
       const raw = val.substring(2);
       const query = raw.trim().toLowerCase();
       if (raw === " ") showPills(ui, allCachedBookmarks);
@@ -3190,7 +3501,7 @@
   }
   async function onSearchKeydown(e, ui) {
     const { searchInput, resultsContainer } = ui;
-    const isSearchActive = (searchInput.value.startsWith("./") || getBookmarkPillBehavior() === "always") && resultsContainer && resultsContainer.style.display === "flex";
+    const isSearchActive = getBookmarkPillBehavior() !== "never" && (searchInput.value.startsWith("./") || getBookmarkPillBehavior() === "always") && resultsContainer && resultsContainer.style.display === "flex";
     if (movePillSelection(e, ui, isSearchActive)) return;
     if (e.key === "Enter") await submitSearch(e, ui, isSearchActive);
   }
@@ -3420,6 +3731,48 @@
     return removed;
   }
 
+  // src/utils/saturationLock.js
+  var LOCK_MS = 30 * 60 * 1e3;
+  var clampSaturation = (v) => {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 100;
+  };
+  function activeLock(lock, now = Date.now()) {
+    if (!lock || typeof lock !== "object" || lock.manual !== true) return null;
+    const ceiling = Number(lock.ceiling), until = Number(lock.until);
+    if (!Number.isFinite(ceiling) || !Number.isFinite(until) || until <= now) return null;
+    return { ceiling: clampSaturation(ceiling), until, manual: true };
+  }
+  function lockedMax(lock, now = Date.now()) {
+    const l = activeLock(lock, now);
+    return l ? l.ceiling : 100;
+  }
+  function startLock(current2, now = Date.now()) {
+    return { ceiling: clampSaturation(current2), until: now + LOCK_MS, manual: true };
+  }
+  function planChange({ current: current2, lock, target, now = Date.now() }) {
+    const cur = clampSaturation(current2);
+    const want2 = clampSaturation(target);
+    const held = activeLock(lock, now);
+    if (!held) return { saturation: want2, lock: null, changed: want2 !== cur };
+    if (want2 >= held.ceiling) return { saturation: Math.min(cur, held.ceiling), lock: held, changed: false };
+    return { saturation: want2, lock: { ...held, ceiling: want2 }, changed: true };
+  }
+  function legacySaturation(grayscale, saturation) {
+    if (grayscale === void 0 || grayscale === null) return void 0;
+    if (grayscale === true) return typeof saturation === "number" ? clampSaturation(saturation) : 0;
+    return 100;
+  }
+  function lockNote(lock, formatTime, now = Date.now()) {
+    const l = activeLock(lock, now);
+    if (!l) return "";
+    return `Locked. You can go grayer, but not back above ${l.ceiling}% until ${formatTime(l.until)}.`;
+  }
+  function lockSecondsLeft(lock, now = Date.now()) {
+    const l = activeLock(lock, now);
+    return l ? Math.max(0, Math.ceil((l.until - now) / 1e3)) : 0;
+  }
+
   // src/services/dataImport.js
   async function persistImportData(importData) {
     const ap = window.AtlasProfiles;
@@ -3453,6 +3806,8 @@
   }
   async function settingsFromImport(importData) {
     const storageData = {};
+    const legacy = legacySaturation(importData.grayscale, importData.saturation);
+    if (legacy !== void 0) importData = { ...importData, saturation: legacy };
     for (const { key, importWhen } of BACKUP_SYNC_KEYS) {
       const value = importData[key];
       if (importWhen === "truthy" ? value : value !== void 0) storageData[key] = value;
@@ -4447,59 +4802,59 @@
     for (const row2 of rows) lines.push(CSV_COLS.map((h) => csvEscape(row2[h])).join(","));
     return lines.join("\r\n");
   }
-  function advanceQuoted(state2, text, i2) {
+  function advanceQuoted(state3, text, i2) {
     const ch = text[i2];
     if (ch !== '"') {
-      state2.field += ch;
+      state3.field += ch;
       return i2 + 1;
     }
     if (text[i2 + 1] === '"') {
-      state2.field += '"';
+      state3.field += '"';
       return i2 + 2;
     }
-    state2.inQuote = false;
+    state3.inQuote = false;
     return i2 + 1;
   }
-  function flushRow(state2, rows, text, i2) {
-    state2.row.push(state2.field);
-    state2.field = "";
-    let next = i2 + 1;
-    if (text[i2] === "\r" && text[i2 + 1] === "\n") next++;
-    if (state2.row.some((c) => c !== "")) rows.push(state2.row);
-    state2.row = [];
-    return next;
+  function flushRow(state3, rows, text, i2) {
+    state3.row.push(state3.field);
+    state3.field = "";
+    let next2 = i2 + 1;
+    if (text[i2] === "\r" && text[i2 + 1] === "\n") next2++;
+    if (state3.row.some((c) => c !== "")) rows.push(state3.row);
+    state3.row = [];
+    return next2;
   }
   function parseCsv(text) {
     const rows = [];
-    const state2 = { row: [], field: "", inQuote: false };
+    const state3 = { row: [], field: "", inQuote: false };
     let i2 = 0;
     while (i2 < text.length) {
       const ch = text[i2];
-      if (state2.inQuote) {
-        i2 = advanceQuoted(state2, text, i2);
+      if (state3.inQuote) {
+        i2 = advanceQuoted(state3, text, i2);
         continue;
       }
       if (ch === '"') {
-        state2.inQuote = true;
+        state3.inQuote = true;
         i2++;
         continue;
       }
       if (ch === ",") {
-        state2.row.push(state2.field);
-        state2.field = "";
+        state3.row.push(state3.field);
+        state3.field = "";
         i2++;
         continue;
       }
       if (ch === "\r" || ch === "\n") {
-        i2 = flushRow(state2, rows, text, i2);
+        i2 = flushRow(state3, rows, text, i2);
         continue;
       }
-      state2.field += ch;
+      state3.field += ch;
       i2++;
     }
-    if (state2.field || state2.row.length) {
-      state2.row.push(state2.field);
-      if (state2.row.some((c) => c !== "")) rows.push(state2.row);
+    if (state3.field || state3.row.length) {
+      state3.row.push(state3.field);
+      if (state3.row.some((c) => c !== "")) rows.push(state3.row);
     }
     return rows;
   }
@@ -5203,8 +5558,8 @@
       if (area !== "sync") return;
       for (const key of Object.keys(changes)) {
         if (!entries.has(key)) continue;
-        const next = changes[key].newValue !== void 0 ? changes[key].newValue : syncDefault(key);
-        if (!same(next, values.get(key))) update(key, next, { initial: false, local: false });
+        const next2 = changes[key].newValue !== void 0 ? changes[key].newValue : syncDefault(key);
+        if (!same(next2, values.get(key))) update(key, next2, { initial: false, local: false });
       }
     });
   }
@@ -5230,6 +5585,20 @@
     const ap = window.AtlasProfiles;
     if (ap && ap.setSwitchHandler) ap.setSwitchHandler(applyProfileSwitch);
   }
+  function installDataChanged() {
+    try {
+      chrome.runtime.onMessage.addListener((msg) => {
+        if (msg && msg.atlas && msg.atlas.act === "data-changed") refreshAfterOutsideAdd();
+      });
+    } catch (e) {
+    }
+  }
+  async function refreshAfterOutsideAdd() {
+    await refreshBookmarkCache();
+    await initializeTabs();
+    if (currentPage === "bookmarks" && activeTabs.some((t) => String(t.id) === String(currentBookmarkPage))) loadBookmarks();
+    if (window.AtlasSettingsUI) window.AtlasSettingsUI.rerender();
+  }
   async function applyProfileSwitch() {
     const ap = window.AtlasProfiles;
     if (ap && BookmarkDB.dbName !== ap.dbName()) {
@@ -5250,6 +5619,63 @@
     await loadSearchEngines();
     loadSavedEngine();
     if (window.AtlasSettingsUI) window.AtlasSettingsUI.rerender();
+  }
+
+  // src/components/colorLock/colorLock.js
+  var STEP_MS = 250;
+  var want = null;
+  var timer = 0;
+  var waiting = [];
+  var running = Promise.resolve();
+  function enqueue(job) {
+    const result = running.then(job);
+    running = result.catch(() => {
+    });
+    return result;
+  }
+  function requestSaturation(target) {
+    want = target;
+    return new Promise((resolve) => {
+      waiting.push(resolve);
+      clearTimeout(timer);
+      timer = setTimeout(flushSaturation, STEP_MS);
+    });
+  }
+  function flushSaturation() {
+    clearTimeout(timer);
+    const done = waiting;
+    waiting = [];
+    return enqueue(saveWanted).catch(() => {
+    }).then(() => done.forEach((resolve) => resolve()));
+  }
+  function lockSaturation() {
+    clearTimeout(timer);
+    const done = waiting;
+    waiting = [];
+    return enqueue(async () => {
+      await saveWanted();
+      return lockNow();
+    }).finally(() => done.forEach((resolve) => resolve()));
+  }
+  async function lockNow() {
+    const stored = await storageGet("sync", ["saturation", "saturationLock"]);
+    if (activeLock(stored.saturationLock)) return false;
+    const level = typeof stored.saturation === "number" ? stored.saturation : 100;
+    await storageSet("sync", { saturationLock: startLock(level) });
+    return true;
+  }
+  async function saveWanted() {
+    if (want === null) return;
+    const target = want;
+    want = null;
+    const stored = await storageGet("sync", ["saturation", "saturationLock"]);
+    const plan = planChange({
+      current: typeof stored.saturation === "number" ? stored.saturation : 100,
+      lock: stored.saturationLock,
+      target
+    });
+    if (plan.changed) await storageSet("sync", { saturation: plan.saturation, saturationLock: plan.lock });
+    else if (stored.saturationLock && !activeLock(stored.saturationLock)) await storageSet("sync", { saturationLock: null });
   }
 
   // src/services/delayStorage.js
@@ -5333,7 +5759,8 @@
     defineSetting({ key: "searchDelaySeconds", apply: (v) => setSearchDelaySeconds(v), write: requestSearchDelay });
     defineSetting({ key: "pendingDelayDecrease" });
     defineSetting({ key: "showQueryOnDelay" });
-    defineSetting({ key: "grayscale", apply: (v) => applyGrayscale(v) });
+    defineSetting({ key: "saturation", write: requestSaturation });
+    defineSetting({ key: "saturationLock" });
   }
 
   // src/settings/controls.js
@@ -5362,10 +5789,22 @@
     set: (mode) => setSetting("Theme", Object.assign({}, getSetting("Theme"), { Theme: mode }))
   };
   var CONTROLS = {
-    grayscale: flag("grayscale"),
+    saturation: {
+      get: () => {
+        const v = getSetting("saturation");
+        return typeof v === "number" ? v : 100;
+      },
+      /* The highest level the slider may reach now: 100, or the ceiling while a lock holds. */
+      max: () => lockedMax(getSetting("saturationLock")),
+      set: (v) => setSetting("saturation", parseInt(v, 10)),
+      flush: flushSaturation,
+      /* The lock button: true while a lock you pressed is holding. */
+      locked: () => !!activeLock(getSetting("saturationLock")),
+      lock: lockSaturation
+    },
     showQuery: flag("showQueryOnDelay"),
     engine: choice("searchEngineBehavior", { "remember": "Remember last selected", "always-default": "Always reset to default" }),
-    pills: choice("bookmarkPillBehavior", { "prefix": "When typing ./", "always": "Always" }),
+    pills: choice("bookmarkPillBehavior", { "prefix": "When typing ./", "always": "Always", "never": "Never" }),
     theme,
     scale: numberChoice("uiScale", SCALES, parseFloat),
     limit: numberChoice("tabLimit", LIMITS, (v) => parseInt(v, 10)),
@@ -5374,6 +5813,7 @@
   };
   function labelOf(key) {
     const c = CONTROLS[key], v = c.get();
+    if (!c.options) return String(v);
     const o = c.options.find((x2) => String(x2.value) === String(v));
     return o ? o.label : "-";
   }
@@ -5387,16 +5827,21 @@
     reset: '<path d="M4 10a6 6 0 1 0 2-4.5M4 3.5v3h3"/>',
     star: '<path d="m10 3 2.1 4.4 4.9.6-3.6 3.3.9 4.8L10 13.7 5.7 16l.9-4.8L3 7.9l4.9-.6z"/>',
     ext: '<path d="M7 13 13 7M8 7h5v5"/>',
-    pages: '<rect x="3" y="4" width="14" height="12" rx="2"/><path d="M3 8h14"/>'
+    pages: '<rect x="3" y="4" width="14" height="12" rx="2"/><path d="M3 8h14"/>',
+    chart: '<path d="M4 16V9M10 16V4M16 16v-5"/>'
   };
   var svg = (d, cls = "") => `<svg class="${cls}" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
-  var CHEV = '<svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>';
+  var CHEV2 = '<svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>';
   var CHECK = '<svg viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9l3 3 6-7"/></svg>';
   var row = (title, desc, ctrl) => `<div class="sp-row"><div class="sp-row-text"><div class="sp-row-title">${title}</div>${desc ? `<div class="sp-row-desc">${desc}</div>` : ""}</div><div class="sp-row-ctrl">${ctrl}</div></div>`;
   var card = (rows) => `<div class="sp-card">${rows.join("")}</div>`;
   var section = (title, cards) => `<div class="sp-section">${title ? `<h2 class="sp-section-title">${title}</h2>` : ""}${cards.join("")}</div>`;
-  var select = (key, label, sm = false) => `<button class="sp-pill${sm ? " sm" : ""}" data-select="${key}"><span>${label}</span>${CHEV}</button>`;
+  var select = (key, label, sm = false) => `<button class="sp-pill${sm ? " sm" : ""}" data-select="${key}"><span>${label}</span>${CHEV2}</button>`;
   var toggle = (key, on) => `<button class="sp-toggle" role="switch" data-toggle="${key}" aria-checked="${on}"></button>`;
+  var LOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
+  var UNLOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.8-1"/></svg>';
+  var lockButton = (locked, countdown) => `<span class="sp-lockcount" data-lockcount>${locked ? countdown : ""}</span><button type="button" class="sp-lockbtn${locked ? " on" : ""}" data-action="saturation-lock" data-lockbtn aria-pressed="${locked}"${locked ? " disabled" : ""} aria-label="${locked ? "Locked: it cannot be undone early" : "Lock the slider for 30 minutes"}" title="${locked ? "Locked until the time is up" : "Lock it: you can go grayer but not back for 30 minutes"}">${locked ? LOCK_ICON : UNLOCK_ICON}</button>`;
+  var lockedSlider = (key, val, ceiling) => `<div class="sp-slider-wrap"><div class="sp-slider-box"><input type="range" class="sp-slider" data-slider="${key}" min="0" max="100" value="${val}"><span class="sp-lockzone" data-lockzone="${key}" style="--lock-at:${ceiling}"${ceiling < 100 ? "" : " hidden"}>${LOCK_ICON}</span></div><span class="sp-slider-val">${val}%</span></div>`;
   function modeThumb(id, checked, bg, panel, line) {
     return `
     <button class="sp-mode" role="radio" data-mode="${id}" aria-checked="${checked}" aria-label="${id}">
@@ -5409,6 +5854,7 @@
     </button>`;
   }
   var scalePreview = (scale) => `<div class="sp-scale-preview" aria-hidden="true"><div class="sp-scale-sample" style="zoom:${scale}"><div class="sp-scale-bar">${svg(I.search)}<span>Search the web</span></div><div class="sp-scale-pills"><span>Notion</span><span>Gmail</span><span>Calendar</span></div></div></div>`;
+  var saturationPreview = (sat) => `<div class="sp-sat-preview" aria-hidden="true"><img class="sp-sat-img" id="sp-sat-sample" src="src/assets/saturation-preview.jpg" alt="" style="filter:saturate(${sat}%);"></div>`;
   var KEBAB = '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="10" cy="4.5" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="15.5" r="1.5"/></svg>';
   var GRIP = '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="5" r="1.3"/><circle cx="12.5" cy="5" r="1.3"/><circle cx="7.5" cy="10" r="1.3"/><circle cx="12.5" cy="10" r="1.3"/><circle cx="7.5" cy="15" r="1.3"/><circle cx="12.5" cy="15" r="1.3"/></svg>';
 
@@ -5423,14 +5869,14 @@
   function controls(t) {
     return `<button class="sp-kebab" data-action="page-menu" data-id="${esc2(t.id)}" aria-haspopup="menu" aria-label="More for ${esc2(t.label)}" title="More">${KEBAB}</button>`;
   }
-  function openPageMenu(t, button, rerender) {
+  function openPageMenu(t, button2, rerender) {
     if (!window.__atlasMenu) return;
     const items = [{ label: "Edit", run: () => openAddPopup({ mode: "page", page: t, onSaved: rerender }) }];
     if (t.type !== "search") items.push({ label: "Delete", run: () => {
       state.confirming = String(t.id);
       rerender();
     } });
-    const r = button.getBoundingClientRect();
+    const r = button2.getBoundingClientRect();
     window.__atlasMenu.open({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }, items);
   }
   function pageRow(t) {
@@ -5523,6 +5969,147 @@
     state.dragging = null;
   }
 
+  // src/utils/usageLog.js
+  var DAY_MS = 24 * 60 * 60 * 1e3;
+  var FIELDS = {
+    visibleMs: 12e4,
+    handsOnMs: 12e4,
+    mediaFrontMs: 12e4,
+    mediaBackMs: 12e4,
+    scrollMs: 12e4,
+    pageViews: 500,
+    imagesSeen: 2e3,
+    clicks: 5e3,
+    keys: 5e3,
+    scrollScreens: 2e3
+  };
+  var pad = (n) => String(n).padStart(2, "0");
+  var dayKey = (ms) => {
+    const d = new Date(ms);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  function keyStart(key) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}))?$/.exec(key);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], m[4] ? +m[4] : 0).getTime() : NaN;
+  }
+  var blank = () => Object.fromEntries(Object.keys(FIELDS).map((f) => [f, 0]));
+  function addInto(bucket, host, delta) {
+    const row2 = bucket[host] || (bucket[host] = blank());
+    for (const f of Object.keys(FIELDS)) row2[f] = Math.round(((row2[f] || 0) + (delta[f] || 0)) * 100) / 100;
+  }
+  function summarize(store2, { days = 7, now = Date.now() } = {}) {
+    const startOfToday = keyStart(dayKey(now));
+    const from = startOfToday - (days - 1) * DAY_MS;
+    const sites = {};
+    for (const bucket of [store2 && store2.hours || {}, store2 && store2.days || {}]) {
+      for (const [key, hosts] of Object.entries(bucket)) {
+        if (keyStart(key) < from) continue;
+        for (const [host, row2] of Object.entries(hosts)) addInto(sites, host, row2);
+      }
+    }
+    const list = Object.entries(sites).map(([host, t]) => ({ host, ...t })).sort((a, b) => b.visibleMs - a.visibleMs);
+    const total = blank();
+    for (const s of list) for (const f of Object.keys(FIELDS)) total[f] += s[f];
+    return { sites: list, total, days };
+  }
+  function derived(t) {
+    const min = (ms) => ms / 6e4;
+    return {
+      handsOnShare: t.visibleMs > 0 ? t.handsOnMs / t.visibleMs : 0,
+      // 0 to 1
+      imagesPerMin: t.visibleMs > 0 ? t.imagesSeen / min(t.visibleMs) : 0,
+      screensPerMin: t.scrollMs > 0 ? t.scrollScreens / min(t.scrollMs) : 0,
+      // scroll speed while scrolling
+      mediaMs: t.mediaFrontMs + t.mediaBackMs
+    };
+  }
+  function clock(ms) {
+    const s = Math.round(ms / 1e3);
+    if (s >= 3600) return `${Math.floor(s / 3600)}h ${Math.floor(s % 3600 / 60)}m`;
+    if (s >= 60) return `${Math.floor(s / 60)}m`;
+    return `${s}s`;
+  }
+
+  // src/settings/usagePage.js
+  var RANGES = [{ days: 1, label: "Today" }, { days: 7, label: "7 days" }, { days: 30, label: "30 days" }];
+  var esc3 = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  var SITES_SHOWN = 15;
+  var state2 = { store: null, loadedAt: 0, loading: false, range: 7, armed: false, watching: false };
+  function redrawIfShowing() {
+    const ui = window.AtlasSettingsUI;
+    if (ui && ui.current() === "usage") ui.rerender();
+  }
+  function load() {
+    state2.loading = true;
+    storageGet("local", ["atlas_usage"]).then((r) => {
+      state2.loading = false;
+      state2.loadedAt = Date.now();
+      const next2 = r.atlas_usage || {};
+      if (JSON.stringify(next2) !== JSON.stringify(state2.store)) {
+        state2.store = next2;
+        redrawIfShowing();
+      }
+    });
+  }
+  function watch() {
+    if (state2.watching || !window.chrome || !chrome.storage || !chrome.storage.onChanged) return;
+    state2.watching = true;
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "local" || !changes.atlas_usage) return;
+      state2.store = changes.atlas_usage.newValue || {};
+      redrawIfShowing();
+    });
+  }
+  var pct = (x2) => `${Math.round(x2 * 100)}%`;
+  var one = (x2) => (Math.round(x2 * 10) / 10).toString();
+  function rangeRow() {
+    const buttons = RANGES.map((r) => `<button class="sp-seg-btn" data-action="usage-range" data-days="${r.days}" aria-pressed="${r.days === state2.range}">${r.label}</button>`).join("");
+    return row("Show", "", `<div class="sp-seg" role="group" aria-label="Time span">${buttons}</div>`);
+  }
+  function siteRows(sum) {
+    const top = sum.sites.slice(0, SITES_SHOWN);
+    const most = Math.max(1, ...top.map((s) => s.visibleMs));
+    return top.map((s) => {
+      const d = derived(s);
+      const bits2 = [`hands on ${pct(d.handsOnShare)}`, `${s.pageViews} page view${s.pageViews === 1 ? "" : "s"}`, `${one(d.imagesPerMin)} images a minute`];
+      if (d.mediaMs > 0) bits2.push(`${clock(d.mediaMs)} of video or audio`);
+      const bar = `<span class="sp-usage-bar" aria-hidden="true"><i style="width:${Math.max(3, Math.round(s.visibleMs / most * 100))}%"></i></span>`;
+      return `<div class="sp-row sp-usage-site" tabindex="0"><div class="sp-row-text"><div class="sp-row-title">${esc3(s.host)}</div><div class="sp-row-desc">${bits2.join(" \xB7 ")}</div></div><div class="sp-row-ctrl">${bar}<span class="sp-usage-time">${clock(s.visibleMs)}</span></div></div>`;
+    });
+  }
+  function clearRow() {
+    return state2.armed ? `<div class="sp-confirm"><div class="sp-row-desc">This erases every total on this computer. It cannot be undone.</div><div class="sp-confirm-btns"><button class="sp-pill danger" data-action="usage-clear-go">Clear</button><button class="sp-pill" data-action="usage-clear-cancel">Cancel</button></div></div>` : row("Clear usage data", "Erases the totals below on this computer", `<button class="sp-pill danger" data-action="usage-clear">Clear</button>`);
+  }
+  function usagePage() {
+    watch();
+    if (!state2.loading && Date.now() - state2.loadedAt > 5e3) load();
+    const intro = row("Where your time goes", "Totals per site, saved on this computer only. Site names and numbers; never page addresses, titles, or what you type.", "");
+    if (state2.store === null) return section("", [card([intro, row("Loading\u2026", "", "")])]);
+    const sum = summarize(state2.store, { days: state2.range });
+    const top = card([intro, rangeRow()]);
+    const body = sum.sites.length ? section("By site", [card(siteRows(sum))]) + `<div class="sp-usage-hint">Move over a site, or Tab to it, to see how the time was spent.</div>` : section("", [card([row("Nothing recorded yet", "Open a few pages and come back; the totals fill in as you browse.", "")])]);
+    return section("", [top]) + body + section("", [card([clearRow()])]);
+  }
+  function usageAction(act, el3, redraw) {
+    if (act === "usage-range") {
+      state2.range = parseInt(el3.dataset.days, 10) || 7;
+      redraw();
+    } else if (act === "usage-clear") {
+      state2.armed = true;
+      redraw();
+    } else if (act === "usage-clear-cancel") {
+      state2.armed = false;
+      redraw();
+    } else if (act === "usage-clear-go") {
+      state2.armed = false;
+      sendToBackground({ action: "clearUsage" }).then(() => {
+        state2.store = {};
+        state2.loadedAt = Date.now();
+        redraw();
+      });
+    }
+  }
+
   // src/settings/pages.js
   var REVIEW_URL = "https://chromewebstore.google.com/detail/ipgmbcinekdcmhhnbanlahedgpehffab";
   var resetState = { confirming: false };
@@ -5542,6 +6129,10 @@
       card([row("UI scale", "Size of everything on the new tab", selectFor("scale")) + scalePreview(getSetting("uiScale"))])
     ]);
   }
+  var SATURATION_HELP = "Lock it to stop going back to color for 30 minutes.";
+  var clockTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  var saturationNote = () => lockNote(getSetting("saturationLock"), clockTime) || SATURATION_HELP;
+  var lockCountdown = () => formatTimeCompact(lockSecondsLeft(getSetting("saturationLock")));
   function focusPage() {
     const limitNote = pendingIncreaseText(getSetting("pendingIncrease")) || "Decreases apply now. Increases take 30 minutes.";
     const delayNote = pendingDecreaseText(getSetting("pendingDelayDecrease")) || "A pause before results, to make searching deliberate. Increases apply now. Decreases take 30 minutes.";
@@ -5552,7 +6143,7 @@
       row("Delay", delayNote, selectFor("delay")),
       row("Show the search query", "While you wait", toggleFor("showQuery"))
     ])]) + section("Display", [card([
-      row("Grayscale", "Remove color from the new tab", toggleFor("grayscale"))
+      row("Color saturation", saturationNote(), lockedSlider("saturation", CONTROLS.saturation.get(), CONTROLS.saturation.max()) + lockButton(CONTROLS.saturation.locked(), lockCountdown())) + saturationPreview(CONTROLS.saturation.get())
     ])]);
   }
   function backupPage() {
@@ -5573,15 +6164,17 @@
     search: searchPage,
     appearance: appearancePage,
     focus: focusPage,
+    usage: usagePage,
     backup: backupPage,
     reset: resetPage
   };
   var NAV = [
-    { group: "Settings", items: [
+    { group: "General", items: [
       { id: "search", label: "Search", icon: I.search },
       { id: "pages", label: "Pages", icon: I.pages },
       { id: "appearance", label: "Appearance", icon: I.sun },
-      { id: "focus", label: "Focus", icon: I.focus }
+      { id: "focus", label: "Focus", icon: I.focus },
+      { id: "usage", label: "Usage", icon: I.chart }
     ] },
     { group: "Data", items: [
       { id: "backup", label: "Backup", icon: I.db },
@@ -5696,20 +6289,25 @@
   var content = null;
   var current = null;
   var currentArg = null;
-  var $ = (id) => document.getElementById(id);
-  var esc3 = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  var $2 = (id) => document.getElementById(id);
+  var esc4 = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   var HIDDEN = {};
   function installSettingsPage() {
     if (root) return;
     root = buildRoot();
-    navEl = $("sp-nav");
-    content = $("sp-content");
+    navEl = $2("sp-nav");
+    content = $2("sp-content");
     keepUnzoomed();
-    initMenu($("sp-menu"), root.querySelector(".sp-main"));
+    initMenu($2("sp-menu"), root.querySelector(".sp-main"));
     wireShell();
     wireContent();
     wirePagesSection(content, () => renderPage());
-    onSettingChange(() => rerenderSoon());
+    onSettingChange((key, value) => {
+      if (typeof value === "number" && showSlider(key, value)) return;
+      if (key === "saturationLock" && showLock()) return;
+      rerenderSoon();
+    });
+    setInterval(showLock, 1e3);
     publishApi();
   }
   var isSettingsOpen = () => !!root && !root.hidden;
@@ -5724,8 +6322,8 @@
     if (!root.hidden && !pageId) return;
     root.hidden = false;
     resetState.confirming = false;
-    $("sp-version").textContent = "v" + chrome.runtime.getManifest().version;
-    render();
+    $2("sp-version").textContent = "v" + chrome.runtime.getManifest().version;
+    render2();
   }
   function closeSettings() {
     if (!root || root.hidden) return;
@@ -5778,9 +6376,9 @@
     closeMenu();
     const hidden = HIDDEN[current];
     const title = hidden ? hidden.title(currentArg) : navItem(current).label;
-    const back = hidden ? `<button class="sp-back-link" data-back="${hidden.parent}">${svg('<path d="M16 10H4m5-5-5 5 5 5"/>')}${esc3(navItem(hidden.parent).label)}</button>` : "";
+    const back2 = hidden ? `<button class="sp-back-link" data-back="${hidden.parent}">${svg('<path d="M16 10H4m5-5-5 5 5 5"/>')}${esc4(navItem(hidden.parent).label)}</button>` : "";
     const focusKey = focusedControl();
-    content.innerHTML = back + `<h1 class="sp-page-title">${esc3(title)}</h1>` + PAGES[current](currentArg);
+    content.innerHTML = back2 + `<h1 class="sp-page-title">${esc4(title)}</h1>` + PAGES[current](currentArg);
     if (focusKey) {
       const again = content.querySelector(`[${focusKey.attr}="${focusKey.value}"]`);
       if (again) again.focus();
@@ -5794,8 +6392,8 @@
     }
     return null;
   }
-  function render() {
-    renderNav($("sp-search").value);
+  function render2() {
+    renderNav($2("sp-search").value);
     renderPage();
   }
   var rerenderTimer = 0;
@@ -5815,7 +6413,7 @@
     currentArg = arg;
     resetState.confirming = false;
     resetPagesSection();
-    render();
+    render2();
   }
   function forgetSettingsUrl() {
     try {
@@ -5827,13 +6425,13 @@
     }
   }
   function wireShell() {
-    $("sp-back").addEventListener("click", closeSettings);
+    $2("sp-back").addEventListener("click", closeSettings);
     navEl.addEventListener("click", (e) => {
       const b = e.target.closest("[data-page]");
       if (b) go(b.dataset.page);
     });
-    $("sp-search").addEventListener("input", (e) => renderNav(e.target.value));
-    $("import-file").addEventListener("change", importBookmarks);
+    $2("sp-search").addEventListener("input", (e) => renderNav(e.target.value));
+    $2("import-file").addEventListener("change", importBookmarks);
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape" || !isSettingsOpen() || menuIsOpen()) return;
       if (document.querySelector(".modal.show")) return;
@@ -5841,11 +6439,63 @@
       closeSettings();
     });
   }
+  function showSlider(key, v) {
+    const sl = content.querySelector('[data-slider="' + key + '"]');
+    if (!sl) return false;
+    if (document.activeElement !== sl) sl.value = String(v);
+    const valDisp = sl.closest(".sp-slider-wrap").querySelector(".sp-slider-val");
+    if (valDisp) valDisp.textContent = v + "%";
+    if (key === "saturation") {
+      const sample = content.querySelector("#sp-sat-sample");
+      if (sample) sample.style.filter = "saturate(" + v + "%)";
+    }
+    return true;
+  }
+  function showLock() {
+    const sl = content && content.querySelector('[data-slider="saturation"]');
+    if (!sl) return false;
+    const l = activeLock(getSetting("saturationLock"));
+    const zone = content.querySelector('[data-lockzone="saturation"]');
+    if (zone) {
+      zone.hidden = !l;
+      if (l) zone.style.setProperty("--lock-at", String(l.ceiling));
+    }
+    const desc = sl.closest(".sp-row") && sl.closest(".sp-row").querySelector(".sp-row-desc");
+    if (desc) desc.textContent = saturationNote();
+    const locked = !!l, btn = content.querySelector("[data-lockbtn]");
+    if (btn) {
+      btn.classList.toggle("on", locked);
+      btn.disabled = locked;
+      btn.setAttribute("aria-pressed", String(locked));
+      btn.innerHTML = locked ? LOCK_ICON : UNLOCK_ICON;
+    }
+    const count = content.querySelector("[data-lockcount]");
+    if (count) count.textContent = locked ? lockCountdown() : "";
+    return true;
+  }
   function wireContent() {
+    content.addEventListener("input", (e) => {
+      const sl = e.target.closest("[data-slider]");
+      if (sl) {
+        const ctl = CONTROLS[sl.dataset.slider];
+        let v = parseInt(sl.value, 10);
+        const max2 = ctl.max ? ctl.max() : 100;
+        if (v > max2) {
+          v = max2;
+          sl.value = String(max2);
+        }
+        ctl.set(v);
+        showSlider(sl.dataset.slider, v);
+      }
+    });
+    content.addEventListener("change", (e) => {
+      const sl = e.target.closest("[data-slider]");
+      if (sl && CONTROLS[sl.dataset.slider].flush) CONTROLS[sl.dataset.slider].flush();
+    });
     content.addEventListener("click", (e) => {
-      const back = e.target.closest("[data-back]");
-      if (back) {
-        go(back.dataset.back);
+      const back2 = e.target.closest("[data-back]");
+      if (back2) {
+        go(back2.dataset.back);
         return;
       }
       const t = e.target.closest("[data-toggle]");
@@ -5872,8 +6522,10 @@
   }
   function runAction(act, el3) {
     if (act.startsWith("page-")) pageAction(act, el3.dataset.id, renderPage, el3);
+    else if (act.startsWith("usage-")) usageAction(act, el3, renderPage);
+    else if (act === "saturation-lock") CONTROLS.saturation.lock();
     else if (act === "export") exportBookmarks();
-    else if (act === "import") $("import-file").click();
+    else if (act === "import") $2("import-file").click();
     else if (act === "reset-ask") {
       resetState.confirming = true;
       renderPage();
@@ -5900,14 +6552,14 @@
         PAGES[def.id] = def.render;
         if (def.hidden) {
           HIDDEN[def.id] = { title: def.title || (() => def.label), parent: def.parent };
-          if (isSettingsOpen()) render();
+          if (isSettingsOpen()) render2();
           return;
         }
-        const group = NAV.find((g) => g.group === (def.group || "Settings"));
+        const group = NAV.find((g) => g.group === (def.group || "General"));
         const at = group.items.findIndex((i2) => i2.id === def.before);
         group.items.splice(at < 0 ? group.items.length : at, 0, { id: def.id, label: def.label, icon: def.icon });
         if (new URLSearchParams(location.search).get("settings") === def.id) current = def.id;
-        if (isSettingsOpen()) render();
+        if (isSettingsOpen()) render2();
       }
     };
   }
@@ -5927,6 +6579,7 @@
     wireCallbacks();
     initFeatures();
     installProfileSwitch();
+    installDataChanged();
     wireSettingsOpeners();
     document.querySelectorAll(".modal").forEach((modal) => modal.addEventListener("click", (e) => e.stopPropagation()));
     await loadSearchEngines();

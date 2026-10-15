@@ -222,4 +222,21 @@
     send({ act: 'ctxmenu-open' });
     window.__atlasMenu.open(e, itemsFor(e));
   }, false);
+
+  /* Double-tap Command (macOS) or Control (Windows) focuses the address bar */
+  var _lastTabModDown = 0;
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Meta' || e.key === 'Control') {
+      if (e.repeat) return;
+      var now = Date.now();
+      if (now - _lastTabModDown < 350) {
+        send({ act: 'focus-addressbar' });
+        _lastTabModDown = 0;
+      } else {
+        _lastTabModDown = now;
+      }
+    } else {
+      _lastTabModDown = 0;
+    }
+  }, true);
 })();

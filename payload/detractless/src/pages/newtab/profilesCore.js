@@ -31,9 +31,9 @@
       on: 'Every profile uses the same engines and pills.',
       off: 'Each profile has its own engines and pills.' },
     { id: 'focus', label: 'Focus', keys: ['tabLimit', 'managementMethod', 'pendingIncrease', 'searchDelaySeconds',
-      'showQueryOnDelay', 'grayscale'],
-      on: 'Every profile uses the same tab limit, search delay and grayscale.',
-      off: 'Each profile has its own tab limit, search delay and grayscale.' }
+      'showQueryOnDelay', 'saturation', 'saturationLock'],
+      on: 'Every profile uses the same tab limit, search delay and color level.',
+      off: 'Each profile has its own tab limit, search delay and color level.' }
   ];
   var DEFAULTS = { active: 'personal', list: [
     { id: 'personal', name: 'Christian Darby-Ward', label: 'Personal', color: 0 },

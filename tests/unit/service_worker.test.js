@@ -48,6 +48,7 @@ function loadWorker(seed = {}) {
   const chrome = anyApi("chrome", listeners, calls);
   const fake = {
     storage: { sync: storageArea(seed.sync), local: storageArea(seed.local), session: storageArea(), onChanged: anyApi("chrome.storage.onChanged", listeners, calls) },
+    ...(seed.history ? { history: { search: (q, cb) => Promise.resolve().then(() => cb(seed.history)) } } : {}),
     tabs: new Proxy({ query: (q, cb) => { if (cb) Promise.resolve().then(() => cb([])); return Promise.resolve([]); } }, {
       get: (t, p) => (p in t ? t[p] : anyApi(`chrome.tabs.${String(p)}`, listeners, calls)),
     }),
@@ -66,7 +67,7 @@ function loadWorker(seed = {}) {
   });
   context.globalThis = context;
   vm.runInContext(fs.readFileSync(BUNDLE, "utf8"), context, { filename: "serviceWorker.bundle.js" });
-  return { listeners, calls, storage: fake.storage, errors };
+  return { listeners, calls, storage: fake.storage, errors, idb: context.indexedDB };
 }
 
 function send(w, message) {
@@ -130,4 +131,102 @@ test("the archived Remover and PasteKit no longer answer, and their menu item is
   assert.equal(await send(w, { path: "page-to-background" }), "not handled");
   assert.equal(await send(w, { type: "pastekit:get-snippets" }), "not handled");
   assert.ok(w.calls.some((c) => c.name === "chrome.contextMenus.remove" && c.args[0] === "pastekit-save-selection"));
+});
+
+test("usage from pages is added to the totals, two at once without losing either", async () => {
+  const w = loadWorker();
+  const msg = (host, delta) => ({ action: "recordUsage", host, delta });
+  const results = await Promise.all([
+    send(w, msg("youtube.com", { visibleMs: 30000, pageViews: 1, imagesSeen: 3 })),
+    send(w, msg("www.youtube.com", { visibleMs: 20000, clicks: 2 })),
+    send(w, msg("reddit.com", { visibleMs: 5000 })),
+  ]);
+  assert.deepEqual(results, [{ success: true }, { success: true }, { success: true }]);
+  const store = w.storage.local._data.atlas_usage;
+  const hour = Object.values(store.hours)[0];
+  assert.equal(hour["youtube.com"].visibleMs, 50000, "www. and plain are one site, and nothing was overwritten");
+  assert.equal(hour["youtube.com"].clicks, 2);
+  assert.equal(hour["reddit.com"].visibleMs, 5000);
+  assert.deepEqual(w.errors, []);
+});
+
+test("usage with a bad host or nothing to add is ignored, and the totals can be cleared", async () => {
+  const w = loadWorker();
+  await send(w, { action: "recordUsage", host: "https://x.com/secret", delta: { visibleMs: 1000 } });
+  await send(w, { action: "recordUsage", host: "ok.com", delta: { junk: 5 } });
+  assert.equal(w.storage.local._data.atlas_usage, undefined, "nothing saved");
+  await send(w, { action: "recordUsage", host: "ok.com", delta: { clicks: 1 } });
+  assert.ok(w.storage.local._data.atlas_usage);
+  assert.deepEqual(await send(w, { action: "clearUsage" }), { success: true });
+  assert.equal(w.storage.local._data.atlas_usage, undefined, "cleared");
+});
+
+/* ── Add bookmark / Add page from the address bar (background/addFlow.js) ── */
+
+const DB = "DetractlessBookmarks";
+const PAGES = [{ id: "search", label: "Home", type: "search" }, { id: 1, label: "Essentials", type: "bookmarks", sub: "Everything you need" }];
+const stored = (w, page) => new Promise((resolve, reject) => {
+  const open = w.idb.open(DB);
+  open.onsuccess = () => {
+    const req = open.result.transaction(["bookmarks"], "readonly").objectStore("bookmarks").get(page);
+    req.onsuccess = () => { resolve(JSON.parse(JSON.stringify(req.result ? req.result.data : null))); open.result.close(); };
+    req.onerror = () => reject(req.error);
+  };
+  open.onerror = () => reject(open.error);
+});
+const toldNewTabs = (w) => w.calls.filter((c) => c.name === "chrome.runtime.sendMessage" && c.args[0] && c.args[0].atlas && c.args[0].atlas.act === "data-changed").length;
+
+test("the bar asks which pages bookmarks can go on, and which groups a page has", async () => {
+  const w = loadWorker({ sync: { activeTabs: PAGES } });
+  assert.deepEqual(await send(w, { action: "addInfo" }), { pages: [{ id: 1, label: "Essentials" }] }, "not the search page");
+  assert.deepEqual(await send(w, { action: "addGroups", db: DB, page: 1 }), { groups: [] }, "a page with no bookmarks yet");
+});
+
+test("a bookmark added from the bar is saved on its page and group, with https:// added, and new tabs are told", async () => {
+  const w = loadWorker({ sync: { activeTabs: PAGES } });
+  const add = (extra) => send(w, { action: "addBookmark", db: DB, name: "Netflix", url: "netflix.com", page: 1, group: "WATCH", ...extra });
+  assert.deepEqual(await add({ newGroup: true }), { ok: true });
+  assert.deepEqual(await stored(w, 1), { WATCH: [{ name: "Netflix", url: "https://netflix.com" }] });
+  assert.deepEqual(await send(w, { action: "addGroups", db: DB, page: 1 }), { groups: ["WATCH"] });
+  assert.match((await add({ newGroup: true })).error, /WATCH already exists/, "a new group cannot reuse a name");
+  assert.deepEqual(await add({ name: "Disney+", url: "https://disneyplus.com/home", newGroup: false }), { ok: true });
+  assert.deepEqual((await stored(w, 1)).WATCH.map((b) => b.url), ["https://netflix.com", "https://disneyplus.com/home"]);
+  assert.equal(toldNewTabs(w), 2, "told once per saved bookmark");
+  assert.match((await send(w, { action: "addBookmark", db: DB, name: "", url: "x.com", page: 1, group: "A" })).error, /missing/i);
+  assert.deepEqual(w.errors, []);
+});
+
+test("a page added from the bar joins the page list with its subtitle, and a bad subtitle is refused", async () => {
+  const w = loadWorker({ sync: { activeTabs: PAGES } });
+  assert.match((await send(w, { action: "addPage", label: "Gym", sub: "Lifting" })).error, /at least 3 words/);
+  assert.equal(w.storage.sync._data.activeTabs.length, 2, "nothing added yet");
+  const r = await send(w, { action: "addPage", label: " Gym ", sub: "Workouts   and meal plans" });
+  assert.equal(r.ok, true);
+  const added = w.storage.sync._data.activeTabs[2];
+  assert.deepEqual([added.label, added.sub, added.type, added.id], ["Gym", "Workouts and meal plans", "bookmarks", r.id]);
+  assert.equal(toldNewTabs(w), 1);
+  const blank = loadWorker();
+  assert.match((await send(blank, { action: "addPage", label: "Gym", sub: "Workouts and meal plans" })).error, /new tab once/);
+});
+
+test("typing offers the main address of visited sites, the page you are on first, and not what is saved already", async () => {
+  const history = [
+    { url: "https://www.netflix.com/browse", visitCount: 40 }, { url: "https://netlify.com/", visitCount: 5 },
+    { url: "https://docs.google.com/document/d/1/edit", visitCount: 9 }, { url: "https://www.nytimes.com/", visitCount: 12 },
+  ];
+  const w = loadWorker({ sync: { activeTabs: PAGES }, history });
+  const ask = (typed, thisUrl = "") => send(w, { action: "addSuggest", db: DB, typed, thisUrl });
+  assert.deepEqual((await ask("net")).sites.map((s) => s.value), ["netflix.com", "netlify.com"]);
+  const here = await ask("", "https://www.nytimes.com/section/world");
+  assert.deepEqual(here.sites[0], { label: "nytimes.com · this page", value: "nytimes.com" });
+  assert.equal(here.sites.filter((s) => s.value === "nytimes.com").length, 1, "once, not twice");
+  await send(w, { action: "addBookmark", db: DB, name: "Netflix", url: "netflix.com", page: 1, group: "WATCH", newGroup: true });
+  assert.ok(!(await ask("net")).sites.some((s) => s.value === "netflix.com"), "saved sites are not offered again");
+  assert.deepEqual((await ask("netflix.com")).names, ["Netflix", "Netflix.com"]);
+});
+
+test("a database name that is not one is refused and answered, not left hanging", async () => {
+  const w = loadWorker();
+  assert.match((await send(w, { action: "addGroups", db: "../evil", page: 1 })).error, /did not work/);
+  assert.equal(w.errors.length, 1, "and the failure is logged");
 });

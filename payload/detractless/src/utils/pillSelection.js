@@ -87,6 +87,7 @@ export function searchTextFor(value) {
  */
 export function modeForInput(value, pillBehavior) {
   const raw = value == null ? '' : String(value);
+  if (pillBehavior === 'never') return null;
   if (raw.startsWith('./')) return MODE_EXPLICIT;
   if (pillBehavior === 'always' && raw.trim().length > 0) return MODE_AMBIENT;
   return null;

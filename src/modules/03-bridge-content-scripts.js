@@ -18,7 +18,11 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
     /* Spec 002: Google pages open as the active profile's account (17-google-switch.js
        answers it). Top frames only: allFrames is left off. */
     { id: 'atlas-google-account', matches: ['*://*.google.com/*', '*://*.gmail.com/*', '*://*.youtube.com/*'],
-      js: ['components/atlas/atlas-google-account.js'], runAt: 'document_start' }
+      js: ['components/atlas/atlas-google-account.js'], runAt: 'document_start' },
+    /* Usage totals: how long a site is in front of you and what you do there (Settings > Usage). */
+    { id: 'atlas-usage', matches: ['http://*/*', 'https://*/*'],
+      excludeMatches: ['https://chromewebstore.google.com/*'],
+      js: ['components/atlas/atlas-usage.js'], runAt: 'document_idle' }
   ];
   /* Registrations persist in the profile, and a plain register throws
      "Duplicate" for an existing id. UPDATE existing ones in place (so a params
@@ -27,7 +31,7 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
      restoring tab loads with no context-menu script. Only ids we no longer
      want (the archived Remover and PasteKit scripts, atlas-remover-rules from an
      earlier build) are swept. */
-  var OUR_CS_IDS = ['atlas-ctxmenu', 'atlas-google-account', 'detractless-rules', 'detractless-pastekit', 'atlas-remover-rules'];
+  var OUR_CS_IDS = ['atlas-ctxmenu', 'atlas-google-account', 'atlas-usage', 'detractless-rules', 'detractless-pastekit', 'atlas-remover-rules'];
   var WANTED_IDS = DESIRED_CS.map(function (c) { return c.id; });
   chrome.scripting.getRegisteredContentScripts(function (existing) {
     void chrome.runtime.lastError;

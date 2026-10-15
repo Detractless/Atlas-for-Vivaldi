@@ -17,7 +17,7 @@
 
 var APB_HALF_LIFE = 7 * 24 * 60 * 60 * 1000;   // how fast a past visit stops counting (as the new tab)
 var apbBookmarks = [];      // [{ name, url, score }]
-var apbBehavior = 'always'; // 'always' | 'prefix' (only after ./)
+var apbBehavior = 'always'; // 'always' | 'prefix' (only after ./) | 'never'
 var apbState = { input: null, typed: false, list: [], at: -1 };
 var apbCard = null;
 
@@ -65,6 +65,7 @@ function apbFlatten(pages, uses) {
 function apbMatches(value) {
   if (!apbState.typed) return [];
   var v = String(value || '');
+  if (apbBehavior === 'never') return [];
   if (apbBehavior !== 'always' && v.indexOf('./') !== 0) return [];
   var q = (v.indexOf('./') === 0 ? v.slice(2) : v).trim().toLowerCase();
   if (!q) return [];

@@ -8,6 +8,7 @@ const assert = require("node:assert/strict");
 const path = require("path");
 const esbuild = require("esbuild");
 const { openNewTab, closeAll, waitFor, settle, click, pressEnter } = require("./helpers/newtabDom");
+const { openAdd } = require("./helpers/addFlow");
 
 test.afterEach(closeAll);
 
@@ -116,12 +117,7 @@ test("Home's subtitle can be edited too, and Home can't be deleted", async () =>
 });
 
 /** The add popup (components/addPopup), switched to Page mode. */
-async function pagePopup(win, doc) {
-  click(win, doc.getElementById("global-add-btn"));
-  const p = await waitFor(() => doc.querySelector(".add-popup"), 2000, "add popup");
-  click(win, p.querySelector('[data-add-mode="page"]'));
-  return p;
-}
+async function pagePopup(t) { return openAdd(t, "page"); }
 function setField(win, p, name, value) {
   const el = p.querySelector(`[data-field="${name}"]`);
   el.value = value;
@@ -131,8 +127,10 @@ function setField(win, p, name, value) {
 test("a new page needs a name and a valid subtitle", async () => {
   const t = await seeded();
   const { window: win, document: doc } = t;
-  const p = await pagePopup(win, doc);
+  const p = await pagePopup(t);
   setField(win, p, "pageName", "Gym");
+  click(win, p.querySelector("[data-add-next]"));
+  await settle(win, 40);
   setField(win, p, "sub", "Lifting");
   click(win, p.querySelector("[data-add-save]"));
   await settle(win, 100);
@@ -152,9 +150,12 @@ test("a new page needs a name and a valid subtitle", async () => {
 test("closing the popup in Page mode creates no page", async () => {
   const t = await seeded();
   const { window: win, document: doc } = t;
-  const p = await pagePopup(win, doc);
+  const p = await pagePopup(t);
   setField(win, p, "pageName", "Gym");
+  click(win, p.querySelector("[data-add-next]"));
+  await settle(win, 40);
   setField(win, p, "sub", "Workouts and meal plans");
+  click(win, p.querySelector("[data-add-back]"));
   click(win, p.querySelector("[data-add-cancel]"));
   await settle(win, 100);
   assert.equal((await stored(t)).length, 3);

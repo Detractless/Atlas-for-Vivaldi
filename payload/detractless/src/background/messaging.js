@@ -3,8 +3,21 @@ import { enforceTabLimit } from './tabLimiter.js';
 import { standardiseUrl } from './searchUrl.js';
 import { checkPendingIncrease, checkPendingDelayDecrease, pruneActiveDelays } from './pendingChanges.js';
 import { storageSet } from '../services/storage.js';
+import { recordUsage, clearUsage } from './usageLog.js';
+import { addInfo, addGroups, addSuggest, addBookmarkTo, addPageTo } from './addFlow.js';
 
 const ok = (sendResponse) => sendResponse({ success: true });
+
+/** Reply with the work's result; a failure is logged and answered, so the window is never left waiting. */
+function answer(work, sendResponse) {
+  work.then(sendResponse, (e) => { console.error('Answering a request failed:', e); sendResponse({ error: 'That did not work. Try again.' }); });
+}
+
+/** Tell every open new tab that bookmarks or pages changed, so they show it. */
+function announce(result) {
+  if (result && result.ok) chrome.runtime.sendMessage({ atlas: { act: 'data-changed' } }, () => void chrome.runtime.lastError);
+  return result;
+}
 
 /* Delays are stored under the URL standardised with the saved engines
    (searchInterception.js), so every lookup must pass them too. Without them a
@@ -47,6 +60,15 @@ const ACTIONS = {
   cancelDelayDecrease: (m, send) => ok(send),
   checkDelayStatus: (m, send) => send(delayStatus(m.url)),
   markDelayCompleted: (m, send) => { markDelayCompleted(m.url); ok(send); },
+  // --- Usage totals (components/atlas/atlas-usage.js sends these) ---
+  recordUsage: (m, send) => { recordUsage(m).then(() => ok(send)); },
+  clearUsage: (m, send) => { clearUsage().then(() => ok(send)); },
+  // --- Add bookmark / Add page in the address bar (src/modules/23-addbar-core.js) ---
+  addInfo: (m, send) => answer(addInfo(m), send),
+  addGroups: (m, send) => answer(addGroups(m), send),
+  addSuggest: (m, send) => answer(addSuggest(m), send),
+  addBookmark: (m, send) => answer(addBookmarkTo(m).then(announce), send),
+  addPage: (m, send) => answer(addPageTo(m).then(announce), send),
 };
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

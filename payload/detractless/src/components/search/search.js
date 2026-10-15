@@ -17,7 +17,7 @@ export function initializeSearch() {
   searchInput.addEventListener("input", () => onSearchInput(ui));
   searchInput.addEventListener("focus", () => {
     const v = searchInput.value;
-    if (v.startsWith("./") || (getBookmarkPillBehavior() === "always" && v.trim().length > 0)) {
+    if (getBookmarkPillBehavior() !== "never" && (v.startsWith("./") || (getBookmarkPillBehavior() === "always" && v.trim().length > 0))) {
       searchInput.dispatchEvent(new Event('input'));
     }
   });
@@ -59,7 +59,9 @@ function showPills(ui, bookmarks) {
    that matches a bookmark name shows them too. */
 function onSearchInput(ui) {
   const val = ui.searchInput.value;
-  if (val.startsWith("./")) {
+  if (getBookmarkPillBehavior() === "never") {
+    hideBookmarkSearchResults();
+  } else if (val.startsWith("./")) {
     const raw = val.substring(2);
     const query = raw.trim().toLowerCase();
     if (raw === ' ') showPills(ui, allCachedBookmarks);
@@ -80,7 +82,7 @@ function pillItems(ui) {
 
 async function onSearchKeydown(e, ui) {
   const { searchInput, resultsContainer } = ui;
-  const isSearchActive = (searchInput.value.startsWith("./") || getBookmarkPillBehavior() === "always") && resultsContainer && resultsContainer.style.display === "flex";
+  const isSearchActive = getBookmarkPillBehavior() !== "never" && (searchInput.value.startsWith("./") || getBookmarkPillBehavior() === "always") && resultsContainer && resultsContainer.style.display === "flex";
   if (movePillSelection(e, ui, isSearchActive)) return;
   if (e.key === "Enter") await submitSearch(e, ui, isSearchActive);
 }
