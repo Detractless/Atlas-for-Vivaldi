@@ -1,6 +1,7 @@
 /* ── 23-addbar-core.js: "Add bookmark" and "Add page" in the address bar ──
    The profile menu's Add bookmark / Add page open here, on whatever page you are on: the address bar
-   grows into the container (a field over the bar, a card under it, the page behind dimmed). The
+   grows into the container (a field over the bar, a card under it, the page behind dimmed), at the
+   address bar card's own size (css-mods/08-addbar.css). The
    screens are in 24-addbar-screens.js. This file holds the state, the questions put to the service
    worker (background/addFlow.js, which owns the bookmark database and the page list), and the
    opening, placing and closing.
@@ -8,7 +9,7 @@
 
 var AB_SUB_MIN = 3, AB_SUB_MAX = 5, AB_SUB_CHARS = 32;   // the subtitle rule, as services/pageSubtitle.js
 var AB_NEW_GROUP = 'new-group ';                          // the "+ New group" choice, as utils/addBookmarkFlow.js
-var AB_MIN_WIDTH = 520;
+var AB_MIN_WIDTH = 360, AB_MAX_WIDTH = 620, AB_FIELD_H = 30;   // as the address bar: 620px at most, a 30px field
 var ab = null;
 
 function abEsc(s) {
@@ -56,7 +57,7 @@ function abFresh(kind) {
   };
 }
 
-/* ── where it goes: over the address field, the same middle, never narrower than it can use ── */
+/* ── where it goes: over the address field, the same middle and width (never narrower than it can use) ── */
 
 function abFieldRect() {
   var field = document.querySelector('.UrlBar-AddressField');
@@ -69,14 +70,14 @@ function abFieldRect() {
 function abPlace() {
   if (!ab) return;
   var r = abFieldRect();
-  var width = Math.min(Math.max(r.width, AB_MIN_WIDTH), window.innerWidth - 24);
+  var width = Math.min(Math.max(r.width, AB_MIN_WIDTH), AB_MAX_WIDTH, window.innerWidth - 24);
   var left = Math.max(12, Math.min(r.left + r.width / 2 - width / 2, window.innerWidth - width - 12));
-  var top = Math.max(2, r.top + r.height / 2 - 20);
+  var top = Math.max(2, r.top + r.height / 2 - AB_FIELD_H / 2);
   ab.field.style.cssText = 'left:' + Math.round(left) + 'px;top:' + Math.round(top) + 'px;width:' + Math.round(width) + 'px';
-  ab.card.style.cssText = 'left:' + Math.round(left) + 'px;top:' + Math.round(top + 40) + 'px;width:' + Math.round(width) + 'px';
+  ab.card.style.cssText = 'left:' + Math.round(left) + 'px;top:' + Math.round(top + AB_FIELD_H) + 'px;width:' + Math.round(width) + 'px';
   var stack = document.getElementById('webpage-stack');
   var sr = stack && stack.getBoundingClientRect();
-  ab.scrim.style.top = Math.round(sr && sr.height > 0 ? sr.top : top + 40) + 'px';
+  ab.scrim.style.top = Math.round(sr && sr.height > 0 ? sr.top : top + AB_FIELD_H) + 'px';
 }
 
 function abDiv(cls, role) {
@@ -139,8 +140,8 @@ function abLoad(flow) {
     flow.pages = r.pages || [];
     flow.pageCount = flow.pages.length + 1;   // the new page's default name is Page N
     if (flow.page === null && flow.pages.length) flow.page = flow.pages[0].id;
-    var input = flow.kind === 'page' && flow.step === 1 && flow.field.querySelector('input');
-    if (input) input.placeholder = 'Page ' + flow.pageCount;
+    var note = flow.kind === 'page' && flow.step === 1 && flow.card.querySelector('[data-ab-default]');
+    if (note) note.textContent = 'Page ' + flow.pageCount;
   });
 }
 

@@ -3607,7 +3607,8 @@ if (typeof document !== 'undefined' && document.addEventListener) {
   /* ═══ Module: 23-addbar-core.js ═══ */
 /* ── 23-addbar-core.js: "Add bookmark" and "Add page" in the address bar ──
    The profile menu's Add bookmark / Add page open here, on whatever page you are on: the address bar
-   grows into the container (a field over the bar, a card under it, the page behind dimmed). The
+   grows into the container (a field over the bar, a card under it, the page behind dimmed), at the
+   address bar card's own size (css-mods/08-addbar.css). The
    screens are in 24-addbar-screens.js. This file holds the state, the questions put to the service
    worker (background/addFlow.js, which owns the bookmark database and the page list), and the
    opening, placing and closing.
@@ -3615,7 +3616,7 @@ if (typeof document !== 'undefined' && document.addEventListener) {
 
 var AB_SUB_MIN = 3, AB_SUB_MAX = 5, AB_SUB_CHARS = 32;   // the subtitle rule, as services/pageSubtitle.js
 var AB_NEW_GROUP = 'new-group ';                          // the "+ New group" choice, as utils/addBookmarkFlow.js
-var AB_MIN_WIDTH = 520;
+var AB_MIN_WIDTH = 360, AB_MAX_WIDTH = 620, AB_FIELD_H = 30;   // as the address bar: 620px at most, a 30px field
 var ab = null;
 
 function abEsc(s) {
@@ -3663,7 +3664,7 @@ function abFresh(kind) {
   };
 }
 
-/* ── where it goes: over the address field, the same middle, never narrower than it can use ── */
+/* ── where it goes: over the address field, the same middle and width (never narrower than it can use) ── */
 
 function abFieldRect() {
   var field = document.querySelector('.UrlBar-AddressField');
@@ -3676,14 +3677,14 @@ function abFieldRect() {
 function abPlace() {
   if (!ab) return;
   var r = abFieldRect();
-  var width = Math.min(Math.max(r.width, AB_MIN_WIDTH), window.innerWidth - 24);
+  var width = Math.min(Math.max(r.width, AB_MIN_WIDTH), AB_MAX_WIDTH, window.innerWidth - 24);
   var left = Math.max(12, Math.min(r.left + r.width / 2 - width / 2, window.innerWidth - width - 12));
-  var top = Math.max(2, r.top + r.height / 2 - 20);
+  var top = Math.max(2, r.top + r.height / 2 - AB_FIELD_H / 2);
   ab.field.style.cssText = 'left:' + Math.round(left) + 'px;top:' + Math.round(top) + 'px;width:' + Math.round(width) + 'px';
-  ab.card.style.cssText = 'left:' + Math.round(left) + 'px;top:' + Math.round(top + 40) + 'px;width:' + Math.round(width) + 'px';
+  ab.card.style.cssText = 'left:' + Math.round(left) + 'px;top:' + Math.round(top + AB_FIELD_H) + 'px;width:' + Math.round(width) + 'px';
   var stack = document.getElementById('webpage-stack');
   var sr = stack && stack.getBoundingClientRect();
-  ab.scrim.style.top = Math.round(sr && sr.height > 0 ? sr.top : top + 40) + 'px';
+  ab.scrim.style.top = Math.round(sr && sr.height > 0 ? sr.top : top + AB_FIELD_H) + 'px';
 }
 
 function abDiv(cls, role) {
@@ -3746,8 +3747,8 @@ function abLoad(flow) {
     flow.pages = r.pages || [];
     flow.pageCount = flow.pages.length + 1;   // the new page's default name is Page N
     if (flow.page === null && flow.pages.length) flow.page = flow.pages[0].id;
-    var input = flow.kind === 'page' && flow.step === 1 && flow.field.querySelector('input');
-    if (input) input.placeholder = 'Page ' + flow.pageCount;
+    var note = flow.kind === 'page' && flow.step === 1 && flow.card.querySelector('[data-ab-default]');
+    if (note) note.textContent = 'Page ' + flow.pageCount;
   });
 }
 
@@ -3778,16 +3779,18 @@ Atlas.closeAdd = abClose;
   /* ═══ Module: 24-addbar-screens.js ═══ */
 /* ── 24-addbar-screens.js: the screens of the address bar's Add flow, and what they do ──
    Add bookmark: which website, then the name and where it goes. Add page: its name, then a
-   subtitle. The question is the card's title; the bar holds the answer being typed.
-   Looks: the address bar's own card (css-mods/03-addressbar.css 4c), a little bigger (css-mods/08-addbar.css). */
+   subtitle. The question is the bar's own placeholder; a small chip says what is being added and
+   the step. Screen 1 has no buttons (Enter or a pill moves on, Esc cancels); screen 2 has one
+   small row. Looks: the address bar's own card, at its size (css-mods/03-addressbar.css 4c, 08-addbar.css). */
 
 var AB_ICON_BM = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5h8v11l-4-2.8-4 2.8z"/></svg>';
 var AB_ICON_PAGE = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="3"/><path d="M2.5 6.5h11"/></svg>';
 var AB_ICON_CHEV = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>';
+var AB_ICON_BACK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m10 4-4 4 4 4"/></svg>';
 var AB_ICON_TICK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7"/></svg>';
 
-function abButton(attr, label, primary, disabled) {
-  return '<button type="button" class="atlas-addbtn' + (primary ? ' pri' : '') + '" ' + attr + (disabled ? ' disabled' : '') + '>' + abEsc(label) + '</button>';
+function abAddButton() {
+  return '<button type="button" class="atlas-addbtn" data-ab-save>Add</button>';
 }
 
 function abPills(list, at, attr) {
@@ -3803,8 +3806,8 @@ function abDropdown(key, label, items, value) {
     return '<button type="button" class="atlas-addrow" role="option" data-ab-item="' + key + '" data-value="' + abEsc(it.value) + '" aria-selected="' + on + '">' + abEsc(it.label) + (on ? AB_ICON_TICK : '') + '</button>';
   }).join('');
   var more = items.length > 5 ? '<div class="atlas-addnote">' + (items.length - 5) + ' more, scroll</div>' : '';
-  return '<div class="atlas-adddd" data-ab-wrap="' + key + '"><div class="atlas-addlabel">' + abEsc(label) + '</div>' +
-    '<button type="button" class="atlas-addddbtn" data-ab-dd="' + key + '" aria-haspopup="listbox" aria-expanded="false"><span>' + abEsc(cur ? cur.label : 'Choose') + '</span>' + AB_ICON_CHEV + '</button>' +
+  return '<div class="atlas-adddd" data-ab-wrap="' + key + '">' +
+    '<button type="button" class="atlas-addddbtn" data-ab-dd="' + key + '" aria-label="' + abEsc(label) + '" title="' + abEsc(label) + '" aria-haspopup="listbox" aria-expanded="false"><span>' + abEsc(cur ? cur.label : 'Choose') + '</span>' + AB_ICON_CHEV + '</button>' +
     '<div class="atlas-addmenu" data-ab-menu="' + key + '" role="listbox" hidden><div class="atlas-addrows">' + rows + '</div>' + more + '</div></div>';
 }
 
@@ -3813,39 +3816,33 @@ function abGroupItems() {
   return ab.groups.map(function (g) { return { value: g, label: g }; }).concat([{ value: AB_NEW_GROUP, label: '+ New group' }]);
 }
 
-function abHead(q, step, total) {
-  var dots = '';
-  for (var i = 0; i < total; i++) dots += '<i' + (i === step - 1 ? ' class="on"' : '') + '></i>';
-  return '<div class="atlas-addhead"><div class="atlas-addq" data-ab-title>' + abEsc(q) + '</div><div class="atlas-addsteps">Step ' + step + ' of ' + total + ' ' + dots + '</div></div>';
-}
-
-/* What each screen shows: { q, chip, icon, value, placeholder, body, left, right }. */
+/* What each screen shows: { chip, icon, value, placeholder, body, back }. */
 function abScreen() {
   var a = ab, bm = a.kind === 'bookmark';
   if (bm && a.step === 1) {
-    return { q: 'Which website?', chip: 'Add bookmark', icon: AB_ICON_BM, value: a.urlText, placeholder: 'Type a website',
-      body: '<div data-ab-drop>' + abDropInner() + '</div>', left: abButton('data-ab-cancel', 'Cancel'), right: abButton('data-ab-next', 'Next', true, !a.urlText.trim()) };
+    return { chip: 'Add bookmark', icon: AB_ICON_BM, value: a.urlText, placeholder: 'Which website?',
+      body: '<div data-ab-drop>' + abDropInner() + '</div>' };
   }
   if (bm) {
     var names = a.names.map(function (n) { return { label: n, value: n }; });
     var at = names.map(function (n) { return n.value; }).indexOf(a.name);
-    return { q: 'Name and place', chip: 'Add bookmark', icon: AB_ICON_BM, value: a.name, placeholder: 'Name',
-      body: (names.length ? abPills(names, at, 'data-ab-name') + '<div class="atlas-addhint">Pick a name, or keep typing your own</div>' : '') +
-        '<div class="atlas-addcols" data-ab-cols>' + abColsInner() + '</div>' + abNewGroupField(),
-      left: abButton('data-ab-back', 'Back'), right: abButton('data-ab-save', 'Add', true) };
+    return { chip: 'Add bookmark', icon: AB_ICON_BM, value: a.name, placeholder: 'Name', back: true,
+      body: (names.length ? abPills(names, at, 'data-ab-name') : '') +
+        '<div class="atlas-addtools"><div class="atlas-addcols" data-ab-cols>' + abColsInner() + '</div>' + abNewGroupField() + abAddButton() + '</div>' +
+        '<div class="atlas-addhint">Enter adds &middot; Esc cancels</div>' };
   }
   if (a.step === 1) {
-    return { q: 'What is the page called?', chip: 'Add page', icon: AB_ICON_PAGE, value: a.pageName, placeholder: 'Page ' + a.pageCount,
-      body: '<div class="atlas-addhint">Shows in the page switcher on the new tab.</div>', left: abButton('data-ab-cancel', 'Cancel'), right: abButton('data-ab-next', 'Next', true) };
+    return { chip: 'Add page', icon: AB_ICON_PAGE, value: a.pageName, placeholder: 'What is the page called?',
+      body: '<div class="atlas-addhint">Shows in the page switcher on the new tab &middot; empty is <span data-ab-default>Page ' + a.pageCount + '</span> &middot; Enter continues &middot; Esc cancels</div>' };
   }
-  return { q: 'Give it a short subtitle', chip: 'Add page', icon: AB_ICON_PAGE, value: a.sub, placeholder: 'Three to five words',
-    body: '<div class="atlas-addhint" data-ab-count></div>', left: abButton('data-ab-back', 'Back'), right: abButton('data-ab-save', 'Add', true) };
+  return { chip: 'Add page', icon: AB_ICON_PAGE, value: a.sub, placeholder: 'A short subtitle', back: true,
+    body: '<div class="atlas-addtools"><span class="atlas-addhint" data-ab-count></span>' + abAddButton() + '</div>' };
 }
 
 function abDropInner() {
   var pills = ab.sites.map(function (s) { return { label: s.label, value: s.value }; });
-  if (!pills.length) return '';
-  return abPills(pills, ab.siteAt, 'data-ab-site') + '<div class="atlas-addhint">Enter picks ' + abEsc(pills[ab.siteAt].value) + ' &middot; &uarr;&darr; to move</div>';
+  if (!pills.length) return '<div class="atlas-addhint">Type a website, then Enter &middot; Esc cancels</div>';
+  return abPills(pills, ab.siteAt, 'data-ab-site') + '<div class="atlas-addhint">Enter picks ' + abEsc(pills[ab.siteAt].value) + ' &middot; &uarr;&darr; to move &middot; Esc cancels</div>';
 }
 
 function abColsInner() {
@@ -3853,8 +3850,8 @@ function abColsInner() {
 }
 
 function abNewGroupField() {
-  return '<div data-ab-newgroup' + (ab.group === AB_NEW_GROUP ? '' : ' hidden') + '><div class="atlas-addlabel">New group name</div>' +
-    '<input class="atlas-addtext" type="text" data-ab-field="newGroup" value="' + abEsc(ab.newGroup) + '" placeholder="WORK" autocomplete="off" spellcheck="false"></div>';
+  return '<div data-ab-newgroup' + (ab.group === AB_NEW_GROUP ? '' : ' hidden') + '>' +
+    '<input class="atlas-addtext" type="text" data-ab-field="newGroup" value="' + abEsc(ab.newGroup) + '" placeholder="New group name" aria-label="New group name" autocomplete="off" spellcheck="false"></div>';
 }
 
 function abFieldName() {
@@ -3865,10 +3862,10 @@ function abRender() {
   if (!ab) return;
   var s = abScreen();
   ab.menu = null;
-  ab.field.innerHTML = '<span class="atlas-addicon">' + s.icon + '</span><span class="atlas-addchip">' + abEsc(s.chip) + '</span>' +
+  ab.field.innerHTML = (s.back ? '<button type="button" class="atlas-addback" data-ab-back aria-label="Back">' + AB_ICON_BACK + '</button>' : '') +
+    '<span class="atlas-addicon">' + s.icon + '</span><span class="atlas-addchip">' + abEsc(s.chip) + ' ' + ab.step + '/2</span>' +
     '<input class="atlas-addinput" type="text" data-ab-field="' + abFieldName() + '" value="' + abEsc(s.value) + '" placeholder="' + abEsc(s.placeholder) + '" autocomplete="off" spellcheck="false">';
-  ab.card.innerHTML = abHead(s.q, ab.step, 2) + s.body + '<div class="atlas-adderror" data-ab-error role="alert"></div>' +
-    '<div class="atlas-addfoot">' + s.left + s.right + '</div>';
+  ab.card.innerHTML = s.body + '<div class="atlas-adderror" data-ab-error role="alert"></div>';
   abUpdateCount();
   var input = ab.field.querySelector('input');
   setTimeout(function () { if (input && ab) input.focus(); }, 0);
@@ -3878,8 +3875,6 @@ function abPaintPills() {
   var drop = ab && ab.card.querySelector('[data-ab-drop]');
   if (!drop) return;
   drop.innerHTML = abDropInner();
-  var next = ab.card.querySelector('[data-ab-next]');
-  if (next) next.disabled = !ab.urlText.trim();
 }
 
 function abPaintPlace() {
@@ -3895,7 +3890,7 @@ function abUpdateCount() {
   var slot = ab && ab.card.querySelector('[data-ab-count]');
   if (!slot) return;
   var c = abSubCount(ab.sub);
-  slot.textContent = c.words + ' of ' + AB_SUB_MIN + '-' + AB_SUB_MAX + ' words · ' + c.chars + ' / ' + AB_SUB_CHARS;
+  slot.textContent = c.words + ' of ' + AB_SUB_MIN + '-' + AB_SUB_MAX + ' words · ' + c.chars + ' / ' + AB_SUB_CHARS + ' · Enter adds · Esc cancels';
 }
 
 function abError(text) {
@@ -4016,9 +4011,6 @@ function abWire() {
   flow.card.addEventListener('mousedown', function (e) { if (!e.target.closest('input')) e.preventDefault(); });   // keep the cursor in the bar
   flow.card.addEventListener('click', function (e) {
     var t = e.target;
-    if (t.closest('[data-ab-cancel]')) return abClose();
-    if (t.closest('[data-ab-next]')) return abNext();
-    if (t.closest('[data-ab-back]')) return abBack();
     if (t.closest('[data-ab-save]')) return abSave();
     var site = t.closest('[data-ab-site]');
     if (site) return abPickSite(site.getAttribute('data-ab-site'));
@@ -4045,6 +4037,7 @@ function abWire() {
     else if (name === 'pageName') flow.pageName = e.target.value;
     else if (name === 'sub') { flow.sub = e.target.value; abUpdateCount(); }
   }
+  flow.field.addEventListener('click', function (e) { if (e.target.closest('[data-ab-back]')) abBack(); });
   flow.field.addEventListener('input', onInput);
   flow.card.addEventListener('input', onInput);
   function onKey(e) {
@@ -4057,7 +4050,7 @@ function abWire() {
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (field === 'url') { if (flow.sites.length) abPickSite(flow.sites[flow.siteAt].value); else abNext(); }
-      else if (flow.card.querySelector('[data-ab-next]')) abNext();
+      else if (flow.step === 1) abNext();
       else abSave();
     }
   }

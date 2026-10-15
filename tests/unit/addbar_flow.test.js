@@ -50,34 +50,40 @@ async function start({ thisUrl = "https://www.example.com/post", groups = { 11: 
 const $ = (w, sel) => w.window.document.querySelector(sel);
 const card = (w) => $(w, ".atlas-addcard");
 const field = (w) => $(w, ".atlas-addfield");
-const title = (w) => card(w).querySelector("[data-ab-title]").textContent;
+const ask = (w) => input(w).placeholder;                       // the question is the bar's placeholder
+const chip = (w) => field(w).querySelector(".atlas-addchip").textContent;
 const pills = (w) => [...card(w).querySelectorAll("[data-ab-site]")].map((b) => b.getAttribute("data-ab-site"));
 const click = (w, el) => el.dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
 const type = (w, el, value) => { el.value = value; el.dispatchEvent(new w.window.Event("input", { bubbles: true })); };
 const key = (w, el, k) => el.dispatchEvent(new w.window.KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
 const input = (w) => field(w).querySelector("input");
-const next = async (w) => { click(w, card(w).querySelector("[data-ab-next]")); await wait(60); };
+const next = async (w) => { key(w, input(w), "Enter"); await wait(60); };   // screen 1 has no button: Enter moves on
 async function opened(w, mode = "bookmark") { w.window.__Atlas.openAdd(mode); await wait(80); }
 
-test("it opens over the address bar on any page: a field, a card under it, the page dimmed", async () => {
+test("it opens over the address bar on any page: a small field, a card under it, the page dimmed", async () => {
   const w = await start({ rect: { left: 200, top: 10, width: 600, height: 30, right: 800, bottom: 40 } });
   await opened(w);
   assert.ok($(w, ".atlas-addscrim") && field(w) && card(w));
   assert.ok(w.window.document.getElementById("browser").classList.contains("atlas-add-open"));
-  assert.equal(title(w), "Which website?");
-  assert.equal(field(w).querySelector(".atlas-addchip").textContent, "Add bookmark");
-  assert.match(card(w).textContent, /Step 1 of 2/);
-  assert.deepEqual([field(w).style.left, field(w).style.top, field(w).style.width], ["200px", "5px", "600px"], "the same middle and width as the address field, a little taller");
-  assert.deepEqual([card(w).style.left, card(w).style.top, card(w).style.width], ["200px", "45px", "600px"], "the card hangs under it");
-  assert.ok(card(w).querySelector("[data-ab-next]").disabled, "Next waits for an address");
+  assert.equal(ask(w), "Which website?", "the question is in the bar");
+  assert.equal(chip(w), "Add bookmark 1/2");
+  assert.equal(field(w).querySelector("[data-ab-back]"), null, "nothing to go back to on screen 1");
+  assert.deepEqual([field(w).style.left, field(w).style.top, field(w).style.width], ["200px", "10px", "600px"], "the same place and width as the address field");
+  assert.deepEqual([card(w).style.left, card(w).style.top, card(w).style.width], ["200px", "40px", "600px"], "the card hangs under it, 30px field");
+  assert.equal(card(w).querySelector("button:not([data-ab-site])"), null, "screen 1 has no buttons: Enter or a pill moves on, Esc cancels");
+  assert.match(card(w).textContent, /Esc cancels/);
   assert.deepEqual(w.errors, []);
 });
 
-test("it is never narrower than it can use, even when the address field is", async () => {
+test("it is never narrower than it can use, nor wider than the address bar's 620px", async () => {
   const w = await start({ rect: { left: 300, top: 10, width: 300, height: 30, right: 600, bottom: 40 } });
   await opened(w);
-  assert.equal(field(w).style.width, "520px");
-  assert.equal(field(w).style.left, "190px", "centred on the same middle");
+  assert.equal(field(w).style.width, "360px");
+  assert.equal(field(w).style.left, "270px", "centred on the same middle");
+  const wide = await start({ rect: { left: 100, top: 10, width: 800, height: 30, right: 900, bottom: 40 } });
+  await opened(wide);
+  assert.equal(field(wide).style.width, "620px");
+  assert.equal(field(wide).style.left, "190px");
 });
 
 test("the first pill is the page you are on, then sites you visit; typing narrows them", async () => {
@@ -89,7 +95,6 @@ test("the first pill is the page you are on, then sites you visit; typing narrow
   type(w, input(w), "net");
   await wait(150);
   assert.deepEqual(pills(w), ["example.com", "netflix.com", "netlify.com"]);
-  assert.ok(!card(w).querySelector("[data-ab-next]").disabled);
   assert.deepEqual(w.asked.filter((m) => m.action === "addSuggest").at(-1), { action: "addSuggest", db: "DetractlessBookmarks", typed: "net", thisUrl: "https://www.example.com/post" });
   key(w, input(w), "ArrowDown");
   assert.match(card(w).querySelector('[data-ab-site][aria-selected="true"]').textContent, /netflix\.com/, "arrows move the pick");
@@ -102,9 +107,11 @@ test("a pick goes to screen 2, named for the site, with the first page and its f
   await wait(120);
   key(w, input(w), "Enter");              // nothing picked yet but pills show: Enter takes the highlighted one
   await wait(150);
-  assert.equal(title(w), "Name and place");
-  assert.match(card(w).textContent, /Step 2 of 2/);
+  assert.equal(chip(w), "Add bookmark 2/2");
+  assert.equal(ask(w), "Name");
   assert.equal(input(w).value, "Example", "the name is filled in from the pick");
+  assert.ok(field(w).querySelector("[data-ab-back]"), "a small back arrow in the bar");
+  assert.equal(card(w).querySelectorAll("[data-ab-dd], [data-ab-save]").length, 3, "one row: Page, Group, Add");
   assert.deepEqual([...card(w).querySelectorAll("[data-ab-name]")].map((b) => b.textContent), ["Example", "Example.com"]);
   assert.equal(card(w).querySelector('[data-ab-dd="page"] span').textContent, "Home");
   assert.equal(card(w).querySelector('[data-ab-dd="group"] span').textContent, "SHOWS");
@@ -118,9 +125,9 @@ test("Back keeps what was typed, and a name you changed is kept", async () => {
   await next(w);
   assert.equal(input(w).value, "Netflix");
   type(w, input(w), "Movie night");
-  click(w, card(w).querySelector("[data-ab-back]"));
+  click(w, field(w).querySelector("[data-ab-back]"));
   await wait(60);
-  assert.equal(title(w), "Which website?");
+  assert.equal(chip(w), "Add bookmark 1/2");
   assert.equal(input(w).value, "netflix.com");
   await next(w);
   assert.equal(input(w).value, "Movie night");
@@ -169,12 +176,13 @@ test("a refusal from the service worker is shown and the flow stays open", async
 test("Add page: its name, then a subtitle of three to five words", async () => {
   const w = await start();
   await opened(w, "page");
-  assert.equal(title(w), "What is the page called?");
-  assert.equal(field(w).querySelector(".atlas-addchip").textContent, "Add page");
-  assert.equal(input(w).placeholder, "Page 3", "the default name, from the pages there are");
+  assert.equal(ask(w), "What is the page called?");
+  assert.equal(chip(w), "Add page 1/2");
+  assert.match(card(w).textContent, /empty is Page 3/, "the default name, from the pages there are");
   type(w, input(w), "Gym");
   await next(w);
-  assert.equal(title(w), "Give it a short subtitle");
+  assert.equal(chip(w), "Add page 2/2");
+  assert.equal(ask(w), "A short subtitle");
   type(w, input(w), "Lifting");
   assert.match(card(w).querySelector("[data-ab-count]").textContent, /1 of 3-5 words · 7 \/ 32/);
   click(w, card(w).querySelector("[data-ab-save]"));
@@ -210,5 +218,14 @@ test("Escape closes the drop-down first, then the flow; the backdrop, another ta
   await opened(w);
   await opened(w, "page");
   assert.equal(w.window.document.querySelectorAll(".atlas-addcard").length, 1, "only one flow at a time");
-  assert.equal(title(w), "What is the page called?");
+  assert.equal(ask(w), "What is the page called?");
+});
+
+test("clicking a pill moves on, named for the pick", async () => {
+  const w = await start();
+  await opened(w);
+  click(w, card(w).querySelector('[data-ab-site="netflix.com"]'));
+  await wait(120);
+  assert.equal(chip(w), "Add bookmark 2/2");
+  assert.equal(input(w).value, "Netflix");
 });
