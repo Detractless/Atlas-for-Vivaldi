@@ -18,11 +18,15 @@ function abEsc(s) {
   });
 }
 
-/* Ask the service worker; always answers, with { error } when it could not. */
+/* Ask the service worker; always answers, with { error } when it could not. The worker's script runs in
+   this very page (02-bridge-setup.js), and Chrome does not deliver a message to the page that sent it, so
+   it is asked directly (background/messaging.js). Messages are the way only if it ever runs apart from here. */
 function abAsk(msg) {
   return new Promise(function (resolve) {
+    var none = { error: 'No answer. Reload the browser and try again.' };
     try {
-      chrome.runtime.sendMessage(msg, function (r) { void chrome.runtime.lastError; resolve(r || { error: 'No answer. Reload the browser and try again.' }); });
+      if (window.__atlasWorker) { window.__atlasWorker.ask(msg).then(function (r) { resolve(r || none); }, function () { resolve(none); }); return; }
+      chrome.runtime.sendMessage(msg, function (r) { void chrome.runtime.lastError; resolve(r || none); });
     } catch (e) {
       resolve({ error: 'Could not reach Atlas. Reload the browser and try again.' });
     }

@@ -1233,6 +1233,22 @@
     }
     return false;
   });
+  globalThis.__atlasWorker = {
+    ask(message) {
+      return new Promise((resolve) => {
+        if (!message || !Object.prototype.hasOwnProperty.call(ACTIONS, message.action)) {
+          resolve(void 0);
+          return;
+        }
+        try {
+          ACTIONS[message.action](message, resolve);
+        } catch (e) {
+          console.error("Answering a request failed:", e);
+          resolve(void 0);
+        }
+      });
+    }
+  };
 
   // src/utils/saturationLock.js
   var LOCK_MS = 30 * 60 * 1e3;

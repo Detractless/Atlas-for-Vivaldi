@@ -78,3 +78,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   return false;
 });
+
+/* In Vivaldi this file runs inside the browser window's own page (src/modules/02-bridge-setup.js), and Chrome
+   never delivers a message to the page that sent it. So code in that page (the address bar's Add flow) asks
+   here directly. Resolves to the answer, or undefined when the message is not one of ours. */
+globalThis.__atlasWorker = {
+  ask(message) {
+    return new Promise((resolve) => {
+      if (!message || !Object.prototype.hasOwnProperty.call(ACTIONS, message.action)) { resolve(undefined); return; }
+      try {
+        ACTIONS[message.action](message, resolve);
+      } catch (e) {
+        console.error('Answering a request failed:', e);
+        resolve(undefined);
+      }
+    });
+  },
+};

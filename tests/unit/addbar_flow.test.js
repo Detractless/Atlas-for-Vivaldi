@@ -27,9 +27,10 @@ async function start({ thisUrl = "https://www.example.com/post", groups = { 11: 
   w.saved = { bookmarks: [], pages: [] };
   w.fail = null;
   w.window.chrome.tabs.query = (q, cb) => cb([{ id: 1, url: thisUrl }]);
-  w.window.chrome.runtime.sendMessage = (msg, cb) => {
+  // The flow asks the worker script in its own page (background/messaging.js), so the stand-in sits there.
+  w.window.__atlasWorker = { ask: (msg) => {
     w.asked.push(plain(msg));
-    const reply = (r) => Promise.resolve().then(() => cb(plain(r)));
+    const reply = (r) => Promise.resolve(plain(r));
     if (w.fail && msg.action === w.fail.action) return reply(w.fail.reply);
     if (msg.action === "addInfo") return reply({ pages: PAGES });
     if (msg.action === "addGroups") return reply({ groups: groups[msg.page] || [] });
@@ -43,7 +44,7 @@ async function start({ thisUrl = "https://www.example.com/post", groups = { 11: 
     if (msg.action === "addBookmark") { w.saved.bookmarks.push(plain(msg)); return reply({ ok: true }); }
     if (msg.action === "addPage") { w.saved.pages.push(plain(msg)); return reply({ ok: true }); }
     return reply({});
-  };
+  } };
   return w;
 }
 
