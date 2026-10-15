@@ -21,7 +21,7 @@ function page(url = "https://www.example.com/watch?v=1", { before } = {}) {
   const errors = [];
   const virtualConsole = new VirtualConsole();
   virtualConsole.on("jsdomError", (e) => { if (e.type !== "not-implemented") errors.push(String(e.cause || e.message)); });
-  const p = { clock: 1_000_000, visibility: "visible", timers: [], cleared: [], observed: [], io: null, errors };
+  const p = { clock: 1_000_000, visibility: "visible", focused: true, timers: [], cleared: [], observed: [], io: null, errors };
   const dom = new JSDOM("<!DOCTYPE html><body><main></main></body>", {
     url, runScripts: "outside-only", pretendToBeVisual: true, virtualConsole,
     beforeParse(window) {
@@ -30,6 +30,7 @@ function page(url = "https://www.example.com/watch?v=1", { before } = {}) {
       p.control = fake.control;
       window.Date.now = () => p.clock;
       Object.defineProperty(window.document, "visibilityState", { get: () => p.visibility, configurable: true });
+      window.document.hasFocus = () => p.focused;   // the window in use has the focus
       window.setInterval = (fn, ms) => { p.timers.push({ fn, ms }); return p.timers.length; };
       window.clearInterval = (id) => p.cleared.push(id);
       window.IntersectionObserver = function (cb) {
@@ -67,6 +68,22 @@ test("time: the showing tab counts, and only the part with something going on co
   assert.equal(d.visibleMs, 30000);
   assert.equal(d.handsOnMs, 14000, "the 14 seconds after the click; from the 15th the page is just open");
   assert.equal(sent(p)[0].host, "example.com", "www. is dropped");
+});
+
+test("a visible window that is not the one in use adds no time, until you touch it", async () => {
+  const p = page(); run(p);
+  p.focused = false;                // a second window beside the one you are using
+  pass(p, 20);
+  flush(p);
+  assert.equal(sent(p)[0].delta.visibleMs, undefined, "20 seconds beside the window in use: not counted");
+  p.window.dispatchEvent(new p.window.Event("pointermove"));   // the pointer is over it
+  pass(p, 10);
+  p.focused = true;                 // and now it is the one in use
+  pass(p, 10);
+  flush(p);
+  const d = sent(p)[1].delta;
+  assert.equal(d.visibleMs, 20000, "counted while touched, and while it has the focus");
+  assert.equal(d.handsOnMs, 14000, "hands-on for the 14 seconds after the touch; the rest is just open");
 });
 
 test("a hidden tab adds no time, and a sleeping computer is not counted", async () => {
@@ -163,6 +180,20 @@ test("scrolling: distance in window heights and the time spent scrolling, from a
   p.clock += 100; boxAt(h / 2); box.dispatchEvent(new p.window.Event("scroll"));
   flush(p);
   assert.equal(sent(p)[1].delta.scrollScreens, 0.5);
+});
+
+test("a jump of more than two screens (Home, End, a page back at its top) is not scrolling", async () => {
+  const p = page(); run(p);
+  const root = p.document.documentElement;
+  const at = (n) => Object.defineProperty(root, "scrollTop", { value: n, configurable: true });
+  const h = p.window.innerHeight;
+  for (let i = 1; i <= 30; i++) { p.clock += 100; at(h * i); p.document.dispatchEvent(new p.window.Event("scroll")); }   // scrolled down 30 screens, a screen at a time
+  p.clock += 100; at(0); p.document.dispatchEvent(new p.window.Event("scroll"));   // the page returns to its top
+  p.clock += 100; at(h * 0.5); p.document.dispatchEvent(new p.window.Event("scroll"));   // and scrolling goes on from there
+  flush(p);
+  const d = sent(p)[0].delta;
+  assert.equal(d.scrollScreens, 30.5, "the 30 screens down and the half after; not the 30 back to the top");
+  assert.equal(d.scrollMs, 3100, "the jump adds no scrolling time either");
 });
 
 test("a send happens every 30 seconds and when the tab is left, and sends only what is new", async () => {

@@ -6,13 +6,18 @@
    title, and never what is typed (a key press is counted, not read).
 
    Counted:
-   - visibleMs / handsOnMs  time the tab is showing, and the part of it with scrolling, clicks,
-                            keys or the mouse moving in the last 15 seconds (the rest: "just open")
+   - visibleMs / handsOnMs  time the page is in front of you, and the part of it with scrolling, clicks,
+                            keys or the mouse moving in the last 15 seconds (the rest: "just open").
+                            In front = the tab is showing AND the window is the one in use (it has the
+                            focus, or you touched it in the last 15 seconds). Two windows side by side
+                            do not both count at once.
    - mediaFrontMs / mediaBackMs  video or audio playing with the tab showing / hidden
    - pageViews              this load, plus every change of address inside the site (video to video)
    - imagesSeen             images and videos that scrolled into view (100px or bigger), once each
    - clicks, keys           how many
-   - scrollScreens / scrollMs  distance scrolled in window heights, and the time spent scrolling */
+   - scrollScreens / scrollMs  distance scrolled in window heights, and the time spent scrolling.
+                            A jump of more than two screens in one step (Home, End, a page returning to
+                            the top) is not scrolling and is not counted. */
 (function () {
   'use strict';
   if (window.top !== window || window.__atlasUsage) return;
@@ -24,7 +29,7 @@
 
   var HOST = String(location.hostname || '').replace(/^www\./, '');
   if (!HOST) return;
-  var HANDS_ON_MS = 15000, TICK_MS = 1000, FLUSH_MS = 30000, MIN_IMAGE = 100;
+  var HANDS_ON_MS = 15000, TICK_MS = 1000, FLUSH_MS = 30000, MIN_IMAGE = 100, JUMP_SCREENS = 2;
 
   function fresh() {
     return { visibleMs: 0, handsOnMs: 0, mediaFrontMs: 0, mediaBackMs: 0, scrollMs: 0,
@@ -38,6 +43,9 @@
   function address() { return location.href.replace(/#.*$/, ''); }
   function showing() { return document.visibilityState === 'visible'; }
   function touch() { lastInput = Date.now(); }
+  /* In front of you: showing, and the window in use. A window that is visible beside another one
+     and has no focus and no touch does not count. */
+  function inFront(now) { return showing() && (document.hasFocus() || now - lastInput < HANDS_ON_MS); }
 
   /* ── time, media and address changes: once a second ── */
   function mediaPlaying() {
@@ -54,7 +62,7 @@
     lastTick = now;
     if (dt <= 0) return;
     var seen = showing();
-    if (seen) {
+    if (inFront(now)) {
       var d = Math.min(dt, 5000);   // a sleeping computer does not count
       acc.visibleMs += d;
       if (now - lastInput < HANDS_ON_MS) acc.handsOnMs += d;
@@ -96,7 +104,9 @@
     lastScrollAt = now;
     touch();
     if (before === undefined) return;
-    acc.scrollScreens += Math.abs(el.scrollTop - before) / (window.innerHeight || 1);
+    var screens = Math.abs(el.scrollTop - before) / (window.innerHeight || 1);
+    if (screens > JUMP_SCREENS) return;   // a jump (Home, End, a page back at its top), not scrolling
+    acc.scrollScreens += screens;
     acc.scrollMs += gap < 500 ? gap : 100;   // steady scrolling adds up; a lone flick counts a tenth of a second
   }, { capture: true, passive: true });
 
