@@ -1930,7 +1930,8 @@
     }
     return [...by.values()].sort((a, b) => b.visits - a.visits || b.last - a.last);
   }
-  function loadSites(maxResults = 3e3) {
+  var ALL_HISTORY = 1e6;
+  function loadSites(maxResults = ALL_HISTORY) {
     return new Promise((resolve) => {
       const api = globalThis.chrome && globalThis.chrome.history;
       if (!api || !api.search) {

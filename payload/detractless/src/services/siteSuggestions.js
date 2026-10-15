@@ -67,8 +67,12 @@ export function tally(items) {
   return [...by.values()].sort((a, b) => b.visits - a.visits || b.last - a.last);
 }
 
+/* chrome.history.search returns the newest entries first and stops at maxResults, so a small number
+   only reaches back a few days. Every address you have visited is one entry; a large number gets them all. */
+const ALL_HISTORY = 1000000;
+
 /** Everything in history, tallied. Resolves to [] when chrome.history is not there. */
-export function loadSites(maxResults = 3000) {
+export function loadSites(maxResults = ALL_HISTORY) {
   return new Promise((resolve) => {
     const api = globalThis.chrome && globalThis.chrome.history;
     if (!api || !api.search) { resolve([]); return; }

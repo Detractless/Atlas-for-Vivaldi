@@ -62,7 +62,7 @@ test("Add page or bookmark shrinks the menu to two choices and a way back; each 
   assert.equal(w.window.document.querySelector(".atlas-nosurf-menu"), null, "the menu closes");
   const card = w.window.document.querySelector(".atlas-addcard");
   assert.ok(card, "the flow opens in the address bar");
-  assert.equal(w.window.document.querySelector(".atlas-addfield input").placeholder, "Which website?");
+  assert.equal(w.window.document.querySelector(".atlas-addfield input").placeholder, "Type a website to bookmark, or pick one below");
   assert.ok(!w.calls.some((c) => c.name === "chrome.tabs.create" || c.name === "chrome.tabs.sendMessage"), "no new tab, no message to one");
 
   w.window.__Atlas.closeAdd();
@@ -71,6 +71,6 @@ test("Add page or bookmark shrinks the menu to two choices and a way back; each 
   const click2 = (el) => el.dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
   click2([...again.querySelectorAll(".apm-item")].find((b) => b.textContent.includes("Add page or bookmark")));
   click2([...again.querySelectorAll(".apm-item")].find((b) => b.textContent.includes("Add page")));
-  assert.equal(w.window.document.querySelector(".atlas-addfield input").placeholder, "What is the page called?");
+  assert.equal(w.window.document.querySelector(".atlas-addfield input").placeholder, "Give the new page a name, like Streaming");
   assert.ok(!w.calls.some((c) => c.name === "chrome.tabs.create"), "still no new tab");
 });

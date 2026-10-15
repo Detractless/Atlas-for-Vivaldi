@@ -1,7 +1,7 @@
 /* ── 24-addbar-screens.js: the screens of the address bar's Add flow, and what they do ──
    Add bookmark: which website, then the name and where it goes. Add page: its name, then a
-   subtitle. The question is the bar's own placeholder; a small chip says what is being added and
-   the step. Screen 1 has no buttons (Enter or a pill moves on, Esc cancels); screen 2 has one
+   subtitle. Like the address bar's "Search Google or enter address", the bar's placeholder is an
+   instruction. Screen 1 has no buttons (Enter or a pill moves on, Esc cancels); screen 2 has one
    small row. Looks: the address bar's own card, at its size (css-mods/03-addressbar.css 4c, 08-addbar.css). */
 
 var AB_ICON_BM = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5h8v11l-4-2.8-4 2.8z"/></svg>';
@@ -37,26 +37,26 @@ function abGroupItems() {
   return ab.groups.map(function (g) { return { value: g, label: g }; }).concat([{ value: AB_NEW_GROUP, label: '+ New group' }]);
 }
 
-/* What each screen shows: { chip, icon, value, placeholder, body, back }. */
+/* What each screen shows: { icon, value, placeholder, body, back }. */
 function abScreen() {
   var a = ab, bm = a.kind === 'bookmark';
   if (bm && a.step === 1) {
-    return { chip: 'Add bookmark', icon: AB_ICON_BM, value: a.urlText, placeholder: 'Which website?',
+    return { icon: AB_ICON_BM, value: a.urlText, placeholder: 'Type a website to bookmark, or pick one below',
       body: '<div data-ab-drop>' + abDropInner() + '</div>' };
   }
   if (bm) {
     var names = a.names.map(function (n) { return { label: n, value: n }; });
     var at = names.map(function (n) { return n.value; }).indexOf(a.name);
-    return { chip: 'Add bookmark', icon: AB_ICON_BM, value: a.name, placeholder: 'Name', back: true,
+    return { icon: AB_ICON_BM, value: a.name, placeholder: 'Name this bookmark, or pick a name below', back: true,
       body: (names.length ? abPills(names, at, 'data-ab-name') : '') +
         '<div class="atlas-addtools"><div class="atlas-addcols" data-ab-cols>' + abColsInner() + '</div>' + abNewGroupField() + abAddButton() + '</div>' +
-        '<div class="atlas-addhint">Enter adds &middot; Esc cancels</div>' };
+        '<div class="atlas-addhint">Name this bookmark, or pick a name above &middot; Enter adds &middot; Esc cancels</div>' };
   }
   if (a.step === 1) {
-    return { chip: 'Add page', icon: AB_ICON_PAGE, value: a.pageName, placeholder: 'What is the page called?',
+    return { icon: AB_ICON_PAGE, value: a.pageName, placeholder: 'Give the new page a name, like Streaming',
       body: '<div class="atlas-addhint">Shows in the page switcher on the new tab &middot; empty is <span data-ab-default>Page ' + a.pageCount + '</span> &middot; Enter continues &middot; Esc cancels</div>' };
   }
-  return { chip: 'Add page', icon: AB_ICON_PAGE, value: a.sub, placeholder: 'A short subtitle', back: true,
+  return { icon: AB_ICON_PAGE, value: a.sub, placeholder: 'Add a short subtitle, 3 to 5 words', back: true,
     body: '<div class="atlas-addtools"><span class="atlas-addhint" data-ab-count></span>' + abAddButton() + '</div>' };
 }
 
@@ -84,7 +84,7 @@ function abRender() {
   var s = abScreen();
   ab.menu = null;
   ab.field.innerHTML = (s.back ? '<button type="button" class="atlas-addback" data-ab-back aria-label="Back">' + AB_ICON_BACK + '</button>' : '') +
-    '<span class="atlas-addicon">' + s.icon + '</span><span class="atlas-addchip">' + abEsc(s.chip) + ' ' + ab.step + '/2</span>' +
+    '<span class="atlas-addicon">' + s.icon + '</span>' +
     '<input class="atlas-addinput" type="text" data-ab-field="' + abFieldName() + '" value="' + abEsc(s.value) + '" placeholder="' + abEsc(s.placeholder) + '" autocomplete="off" spellcheck="false">';
   ab.card.innerHTML = s.body + '<div class="atlas-adderror" data-ab-error role="alert"></div>';
   abUpdateCount();

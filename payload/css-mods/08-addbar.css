@@ -29,10 +29,6 @@
   border: 0; border-radius: 50%; background: var(--atlas-hover-2); color: var(--atlas-text-1); cursor: pointer;
 }
 #browser .atlas-addback:hover { background: var(--atlas-hover-3); }
-#browser .atlas-addchip {
-  display: inline-flex; align-items: center; height: 20px; padding: 0 8px; flex: none; white-space: nowrap;
-  border-radius: 9999px; background: var(--atlas-hover-3); color: var(--atlas-text-1); font-size: 11px; line-height: 16px;
-}
 #browser .atlas-addinput, #browser .atlas-addtext {
   flex: 1; min-width: 0; padding: 0; border: 0; outline: none; background: transparent;
   color: var(--atlas-text-1); caret-color: var(--atlas-text-1); font: inherit;

@@ -51,7 +51,7 @@ const $ = (w, sel) => w.window.document.querySelector(sel);
 const card = (w) => $(w, ".atlas-addcard");
 const field = (w) => $(w, ".atlas-addfield");
 const ask = (w) => input(w).placeholder;                       // the question is the bar's placeholder
-const chip = (w) => field(w).querySelector(".atlas-addchip").textContent;
+const step = (w) => input(w).getAttribute("data-ab-field");     // url, name | pageName, sub
 const pills = (w) => [...card(w).querySelectorAll("[data-ab-site]")].map((b) => b.getAttribute("data-ab-site"));
 const click = (w, el) => el.dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
 const type = (w, el, value) => { el.value = value; el.dispatchEvent(new w.window.Event("input", { bubbles: true })); };
@@ -65,8 +65,9 @@ test("it opens over the address bar on any page: a small field, a card under it,
   await opened(w);
   assert.ok($(w, ".atlas-addscrim") && field(w) && card(w));
   assert.ok(w.window.document.getElementById("browser").classList.contains("atlas-add-open"));
-  assert.equal(ask(w), "Which website?", "the question is in the bar");
-  assert.equal(chip(w), "Add bookmark 1/2");
+  assert.equal(ask(w), "Type a website to bookmark, or pick one below", "an instruction in the bar, like the address bar's own");
+  assert.equal(field(w).querySelector(".atlas-addchip"), null, "no 'Add bookmark 1/2' chip");
+  assert.equal(step(w), "url");
   assert.equal(field(w).querySelector("[data-ab-back]"), null, "nothing to go back to on screen 1");
   assert.deepEqual([field(w).style.left, field(w).style.top, field(w).style.width], ["200px", "10px", "600px"], "the same place and width as the address field");
   assert.deepEqual([card(w).style.left, card(w).style.top, card(w).style.width], ["200px", "40px", "600px"], "the card hangs under it, 30px field");
@@ -107,8 +108,9 @@ test("a pick goes to screen 2, named for the site, with the first page and its f
   await wait(120);
   key(w, input(w), "Enter");              // nothing picked yet but pills show: Enter takes the highlighted one
   await wait(150);
-  assert.equal(chip(w), "Add bookmark 2/2");
-  assert.equal(ask(w), "Name");
+  assert.equal(step(w), "name");
+  assert.equal(ask(w), "Name this bookmark, or pick a name below");
+  assert.match(card(w).querySelector(".atlas-addhint").textContent, /^Name this bookmark, or pick a name above · Enter adds · Esc cancels$/);
   assert.equal(input(w).value, "Example", "the name is filled in from the pick");
   assert.ok(field(w).querySelector("[data-ab-back]"), "a small back arrow in the bar");
   assert.equal(card(w).querySelectorAll("[data-ab-dd], [data-ab-save]").length, 3, "one row: Page, Group, Add");
@@ -127,7 +129,7 @@ test("Back keeps what was typed, and a name you changed is kept", async () => {
   type(w, input(w), "Movie night");
   click(w, field(w).querySelector("[data-ab-back]"));
   await wait(60);
-  assert.equal(chip(w), "Add bookmark 1/2");
+  assert.equal(step(w), "url");
   assert.equal(input(w).value, "netflix.com");
   await next(w);
   assert.equal(input(w).value, "Movie night");
@@ -176,13 +178,14 @@ test("a refusal from the service worker is shown and the flow stays open", async
 test("Add page: its name, then a subtitle of three to five words", async () => {
   const w = await start();
   await opened(w, "page");
-  assert.equal(ask(w), "What is the page called?");
-  assert.equal(chip(w), "Add page 1/2");
+  assert.equal(ask(w), "Give the new page a name, like Streaming");
+  assert.equal(field(w).querySelector(".atlas-addchip"), null, "no chip on the page screens either");
+  assert.equal(step(w), "pageName");
   assert.match(card(w).textContent, /empty is Page 3/, "the default name, from the pages there are");
   type(w, input(w), "Gym");
   await next(w);
-  assert.equal(chip(w), "Add page 2/2");
-  assert.equal(ask(w), "A short subtitle");
+  assert.equal(step(w), "sub");
+  assert.equal(ask(w), "Add a short subtitle, 3 to 5 words");
   type(w, input(w), "Lifting");
   assert.match(card(w).querySelector("[data-ab-count]").textContent, /1 of 3-5 words · 7 \/ 32/);
   click(w, card(w).querySelector("[data-ab-save]"));
@@ -218,7 +221,7 @@ test("Escape closes the drop-down first, then the flow; the backdrop, another ta
   await opened(w);
   await opened(w, "page");
   assert.equal(w.window.document.querySelectorAll(".atlas-addcard").length, 1, "only one flow at a time");
-  assert.equal(ask(w), "What is the page called?");
+  assert.equal(ask(w), "Give the new page a name, like Streaming");
 });
 
 test("clicking a pill moves on, named for the pick", async () => {
@@ -226,6 +229,6 @@ test("clicking a pill moves on, named for the pick", async () => {
   await opened(w);
   click(w, card(w).querySelector('[data-ab-site="netflix.com"]'));
   await wait(120);
-  assert.equal(chip(w), "Add bookmark 2/2");
+  assert.equal(step(w), "name");
   assert.equal(input(w).value, "Netflix");
 });
