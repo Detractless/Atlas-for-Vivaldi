@@ -2424,7 +2424,7 @@ textarea.form-input {
   user-select: text !important;
   -webkit-user-select: text !important;
 }
-.sp-lockbtn {
+#sp-root .sp-lockbtn {
   width: 34px;
   height: 34px;
   flex: none;
@@ -2437,15 +2437,16 @@ textarea.form-input {
   color: var(--sp-text-2);
   cursor: pointer;
 }
-.sp-lockbtn:hover {
+#sp-root .sp-lockbtn:hover {
   background: var(--sp-pill-hover);
   color: var(--sp-text);
 }
-.sp-lockbtn svg {
+#sp-root .sp-lockbtn svg {
   width: 16px;
   height: 16px;
 }
-.sp-lockbtn.on {
+#sp-root .sp-lockbtn.on,
+#sp-root .sp-lockbtn.on:hover {
   background: var(--sp-accent);
   color: var(--sp-accent-text);
   border-color: transparent;
@@ -2468,7 +2469,7 @@ textarea.form-input {
   border-radius: 9999px;
   background: var(--sp-pill);
 }
-.sp-seg-btn {
+#sp-root .sp-seg-btn {
   padding: 4px 14px;
   border: 0;
   border-radius: 9999px;
@@ -2478,7 +2479,7 @@ textarea.form-input {
   line-height: 20px;
   cursor: pointer;
 }
-.sp-seg-btn[aria-pressed=true] {
+#sp-root .sp-seg-btn[aria-pressed=true] {
   background: var(--sp-pill-hover);
   color: var(--sp-text);
 }
@@ -2525,43 +2526,6 @@ textarea.form-input {
   height: 100%;
   border-radius: 9999px;
   background: var(--sp-accent);
-}
-.sp-slider-box {
-  position: relative;
-  width: 160px;
-  flex-shrink: 0;
-}
-.sp-slider-box .sp-slider {
-  width: 100%;
-  margin: 0;
-}
-.sp-lockzone {
-  position: absolute;
-  top: 50%;
-  height: 8px;
-  margin-top: -4px;
-  border-radius: 9999px;
-  pointer-events: none;
-  left: calc(14px + (100% - 28px) * var(--lock-at, 100) / 100);
-  right: 6px;
-  background:
-    repeating-linear-gradient(
-      135deg,
-      var(--sp-item-hover) 0 3px,
-      transparent 3px 6px);
-  display: grid;
-  place-items: center;
-  color: var(--sp-text-2);
-}
-.sp-lockzone[hidden] {
-  display: none;
-}
-.sp-lockzone svg {
-  width: 14px;
-  height: 14px;
-  padding: 1px;
-  border-radius: 4px;
-  background: var(--sp-card);
 }
 .sp-slider {
   -webkit-appearance: auto !important;

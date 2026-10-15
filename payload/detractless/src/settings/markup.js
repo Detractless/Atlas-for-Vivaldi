@@ -41,12 +41,6 @@ export const lockButton = (locked, countdown) =>
   `<span class="sp-lockcount" data-lockcount>${locked ? countdown : ""}</span>` +
   `<button type="button" class="sp-lockbtn${locked ? " on" : ""}" data-action="saturation-lock" data-lockbtn aria-pressed="${locked}"${locked ? " disabled" : ""} ` +
   `aria-label="${locked ? "Locked: it cannot be undone early" : "Lock the slider for 30 minutes"}" title="${locked ? "Locked until the time is up" : "Lock it: you can go grayer but not back for 30 minutes"}">${locked ? LOCK_ICON : UNLOCK_ICON}</button>`;
-/** A slider whose stretch above `ceiling` is locked: hatched, with a lock on it. ceiling 100 = nothing locked. */
-export const lockedSlider = (key, val, ceiling) =>
-  `<div class="sp-slider-wrap"><div class="sp-slider-box"><input type="range" class="sp-slider" data-slider="${key}" min="0" max="100" value="${val}">` +
-  `<span class="sp-lockzone" data-lockzone="${key}" style="--lock-at:${ceiling}"${ceiling < 100 ? "" : " hidden"}>${LOCK_ICON}</span></div>` +
-  `<span class="sp-slider-val">${val}%</span></div>`;
-
 /** A small picture of the page in one theme, used as a radio button. */
 export function modeThumb(id, checked, bg, panel, line) {
   return `

@@ -2992,9 +2992,9 @@
         e.stopPropagation();
         toggleEngineVisibility(key, e.target.checked);
       });
-      const slider = document.createElement("span");
-      slider.className = "toggle-slider";
-      toggleLabel.append(checkbox, slider);
+      const slider2 = document.createElement("span");
+      slider2.className = "toggle-slider";
+      toggleLabel.append(checkbox, slider2);
       controls2.append(toggleLabel, starBtn);
       row2.appendChild(controls2);
       row2.addEventListener("contextmenu", (e) => {
@@ -5838,10 +5838,10 @@
   var section = (title, cards) => `<div class="sp-section">${title ? `<h2 class="sp-section-title">${title}</h2>` : ""}${cards.join("")}</div>`;
   var select = (key, label, sm = false) => `<button class="sp-pill${sm ? " sm" : ""}" data-select="${key}"><span>${label}</span>${CHEV2}</button>`;
   var toggle = (key, on) => `<button class="sp-toggle" role="switch" data-toggle="${key}" aria-checked="${on}"></button>`;
+  var slider = (key, val, min = 0, max2 = 100) => `<div class="sp-slider-wrap"><input type="range" class="sp-slider" data-slider="${key}" min="${min}" max="${max2}" value="${val}"><span class="sp-slider-val">${val}%</span></div>`;
   var LOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
   var UNLOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.8-1"/></svg>';
   var lockButton = (locked, countdown) => `<span class="sp-lockcount" data-lockcount>${locked ? countdown : ""}</span><button type="button" class="sp-lockbtn${locked ? " on" : ""}" data-action="saturation-lock" data-lockbtn aria-pressed="${locked}"${locked ? " disabled" : ""} aria-label="${locked ? "Locked: it cannot be undone early" : "Lock the slider for 30 minutes"}" title="${locked ? "Locked until the time is up" : "Lock it: you can go grayer but not back for 30 minutes"}">${locked ? LOCK_ICON : UNLOCK_ICON}</button>`;
-  var lockedSlider = (key, val, ceiling) => `<div class="sp-slider-wrap"><div class="sp-slider-box"><input type="range" class="sp-slider" data-slider="${key}" min="0" max="100" value="${val}"><span class="sp-lockzone" data-lockzone="${key}" style="--lock-at:${ceiling}"${ceiling < 100 ? "" : " hidden"}>${LOCK_ICON}</span></div><span class="sp-slider-val">${val}%</span></div>`;
   function modeThumb(id, checked, bg, panel, line) {
     return `
     <button class="sp-mode" role="radio" data-mode="${id}" aria-checked="${checked}" aria-label="${id}">
@@ -6143,7 +6143,7 @@
       row("Delay", delayNote, selectFor("delay")),
       row("Show the search query", "While you wait", toggleFor("showQuery"))
     ])]) + section("Display", [card([
-      row("Color saturation", saturationNote(), lockedSlider("saturation", CONTROLS.saturation.get(), CONTROLS.saturation.max()) + lockButton(CONTROLS.saturation.locked(), lockCountdown())) + saturationPreview(CONTROLS.saturation.get())
+      row("Color saturation", saturationNote(), slider("saturation", CONTROLS.saturation.get(), 0, 100) + lockButton(CONTROLS.saturation.locked(), lockCountdown())) + saturationPreview(CONTROLS.saturation.get())
     ])]);
   }
   function backupPage() {
@@ -6455,11 +6455,6 @@
     const sl = content && content.querySelector('[data-slider="saturation"]');
     if (!sl) return false;
     const l = activeLock(getSetting("saturationLock"));
-    const zone = content.querySelector('[data-lockzone="saturation"]');
-    if (zone) {
-      zone.hidden = !l;
-      if (l) zone.style.setProperty("--lock-at", String(l.ceiling));
-    }
     const desc = sl.closest(".sp-row") && sl.closest(".sp-row").querySelector(".sp-row-desc");
     if (desc) desc.textContent = saturationNote();
     const locked = !!l, btn = content.querySelector("[data-lockbtn]");

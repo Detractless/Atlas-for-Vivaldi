@@ -2,7 +2,7 @@
 // HTML; settings/shell.js renders it and wires the clicks.
 import { CONTROLS, labelOf } from './controls.js';
 import { getSetting } from './registry.js';
-import { I, row, card, section, select, toggle, lockedSlider, lockButton, modeThumb, scalePreview, saturationPreview } from './markup.js';
+import { I, row, card, section, select, toggle, slider, lockButton, modeThumb, scalePreview, saturationPreview } from './markup.js';
 import { lockNote, lockSecondsLeft } from '../utils/saturationLock.js';
 import { formatTimeCompact } from '../utils/formatDuration.js';
 import { pendingIncreaseText } from '../components/tabLimiter/tabLimiterUI.js';
@@ -55,7 +55,7 @@ function focusPage() {
     row("Show the search query", "While you wait", toggleFor("showQuery"))
   ])]) +
   section("Display", [card([
-    row("Color saturation", saturationNote(), lockedSlider("saturation", CONTROLS.saturation.get(), CONTROLS.saturation.max()) + lockButton(CONTROLS.saturation.locked(), lockCountdown())) +
+    row("Color saturation", saturationNote(), slider("saturation", CONTROLS.saturation.get(), 0, 100) + lockButton(CONTROLS.saturation.locked(), lockCountdown())) +
       saturationPreview(CONTROLS.saturation.get())
   ])]);
 }

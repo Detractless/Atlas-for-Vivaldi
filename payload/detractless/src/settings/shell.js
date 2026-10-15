@@ -194,16 +194,11 @@ function showSlider(key, v) {
   return true;
 }
 
-/** The locked stretch and the note under the slider, redrawn in place (never the slider itself). */
+/** The note under the slider, the lock button and its countdown, redrawn in place (never the slider itself). */
 function showLock() {
   const sl = content && content.querySelector('[data-slider="saturation"]');
   if (!sl) return false;
   const l = activeLock(getSetting("saturationLock"));
-  const zone = content.querySelector('[data-lockzone="saturation"]');
-  if (zone) {
-    zone.hidden = !l;
-    if (l) zone.style.setProperty("--lock-at", String(l.ceiling));
-  }
   const desc = sl.closest(".sp-row") && sl.closest(".sp-row").querySelector(".sp-row-desc");
   if (desc) desc.textContent = saturationNote();
   const locked = !!l, btn = content.querySelector("[data-lockbtn]");

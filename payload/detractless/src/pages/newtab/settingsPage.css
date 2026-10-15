@@ -158,18 +158,19 @@
   user-select: text !important;
   -webkit-user-select: text !important;
 }
-/* The lock button at the right end of the Color saturation row */
-.sp-lockbtn { width: 34px; height: 34px; flex: none; display: grid; place-items: center; padding: 0; border: 1px solid var(--sp-border); border-radius: 50%; background: var(--sp-pill); color: var(--sp-text-2); cursor: pointer; }
-.sp-lockbtn:hover { background: var(--sp-pill-hover); color: var(--sp-text); }
-.sp-lockbtn svg { width: 16px; height: 16px; }
-.sp-lockbtn.on { background: var(--sp-accent); color: var(--sp-accent-text); border-color: transparent; cursor: default; }
+/* The lock button at the right end of the Color saturation row. "#sp-root" matters: "#sp-root button { color: inherit }"
+   above would otherwise win over these class rules and leave a locked button's icon the same color as its fill. */
+#sp-root .sp-lockbtn { width: 34px; height: 34px; flex: none; display: grid; place-items: center; padding: 0; border: 1px solid var(--sp-border); border-radius: 50%; background: var(--sp-pill); color: var(--sp-text-2); cursor: pointer; }
+#sp-root .sp-lockbtn:hover { background: var(--sp-pill-hover); color: var(--sp-text); }
+#sp-root .sp-lockbtn svg { width: 16px; height: 16px; }
+#sp-root .sp-lockbtn.on, #sp-root .sp-lockbtn.on:hover { background: var(--sp-accent); color: var(--sp-accent-text); border-color: transparent; cursor: default; }
 .sp-lockcount { min-width: 40px; text-align: right; font-size: 12px; color: var(--sp-text-2); font-variant-numeric: tabular-nums; }
 .sp-lockcount:empty { display: none; }
 
 /* Settings > Usage */
 .sp-seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9999px; background: var(--sp-pill); }
-.sp-seg-btn { padding: 4px 14px; border: 0; border-radius: 9999px; background: transparent; color: var(--sp-text-2); font-size: 13px; line-height: 20px; cursor: pointer; }
-.sp-seg-btn[aria-pressed="true"] { background: var(--sp-pill-hover); color: var(--sp-text); }
+#sp-root .sp-seg-btn { padding: 4px 14px; border: 0; border-radius: 9999px; background: transparent; color: var(--sp-text-2); font-size: 13px; line-height: 20px; cursor: pointer; }
+#sp-root .sp-seg-btn[aria-pressed="true"] { background: var(--sp-pill-hover); color: var(--sp-text); }
 .sp-usage-site { transition: background .15s; outline: none; }
 .sp-usage-site:hover, .sp-usage-site:focus-visible { background: var(--sp-nav-hover); }
 .sp-usage-site .sp-row-desc { max-height: 0; opacity: 0; overflow: hidden; transition: max-height .18s ease, opacity .18s ease; }
@@ -179,17 +180,6 @@
 .sp-usage-bar { display: block; width: 90px; height: 4px; border-radius: 9999px; background: var(--sp-pill); overflow: hidden; }
 .sp-usage-bar i { display: block; height: 100%; border-radius: 9999px; background: var(--sp-accent); }
 
-.sp-slider-box { position: relative; width: 160px; flex-shrink: 0; }
-.sp-slider-box .sp-slider { width: 100%; margin: 0; }
-/* The stretch above the lock's ceiling: hatched, with a lock on it. --lock-at is the ceiling, 0 to 100. */
-.sp-lockzone {
-  position: absolute; top: 50%; height: 8px; margin-top: -4px; border-radius: 9999px; pointer-events: none;
-  left: calc(14px + (100% - 28px) * var(--lock-at, 100) / 100); right: 6px;
-  background: repeating-linear-gradient(135deg, var(--sp-item-hover) 0 3px, transparent 3px 6px);
-  display: grid; place-items: center; color: var(--sp-text-2);
-}
-.sp-lockzone[hidden] { display: none; }
-.sp-lockzone svg { width: 14px; height: 14px; padding: 1px; border-radius: 4px; background: var(--sp-card); }
 .sp-slider {
   -webkit-appearance: auto !important;
   appearance: auto !important;

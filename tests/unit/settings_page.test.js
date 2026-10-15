@@ -233,13 +233,12 @@ test("nothing locks by itself; pressing the lock holds the level so it can go gr
   const t = await openNewTab();
   const content = await openSettingsAt(t, "focus");
   const slider = content.querySelector('[data-slider="saturation"]');
-  const zone = content.querySelector('[data-lockzone="saturation"]');
   const btn = content.querySelector("[data-lockbtn]");
+  assert.equal(content.querySelector("[data-lockzone], .sp-lockzone"), null, "no stripes or lock drawn on the slider");
   assert.match(text(content), /Lock it to stop going back to color for 30 minutes\./);
   await drag(t, slider, 40);
   assert.equal(await stored(t, "saturation"), 40);
   assert.ok(!(await stored(t, "saturationLock")), "dragging does not lock anything");
-  assert.ok(zone.hidden);
   await drag(t, slider, 70);
   assert.equal(await stored(t, "saturation"), 70, "it moves freely both ways");
   await drag(t, slider, 40);
@@ -249,8 +248,6 @@ test("nothing locks by itself; pressing the lock holds the level so it can go gr
   const lock = await stored(t, "saturationLock");
   assert.deepEqual([lock.ceiling, lock.manual], [40, true]);
   assert.ok(Math.abs(lock.until - Date.now() - 30 * 60 * 1000) < 5000, "30 minutes from the press");
-  assert.ok(!zone.hidden, "the locked stretch shows");
-  assert.equal(zone.style.getPropertyValue("--lock-at"), "40");
   assert.ok(btn.classList.contains("on") && btn.disabled, "the lock is closed, and cannot be pressed off");
   assert.match(text(content.querySelector("[data-lockcount]")), /^(30:00|29:5\d)$/);
   assert.match(text(content), /Locked\. You can go grayer, but not back above 40% until /);
@@ -267,7 +264,6 @@ test("nothing locks by itself; pressing the lock holds the level so it can go gr
 
   await t.chrome.storage.sync.set({ saturationLock: { ceiling: 25, until: Date.now() - 1000, manual: true } });   // the time is up
   await settle(t.window, 1100);
-  assert.ok(zone.hidden, "unlocked");
   assert.ok(!btn.classList.contains("on") && !btn.disabled, "the lock is open again");
   assert.match(text(content), /Lock it to stop going back to color/);
   await drag(t, slider, 100);
@@ -279,7 +275,6 @@ test("an automatic lock saved by the earlier version does not hold, and is clear
   const t = await openNewTab({ sync: { saturation: 40, saturationLock: { ceiling: 40, until: Date.now() + 20 * 60 * 1000 } } });
   const content = await openSettingsAt(t, "focus");
   const slider = content.querySelector('[data-slider="saturation"]');
-  assert.ok(content.querySelector('[data-lockzone="saturation"]').hidden, "no locked stretch");
   assert.ok(!content.querySelector("[data-lockbtn]").disabled);
   await drag(t, slider, 80);
   assert.equal(await stored(t, "saturation"), 80);
@@ -300,4 +295,13 @@ test("the side menu heading above Profile, Search and Pages says General", async
   const labels = [...t.document.querySelectorAll("#sp-nav .sp-group-label")].map(text);
   assert.equal(labels[0], "General");
   assert.ok(!labels.includes("Settings"));
+});
+
+test("the lock button's rules beat '#sp-root button { color: inherit }', or a locked button's icon matches its fill", () => {
+  const css = require("fs").readFileSync(require("path").join(__dirname, "..", "..", "payload", "detractless", "src", "pages", "newtab", "settingsPage.css"), "utf8");
+  const rule = (needle) => (css.split("\n").find((l) => l.includes(needle)) || "").trim();
+  assert.match(rule(".sp-lockbtn.on"), /^#sp-root \.sp-lockbtn\.on/, "the locked look is under #sp-root");
+  assert.match(rule(".sp-lockbtn.on"), /color: var\(--sp-accent-text\)/, "with the icon in the text-on-accent color");
+  assert.match(rule(".sp-lockbtn {"), /^#sp-root \.sp-lockbtn/);
+  assert.match(rule(".sp-seg-btn {"), /^#sp-root \.sp-seg-btn/, "and so are the Usage time-span buttons");
 });
