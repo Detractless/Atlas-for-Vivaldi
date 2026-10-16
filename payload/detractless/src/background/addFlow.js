@@ -1,5 +1,5 @@
-// The data behind "Add bookmark" and "Add page" in the address bar (src/modules/23-addbar-core.js and
-// 24-addbar-screens.js in the browser window). The window asks; this answers and writes, using the same
+// The data behind "Add bookmark", "Add group" and "Add page" in the address bar (src/modules/23-addbar-core.js,
+// 24-addbar-screens.js and 25-addbar-place.js in the browser window). The window asks; this answers and writes, using the same
 // bookmark database and page list as the new tab, so what is added shows there at once.
 import { BookmarkDB } from '../services/bookmarksDB.js';
 import { storageGet, storageSet } from '../services/storage.js';
@@ -62,15 +62,27 @@ export async function addSuggest(m) {
   return { sites: list, names: nameChoices(typed) };
 }
 
-/** Save one bookmark: { db, name, url, page, group, newGroup }. */
+/** Save one bookmark: { db, name, url, page, group }. The group is one the page already has. */
 export async function addBookmarkTo(m) {
   const name = String(m.name || '').trim(), url = String(m.url || '').trim(), group = String(m.group || '').trim();
   if (!name || !url || !group || m.page === undefined || m.page === null) return { error: 'Something is missing' };
   const finalUrl = /^https?:\/\//.test(url) ? url : `https://${url}`;
   return withDb(m.db, async (h) => {
     const groups = (await h.getBookmarks(m.page)) || {};
-    if (m.newGroup && groups[group]) return { error: `${group} already exists on this page.` };
     (groups[group] = groups[group] || []).push({ name, url: finalUrl });
+    await h.saveBookmarks(m.page, groups);
+    return { ok: true };
+  });
+}
+
+/** Make a group with nothing in it yet: { db, page, group }. A name the page already has is refused. */
+export async function addGroupTo(m) {
+  const group = String(m.group || '').trim();
+  if (!group || m.page === undefined || m.page === null) return { error: 'Something is missing' };
+  return withDb(m.db, async (h) => {
+    const groups = (await h.getBookmarks(m.page)) || {};
+    if (groups[group]) return { error: `${group} already exists on this page.` };
+    groups[group] = [];
     await h.saveBookmarks(m.page, groups);
     return { ok: true };
   });

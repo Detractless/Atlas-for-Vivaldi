@@ -75,14 +75,19 @@ export async function saveBookmarks() {
 }
 
 // ── Well geometry (R-008) ────────────────────────────────────────────────
-// A well must be a whole number of rows tall. At any other height the last row
+// A list must be a whole number of rows tall. At any other height the last row
 // is cut part way through, and the fade then paints over a row the user can
-// still see. Measurements come from tokens.css so this file and bookmarks.css
-// cannot disagree about what a row is.
-function rowMetrics() {
-  const cs = getComputedStyle(document.documentElement);
-  const num = (name, fallback) => parseFloat(cs.getPropertyValue(name)) || fallback;
-  return { pitch: num('--row-pitch', 34), gap: num('--row-gap', 2), pad: num('--well-padding', 8) };
+// still see. Measurements come from the --bm-* tokens at the top of
+// bookmarks.css so this file and that one cannot disagree about what a row is.
+// `chrome` is what a group needs outside its list: the name line and the gap under it.
+// 0 is a real value here (no row gap, no padding), so only a missing token falls back.
+function rowMetrics(host) {
+  const cs = getComputedStyle(host);
+  const num = (name, fallback) => { const v = parseFloat(cs.getPropertyValue(name)); return Number.isFinite(v) ? v : fallback; };
+  return {
+    pitch: num('--bm-row-pitch', 36), gap: num('--bm-row-gap', 0), pad: num('--bm-well-padding', 0),
+    chrome: num('--bm-title-height', 24) + num('--bm-title-gap', 8), groupGap: num('--bm-group-gap', 32),
+  };
 }
 // Height of a well showing exactly `rows` rows. The last row has no gap under
 // it, hence the single subtraction.
@@ -101,7 +106,7 @@ export function renderBookmarks() {
   if (groups.length === 0) { renderEmptyPage(container); return; }
   const columnsCount = Math.ceil(groups.length / Math.ceil(groups.length / 3)); const groupsPerColumn = Math.ceil(groups.length / columnsCount);
   const allFadeChecks = [];
-  const metrics = rowMetrics();
+  const metrics = rowMetrics(container);
   for (let i = 0; i < columnsCount; i++) {
     const startIndex = i * groupsPerColumn; const endIndex = Math.min(startIndex + groupsPerColumn, groups.length);
     container.appendChild(renderColumn(groups.slice(startIndex, endIndex), metrics, allFadeChecks));
@@ -129,15 +134,14 @@ function renderEmptyPage(container) {
     </div>`;
 }
 
-/** One column of group cards. Each card's fade refresh is pushed onto fadeChecks. */
+/** One column of groups. Each group's fade refresh is pushed onto fadeChecks. */
 function renderColumn(columnGroups, metrics, fadeChecks) {
   const columnDiv = document.createElement("div"); columnDiv.className = "bookmark-column";
   const _n = columnGroups.length;
   const _avail = window.innerHeight - 160;
-  // Chrome each group needs outside its well: card padding (2 x --space-4),
-  // the title line (10px) and the gap under it (--space-3). Columns are
-  // separated by --space-6.
-  const perWell = Math.min(480, Math.max(48, Math.floor((_avail - _n * 54 - (_n - 1) * 24) / _n)));
+  // Chrome each group needs outside its list: the name line and the gap under
+  // it (metrics.chrome). Groups in a column are separated by metrics.groupGap.
+  const perWell = Math.min(480, Math.max(48, Math.floor((_avail - _n * metrics.chrome - (_n - 1) * metrics.groupGap) / _n)));
   // Whole rows the allotted space can hold. Rounding DOWN is the rule, so a
   // group never claims more room than the column budgeted for it.
   const capacity = rowsThatFit(perWell, metrics);
@@ -156,6 +160,12 @@ function renderGroup(groupName, capacity, metrics) {
   groupDiv.addEventListener("contextmenu", (e) => onGroupContextMenu(e, groupName, rowBookmarks));
   const titleText = document.createElement("span"); titleText.textContent = groupName; titleDiv.appendChild(titleText);
   const wellDiv = document.createElement("div"); wellDiv.className = "bookmark-well";
+  // A group made with Add group has nothing in it yet: its name, and a quiet line saying so. No list, so no scroll chrome.
+  if (bookmarks[groupName].length === 0) {
+    const empty = document.createElement("div"); empty.className = "group-empty"; empty.textContent = "No bookmarks yet";
+    wellDiv.appendChild(empty); groupDiv.appendChild(titleDiv); groupDiv.appendChild(wellDiv);
+    return { groupDiv, refresh: () => {} };
+  }
   const listDiv = document.createElement("ul"); listDiv.className = "bookmark-list";
   // Round down, with one exception: if rounding UP swallows the whole
   // group, take it. That is the only case where the extra row changes what
@@ -192,7 +202,9 @@ function renderGroup(groupName, capacity, metrics) {
    SEE: the WELL is the bookmarks, the CARD CHROME is the group.
      row            -> that bookmark's dialog
      anywhere else in the well -> NOTHING
-     card padding, title, the gap under it -> the group's dialog
+     the name line, the gap under it -> the group's dialog
+   (The card is gone: the name line, which runs the width of the column, is
+   now the whole of the group's chrome.)
    The dead middle is deliberate. The row gaps are 2px, so treating them
    as the group turned a one pixel miss while aiming at a bookmark into
    the wrong dialog. Nothing happens there instead of Chrome's menu

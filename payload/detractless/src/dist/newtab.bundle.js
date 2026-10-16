@@ -1334,10 +1334,19 @@
       console.error("Error saving bookmarks:", error);
     }
   }
-  function rowMetrics() {
-    const cs = getComputedStyle(document.documentElement);
-    const num = (name, fallback) => parseFloat(cs.getPropertyValue(name)) || fallback;
-    return { pitch: num("--row-pitch", 34), gap: num("--row-gap", 2), pad: num("--well-padding", 8) };
+  function rowMetrics(host) {
+    const cs = getComputedStyle(host);
+    const num = (name, fallback) => {
+      const v = parseFloat(cs.getPropertyValue(name));
+      return Number.isFinite(v) ? v : fallback;
+    };
+    return {
+      pitch: num("--bm-row-pitch", 36),
+      gap: num("--bm-row-gap", 0),
+      pad: num("--bm-well-padding", 0),
+      chrome: num("--bm-title-height", 24) + num("--bm-title-gap", 8),
+      groupGap: num("--bm-group-gap", 32)
+    };
   }
   function wellHeight(rows, m) {
     return rows * m.pitch - m.gap + m.pad * 2;
@@ -1361,7 +1370,7 @@
     const columnsCount = Math.ceil(groups.length / Math.ceil(groups.length / 3));
     const groupsPerColumn = Math.ceil(groups.length / columnsCount);
     const allFadeChecks = [];
-    const metrics = rowMetrics();
+    const metrics = rowMetrics(container);
     for (let i2 = 0; i2 < columnsCount; i2++) {
       const startIndex = i2 * groupsPerColumn;
       const endIndex = Math.min(startIndex + groupsPerColumn, groups.length);
@@ -1392,7 +1401,7 @@
     columnDiv.className = "bookmark-column";
     const _n = columnGroups.length;
     const _avail = window.innerHeight - 160;
-    const perWell = Math.min(480, Math.max(48, Math.floor((_avail - _n * 54 - (_n - 1) * 24) / _n)));
+    const perWell = Math.min(480, Math.max(48, Math.floor((_avail - _n * metrics.chrome - (_n - 1) * metrics.groupGap) / _n)));
     const capacity = rowsThatFit(perWell, metrics);
     columnGroups.forEach((groupName) => {
       const { groupDiv, refresh } = renderGroup(groupName, capacity, metrics);
@@ -1413,6 +1422,16 @@
     titleDiv.appendChild(titleText);
     const wellDiv = document.createElement("div");
     wellDiv.className = "bookmark-well";
+    if (bookmarks[groupName].length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "group-empty";
+      empty.textContent = "No bookmarks yet";
+      wellDiv.appendChild(empty);
+      groupDiv.appendChild(titleDiv);
+      groupDiv.appendChild(wellDiv);
+      return { groupDiv, refresh: () => {
+      } };
+    }
     const listDiv = document.createElement("ul");
     listDiv.className = "bookmark-list";
     const _total = bookmarks[groupName].length;

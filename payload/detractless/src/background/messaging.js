@@ -4,7 +4,7 @@ import { standardiseUrl } from './searchUrl.js';
 import { checkPendingIncrease, checkPendingDelayDecrease, pruneActiveDelays } from './pendingChanges.js';
 import { storageSet } from '../services/storage.js';
 import { recordUsage, clearUsage } from './usageLog.js';
-import { addInfo, addGroups, addSuggest, addBookmarkTo, addPageTo } from './addFlow.js';
+import { addInfo, addGroups, addSuggest, addBookmarkTo, addGroupTo, addPageTo } from './addFlow.js';
 
 const ok = (sendResponse) => sendResponse({ success: true });
 
@@ -63,11 +63,12 @@ const ACTIONS = {
   // --- Usage totals (components/atlas/atlas-usage.js sends these) ---
   recordUsage: (m, send) => { recordUsage(m).then(() => ok(send)); },
   clearUsage: (m, send) => { clearUsage().then(() => ok(send)); },
-  // --- Add bookmark / Add page in the address bar (src/modules/23-addbar-core.js) ---
+  // --- Add bookmark / Add group / Add page in the address bar (src/modules/23-addbar-core.js) ---
   addInfo: (m, send) => answer(addInfo(m), send),
   addGroups: (m, send) => answer(addGroups(m), send),
   addSuggest: (m, send) => answer(addSuggest(m), send),
   addBookmark: (m, send) => answer(addBookmarkTo(m).then(announce), send),
+  addGroup: (m, send) => answer(addGroupTo(m).then(announce), send),
   addPage: (m, send) => answer(addPageTo(m).then(announce), send),
 };
 

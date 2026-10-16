@@ -1,17 +1,21 @@
 /* ── 24-addbar-screens.js: the screens of the address bar's Add flow, and what they do ──
-   Add bookmark: which website, then the name and where it goes. Add page: its name, then a
-   subtitle. Like the address bar's "Search Google or enter address", the bar's placeholder is an
-   instruction. Screen 1 has no buttons (Enter takes the highlighted pill, Shift+Enter takes exactly what
-   was typed, Esc cancels); screen 2 has one small row. Looks: the address bar's own card, at its size (css-mods/03-addressbar.css 4c, 08-addbar.css). */
+   Add bookmark: 1 which website, 2 the name, 3 the page and group it goes on. Add group: 1 its name, 2 the
+   page it goes on. Add page: its name, then a subtitle. A page with no groups offers "Add group" on a
+   bookmark's screen 3, which runs the group flow and comes back there with the new group chosen. Like the
+   address bar's "Search Google or enter address", the bar's placeholder is an instruction. Screen 1 of a
+   bookmark has no buttons (Enter takes the highlighted pill, Shift+Enter takes exactly what was typed, Esc
+   cancels); the others have at most one small row. The page and group lists are in 25-addbar-place.js.
+   Looks: the address bar's own card, at its size (css-mods/03-addressbar.css 4c, 08-addbar.css). */
 
 var AB_ICON_BM = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5h8v11l-4-2.8-4 2.8z"/></svg>';
+var AB_ICON_GROUP = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3" width="11" height="4" rx="1.5"/><rect x="2.5" y="9" width="11" height="4" rx="1.5"/></svg>';
 var AB_ICON_PAGE = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="3"/><path d="M2.5 6.5h11"/></svg>';
 var AB_ICON_CHEV = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>';
 var AB_ICON_BACK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m10 4-4 4 4 4"/></svg>';
 var AB_ICON_TICK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7"/></svg>';
 
-function abAddButton() {
-  return '<button type="button" class="atlas-addbtn" data-ab-save>Add</button>';
+function abAddButton(label) {
+  return '<button type="button" class="atlas-addbtn" data-ab-save>' + (label || 'Add') + '</button>';
 }
 
 function abPills(list, at, attr) {
@@ -20,37 +24,32 @@ function abPills(list, at, attr) {
   }).join('') + '</div>';
 }
 
-function abDropdown(key, label, items, value) {
-  var cur = items.filter(function (it) { return String(it.value) === String(value); })[0];
-  var rows = items.map(function (it) {
-    var on = String(it.value) === String(value);
-    return '<button type="button" class="atlas-addrow" role="option" data-ab-item="' + key + '" data-value="' + abEsc(it.value) + '" aria-selected="' + on + '">' + abEsc(it.label) + (on ? AB_ICON_TICK : '') + '</button>';
-  }).join('');
-  var more = items.length > 5 ? '<div class="atlas-addnote">' + (items.length - 5) + ' more, scroll</div>' : '';
-  return '<div class="atlas-adddd" data-ab-wrap="' + key + '">' +
-    '<button type="button" class="atlas-addddbtn" data-ab-dd="' + key + '" aria-label="' + abEsc(label) + '" title="' + abEsc(label) + '" aria-haspopup="listbox" aria-expanded="false"><span>' + abEsc(cur ? cur.label : 'Choose') + '</span>' + AB_ICON_CHEV + '</button>' +
-    '<div class="atlas-addmenu" data-ab-menu="' + key + '" role="listbox" hidden><div class="atlas-addrows">' + rows + '</div>' + more + '</div></div>';
-}
-
-function abPageItems() { return ab.pages.map(function (p) { return { value: String(p.id), label: p.label }; }); }
-function abGroupItems() {
-  return ab.groups.map(function (g) { return { value: g, label: g }; }).concat([{ value: AB_NEW_GROUP, label: '+ New group' }]);
-}
-
-/* What each screen shows: { icon, value, placeholder, body, back }. */
+/* What each screen shows: { icon, value, placeholder, body, back, where (the address, beside the name), readonly }. */
 function abScreen() {
-  var a = ab, bm = a.kind === 'bookmark';
-  if (bm && a.step === 1) {
-    return { icon: AB_ICON_BM, value: a.urlText, placeholder: 'Type a website to bookmark, or pick one below',
-      body: '<div data-ab-drop>' + abDropInner() + '</div>' };
+  var a = ab;
+  if (a.kind === 'bookmark') {
+    if (a.step === 1) {
+      return { icon: AB_ICON_BM, value: a.urlText, placeholder: 'Type a website to bookmark, or pick one below',
+        body: '<div data-ab-drop>' + abDropInner() + '</div>' };
+    }
+    if (a.step === 2) {
+      var names = a.names.map(function (n) { return { label: n, value: n }; });
+      var at = names.map(function (n) { return n.value; }).indexOf(a.name);
+      return { icon: AB_ICON_BM, value: a.name, placeholder: 'Name this bookmark, or pick a name below', back: true,
+        body: (names.length ? abPills(names, at, 'data-ab-name') : '') +
+          '<div class="atlas-addhint">Name this bookmark, or pick a name above &middot; Enter continues &middot; Esc cancels</div>' };
+    }
+    // what is being added stays in the bar; the card is where it goes
+    return { icon: AB_ICON_BM, value: a.name, placeholder: '', back: true, readonly: true, where: a.urlText.trim().replace(/^https?:\/\//, '').replace(/^www\./, ''),
+      body: '<div data-ab-place>' + abPlaceInner() + '</div>' };
   }
-  if (bm) {
-    var names = a.names.map(function (n) { return { label: n, value: n }; });
-    var at = names.map(function (n) { return n.value; }).indexOf(a.name);
-    return { icon: AB_ICON_BM, value: a.name, placeholder: 'Name this bookmark, or pick a name below', back: true,
-      body: (names.length ? abPills(names, at, 'data-ab-name') : '') +
-        '<div class="atlas-addtools"><div class="atlas-addcols" data-ab-cols>' + abColsInner() + '</div>' + abNewGroupField() + abAddButton() + '</div>' +
-        '<div class="atlas-addhint">Name this bookmark, or pick a name above &middot; Enter adds &middot; Esc cancels</div>' };
+  if (a.kind === 'group') {
+    if (a.step === 1) {
+      return { icon: AB_ICON_GROUP, value: a.groupName, placeholder: 'Name the new group, like Streaming', back: !!a.returnTo,
+        body: '<div class="atlas-addhint">Enter continues &middot; Esc cancels</div>' };
+    }
+    return { icon: AB_ICON_GROUP, value: a.groupName, placeholder: '', back: true, readonly: true,
+      body: '<div data-ab-place>' + abPlaceInner() + '</div>' };
   }
   if (a.step === 1) {
     return { icon: AB_ICON_PAGE, value: a.pageName, placeholder: 'Give the new page a name, like Streaming',
@@ -67,26 +66,21 @@ function abDropInner() {
   return abPills(pills, ab.siteAt, 'data-ab-site') + '<div class="atlas-addhint">Enter picks ' + abEsc(pills[ab.siteAt].value) + typed + ' &middot; &uarr;&darr; to move &middot; Esc cancels</div>';
 }
 
-function abColsInner() {
-  return abDropdown('page', 'Page', abPageItems(), ab.page === null ? '' : ab.page) + abDropdown('group', 'Group', abGroupItems(), ab.group);
-}
-
-function abNewGroupField() {
-  return '<div data-ab-newgroup' + (ab.group === AB_NEW_GROUP ? '' : ' hidden') + '>' +
-    '<input class="atlas-addtext" type="text" data-ab-field="newGroup" value="' + abEsc(ab.newGroup) + '" placeholder="New group name" aria-label="New group name" autocomplete="off" spellcheck="false"></div>';
-}
-
 function abFieldName() {
-  return ab.kind === 'bookmark' ? (ab.step === 1 ? 'url' : 'name') : (ab.step === 1 ? 'pageName' : 'sub');
+  if (ab.kind === 'page') return ab.step === 1 ? 'pageName' : 'sub';
+  if (ab.kind === 'group') return ab.step === 1 ? 'groupName' : 'place';
+  return ['url', 'name', 'place'][ab.step - 1];
 }
 
 function abRender() {
   if (!ab) return;
   var s = abScreen();
   ab.menu = null;
+  ab.card.setAttribute('aria-label', AB_LABELS[ab.kind]);
   ab.field.innerHTML = (s.back ? '<button type="button" class="atlas-addback" data-ab-back aria-label="Back">' + AB_ICON_BACK + '</button>' : '') +
     '<span class="atlas-addicon">' + s.icon + '</span>' +
-    '<input class="atlas-addinput" type="text" data-ab-field="' + abFieldName() + '" value="' + abEsc(s.value) + '" placeholder="' + abEsc(s.placeholder) + '" autocomplete="off" spellcheck="false">';
+    '<input class="atlas-addinput" type="text" data-ab-field="' + abFieldName() + '" value="' + abEsc(s.value) + '" placeholder="' + abEsc(s.placeholder) + '" autocomplete="off" spellcheck="false"' + (s.readonly ? ' readonly' : '') + '>' +
+    (s.where ? '<span class="atlas-addwhere">' + abEsc(s.where) + '</span>' : '');
   ab.card.innerHTML = s.body + '<div class="atlas-adderror" data-ab-error role="alert"></div>';
   abUpdateCount();
   var input = ab.field.querySelector('input');
@@ -97,15 +91,6 @@ function abPaintPills() {
   var drop = ab && ab.card.querySelector('[data-ab-drop]');
   if (!drop) return;
   drop.innerHTML = abDropInner();
-}
-
-function abPaintPlace() {
-  var cols = ab && ab.card.querySelector('[data-ab-cols]');
-  if (!cols) return;
-  cols.innerHTML = abColsInner();
-  ab.menu = null;
-  var wrap = ab.card.querySelector('[data-ab-newgroup]');
-  if (wrap) wrap.hidden = ab.group !== AB_NEW_GROUP;
 }
 
 function abUpdateCount() {
@@ -120,78 +105,58 @@ function abError(text) {
   if (slot) slot.textContent = text || '';
 }
 
-/* ── the pages' groups, and the drop-down lists ── */
-
-function abLoadGroups() {
-  var flow = ab, page = flow.page;
-  if (page === null || page === undefined) { flow.groups = []; if (flow.group === null) flow.group = AB_NEW_GROUP; abPaintPlace(); return; }
-  abAsk({ action: 'addGroups', db: abDb(), page: page }).then(function (r) {
-    if (ab !== flow || flow.page !== page) return;   // the page changed while this was loading
-    flow.groups = r.groups || [];
-    if (flow.group === null || (flow.group !== AB_NEW_GROUP && flow.groups.indexOf(flow.group) < 0)) {
-      flow.group = flow.groups.length ? flow.groups[0] : AB_NEW_GROUP;
-    }
-    abPaintPlace();
-  });
-}
-
-function abCloseMenus() {
-  if (!ab) return;
-  Array.prototype.forEach.call(ab.card.querySelectorAll('[data-ab-menu]'), function (m) { m.hidden = true; });
-  Array.prototype.forEach.call(ab.card.querySelectorAll('[data-ab-dd]'), function (b) { b.setAttribute('aria-expanded', 'false'); });
-  ab.menu = null;
-}
-
-function abToggleMenu(key) {
-  var was = ab.menu === key;
-  abCloseMenus();
-  if (was) return;
-  var m = ab.card.querySelector('[data-ab-menu="' + key + '"]');
-  if (!m) return;
-  m.hidden = false;
-  ab.menu = key;
-  ab.card.querySelector('[data-ab-dd="' + key + '"]').setAttribute('aria-expanded', 'true');
-}
-
-function abChoose(key, value) {
-  if (key === 'page') {
-    var id = ab.pages.filter(function (p) { return String(p.id) === value; })[0];
-    if (!id) return;
-    ab.page = id.id; ab.group = null; ab.groups = [];
-    abPaintPlace();
-    abLoadGroups();
-  } else {
-    ab.group = value;
-    abPaintPlace();
-    if (value === AB_NEW_GROUP) { var f = ab.card.querySelector('[data-ab-field="newGroup"]'); if (f) f.focus(); }
-  }
-  abCloseMenus();
-}
-
 /* ── moving on, and saving ── */
 
+/* Enter, or the button: on to the next screen, and on the last one save. */
 function abNext() {
   var flow = ab;
   abError('');
   if (flow.kind === 'bookmark') {
-    var text = flow.urlText.trim();
-    if (!text) { abError('Give the bookmark a URL.'); return; }
-    abAsk({ action: 'addSuggest', db: abDb(), typed: text, thisUrl: '' }).then(function (r) {
-      if (ab !== flow) return;
-      flow.names = r.names || [];
-      if (!flow.nameTouched) flow.name = flow.names[0] || text.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/[\/?#].*$/, '');
-      flow.step = 2;
+    if (flow.step === 1) {
+      var text = flow.urlText.trim();
+      if (!text) { abError('Give the bookmark a URL.'); return; }
+      abAsk({ action: 'addSuggest', db: abDb(), typed: text, thisUrl: '' }).then(function (r) {
+        if (ab !== flow) return;
+        flow.names = r.names || [];
+        if (!flow.nameTouched) flow.name = flow.names[0] || text.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/[\/?#].*$/, '');
+        flow.step = 2;
+        abRender();
+        abLoadGroups();
+      });
+      return;
+    }
+    if (flow.step === 2) {
+      if (!flow.name.trim()) { abError('Give the bookmark a name.'); return; }
+      flow.step = 3;
       abRender();
-      abLoadGroups();
-    });
+      return;
+    }
+    if (flow.page === null) { abError('Add a page first, then a bookmark to it.'); return; }
+    if (abNoGroups()) { abStartGroup(); return; }   // nothing to put it in yet: make the group, then come back
+    abSave();
     return;
   }
-  flow.step = 2;
-  abRender();
+  if (flow.kind === 'group' && flow.step === 1) {
+    if (!flow.groupName.trim()) { abError('Give the new group a name.'); return; }
+    flow.step = 2;
+    abRender();
+    return;
+  }
+  if (flow.kind === 'page' && flow.step === 1) {
+    flow.step = 2;
+    abRender();
+    return;
+  }
+  abSave();
 }
 
 function abBack() {
-  ab.step = 1;
+  if (ab.kind === 'group' && ab.step === 1 && ab.returnTo) {   // out of a group made from a bookmark's screen 3, back to it
+    ab.kind = 'bookmark'; ab.step = 3; ab.returnTo = null;
+    abRender();
+    return;
+  }
+  ab.step = Math.max(1, ab.step - 1);
   abRender();
   abSuggest();
 }
@@ -206,23 +171,29 @@ function abSave() {
   var flow = ab;
   if (flow.busy) return;
   abError('');
-  var job;
+  var job, group;
   if (flow.kind === 'page') {
     var problem = abSubProblem(flow.sub);
     if (problem) { abError(problem); return; }
     job = abAsk({ action: 'addPage', label: flow.pageName, sub: flow.sub });
+  } else if (flow.kind === 'group') {
+    group = flow.groupName.trim().toUpperCase();
+    if (!group) { abError('Give the new group a name.'); return; }
+    if (flow.page === null) { abError('Add a page first, then a group to it.'); return; }
+    job = abAsk({ action: 'addGroup', db: abDb(), page: flow.page, group: group });
   } else {
-    var group = flow.group === AB_NEW_GROUP ? flow.newGroup.trim().toUpperCase() : flow.group;
+    group = flow.group;
     if (!flow.name.trim()) { abError('Give the bookmark a name.'); return; }
     if (flow.page === null) { abError('Add a page first, then a bookmark to it.'); return; }
-    if (!group) { abError(flow.group === AB_NEW_GROUP ? 'Give the new group a name.' : 'Choose a group.'); return; }
-    job = abAsk({ action: 'addBookmark', db: abDb(), name: flow.name, url: flow.urlText.trim(), page: flow.page, group: group, newGroup: flow.group === AB_NEW_GROUP });
+    if (!group) { abError('Choose a group.'); return; }
+    job = abAsk({ action: 'addBookmark', db: abDb(), name: flow.name, url: flow.urlText.trim(), page: flow.page, group: group });
   }
   flow.busy = true;
   job.then(function (r) {
     flow.busy = false;
     if (ab !== flow) return;
-    if (r && r.ok) abClose(); else abError((r && r.error) || 'That did not work. Try again.');
+    if (!(r && r.ok)) { abError((r && r.error) || 'That did not work. Try again.'); return; }
+    if (flow.kind === 'group' && flow.returnTo) abBackWithGroup(group); else abClose();
   });
 }
 
@@ -233,7 +204,7 @@ function abWire() {
   flow.card.addEventListener('mousedown', function (e) { if (!e.target.closest('input')) e.preventDefault(); });   // keep the cursor in the bar
   flow.card.addEventListener('click', function (e) {
     var t = e.target;
-    if (t.closest('[data-ab-save]')) return abSave();
+    if (t.closest('[data-ab-save]')) return abNext();
     var site = t.closest('[data-ab-site]');
     if (site) return abPickSite(site.getAttribute('data-ab-site'));
     var np = t.closest('[data-ab-name]');
@@ -255,7 +226,7 @@ function abWire() {
     abError('');
     if (name === 'url') { flow.urlText = e.target.value; flow.siteAt = 0; abPaintPills(); abSuggest(); }
     else if (name === 'name') { flow.name = e.target.value; flow.nameTouched = true; }
-    else if (name === 'newGroup') flow.newGroup = e.target.value;
+    else if (name === 'groupName') flow.groupName = e.target.value;
     else if (name === 'pageName') flow.pageName = e.target.value;
     else if (name === 'sub') { flow.sub = e.target.value; abUpdateCount(); }
   }
@@ -271,9 +242,8 @@ function abWire() {
       abPaintPills();
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (field === 'url') { if (flow.sites.length && !e.shiftKey) abPickSite(flow.sites[flow.siteAt].value); else abNext(); }   // Shift+Enter: what was typed, as it is
-      else if (flow.step === 1) abNext();
-      else abSave();
+      if (field === 'url' && flow.sites.length && !e.shiftKey) abPickSite(flow.sites[flow.siteAt].value);   // Shift+Enter: what was typed, as it is
+      else abNext();
     }
   }
   flow.field.addEventListener('keydown', onKey);

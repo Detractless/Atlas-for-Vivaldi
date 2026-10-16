@@ -29,11 +29,11 @@
   border: 0; border-radius: 50%; background: var(--atlas-hover-2); color: var(--atlas-text-1); cursor: pointer;
 }
 #browser .atlas-addback:hover { background: var(--atlas-hover-3); }
-#browser .atlas-addinput, #browser .atlas-addtext {
+#browser .atlas-addinput {
   flex: 1; min-width: 0; padding: 0; border: 0; outline: none; background: transparent;
   color: var(--atlas-text-1); caret-color: var(--atlas-text-1); font: inherit;
 }
-#browser .atlas-addinput::placeholder, #browser .atlas-addtext::placeholder { color: var(--atlas-text-2); }
+#browser .atlas-addinput::placeholder { color: var(--atlas-text-2); }
 
 #browser .atlas-addcard {
   position: fixed; z-index: 2147483000; box-sizing: border-box; padding: 10px;
@@ -56,7 +56,12 @@
 #browser .atlas-addtools > .atlas-addhint { margin-top: 0; }
 
 #browser .atlas-addtools { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
-#browser .atlas-addcols { display: flex; align-items: center; gap: 6px; }
+#browser .atlas-addcard > .atlas-addtools:first-child { margin-top: 0; }
+#browser .atlas-addwhere { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--atlas-text-2); }   /* the address, on the Page and Group screen */
+#browser .atlas-addplace { display: grid; grid-template-columns: 44px auto; justify-content: start; align-items: center; gap: 6px; }
+#browser .atlas-addlbl { color: var(--atlas-text-2); font-size: 11px; line-height: 15px; }
+#browser .atlas-addnone { justify-self: start; padding: 4px 12px; color: var(--atlas-text-2); font-size: 12.5px; line-height: 18px; }   /* a page with no groups: in the Group choice's place */
+#browser .atlas-addplace .atlas-adddd { justify-self: start; }
 #browser .atlas-adddd { position: relative; }
 #browser .atlas-addddbtn {
   display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px 4px 12px; max-width: 200px;
@@ -75,15 +80,9 @@
   display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; height: 26px; padding: 0 10px;
   border: 0; border-radius: 6px; background: transparent; color: var(--atlas-text-1); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; white-space: nowrap;
 }
-#browser .atlas-addrow:hover, #browser .atlas-addrow[aria-selected="true"] { background: var(--atlas-hover-2); }
+#browser .atlas-addrow:hover { background: var(--atlas-hover-2); }   /* only the row under the mouse; the chosen row has just its tick */
 #browser .atlas-addrow svg { width: 13px; height: 13px; flex: none; }
 #browser .atlas-addnote { padding: 4px 10px 2px; font-size: 11px; color: var(--atlas-text-2); }
-#browser [data-ab-newgroup] { flex: 1; min-width: 0; }
-#browser [data-ab-newgroup][hidden] { display: none; }
-#browser .atlas-addcard .atlas-addtext {
-  display: block; width: 100%; box-sizing: border-box; height: 26px; padding: 0 12px; border-radius: 9999px;
-  background: var(--atlas-hover-2); font-size: 12.5px;
-}
 
 #browser .atlas-adderror { margin-top: 8px; font-size: 11px; line-height: 15px; color: var(--atlas-error, #d14343); }
 #browser .atlas-adderror:empty { display: none; }

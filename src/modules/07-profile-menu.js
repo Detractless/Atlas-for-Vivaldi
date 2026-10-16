@@ -93,12 +93,14 @@ var PI = {
   back: pIcon('<path d="m12 4-6 6 6 6"/>'),
   bm: pIcon('<path d="M5.5 3.5h9v13l-4.5-3.2-4.5 3.2z"/>'),
   page: pIcon('<rect x="3.5" y="3.5" width="13" height="13" rx="3.5"/><path d="M3.5 8h13"/>'),
+  group: pIcon('<rect x="3.5" y="4" width="13" height="5" rx="1.8"/><rect x="3.5" y="11" width="13" height="5" rx="1.8"/>'),
   clock: pIcon('<circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 1.5"/>'),
   down: pIcon('<path d="M10 3.5v9M6.5 9.5 10 13l3.5-3.5M4 16.5h12"/>'),
   gear: pIcon('<circle cx="10" cy="10" r="2.4"/><path d="M8.6 2.8h2.8l.4 2 1.6.9 1.9-.7 1.4 2.4-1.5 1.3v1.8l1.5 1.3-1.4 2.4-1.9-.7-1.6.9-.4 2H8.6l-.4-2-1.6-.9-1.9.7-1.4-2.4 1.5-1.3V9.1L3.3 7.8l1.4-2.4 1.9.7 1.6-.9z"/>')
 };
 var PACTS = {
   'add-bookmark': function () { Atlas.openAdd('bookmark'); },
+  'add-group': function () { Atlas.openAdd('group'); },
   'add-page': function () { Atlas.openAdd('page'); },
   history: function () { chrome.tabs.create({ url: 'vivaldi://history' }); },
   downloads: function () { chrome.tabs.create({ url: 'vivaldi://downloads' }); },
@@ -117,8 +119,8 @@ function openMenu(btn) {
   menu = document.createElement('div');
   menu.className = 'atlas-profile-menu atlas-nosurf-menu atlas-newmenu';
   menu.setAttribute('role', 'menu');
-  /* 'main' is the profiles and the rows; 'add' is what is left after Add page or bookmark is clicked:
-     two choices and a way back, so the menu is shorter. */
+  /* 'main' is the profiles and the rows; 'add' is what is left after Add is clicked:
+     three choices (bookmark, group, page) and a way back, so the menu is shorter. */
   var view = 'main';
 
   function row(act, icon, label) {
@@ -129,7 +131,7 @@ function openMenu(btn) {
     var s = ap && ap.get(), head = '';
     if (view === 'add') {
       menu.innerHTML = '<button type="button" class="apm-head" data-back aria-label="Back">' + PI.back + '<span>Add</span></button>' +
-        '<div class="apm-sep"></div>' + row('add-bookmark', PI.bm, 'Add bookmark') + row('add-page', PI.page, 'Add page');
+        '<div class="apm-sep"></div>' + row('add-bookmark', PI.bm, 'Add bookmark') + row('add-group', PI.group, 'Add group') + row('add-page', PI.page, 'Add page');
       menu.style.top = Math.round(r.bottom + 6) + 'px';
       menu.style.right = Math.round(window.innerWidth - r.right) + 'px';
       addDropTail(menu, r);
@@ -144,7 +146,7 @@ function openMenu(btn) {
         '<div class="apm-who"><span class="apm-name">' + pEsc(cur.name) + '</span>' +
         (cur.label ? '<span class="apm-plan">' + pEsc(cur.label) + '</span>' : '') + '</div><div class="apm-sep"></div>';
     }
-    menu.innerHTML = head + row('add', PI.plus, 'Add page or bookmark') +
+    menu.innerHTML = head + row('add', PI.plus, 'Add') +
       row('history', PI.clock, 'History') + row('downloads', PI.down, 'Downloads') +
       row('ext', PI.gear, 'Extension settings') + row('browser', PI.gear, 'Browser settings');
     menu.style.top = Math.round(r.bottom + 6) + 'px';

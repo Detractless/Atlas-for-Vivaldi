@@ -254,7 +254,7 @@ test("the avatar button opens the profile menu: profiles, then shortcuts", async
   const w = await start();
   const menu = await openProfileMenu(w);
   const rows = [...menu.querySelectorAll(".apm-item .apm-row-label")].map((s) => s.textContent);
-  assert.deepEqual(rows, ["Add page or bookmark", "History", "Downloads", "Extension settings", "Browser settings"]);
+  assert.deepEqual(rows, ["Add", "History", "Downloads", "Extension settings", "Browser settings"]);
   assert.ok(menu.querySelectorAll(".apm-pick[data-pick]").length >= 2, "one avatar per profile");
   assert.ok(menu.querySelector(".apm-addbtn"), "+ to add or edit profiles");
   [...menu.querySelectorAll(".apm-item")].find((b) => b.textContent.includes("History"))

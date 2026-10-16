@@ -1,79 +1,101 @@
 /* ══════════════════════════════════════════════════════════════════════
    BOOKMARKS
-   Each group is a card holding a canvas coloured well, and the well is
-   that group's own scroll region. This is .settings-body's structure
-   (newtab.css:166) scoped to one group instead of a whole page, which is
-   what keeps the multi column layout the page has always had.
+   Nothing is drawn around a group. Each group is a column on the page: its
+   name centred between two thin lines, its links centred under it. The
+   look follows the Settings page and the page switcher (system font, hairline
+   line colour, soft hover tint) and has no card, no well and no tile rows.
 
-   WHY THE WELL IS CANVAS AND THE ROWS ARE CARD: it is the same figure and
-   ground as the settings list. Rows are objects on a recessed surface,
-   separated by 2px gaps that show the well through them (UI-RULES 5.2),
-   so nothing here needs a line. That also retires the old .group-title
-   bottom rule, which was the only full ink line in the extension.
+   The list is still that group's own scroll region, so a group with more
+   links than fit keeps the fade and the "N more" pills (components.css).
+   .bookmark-well and .bookmark-list are the scroll host and the scroller;
+   they are just not painted any more.
+
+   MEASUREMENTS live in the --bm-* tokens below and bookmarks.js reads the
+   same tokens to snap each list to a whole number of rows (R-008), so the
+   two cannot disagree about what a row is. They are the bookmarks' own:
+   --row-height, --row-gap and --well-padding in tokens.css are shared
+   with other lists and stay as they are.
    ══════════════════════════════════════════════════════════════════════ */
 
 .bookmarks-content {
-  display: flex; gap: var(--space-6); width: 100%; max-width: 1080px;
+  /* Same system font stack as the Settings page (--sp-font) and tabs.css. */
+  --bm-font: ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+  --bm-row-height: 36px;
+  --bm-row-gap: 0px;
+  --bm-row-pitch: 36px;      /* --bm-row-height + --bm-row-gap */
+  --bm-well-padding: 0px;
+  --bm-title-height: 24px;   /* the name line */
+  --bm-title-gap: 8px;       /* between the name line and the first link */
+  --bm-group-gap: 32px;      /* between two groups in a column */
+  display: flex; gap: var(--space-12); width: 100%; max-width: 1080px;
   align-items: flex-start;
+  font-family: var(--bm-font);
 }
 .bookmarks-content.fade-in { animation: fadeUp 0.3s var(--ease-out); }
 .bookmark-column {
   flex: 1; min-width: 180px;
-  display: flex; flex-direction: column; gap: var(--space-6);
+  display: flex; flex-direction: column; gap: var(--bm-group-gap);
 }
 
-/* ── The group card ──────────────────────────────────────────────────── */
+/* ── The group ───────────────────────────────────────────────────────── */
 .bookmark-group {
-  background: var(--surface-card); border-radius: var(--radius-lg);
-  padding: var(--space-4);
-  display: flex; flex-direction: column; gap: var(--space-3);
+  display: flex; flex-direction: column; gap: var(--bm-title-gap);
 }
+/* The name sits in the middle of a thin line that runs the width of the column.
+   The whole line is the group's right-click target (see onGroupContextMenu). */
 .group-title {
-  font-family: var(--font-sans); font-size: 10px; font-weight: var(--weight-black);
-  line-height: 1; letter-spacing: 1px; text-transform: uppercase;
-  color: var(--text-tertiary);
-  padding: 0 var(--space-2);
+  display: flex; align-items: center; gap: 14px; height: var(--bm-title-height);
+  font-size: 12px; font-weight: 500; line-height: 16px;
+  color: var(--text-secondary);
+}
+.group-title::before, .group-title::after {
+  content: ""; flex: 1; height: 1px; background: var(--line-hairline);
+}
+.group-title > span {
+  min-width: 0; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* ── The well ────────────────────────────────────────────────────────── */
+/* ── The scroll region ───────────────────────────────────────────────── */
 .bookmark-well {
   position: relative;
 }
-/* Geometry comes from the row tokens, not from literals, because renderBookmarks
-   reads the same tokens to snap this well to a whole number of rows (R-008). */
 .bookmark-list {
   list-style: none; overflow-y: auto;
-  background: var(--surface-canvas); border-radius: var(--radius-md);
-  padding: var(--well-padding);
-  display: flex; flex-direction: column; gap: var(--row-gap);
+  padding: var(--bm-well-padding);
+  display: flex; flex-direction: column; align-items: center; gap: var(--bm-row-gap);
 }
+/* The "N more" pills are centred under the column rather than pinned to its right edge. */
+.bookmark-well .scroll-count { right: auto; left: 50%; transform: translateX(-50%); }
 
-/* ── Rows ────────────────────────────────────────────────────────────── */
-.bookmark-link, .bookmark-list a {
-  display: flex; align-items: center; width: 100%; min-height: var(--row-height);
-  padding: 6px var(--space-3); border-radius: 3px;
-  background: var(--surface-card);
-  font-family: var(--font-sans); font-size: 13px; line-height: 1.3;
+/* ── Links ───────────────────────────────────────────────────────────── */
+/* The row hugs the link's name, and the whole row is the link: the padding
+   is on the <a>, so a click anywhere on the tint opens the bookmark. */
+.bookmark-link {
+  display: flex; max-width: 100%; min-width: 0;
+  border-radius: 10px;
+  font-size: 14px; line-height: 20px;
   color: var(--text-primary);
   transition: background var(--dur-fast) var(--ease-out);
 }
-/* The <a> is the full bleed hit area inside the row, so it must not repaint
-   the row's surface or the hover would never show through it. */
-.bookmark-list a { background: transparent; padding: 0; min-height: 0; border-radius: 0; }
-/* Grouped corners: the run of rows reads as one object, the way
-   .settings-group does. Keyed off the li, since the row is its only child. */
-.bookmark-list li:first-child .bookmark-link { border-radius: 11px 11px 3px 3px; }
-.bookmark-list li:last-child .bookmark-link { border-radius: 3px 3px 11px 11px; }
-.bookmark-list li:only-child .bookmark-link { border-radius: 11px; }
-/* ADR-1: rows sit on the well's canvas, so hover moves AWAY from canvas tone. */
+.bookmark-list a {
+  display: flex; align-items: center; min-width: 0; min-height: var(--bm-row-height);
+  padding: 8px 12px; border-radius: 10px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* ADR-1: links sit straight on the page canvas, so hover moves AWAY from the canvas tone. */
 .bookmark-link:hover { background: var(--hover-on-canvas); }
+
+/* A group with nothing in it yet (made with Add group): a quiet line under its name. */
+.group-empty {
+  padding: 8px 12px; text-align: center;
+  font-size: 13px; line-height: 20px; color: var(--text-tertiary);
+}
 
 /* ── Scroll chrome ───────────────────────────────────────────────────────
    The fade and the count pills live in components.css as one shared control
    (R-010), since settings and the search pills use them too. Nothing is
-   configured from here: the fade copies its corners off .bookmark-list at
-   runtime, so the well's radius is the only thing this screen has to state
-   and it already states it above. */
+   configured from here beyond the pill's position above: the fade is the
+   page canvas colour, which is what is behind the links now. */
 
 /* ── Empty state ─────────────────────────────────────────────────────── */
 .empty-bookmarks-message {

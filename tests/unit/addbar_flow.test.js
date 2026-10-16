@@ -1,65 +1,13 @@
-// "Add bookmark" and "Add page" in the address bar (src/modules/23-addbar-core.js, 24-addbar-screens.js):
+// "Add bookmark" and "Add page" in the address bar (src/modules/23-addbar-core.js, 24-addbar-screens.js, 25-addbar-place.js):
 // a field over the bar and a card under it, on whatever page you are on. The service worker's answers
-// (background/addFlow.js) are played by a stand-in so each screen can be driven.
+// (background/addFlow.js) are played by a stand-in so each screen can be driven. Add group: addbar_group_flow.test.js.
 "use strict";
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { openWindow } = require("./helpers/windowDom");
+const { start, closeAll, wait, $, card, field, ask, step, pills, click, type, key, input, next, opened } = require("./helpers/addbarHarness");
 
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const plain = (v) => JSON.parse(JSON.stringify(v));
-let open = [];
-test.afterEach(() => { for (const w of open) w.window.close(); open = []; });
-
-const PAGES = [{ id: 11, label: "Home" }, { id: 12, label: "Streaming" }];
-const SITES = { "": ["netflix.com", "reddit.com"], net: ["netflix.com", "netlify.com"] };
-
-/** A window with an address field, a page area, and a service worker that answers like the real one. */
-async function start({ thisUrl = "https://www.example.com/post", groups = { 11: ["SHOWS", "WORK"], 12: [] }, rect } = {}) {
-  const w = await openWindow();
-  open.push(w);
-  const doc = w.window.document;
-  doc.getElementById("browser").insertAdjacentHTML("beforeend",
-    '<div class="toolbar-mainbar"><div class="UrlBar-AddressField"><input class="url"></div></div><div id="webpage-stack"></div>');
-  if (rect) doc.querySelector(".UrlBar-AddressField").getBoundingClientRect = () => rect;
-  w.asked = [];
-  w.saved = { bookmarks: [], pages: [] };
-  w.fail = null;
-  w.window.chrome.tabs.query = (q, cb) => cb([{ id: 1, url: thisUrl }]);
-  // The flow asks the worker script in its own page (background/messaging.js), so the stand-in sits there.
-  w.window.__atlasWorker = { ask: (msg) => {
-    w.asked.push(plain(msg));
-    const reply = (r) => Promise.resolve(plain(r));
-    if (w.fail && msg.action === w.fail.action) return reply(w.fail.reply);
-    if (msg.action === "addInfo") return reply({ pages: PAGES });
-    if (msg.action === "addGroups") return reply({ groups: groups[msg.page] || [] });
-    if (msg.action === "addSuggest") {
-      const list = (SITES[msg.typed] || SITES[""]).map((d) => ({ label: d, value: d }));
-      const here = msg.thisUrl ? [{ label: "example.com · this page", value: "example.com" }] : [];
-      const host = String(msg.typed || "").replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
-      const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
-      return reply({ sites: [...here, ...list].slice(0, 8), names: host.includes(".") ? [cap(host.split(".")[0]), cap(host)] : [] });
-    }
-    if (msg.action === "addBookmark") { w.saved.bookmarks.push(plain(msg)); return reply({ ok: true }); }
-    if (msg.action === "addPage") { w.saved.pages.push(plain(msg)); return reply({ ok: true }); }
-    return reply({});
-  } };
-  return w;
-}
-
-const $ = (w, sel) => w.window.document.querySelector(sel);
-const card = (w) => $(w, ".atlas-addcard");
-const field = (w) => $(w, ".atlas-addfield");
-const ask = (w) => input(w).placeholder;                       // the question is the bar's placeholder
-const step = (w) => input(w).getAttribute("data-ab-field");     // url, name | pageName, sub
-const pills = (w) => [...card(w).querySelectorAll("[data-ab-site]")].map((b) => b.getAttribute("data-ab-site"));
-const click = (w, el) => el.dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
-const type = (w, el, value) => { el.value = value; el.dispatchEvent(new w.window.Event("input", { bubbles: true })); };
-const key = (w, el, k, extra = {}) => el.dispatchEvent(new w.window.KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...extra }));
-const input = (w) => field(w).querySelector("input");
-const next = async (w) => { key(w, input(w), "Enter"); await wait(60); };   // screen 1 has no button: Enter moves on
-async function opened(w, mode = "bookmark") { w.window.__Atlas.openAdd(mode); await wait(80); }
+test.afterEach(closeAll);
 
 test("it opens over the address bar on any page: a small field, a card under it, the page dimmed", async () => {
   const w = await start({ rect: { left: 200, top: 10, width: 600, height: 30, right: 800, bottom: 40 } });
@@ -102,7 +50,7 @@ test("the first pill is the page you are on, then sites you visit; typing narrow
   assert.match(card(w).querySelector('[data-ab-site][aria-selected="true"]').textContent, /netflix\.com/, "arrows move the pick");
 });
 
-test("a pick goes to screen 2, named for the site, with the first page and its first group", async () => {
+test("a pick goes to screen 2, named for the site, where only the name is asked", async () => {
   const w = await start();
   await opened(w);
   type(w, input(w), "netflix.com");
@@ -111,17 +59,46 @@ test("a pick goes to screen 2, named for the site, with the first page and its f
   await wait(150);
   assert.equal(step(w), "name");
   assert.equal(ask(w), "Name this bookmark, or pick a name below");
-  assert.match(card(w).querySelector(".atlas-addhint").textContent, /^Name this bookmark, or pick a name above · Enter adds · Esc cancels$/);
+  assert.match(card(w).querySelector(".atlas-addhint").textContent, /^Name this bookmark, or pick a name above · Enter continues · Esc cancels$/);
   assert.equal(input(w).value, "Example", "the name is filled in from the pick");
   assert.ok(field(w).querySelector("[data-ab-back]"), "a small back arrow in the bar");
-  assert.equal(card(w).querySelectorAll("[data-ab-dd], [data-ab-save]").length, 3, "one row: Page, Group, Add");
+  assert.equal(card(w).querySelectorAll("[data-ab-dd], [data-ab-save]").length, 0, "the page and group are on the next screen");
   assert.deepEqual([...card(w).querySelectorAll("[data-ab-name]")].map((b) => b.textContent), ["Example", "Example.com"]);
+});
+
+test("screen 3 says where it goes: Page and Group, each named, with the first page and its first group", async () => {
+  const w = await start();
+  await opened(w);
+  type(w, input(w), "netflix.com");
+  await wait(120);
+  key(w, input(w), "Enter");
+  await wait(150);
+  await next(w);                          // Enter on the name
+  assert.equal(step(w), "place");
+  assert.equal(input(w).value, "Example", "what is being added stays in the bar");
+  assert.ok(input(w).readOnly, "nothing to type on this screen");
+  assert.equal(field(w).querySelector(".atlas-addwhere").textContent, "example.com", "with its address beside it");
+  assert.ok(field(w).querySelector("[data-ab-back]"));
+  assert.deepEqual([...card(w).querySelectorAll(".atlas-addlbl")].map((l) => l.textContent), ["Page", "Group"], "labelled, not a guess");
   assert.equal(card(w).querySelector('[data-ab-dd="page"] span').textContent, "Home");
   assert.equal(card(w).querySelector('[data-ab-dd="group"] span').textContent, "SHOWS");
+  assert.equal(card(w).querySelector("[data-ab-save]").textContent, "Add");
+  assert.match(card(w).querySelector(".atlas-addhint").textContent, /^Enter adds · Esc cancels$/);
+  assert.deepEqual(w.errors, []);
+});
+
+test("with an existing group, Enter on screen 3 saves at once", async () => {
+  const w = await start({ thisUrl: "" });
+  await opened(w);
+  type(w, input(w), "netflix.com"); await wait(120); await next(w); await next(w); await wait(40);
+  key(w, input(w), "Enter");
+  await wait(80);
+  assert.deepEqual(w.saved.bookmarks, [{ action: "addBookmark", db: "DetractlessBookmarks", name: "Netflix", url: "netflix.com", page: 11, group: "SHOWS" }]);
+  assert.equal(card(w), null, "closed once saved");
 });
 
 test("Shift+Enter uses exactly what was typed, where Enter takes the highlighted pill", async () => {
-  const save = async (w) => { click(w, card(w).querySelector("[data-ab-save]")); await wait(80); return w.saved.bookmarks.map((b) => b.url); };
+  const save = async (w) => { await next(w); click(w, card(w).querySelector("[data-ab-save]")); await wait(80); return w.saved.bookmarks.map((b) => b.url); };   // the name, then Add on screen 3
 
   const plain = await start();
   await opened(plain);
@@ -171,42 +148,21 @@ test("Back keeps what was typed, and a name you changed is kept", async () => {
   assert.equal(input(w).value, "Netflix.com", "a name pill fills the name");
 });
 
-test("Add sends the bookmark to the service worker and closes; the other choices are in the drop-downs", async () => {
-  const w = await start({ thisUrl: "" });
-  await opened(w);
-  type(w, input(w), "netflix.com");
-  await wait(120);
-  await next(w);
-  await wait(80);
-  assert.ok(card(w).querySelector('[data-ab-menu="page"]').hidden);
-  click(w, card(w).querySelector('[data-ab-dd="page"]'));
-  assert.ok(!card(w).querySelector('[data-ab-menu="page"]').hidden, "the page list opens");
-  click(w, [...card(w).querySelectorAll('[data-ab-item="page"]')].find((b) => b.textContent === "Streaming"));
-  await wait(80);
-  assert.equal(card(w).querySelector('[data-ab-dd="group"] span').textContent, "+ New group", "a page with no groups starts a new one");
-  assert.ok(!card(w).querySelector("[data-ab-newgroup]").hidden);
-  click(w, card(w).querySelector("[data-ab-save]"));
-  await wait(40);
-  assert.match(card(w).querySelector("[data-ab-error]").textContent, /new group a name/);
-  type(w, card(w).querySelector('[data-ab-field="newGroup"]'), "watch");
-  click(w, card(w).querySelector("[data-ab-save]"));
-  await wait(80);
-  assert.deepEqual(w.saved.bookmarks, [{ action: "addBookmark", db: "DetractlessBookmarks", name: "Netflix", url: "netflix.com", page: 12, group: "WATCH", newGroup: true }]);
-  assert.equal(card(w), null, "closed once saved");
-  assert.ok(!w.window.document.getElementById("browser").classList.contains("atlas-add-open"));
-});
-
 test("a refusal from the service worker is shown and the flow stays open", async () => {
   const w = await start({ thisUrl: "" });
   await opened(w);
-  type(w, input(w), "netflix.com"); await wait(120); await next(w); await wait(80);
+  type(w, input(w), "netflix.com"); await wait(120); await next(w); await next(w); await wait(80);
   w.fail = { action: "addBookmark", reply: { error: "WORK already exists on this page." } };
   click(w, card(w).querySelector("[data-ab-save]"));
   await wait(80);
   assert.match(card(w).querySelector("[data-ab-error]").textContent, /already exists/);
+  assert.equal(step(w), "place", "still on the same screen");
+  click(w, field(w).querySelector("[data-ab-back]"));
+  await wait(60);
   type(w, input(w), "");
-  click(w, card(w).querySelector("[data-ab-save]"));
-  assert.match(card(w).querySelector("[data-ab-error]").textContent, /name/i, "a missing name is caught here, before asking");
+  key(w, input(w), "Enter");
+  assert.match(card(w).querySelector("[data-ab-error]").textContent, /name/i, "a missing name is caught on the name screen, before going on");
+  assert.equal(step(w), "name");
 });
 
 test("Add page: its name, then a subtitle of three to five words", async () => {
@@ -235,7 +191,7 @@ test("Add page: its name, then a subtitle of three to five words", async () => {
 test("Escape closes the drop-down first, then the flow; the backdrop, another tab and a new flow close it too", async () => {
   const w = await start({ thisUrl: "" });
   await opened(w);
-  type(w, input(w), "netflix.com"); await wait(120); await next(w); await wait(80);
+  type(w, input(w), "netflix.com"); await wait(120); await next(w); await next(w); await wait(80);
   click(w, card(w).querySelector('[data-ab-dd="group"]'));
   w.window.document.dispatchEvent(new w.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
   assert.ok(card(w), "the first Escape only closes the list");

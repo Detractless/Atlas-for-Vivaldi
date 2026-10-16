@@ -185,14 +185,29 @@ test("the bar asks which pages bookmarks can go on, and which groups a page has"
 test("a bookmark added from the bar is saved on its page and group, with https:// added, and new tabs are told", async () => {
   const w = loadWorker({ sync: { activeTabs: PAGES } });
   const add = (extra) => send(w, { action: "addBookmark", db: DB, name: "Netflix", url: "netflix.com", page: 1, group: "WATCH", ...extra });
-  assert.deepEqual(await add({ newGroup: true }), { ok: true });
+  assert.deepEqual(await add(), { ok: true });
   assert.deepEqual(await stored(w, 1), { WATCH: [{ name: "Netflix", url: "https://netflix.com" }] });
   assert.deepEqual(await send(w, { action: "addGroups", db: DB, page: 1 }), { groups: ["WATCH"] });
-  assert.match((await add({ newGroup: true })).error, /WATCH already exists/, "a new group cannot reuse a name");
-  assert.deepEqual(await add({ name: "Disney+", url: "https://disneyplus.com/home", newGroup: false }), { ok: true });
+  assert.deepEqual(await add({ name: "Disney+", url: "https://disneyplus.com/home" }), { ok: true });
   assert.deepEqual((await stored(w, 1)).WATCH.map((b) => b.url), ["https://netflix.com", "https://disneyplus.com/home"]);
   assert.equal(toldNewTabs(w), 2, "told once per saved bookmark");
   assert.match((await send(w, { action: "addBookmark", db: DB, name: "", url: "x.com", page: 1, group: "A" })).error, /missing/i);
+  assert.deepEqual(w.errors, []);
+});
+
+test("a group added from the bar is saved with nothing in it, a name the page has is refused, and new tabs are told", async () => {
+  const w = loadWorker({ sync: { activeTabs: PAGES } });
+  const add = (group, page = 1) => send(w, { action: "addGroup", db: DB, page, group });
+  assert.deepEqual(await add("MOVIES"), { ok: true });
+  assert.deepEqual(await stored(w, 1), { MOVIES: [] }, "an empty group");
+  assert.deepEqual(await send(w, { action: "addGroups", db: DB, page: 1 }), { groups: ["MOVIES"] }, "the bar can offer it");
+  assert.match((await add("MOVIES")).error, /MOVIES already exists on this page/);
+  assert.deepEqual(await stored(w, 1), { MOVIES: [] }, "nothing changed");
+  assert.deepEqual(await send(w, { action: "addBookmark", db: DB, name: "Netflix", url: "netflix.com", page: 1, group: "MOVIES" }), { ok: true }, "a bookmark can go into it");
+  assert.deepEqual((await stored(w, 1)).MOVIES, [{ name: "Netflix", url: "https://netflix.com" }]);
+  assert.equal(toldNewTabs(w), 2, "told once for the group and once for the bookmark");
+  assert.match((await add("")).error, /missing/i);
+  assert.match((await send(w, { action: "addGroup", db: DB, group: "X" })).error, /missing/i, "a page is needed");
   assert.deepEqual(w.errors, []);
 });
 

@@ -1,5 +1,5 @@
-// The profile menu's Add page or bookmark row (src/modules/07-profile-menu.js): clicking it shrinks the menu
-// to two choices and a way back, and each choice asks the new tab for that flow.
+// The profile menu's Add row (src/modules/07-profile-menu.js): clicking it shrinks the menu
+// to three choices (bookmark, group, page) and a way back, and each choice opens that flow in the address bar.
 "use strict";
 
 const test = require("node:test");
@@ -38,7 +38,7 @@ async function openProfileMenu(w) {
   return waitFor(() => doc.querySelector(".atlas-nosurf-menu .apm-strip") && doc.querySelector(".atlas-nosurf-menu"), "profile menu with profiles");
 }
 
-test("Add page or bookmark shrinks the menu to two choices and a way back; each choice opens the flow in the address bar, here", async () => {
+test("Add shrinks the menu to three choices and a way back; each choice opens the flow in the address bar, here", async () => {
   const w = await start();
   w.window.document.getElementById("browser").insertAdjacentHTML("beforeend",
     '<div class="toolbar-mainbar"><button data-name="AccountButton">P</button><div class="UrlBar-AddressField"><input class="url"></div></div>');
@@ -47,17 +47,17 @@ test("Add page or bookmark shrinks the menu to two choices and a way back; each 
   const rows = () => [...menu.querySelectorAll(".apm-item .apm-row-label")].map((s) => s.textContent);
   const row = (label) => [...menu.querySelectorAll(".apm-item")].find((b) => b.textContent.includes(label));
 
-  click(row("Add page or bookmark"));
+  click(row("Add"));
   assert.ok(w.window.document.querySelector(".atlas-nosurf-menu"), "the menu stays open");
-  assert.deepEqual(rows(), ["Add bookmark", "Add page"]);
+  assert.deepEqual(rows(), ["Add bookmark", "Add group", "Add page"]);
   assert.equal(menu.querySelector(".apm-head").textContent.trim(), "Add", "a way back, named Add");
   assert.equal(menu.querySelector(".apm-strip"), null, "the profiles are out of the way while choosing");
 
   click(menu.querySelector(".apm-head"));
-  assert.deepEqual(rows(), ["Add page or bookmark", "History", "Downloads", "Extension settings", "Browser settings"]);
+  assert.deepEqual(rows(), ["Add", "History", "Downloads", "Extension settings", "Browser settings"]);
   assert.ok(menu.querySelector(".apm-strip"), "back to the profiles");
 
-  click(row("Add page or bookmark"));
+  click(row("Add"));
   click(row("Add bookmark"));
   assert.equal(w.window.document.querySelector(".atlas-nosurf-menu"), null, "the menu closes");
   const card = w.window.document.querySelector(".atlas-addcard");
@@ -69,8 +69,17 @@ test("Add page or bookmark shrinks the menu to two choices and a way back; each 
   await new Promise((r) => setTimeout(r, 300));   // the button ignores a second press within 250 ms
   const again = await openProfileMenu(w);
   const click2 = (el) => el.dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
-  click2([...again.querySelectorAll(".apm-item")].find((b) => b.textContent.includes("Add page or bookmark")));
-  click2([...again.querySelectorAll(".apm-item")].find((b) => b.textContent.includes("Add page")));
+  const pick = (m, label) => click2([...m.querySelectorAll(".apm-item")].find((b) => b.textContent.trim() === label));
+  pick(again, "Add");
+  pick(again, "Add group");
+  assert.equal(w.window.document.querySelector(".atlas-addfield input").placeholder, "Name the new group, like Streaming", "Add group opens its own flow");
+  assert.equal(w.window.document.querySelector(".atlas-addcard").getAttribute("aria-label"), "Add group");
+
+  w.window.__Atlas.closeAdd();
+  await new Promise((r) => setTimeout(r, 300));
+  const third = await openProfileMenu(w);
+  pick(third, "Add");
+  pick(third, "Add page");
   assert.equal(w.window.document.querySelector(".atlas-addfield input").placeholder, "Give the new page a name, like Streaming");
   assert.ok(!w.calls.some((c) => c.name === "chrome.tabs.create"), "still no new tab");
 });

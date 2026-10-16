@@ -1,14 +1,13 @@
-/* ── 23-addbar-core.js: "Add bookmark" and "Add page" in the address bar ──
-   The profile menu's Add bookmark / Add page open here, on whatever page you are on: the address bar
+/* ── 23-addbar-core.js: "Add bookmark", "Add group" and "Add page" in the address bar ──
+   The profile menu's Add bookmark / Add group / Add page open here, on whatever page you are on: the address bar
    grows into the container (a field over the bar, a card under it, the page behind dimmed), at the
    address bar card's own size (css-mods/08-addbar.css). The
-   screens are in 24-addbar-screens.js. This file holds the state, the questions put to the service
+   screens are in 24-addbar-screens.js and the page and group lists in 25-addbar-place.js. This file holds the state, the questions put to the service
    worker (background/addFlow.js, which owns the bookmark database and the page list), and the
    opening, placing and closing.
    One flow at a time: `ab` is the open flow, or null. */
 
 var AB_SUB_MIN = 3, AB_SUB_MAX = 5, AB_SUB_CHARS = 32;   // the subtitle rule, as services/pageSubtitle.js
-var AB_NEW_GROUP = 'new-group ';                          // the "+ New group" choice, as utils/addBookmarkFlow.js
 var AB_MIN_WIDTH = 360, AB_MAX_WIDTH = 620, AB_FIELD_H = 30;   // as the address bar: 620px at most, a 30px field
 var ab = null;
 
@@ -55,7 +54,8 @@ function abFresh(kind) {
   return {
     kind: kind, step: 1, token: 0, busy: false, menu: null,
     urlText: '', name: '', nameTouched: false, sites: [], siteAt: 0, names: [], thisUrl: '',
-    pages: [], page: null, groups: [], group: null, newGroup: '',
+    pages: [], page: null, groups: [], group: null, groupsLoaded: false,   // groupsLoaded: the page's groups have been read
+    groupName: '', returnTo: null,                                          // returnTo: 'bookmark' when a group is made from Add bookmark's screen 3
     pageName: '', sub: '',
     pageCount: 1, scrim: null, field: null, card: null
   };
@@ -108,16 +108,18 @@ function abClose() {
   ab = null;
 }
 
-/** Open the flow: mode is 'bookmark' or 'page'. */
+var AB_LABELS = { bookmark: 'Add bookmark', group: 'Add group', page: 'Add page' };
+
+/** Open the flow: mode is 'bookmark', 'group' or 'page'. */
 function abOpen(mode) {
   abClose();
   if (typeof Atlas.closeUiMenu === 'function') Atlas.closeUiMenu();
-  ab = abFresh(mode === 'page' ? 'page' : 'bookmark');
+  ab = abFresh(AB_LABELS[mode] ? mode : 'bookmark');
   var host = document.getElementById('browser') || document.body;
   ab.scrim = abDiv('atlas-addscrim');
   ab.field = abDiv('atlas-addfield');
   ab.card = abDiv('atlas-addcard', 'dialog');
-  ab.card.setAttribute('aria-label', ab.kind === 'page' ? 'Add page' : 'Add bookmark');
+  ab.card.setAttribute('aria-label', AB_LABELS[ab.kind]);
   [ab.scrim, ab.field, ab.card].forEach(function (el) { host.appendChild(el); });
   ab.scrim.addEventListener('mousedown', function (e) { e.preventDefault(); abClose(); });
   atlasMark('atlas-add-open', true);
@@ -146,6 +148,7 @@ function abLoad(flow) {
     if (flow.page === null && flow.pages.length) flow.page = flow.pages[0].id;
     var note = flow.kind === 'page' && flow.step === 1 && flow.card.querySelector('[data-ab-default]');
     if (note) note.textContent = 'Page ' + flow.pageCount;
+    abPaintPlace();   // a Page choice already on screen shows the first page
   });
 }
 

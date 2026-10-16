@@ -1139,8 +1139,18 @@
     const finalUrl = /^https?:\/\//.test(url) ? url : `https://${url}`;
     return withDb(m.db, async (h) => {
       const groups = await h.getBookmarks(m.page) || {};
-      if (m.newGroup && groups[group]) return { error: `${group} already exists on this page.` };
       (groups[group] = groups[group] || []).push({ name, url: finalUrl });
+      await h.saveBookmarks(m.page, groups);
+      return { ok: true };
+    });
+  }
+  async function addGroupTo(m) {
+    const group = String(m.group || "").trim();
+    if (!group || m.page === void 0 || m.page === null) return { error: "Something is missing" };
+    return withDb(m.db, async (h) => {
+      const groups = await h.getBookmarks(m.page) || {};
+      if (groups[group]) return { error: `${group} already exists on this page.` };
+      groups[group] = [];
       await h.saveBookmarks(m.page, groups);
       return { ok: true };
     });
@@ -1219,11 +1229,12 @@
     clearUsage: (m, send) => {
       clearUsage().then(() => ok(send));
     },
-    // --- Add bookmark / Add page in the address bar (src/modules/23-addbar-core.js) ---
+    // --- Add bookmark / Add group / Add page in the address bar (src/modules/23-addbar-core.js) ---
     addInfo: (m, send) => answer(addInfo(m), send),
     addGroups: (m, send) => answer(addGroups(m), send),
     addSuggest: (m, send) => answer(addSuggest(m), send),
     addBookmark: (m, send) => answer(addBookmarkTo(m).then(announce), send),
+    addGroup: (m, send) => answer(addGroupTo(m).then(announce), send),
     addPage: (m, send) => answer(addPageTo(m).then(announce), send)
   };
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

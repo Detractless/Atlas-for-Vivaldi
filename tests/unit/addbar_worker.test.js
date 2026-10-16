@@ -51,7 +51,7 @@ test("typing part of a site you visited long ago offers it, from the real worker
   assert.deepEqual(w.errors, []);
 });
 
-test("a pick leads to the name and the page list, and Add saves the bookmark", async () => {
+test("a pick leads to the name and the page list; a page with no groups gets one from Add group; Add saves the bookmark", async () => {
   const w = await start();
   w.window.__Atlas.openAdd("bookmark");
   await wait(200);
@@ -60,13 +60,23 @@ test("a pick leads to the name and the page list, and Add saves the bookmark", a
   enter(w);                                   // takes the highlighted pill, netflix.com
   await wait(400);
   assert.equal(input(w).value, "Netflix", "the name comes from the worker");
-  const card = w.window.document.querySelector(".atlas-addcard");
-  assert.match(card.querySelector('[data-ab-dd="page"]').textContent, /Home/, "the page list comes from the worker");
-  assert.ok(card.querySelector('[data-ab-newgroup]:not([hidden])'), "a new page has no groups yet, so a new group is asked for");
-  type(w, card.querySelector('[data-ab-field="newGroup"]'), "shows");
-  enter(w);                                   // Enter adds
+  enter(w);                                   // the name: on to the page and group
+  await wait(100);
+  const card = () => w.window.document.querySelector(".atlas-addcard");
+  assert.match(card().querySelector('[data-ab-dd="page"]').textContent, /Home/, "the page list comes from the worker");
+  assert.equal(card().querySelector(".atlas-addnone").textContent, "None yet", "a new page has no groups yet");
+  assert.equal(card().querySelector("[data-ab-save]").textContent, "Add group");
+  enter(w);                                   // Add group: its name
+  await wait(100);
+  type(w, input(w), "shows");
+  enter(w);                                   // on to its page
+  await wait(100);
+  enter(w);                                   // Enter adds the group, and comes back to the bookmark
   await wait(600);
-  assert.equal(w.window.document.querySelector(".atlas-addcard"), null, "the flow closes once it is saved");
+  assert.equal(card().querySelector('[data-ab-dd="group"] span').textContent, "SHOWS", "the group the real worker saved is the one chosen");
+  enter(w);                                   // Enter adds the bookmark
+  await wait(600);
+  assert.equal(card(), null, "the flow closes once it is saved");
   const saved = await new Promise((resolve, reject) => {
     const r = w.window.indexedDB.open(w.window.AtlasProfiles.dbName());
     r.onsuccess = () => { const g = r.result.transaction(["bookmarks"]).objectStore("bookmarks").get(11); g.onsuccess = () => resolve(g.result); g.onerror = () => reject(g.error); };
@@ -86,8 +96,16 @@ test("Shift+Enter saves the typed address with its path, through the real worker
   input(w).dispatchEvent(new w.window.KeyboardEvent("keydown", { key: "Enter", shiftKey: true, bubbles: true, cancelable: true }));
   await wait(400);
   assert.equal(input(w).value, "Discord");
-  type(w, w.window.document.querySelector('[data-ab-field="newGroup"]'), "chat");
-  enter(w);
+  enter(w);                                   // the name
+  await wait(100);
+  enter(w);                                   // Add group: its name
+  await wait(100);
+  type(w, input(w), "chat");
+  enter(w);                                   // its page
+  await wait(100);
+  enter(w);                                   // adds the group, and comes back to the bookmark
+  await wait(600);
+  enter(w);                                   // adds the bookmark
   await wait(600);
   const saved = await new Promise((resolve, reject) => {
     const r = w.window.indexedDB.open(w.window.AtlasProfiles.dbName());
@@ -95,6 +113,36 @@ test("Shift+Enter saves the typed address with its path, through the real worker
     r.onerror = () => reject(r.error);
   });
   assert.deepEqual(JSON.parse(JSON.stringify(saved.data)), { CHAT: [{ name: "Discord", url: "https://discord.com/channels/9" }] });
+  assert.deepEqual(w.errors, []);
+});
+
+test("Add group saves a group with nothing in it through the real worker, and refuses a name the page has", async () => {
+  const w = await start();
+  w.window.__Atlas.openAdd("group");
+  await wait(200);
+  type(w, input(w), "gym");
+  enter(w);                                   // its page
+  await wait(150);
+  enter(w);                                   // adds it
+  await wait(600);
+  assert.equal(w.window.document.querySelector(".atlas-addcard"), null, "closed once saved");
+  const groupsOf = () => new Promise((resolve, reject) => {
+    const r = w.window.indexedDB.open(w.window.AtlasProfiles.dbName());
+    r.onsuccess = () => { const g = r.result.transaction(["bookmarks"]).objectStore("bookmarks").get(11); g.onsuccess = () => resolve(g.result); g.onerror = () => reject(g.error); };
+    r.onerror = () => reject(r.error);
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify((await groupsOf()).data)), { GYM: [] }, "the group is there, empty");
+
+  w.window.__Atlas.openAdd("group");
+  await wait(200);
+  type(w, input(w), "Gym");
+  enter(w);
+  await wait(150);
+  enter(w);
+  await wait(600);
+  assert.match(w.window.document.querySelector("[data-ab-error]").textContent, /GYM already exists on this page/);
+  assert.ok(w.window.document.querySelector(".atlas-addcard"), "still open, so the name can be changed");
+  assert.deepEqual(JSON.parse(JSON.stringify((await groupsOf()).data)), { GYM: [] }, "nothing was added twice");
   assert.deepEqual(w.errors, []);
 });
 
