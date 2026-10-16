@@ -263,7 +263,7 @@
         importWhen: "truthy",
         profile: "theme"
       },
-      uiScale: { default: 1, backup: true, importWhen: "defined", profile: "appearance" },
+      uiScale: { default: 1, backup: false, note: "Legacy: the UI scale, removed from Settings. Nothing reads it; a saved value is ignored, so every new tab is at 100%." },
       fadeInEnabled: { default: true, backup: true, importWhen: "defined", profile: "appearance" },
       spotlightVisible: { default: true, backup: true, importWhen: "defined", profile: "search" },
       searchEngineBehavior: { default: "remember", backup: true, importWhen: "defined", profile: "search" },
@@ -273,13 +273,14 @@
       selectedSearchEngine: { default: null, backup: true, importWhen: "truthy", profile: "search" },
       tabLimit: { default: 0, backup: true, importWhen: "defined", profile: "focus" },
       managementMethod: { default: "block", backup: true, importWhen: "truthy", profile: "focus" },
-      pendingIncrease: { default: null, backup: false, profile: "focus", note: "A tab-limit increase waiting out its 30 minutes." },
+      pendingIncrease: { default: null, backup: false, note: "Legacy: a tab-limit increase queued for 30 minutes by the version before the Focus locks. Still finished on time (background/pendingChanges.js); no longer written." },
       searchDelaySeconds: { default: 0, backup: true, importWhen: "defined", profile: "focus" },
-      pendingDelayDecrease: { default: null, backup: false, note: "A search-delay decrease waiting out its 30 minutes." },
+      pendingDelayDecrease: { default: null, backup: false, note: "Legacy: a search-delay decrease queued for 30 minutes by the version before the Focus locks. Still finished on time (background/pendingChanges.js); no longer written." },
       showQueryOnDelay: { default: true, backup: true, importWhen: "defined", profile: "focus" },
       grayscale: { default: null, backup: false, note: "Legacy: the old on/off switch. Read once and folded into saturation (utils/saturationLock.js legacySaturation), then removed." },
       saturation: { default: 100, backup: true, importWhen: "defined", profile: "focus", note: "Color level for web pages, 0 to 100. 100 is full color." },
-      saturationLock: { default: null, backup: false, profile: "focus", note: "After going grayer, the stretch above it is locked for 30 minutes: { ceiling, until }." },
+      saturationLock: { default: null, backup: false, note: "Legacy: the color lock before the Focus locks, { ceiling, until, manual }. Moved into focusLocks once at startup (background/saturationMigration.js), then removed." },
+      focusLocks: { default: null, backup: false, note: "The locks on Settings > Focus (utils/focusLock.js): { tabLimit | searchDelaySeconds | saturation: { unlockAt } }, unlockAt null while locked or the time its 30-minute unlock ends. Not per profile and not in backups, so a switch or an import can't undo a lock." },
       "bookmarks-migrated": { default: null, backup: false, note: "Legacy: set once bookmarks moved from sync storage to IndexedDB." },
       "bookmarks-page-1": { default: null, backup: false, note: "Legacy bookmark storage, read once by migrateFromChromeStorage." },
       "bookmarks-page-2": { default: null, backup: false, note: "Legacy, as bookmarks-page-1." },
@@ -307,8 +308,8 @@
     },
     localStorage: {
       _themeCache: "Theme preference for the first paint (themePreinit.js).",
-      _scaleCache: "UI scale for the first paint (preinit.js). Always the stored uiScale.",
-      uiScale: "Legacy scale value, read only as a last fallback by preinit.js.",
+      _scaleCache: "Legacy: the UI scale's first-paint copy. preinit.js removes it.",
+      uiScale: "Legacy scale value. preinit.js removes it.",
       themePref: "Legacy theme value, migrated into IndexedDB uiPrefs."
     }
   };
@@ -318,9 +319,9 @@
   var BOOKMARKS_DB = atlasKeys_default.databases.bookmarks;
   var PASTEKIT_DB = atlasKeys_default.databases.pastekit;
   function syncDefault(key) {
-    const entry = atlasKeys_default.sync[key];
-    if (!entry) throw new Error(`Unknown sync key: ${key}`);
-    return entry.default === void 0 ? void 0 : JSON.parse(JSON.stringify(entry.default));
+    const entry2 = atlasKeys_default.sync[key];
+    if (!entry2) throw new Error(`Unknown sync key: ${key}`);
+    return entry2.default === void 0 ? void 0 : JSON.parse(JSON.stringify(entry2.default));
   }
   var BACKUP_SYNC_KEYS = Object.keys(atlasKeys_default.sync).filter((k) => atlasKeys_default.sync[k].backup).map((k) => ({ key: k, importWhen: atlasKeys_default.sync[k].importWhen || "defined" }));
 
@@ -987,7 +988,6 @@
   var bookmarks = {};
   var fadeInEnabled = true;
   var spotlightVisible = false;
-  var uiScale = 1;
   var searchEngineBehavior = "remember";
   var bookmarkPillBehavior = "always";
   var activeTabs = [];
@@ -1019,9 +1019,6 @@
   }
   function setSpotlightVisible() {
     spotlightVisible = false;
-  }
-  function setUiScale(v) {
-    uiScale = v;
   }
   function setSearchEngineBehavior(v) {
     searchEngineBehavior = v;
@@ -1104,9 +1101,9 @@
     const fadeBot = make("div", `${p2}-fade ${p2}-fade-bot hidden`);
     const countTop = make("span", `${p2}-count ${p2}-count-top hidden`);
     const countBot = make("span", `${p2}-count ${p2}-count-bot hidden`);
-    for (const pill2 of [countTop, countBot]) {
-      pill2.appendChild(make("i", `${p2}-count-chev`));
-      pill2.appendChild(document.createTextNode(""));
+    for (const pill of [countTop, countBot]) {
+      pill.appendChild(make("i", `${p2}-count-chev`));
+      pill.appendChild(document.createTextNode(""));
     }
     host.append(fadeTop, fadeBot, countTop, countBot);
     return { fadeTop, fadeBot, countTop, countBot };
@@ -1528,14 +1525,14 @@
     });
   }
   function openBookmarkMenu(groupName, bookmark) {
-    const indexOf2 = () => bookmarks[groupName].findIndex((b) => b.name === bookmark.name && b.url === bookmark.url);
+    const indexOf = () => bookmarks[groupName].findIndex((b) => b.name === bookmark.name && b.url === bookmark.url);
     openBookmarkItemDialog({
       name: bookmark.name,
       url: bookmark.url,
       onRename: (raw) => {
         const newName = raw.trim();
         if (!newName) return "Give the bookmark a name.";
-        const idx = indexOf2();
+        const idx = indexOf();
         if (idx === -1) return true;
         bookmarks[groupName][idx].name = newName;
         bookmark.name = newName;
@@ -1546,7 +1543,7 @@
       onEditUrl: (raw) => {
         const value = raw.trim();
         if (!value) return "Give the bookmark a URL.";
-        const idx = indexOf2();
+        const idx = indexOf();
         if (idx === -1) return true;
         const finalUrl = value.match(/^https?:\/\//) ? value : "https://" + value;
         bookmarks[groupName][idx].url = finalUrl;
@@ -1816,23 +1813,6 @@
     saveTabs();
     renderTabs();
   }
-  function movePageTo(id, index) {
-    const from = activeTabs.findIndex((t) => t.id === id);
-    if (from < 0 || activeTabs[from].type === "search") return;
-    const min = activeTabs[0] && activeTabs[0].type === "search" ? 1 : 0;
-    const to = Math.max(min, Math.min(index, activeTabs.length - 1));
-    if (to === from) return;
-    const next2 = activeTabs.slice();
-    const [page] = next2.splice(from, 1);
-    next2.splice(to, 0, page);
-    setActiveTabs(next2);
-    saveTabs();
-    renderTabs();
-  }
-  function movePage(id, step) {
-    const from = activeTabs.findIndex((t) => t.id === id);
-    if (from >= 0) movePageTo(id, from + step);
-  }
   function syncSelection() {
     if (!els) return;
     els.menu.querySelectorAll(".switcher-item").forEach((item) => {
@@ -1867,12 +1847,12 @@
       newGroupName: ""
     };
   }
-  function currentStep(state3) {
-    return STEPS[state3.stepIndex] || null;
+  function currentStep(state2) {
+    return STEPS[state2.stepIndex] || null;
   }
-  function setValue(state3, key, value) {
-    const next2 = { ...state3, [key]: value };
-    if (key === "page" && String(value) !== String(state3.page)) {
+  function setValue(state2, key, value) {
+    const next2 = { ...state2, [key]: value };
+    if (key === "page" && String(value) !== String(state2.page)) {
       next2.group = null;
       next2.newGroupName = "";
     }
@@ -1881,17 +1861,17 @@
     }
     return next2;
   }
-  function validateStep(state3, step = currentStep(state3)) {
+  function validateStep(state2, step = currentStep(state2)) {
     switch (step) {
       case "name":
-        return state3.name.trim() ? null : "Give the bookmark a name.";
+        return state2.name.trim() ? null : "Give the bookmark a name.";
       case "url":
-        return state3.url.trim() ? null : "Give the bookmark a URL.";
+        return state2.url.trim() ? null : "Give the bookmark a URL.";
       case "page":
-        return state3.page === null || state3.page === void 0 ? "Choose a page." : null;
+        return state2.page === null || state2.page === void 0 ? "Choose a page." : null;
       case "group":
-        if (state3.group === null) return "Choose a group.";
-        if (state3.group === NEW_GROUP && !state3.newGroupName.trim()) {
+        if (state2.group === null) return "Choose a group.";
+        if (state2.group === NEW_GROUP && !state2.newGroupName.trim()) {
           return "Give the new group a name.";
         }
         return null;
@@ -2374,17 +2354,17 @@
     if (popup.opts.onSaved) popup.opts.onSaved();
   }
   async function saveBookmark(popup) {
-    const state3 = setValue(popup.flow, "newGroupName", popup.flow.newGroupName.trim().toUpperCase());
+    const state2 = setValue(popup.flow, "newGroupName", popup.flow.newGroupName.trim().toUpperCase());
     const errors = {
-      name: validateStep(state3, "name"),
-      url: validateStep(state3, "url"),
-      page: state3.page === null ? "Add a page first, then a bookmark to it." : null
+      name: validateStep(state2, "name"),
+      url: validateStep(state2, "url"),
+      page: state2.page === null ? "Add a page first, then a bookmark to it." : null
     };
-    const groupError = validateStep(state3, "group");
-    if (groupError) errors[state3.group === NEW_GROUP ? "newGroup" : "group"] = groupError;
-    if (!errors.page && state3.group === NEW_GROUP && state3.newGroupName) {
-      const existing = await BookmarkDB.getBookmarks(state3.page);
-      if (existing && existing[state3.newGroupName]) errors.newGroup = `${state3.newGroupName} already exists on this page.`;
+    const groupError = validateStep(state2, "group");
+    if (groupError) errors[state2.group === NEW_GROUP ? "newGroup" : "group"] = groupError;
+    if (!errors.page && state2.group === NEW_GROUP && state2.newGroupName) {
+      const existing = await BookmarkDB.getBookmarks(state2.page);
+      if (existing && existing[state2.newGroupName]) errors.newGroup = `${state2.newGroupName} already exists on this page.`;
     }
     const wrong = Object.keys(errors).filter((k) => errors[k]);
     if (wrong.length) {
@@ -2398,10 +2378,10 @@
       return false;
     }
     await addBookmark({
-      name: state3.name.trim(),
-      url: state3.url.trim(),
-      page: state3.page,
-      group: state3.group === NEW_GROUP ? state3.newGroupName : state3.group
+      name: state2.name.trim(),
+      url: state2.url.trim(),
+      page: state2.page,
+      group: state2.group === NEW_GROUP ? state2.newGroupName : state2.group
     });
     return true;
   }
@@ -2539,25 +2519,6 @@
   function applySpotlightVisibility() {
     const searchPage2 = document.getElementById("search-page");
     if (searchPage2) searchPage2.classList.toggle("hide-spotlight", !spotlightVisible);
-  }
-  function applyScale(value) {
-    const preScale = document.getElementById("pre-scale");
-    if (preScale) preScale.remove();
-    setUiScale(value);
-    try {
-      localStorage.setItem("_scaleCache", String(value));
-    } catch (e) {
-    }
-    if (value === 1) {
-      document.body.style.zoom = "";
-      document.body.style.marginLeft = "";
-      document.body.style.marginTop = "";
-    } else {
-      document.body.style.zoom = value;
-      const pct2 = (1 / value - 1) * 50;
-      document.body.style.marginLeft = `${pct2}vw`;
-      document.body.style.marginTop = `${pct2}vh`;
-    }
   }
   function showPage(pageName) {
     document.querySelectorAll(".page").forEach((page) => page.classList.remove("active"));
@@ -3014,8 +2975,8 @@
       urlEl.textContent = engine.url || "Default Browser Search";
       textWrap.append(nameEl, urlEl);
       row2.appendChild(textWrap);
-      const controls2 = document.createElement("div");
-      controls2.className = "engine-row-controls";
+      const controls = document.createElement("div");
+      controls.className = "engine-row-controls";
       const starBtn = document.createElement("button");
       starBtn.className = "engine-star-btn";
       starBtn.type = "button";
@@ -3039,8 +3000,8 @@
       const slider2 = document.createElement("span");
       slider2.className = "toggle-slider";
       toggleLabel.append(checkbox, slider2);
-      controls2.append(toggleLabel, starBtn);
-      row2.appendChild(controls2);
+      controls.append(toggleLabel, starBtn);
+      row2.appendChild(controls);
       row2.addEventListener("contextmenu", (e) => {
         e.preventDefault();
         if (ContextMenu.disabled) return;
@@ -3293,27 +3254,77 @@
     }
   }
 
+  // src/utils/focusLock.js
+  var UNLOCK_MS = 30 * 60 * 1e3;
+  var LOCKABLE = ["tabLimit", "searchDelaySeconds", "saturation"];
+  var DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100 };
+  var STRICTNESS = {
+    tabLimit: (v) => Number(v) === 0 ? -Infinity : -Number(v),
+    // fewer tabs is stricter; Off is no limit at all
+    searchDelaySeconds: (v) => Number(v),
+    // a longer pause is stricter
+    saturation: (v) => -Number(v)
+    // grayer is stricter
+  };
+  var entry = (locks, key) => locks && typeof locks === "object" && locks[key] && typeof locks[key] === "object" ? locks[key] : null;
+  function lockState(locks, key, now = Date.now()) {
+    const l = entry(locks, key);
+    if (!l) return "open";
+    if (l.unlockAt === null || l.unlockAt === void 0) return "held";
+    const at = Number(l.unlockAt);
+    if (!Number.isFinite(at)) return "held";
+    return at > now ? "unlocking" : "open";
+  }
+  var isLocked = (locks, key, now = Date.now()) => lockState(locks, key, now) !== "open";
+  function unlockTime(locks, key, now = Date.now()) {
+    return lockState(locks, key, now) === "unlocking" ? Number(entry(locks, key).unlockAt) : null;
+  }
+  function unlockSecondsLeft(locks, key, now = Date.now()) {
+    const at = unlockTime(locks, key, now);
+    return at === null ? 0 : Math.max(0, Math.ceil((at - now) / 1e3));
+  }
+  function changeAllowed(locks, key, from, to, now = Date.now()) {
+    if (!isLocked(locks, key, now) || !STRICTNESS[key]) return true;
+    const was = from === void 0 || from === null ? DEFAULTS[key] : from;
+    return STRICTNESS[key](to) >= STRICTNESS[key](was);
+  }
+  function tidyLocks(locks, now = Date.now()) {
+    const out = {};
+    for (const key of LOCKABLE) {
+      const state2 = lockState(locks, key, now);
+      if (state2 === "held") out[key] = { unlockAt: null };
+      else if (state2 === "unlocking") out[key] = { unlockAt: unlockTime(locks, key, now) };
+    }
+    return out;
+  }
+  function clickLock(locks, key, now = Date.now()) {
+    const state2 = lockState(locks, key, now);
+    const next2 = tidyLocks(locks, now);
+    next2[key] = { unlockAt: state2 === "held" ? now + UNLOCK_MS : null };
+    return next2;
+  }
+  function withoutLoosening(incoming, current2, locks, now = Date.now()) {
+    const out = { ...incoming };
+    for (const key of LOCKABLE) {
+      if (out[key] !== void 0 && !changeAllowed(locks, key, (current2 || {})[key], out[key], now)) delete out[key];
+    }
+    return out;
+  }
+
   // src/components/tabLimiter/tabLimiterUI.js
   var QUEUE_MS = 30 * 60 * 1e3;
   async function requestTabLimit(newLimit) {
     if (isNaN(newLimit)) return;
     try {
-      const { tabLimit } = await storageGet("sync", "tabLimit");
+      const { tabLimit, focusLocks } = await storageGet("sync", ["tabLimit", "focusLocks"]);
       const currentLimit = tabLimit !== void 0 ? tabLimit : 0;
       if (newLimit === currentLimit) return;
-      const effectiveCurrent = currentLimit === 0 ? 9999 : currentLimit;
-      const effectiveNew = newLimit === 0 ? 9999 : newLimit;
-      if (effectiveNew < effectiveCurrent) {
-        await storageSet("sync", { tabLimit: newLimit });
-        await storageRemove("sync", "pendingIncrease");
-        if (newLimit !== 0) {
-          const tabCount = await getTabCount();
-          if (tabCount > newLimit) await sendToBackground({ action: "enforceLimit" });
-        }
-      } else {
-        const startTime = Date.now();
-        await storageSet("sync", { pendingIncrease: { targetLimit: newLimit, startTime } });
-        await sendToBackground({ action: "startIncrease", targetLimit: newLimit, startTime });
+      if (!changeAllowed(focusLocks, "tabLimit", currentLimit, newLimit)) return;
+      await storageSet("sync", { tabLimit: newLimit });
+      await storageRemove("sync", "pendingIncrease");
+      if (newLimit !== 0) {
+        const tabCount = await getTabCount();
+        if (tabCount > newLimit) await sendToBackground({ action: "enforceLimit" });
       }
     } catch (error) {
     }
@@ -3776,45 +3787,20 @@
   }
 
   // src/utils/saturationLock.js
-  var LOCK_MS = 30 * 60 * 1e3;
   var clampSaturation = (v) => {
     const n = Math.round(Number(v));
     return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 100;
   };
-  function activeLock(lock, now = Date.now()) {
-    if (!lock || typeof lock !== "object" || lock.manual !== true) return null;
-    const ceiling = Number(lock.ceiling), until = Number(lock.until);
-    if (!Number.isFinite(ceiling) || !Number.isFinite(until) || until <= now) return null;
-    return { ceiling: clampSaturation(ceiling), until, manual: true };
-  }
-  function lockedMax(lock, now = Date.now()) {
-    const l = activeLock(lock, now);
-    return l ? l.ceiling : 100;
-  }
-  function startLock(current2, now = Date.now()) {
-    return { ceiling: clampSaturation(current2), until: now + LOCK_MS, manual: true };
-  }
-  function planChange({ current: current2, lock, target, now = Date.now() }) {
+  function planChange({ current: current2, locks, target, now = Date.now() }) {
     const cur = clampSaturation(current2);
     const want2 = clampSaturation(target);
-    const held = activeLock(lock, now);
-    if (!held) return { saturation: want2, lock: null, changed: want2 !== cur };
-    if (want2 >= held.ceiling) return { saturation: Math.min(cur, held.ceiling), lock: held, changed: false };
-    return { saturation: want2, lock: { ...held, ceiling: want2 }, changed: true };
+    if (!changeAllowed(locks, "saturation", cur, want2, now)) return { saturation: cur, changed: false };
+    return { saturation: want2, changed: want2 !== cur };
   }
-  function legacySaturation(grayscale, saturation) {
+  function legacySaturation(grayscale, saturation2) {
     if (grayscale === void 0 || grayscale === null) return void 0;
-    if (grayscale === true) return typeof saturation === "number" ? clampSaturation(saturation) : 0;
+    if (grayscale === true) return typeof saturation2 === "number" ? clampSaturation(saturation2) : 0;
     return 100;
-  }
-  function lockNote(lock, formatTime, now = Date.now()) {
-    const l = activeLock(lock, now);
-    if (!l) return "";
-    return `Locked. You can go grayer, but not back above ${l.ceiling}% until ${formatTime(l.until)}.`;
-  }
-  function lockSecondsLeft(lock, now = Date.now()) {
-    const l = activeLock(lock, now);
-    return l ? Math.max(0, Math.ceil((l.until - now) / 1e3)) : 0;
   }
 
   // src/services/dataImport.js
@@ -3858,7 +3844,8 @@
     }
     if (storageData.customSearchEngines) await moveEngineIconsToDb(storageData.customSearchEngines);
     if (storageData.Theme) storageData.Theme = await themeWithBackgroundInDb(storageData.Theme);
-    return storageData;
+    const live = await storageGet("sync", ["focusLocks", ...LOCKABLE]);
+    return withoutLoosening(storageData, live, live.focusLocks);
   }
   async function moveEngineIconsToDb(engines) {
     for (const key of Object.keys(engines)) {
@@ -4846,59 +4833,59 @@
     for (const row2 of rows) lines.push(CSV_COLS.map((h) => csvEscape(row2[h])).join(","));
     return lines.join("\r\n");
   }
-  function advanceQuoted(state3, text, i2) {
+  function advanceQuoted(state2, text, i2) {
     const ch = text[i2];
     if (ch !== '"') {
-      state3.field += ch;
+      state2.field += ch;
       return i2 + 1;
     }
     if (text[i2 + 1] === '"') {
-      state3.field += '"';
+      state2.field += '"';
       return i2 + 2;
     }
-    state3.inQuote = false;
+    state2.inQuote = false;
     return i2 + 1;
   }
-  function flushRow(state3, rows, text, i2) {
-    state3.row.push(state3.field);
-    state3.field = "";
+  function flushRow(state2, rows, text, i2) {
+    state2.row.push(state2.field);
+    state2.field = "";
     let next2 = i2 + 1;
     if (text[i2] === "\r" && text[i2 + 1] === "\n") next2++;
-    if (state3.row.some((c) => c !== "")) rows.push(state3.row);
-    state3.row = [];
+    if (state2.row.some((c) => c !== "")) rows.push(state2.row);
+    state2.row = [];
     return next2;
   }
   function parseCsv(text) {
     const rows = [];
-    const state3 = { row: [], field: "", inQuote: false };
+    const state2 = { row: [], field: "", inQuote: false };
     let i2 = 0;
     while (i2 < text.length) {
       const ch = text[i2];
-      if (state3.inQuote) {
-        i2 = advanceQuoted(state3, text, i2);
+      if (state2.inQuote) {
+        i2 = advanceQuoted(state2, text, i2);
         continue;
       }
       if (ch === '"') {
-        state3.inQuote = true;
+        state2.inQuote = true;
         i2++;
         continue;
       }
       if (ch === ",") {
-        state3.row.push(state3.field);
-        state3.field = "";
+        state2.row.push(state2.field);
+        state2.field = "";
         i2++;
         continue;
       }
       if (ch === "\r" || ch === "\n") {
-        i2 = flushRow(state3, rows, text, i2);
+        i2 = flushRow(state2, rows, text, i2);
         continue;
       }
-      state3.field += ch;
+      state2.field += ch;
       i2++;
     }
-    if (state3.field || state3.row.length) {
-      state3.row.push(state3.field);
-      if (state3.row.some((c) => c !== "")) rows.push(state3.row);
+    if (state2.field || state2.row.length) {
+      state2.row.push(state2.field);
+      if (state2.row.some((c) => c !== "")) rows.push(state2.row);
     }
     return rows;
   }
@@ -5569,19 +5556,19 @@
   var listeners = [];
   var watching = false;
   var same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  function defineSetting(entry) {
-    entries.set(entry.key, entry);
-    values.set(entry.key, syncDefault(entry.key));
+  function defineSetting(entry2) {
+    entries.set(entry2.key, entry2);
+    values.set(entry2.key, syncDefault(entry2.key));
   }
   function getSetting(key) {
     if (!entries.has(key)) throw new Error(`Unknown setting: ${key}`);
     return values.get(key);
   }
   async function setSetting(key, value) {
-    const entry = entries.get(key);
-    if (!entry) throw new Error(`Unknown setting: ${key}`);
-    if (entry.write) {
-      await entry.write(value);
+    const entry2 = entries.get(key);
+    if (!entry2) throw new Error(`Unknown setting: ${key}`);
+    if (entry2.write) {
+      await entry2.write(value);
       return;
     }
     update(key, value, { initial: false, local: true });
@@ -5613,8 +5600,8 @@
   function update(key, value, ctx, always = false) {
     if (!always && same(value, values.get(key)) && !ctx.local) return;
     values.set(key, value);
-    const entry = entries.get(key);
-    if (entry.apply) entry.apply(value, ctx);
+    const entry2 = entries.get(key);
+    if (entry2.apply) entry2.apply(value, ctx);
     for (const fn of listeners.slice()) {
       try {
         fn(key, value);
@@ -5671,6 +5658,17 @@
     if (window.AtlasSettingsUI) window.AtlasSettingsUI.rerender();
   }
 
+  // src/services/focusLocks.js
+  async function readLocks() {
+    const { focusLocks } = await storageGet("sync", ["focusLocks"]);
+    return focusLocks && typeof focusLocks === "object" ? focusLocks : {};
+  }
+  async function clickFocusLock(key, now = Date.now()) {
+    const next2 = clickLock(await readLocks(), key, now);
+    await storageSet("sync", { focusLocks: next2 });
+    return next2;
+  }
+
   // src/components/colorLock/colorLock.js
   var STEP_MS = 250;
   var want = null;
@@ -5698,34 +5696,26 @@
     return enqueue(saveWanted).catch(() => {
     }).then(() => done.forEach((resolve) => resolve()));
   }
-  function lockSaturation() {
+  function clickSaturationLock() {
     clearTimeout(timer);
     const done = waiting;
     waiting = [];
     return enqueue(async () => {
       await saveWanted();
-      return lockNow();
+      return clickFocusLock("saturation");
     }).finally(() => done.forEach((resolve) => resolve()));
-  }
-  async function lockNow() {
-    const stored = await storageGet("sync", ["saturation", "saturationLock"]);
-    if (activeLock(stored.saturationLock)) return false;
-    const level = typeof stored.saturation === "number" ? stored.saturation : 100;
-    await storageSet("sync", { saturationLock: startLock(level) });
-    return true;
   }
   async function saveWanted() {
     if (want === null) return;
     const target = want;
     want = null;
-    const stored = await storageGet("sync", ["saturation", "saturationLock"]);
+    const stored = await storageGet("sync", ["saturation", "focusLocks"]);
     const plan = planChange({
       current: typeof stored.saturation === "number" ? stored.saturation : 100,
-      lock: stored.saturationLock,
+      locks: stored.focusLocks,
       target
     });
-    if (plan.changed) await storageSet("sync", { saturation: plan.saturation, saturationLock: plan.lock });
-    else if (stored.saturationLock && !activeLock(stored.saturationLock)) await storageSet("sync", { saturationLock: null });
+    if (plan.changed) await storageSet("sync", { saturation: plan.saturation });
   }
 
   // src/services/delayStorage.js
@@ -5739,9 +5729,6 @@
   async function clearPendingDecrease() {
     return storageRemove("sync", "pendingDelayDecrease");
   }
-  async function savePendingDecrease(targetDelay, startTime) {
-    return storageSet("sync", { pendingDelayDecrease: { targetDelay, startTime } });
-  }
 
   // src/components/searchDelay/searchDelay.js
   async function requestSearchDelay(newDelay) {
@@ -5749,14 +5736,10 @@
     const currentDelay = await getDelaySeconds();
     const actualCurrent = currentDelay !== void 0 ? currentDelay : 0;
     if (newDelay === actualCurrent) return;
-    if (newDelay > actualCurrent) {
-      await saveDelaySeconds(newDelay);
-      await clearPendingDecrease();
-      await sendToBackground({ action: "updateSearchDelay", delaySeconds: newDelay });
-    } else {
-      await savePendingDecrease(newDelay, Date.now());
-      await sendToBackground({ action: "startDelayDecrease" });
-    }
+    if (!changeAllowed(await readLocks(), "searchDelaySeconds", actualCurrent, newDelay)) return;
+    await saveDelaySeconds(newDelay);
+    await clearPendingDecrease();
+    await sendToBackground({ action: "updateSearchDelay", delaySeconds: newDelay });
   }
   function pendingDecreaseText(pending, now = Date.now()) {
     if (!pending || !pending.startTime) return "";
@@ -5792,13 +5775,6 @@
         applyThemeConfig(v || DEFAULT_THEME);
       }
     });
-    defineSetting({
-      key: "uiScale",
-      apply: (v, { local }) => {
-        applyScale(v);
-        if (local) BookmarkDB.setUiPref("uiScale", v).catch((e) => warn("saving the UI scale for first paint failed", e));
-      }
-    });
     defineSetting({ key: "fadeInEnabled", apply: (v) => {
       setFadeInEnabled(v);
       applyFadeIn();
@@ -5810,7 +5786,7 @@
     defineSetting({ key: "pendingDelayDecrease" });
     defineSetting({ key: "showQueryOnDelay" });
     defineSetting({ key: "saturation", write: requestSaturation });
-    defineSetting({ key: "saturationLock" });
+    defineSetting({ key: "focusLocks" });
   }
 
   // src/settings/controls.js
@@ -5832,35 +5808,40 @@
   var flag = (key) => ({ get: () => !!getSetting(key), set: (v) => setSetting(key, !!v) });
   var LIMITS = Object.fromEntries(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].map((v) => [v, v === "0" ? "Off" : v]));
   var DELAYS = { "0": "Off", "15": "15 seconds", "30": "30 seconds", "60": "1 minute", "120": "2 minutes", "300": "5 minutes" };
-  var SCALES = { "0.75": "75%", "0.9": "90%", "1": "100%", "1.1": "110%", "1.25": "125%" };
   var theme = {
     options: options({ "system": "System", "light": "Light", "dark": "Dark", "custom": "Custom" }),
     get: () => getSetting("Theme") && getSetting("Theme").Theme || "dark",
     set: (mode) => setSetting("Theme", Object.assign({}, getSetting("Theme"), { Theme: mode }))
   };
-  var CONTROLS = {
-    saturation: {
-      get: () => {
-        const v = getSetting("saturation");
-        return typeof v === "number" ? v : 100;
-      },
-      /* The highest level the slider may reach now: 100, or the ceiling while a lock holds. */
-      max: () => lockedMax(getSetting("saturationLock")),
-      set: (v) => setSetting("saturation", parseInt(v, 10)),
-      flush: flushSaturation,
-      /* The lock button: true while a lock you pressed is holding. */
-      locked: () => !!activeLock(getSetting("saturationLock")),
-      lock: lockSaturation
+  function lockable(control, key, click = () => clickFocusLock(key)) {
+    return Object.assign(control, {
+      lockKey: key,
+      lockState: () => lockState(getSetting("focusLocks"), key),
+      clickLock: click,
+      allows: (v) => changeAllowed(getSetting("focusLocks"), key, Number(getSetting(key)), Number(v))
+    });
+  }
+  var saturation = {
+    get: () => {
+      const v = getSetting("saturation");
+      return typeof v === "number" ? v : 100;
     },
+    /* The highest level the slider may reach now: 100, or where it is while locked (it can only go grayer). */
+    max: () => lockState(getSetting("focusLocks"), "saturation") === "open" ? 100 : saturation.get(),
+    set: (v) => setSetting("saturation", parseInt(v, 10)),
+    flush: flushSaturation
+  };
+  var CONTROLS = {
+    saturation: lockable(saturation, "saturation", clickSaturationLock),
     showQuery: flag("showQueryOnDelay"),
     engine: choice("searchEngineBehavior", { "remember": "Remember last selected", "always-default": "Always reset to default" }),
     pills: choice("bookmarkPillBehavior", { "prefix": "When typing ./", "always": "Always", "never": "Never" }),
     theme,
-    scale: numberChoice("uiScale", SCALES, parseFloat),
-    limit: numberChoice("tabLimit", LIMITS, (v) => parseInt(v, 10)),
+    limit: lockable(numberChoice("tabLimit", LIMITS, (v) => parseInt(v, 10)), "tabLimit"),
     method: choice("managementMethod", { "random": "Close a random tab", "block": "Block the new tab" }),
-    delay: numberChoice("searchDelaySeconds", DELAYS, (v) => parseInt(v, 10))
+    delay: lockable(numberChoice("searchDelaySeconds", DELAYS, (v) => parseInt(v, 10)), "searchDelaySeconds")
   };
+  var lockControl = (key) => Object.values(CONTROLS).find((c) => c.lockKey === key);
   function labelOf(key) {
     const c = CONTROLS[key], v = c.get();
     if (!c.options) return String(v);
@@ -5891,7 +5872,24 @@
   var slider = (key, val, min = 0, max2 = 100) => `<div class="sp-slider-wrap"><input type="range" class="sp-slider" data-slider="${key}" min="${min}" max="${max2}" value="${val}"><span class="sp-slider-val">${val}%</span></div>`;
   var LOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
   var UNLOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.8-1"/></svg>';
-  var lockButton = (locked, countdown) => `<span class="sp-lockcount" data-lockcount>${locked ? countdown : ""}</span><button type="button" class="sp-lockbtn${locked ? " on" : ""}" data-action="saturation-lock" data-lockbtn aria-pressed="${locked}"${locked ? " disabled" : ""} aria-label="${locked ? "Locked: it cannot be undone early" : "Lock the slider for 30 minutes"}" title="${locked ? "Locked until the time is up" : "Lock it: you can go grayer but not back for 30 minutes"}">${locked ? LOCK_ICON : UNLOCK_ICON}</button>`;
+  var LOCK_LABEL = {
+    open: "Lock it: it can only get stricter until you unlock it",
+    held: "Locked. Click to start unlocking, which takes 30 minutes",
+    unlocking: "Unlocking. Click to keep it locked"
+  };
+  var lockButton = (key, state2, countdown) => `<span class="sp-lockcount" data-lockcount="${key}">${state2 === "unlocking" ? countdown : ""}</span><button type="button" class="sp-lockbtn${state2 === "held" ? " on" : state2 === "unlocking" ? " wait" : ""}" data-action="focus-lock" data-lock="${key}" data-icon="${state2 === "open" ? "open" : "shut"}" aria-pressed="${state2 !== "open"}" aria-label="${LOCK_LABEL[state2]}" title="${LOCK_LABEL[state2]}">${state2 === "open" ? UNLOCK_ICON : LOCK_ICON}</button>`;
+  function paintLockButton(btn, state2) {
+    btn.classList.toggle("on", state2 === "held");
+    btn.classList.toggle("wait", state2 === "unlocking");
+    btn.setAttribute("aria-pressed", String(state2 !== "open"));
+    btn.setAttribute("aria-label", LOCK_LABEL[state2]);
+    btn.title = LOCK_LABEL[state2];
+    const shape = state2 === "open" ? "open" : "shut";
+    if (btn.dataset.icon !== shape) {
+      btn.innerHTML = shape === "open" ? UNLOCK_ICON : LOCK_ICON;
+      btn.dataset.icon = shape;
+    }
+  }
   function modeThumb(id, checked, bg, panel, line) {
     return `
     <button class="sp-mode" role="radio" data-mode="${id}" aria-checked="${checked}" aria-label="${id}">
@@ -5903,121 +5901,7 @@
       </svg>
     </button>`;
   }
-  var scalePreview = (scale) => `<div class="sp-scale-preview" aria-hidden="true"><div class="sp-scale-sample" style="zoom:${scale}"><div class="sp-scale-bar">${svg(I.search)}<span>Search the web</span></div><div class="sp-scale-pills"><span>Notion</span><span>Gmail</span><span>Calendar</span></div></div></div>`;
   var saturationPreview = (sat) => `<div class="sp-sat-preview" aria-hidden="true"><img class="sp-sat-img" id="sp-sat-sample" src="src/assets/saturation-preview.jpg" alt="" style="filter:saturate(${sat}%);"></div>`;
-  var KEBAB = '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="10" cy="4.5" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="15.5" r="1.5"/></svg>';
-  var GRIP = '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="5" r="1.3"/><circle cx="12.5" cy="5" r="1.3"/><circle cx="7.5" cy="10" r="1.3"/><circle cx="12.5" cy="10" r="1.3"/><circle cx="7.5" cy="15" r="1.3"/><circle cx="12.5" cy="15" r="1.3"/></svg>';
-
-  // src/settings/pagesSection.js
-  var state = { confirming: null, dragging: null };
-  var esc2 = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  var pageById = (id) => activeTabs.find((t) => String(t.id) === String(id));
-  var indexOf = (id) => activeTabs.findIndex((t) => String(t.id) === String(id));
-  function pill(action, id, label, danger) {
-    return `<button class="sp-pill sm${danger ? " danger" : ""}" data-action="${action}" data-id="${esc2(id)}">${label}</button>`;
-  }
-  function controls(t) {
-    return `<button class="sp-kebab" data-action="page-menu" data-id="${esc2(t.id)}" aria-haspopup="menu" aria-label="More for ${esc2(t.label)}" title="More">${KEBAB}</button>`;
-  }
-  function openPageMenu(t, button2, rerender) {
-    if (!window.__atlasMenu) return;
-    const items = [{ label: "Edit", run: () => openAddPopup({ mode: "page", page: t, onSaved: rerender }) }];
-    if (t.type !== "search") items.push({ label: "Delete", run: () => {
-      state.confirming = String(t.id);
-      rerender();
-    } });
-    const r = button2.getBoundingClientRect();
-    window.__atlasMenu.open({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }, items);
-  }
-  function pageRow(t) {
-    const asking = state.confirming === String(t.id);
-    const ctrl = asking ? `<span class="pg-ask">Delete ${esc2(t.label)} and its bookmarks?</span><button class="sp-pill sm" data-action="page-delete-cancel">Cancel</button>` + pill("page-delete-go", t.id, "Delete", true) : controls(t);
-    const handle = t.type === "search" ? '<span class="pg-grip pg-grip--fixed" aria-hidden="true"></span>' : `<button class="pg-grip" draggable="true" data-action="page-drag" data-id="${esc2(t.id)}" aria-label="Move ${esc2(t.label)}: drag, or use the arrow keys" title="Drag to reorder">${GRIP}</button>`;
-    return `<div class="sp-row pg-row" data-page-id="${esc2(t.id)}">${handle}<div class="sp-row-text"><div class="sp-row-title">${esc2(displayName(t))}</div><div class="sp-row-desc">${esc2(cleanSubtitle(t.sub) || starterSubtitle(t))}</div></div><div class="sp-row-ctrl">${ctrl}</div></div>`;
-  }
-  function pagesPage() {
-    const list = activeTabs.map((t) => pageRow(t));
-    const add = `<div class="sp-row pg-addrow"><button class="sp-pill" data-action="page-add">+ Add page</button></div>`;
-    return section("", [card([...list, add])]) + `<p class="sp-row-desc pg-intro">Drag a page to change its place in the page switcher. Right-click a page in the switcher for the same edits.</p>`;
-  }
-  function pageAction(act, id, rerender, el3) {
-    if (act === "page-drag") return;
-    if (act === "page-add") {
-      openAddPopup({ mode: "page", onSaved: rerender });
-      return;
-    }
-    if (act === "page-delete-cancel") {
-      state.confirming = null;
-      rerender();
-      return;
-    }
-    const t = pageById(id);
-    if (!t) return;
-    if (act === "page-menu") {
-      state.confirming = null;
-      openPageMenu(t, el3, rerender);
-    } else if (act === "page-delete-go") {
-      state.confirming = null;
-      deletePage(t.id);
-      rerender();
-    }
-  }
-  function rowAt(e, content2) {
-    const row2 = e.target && e.target.closest && e.target.closest(".pg-row[data-page-id]");
-    return row2 && content2.contains(row2) ? row2 : null;
-  }
-  function clearDrop(content2) {
-    content2.querySelectorAll(".pg-drop").forEach((r) => r.classList.remove("pg-drop"));
-  }
-  function wirePagesSection(content2, rerender) {
-    content2.addEventListener("dragstart", (e) => {
-      const h = e.target.closest && e.target.closest('[data-action="page-drag"]');
-      if (!h) return;
-      state.dragging = h.dataset.id;
-      if (e.dataTransfer) {
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", h.dataset.id);
-      }
-    });
-    content2.addEventListener("dragover", (e) => {
-      const row2 = state.dragging !== null && rowAt(e, content2);
-      if (!row2) return;
-      e.preventDefault();
-      clearDrop(content2);
-      row2.classList.add("pg-drop");
-    });
-    content2.addEventListener("drop", (e) => {
-      const row2 = state.dragging !== null && rowAt(e, content2);
-      if (!row2) return;
-      e.preventDefault();
-      const page = pageById(state.dragging);
-      state.dragging = null;
-      clearDrop(content2);
-      if (page) {
-        movePageTo(page.id, indexOf(row2.dataset.pageId));
-        rerender();
-      }
-    });
-    content2.addEventListener("dragend", () => {
-      state.dragging = null;
-      clearDrop(content2);
-    });
-    content2.addEventListener("keydown", (e) => {
-      const h = e.target.closest && e.target.closest('[data-action="page-drag"]');
-      if (!h || e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-      e.preventDefault();
-      const page = pageById(h.dataset.id);
-      if (!page) return;
-      movePage(page.id, e.key === "ArrowUp" ? -1 : 1);
-      rerender();
-      const again = [...content2.querySelectorAll('[data-action="page-drag"]')].find((b) => b.dataset.id === String(page.id));
-      if (again) again.focus();
-    });
-  }
-  function resetPagesSection() {
-    state.confirming = null;
-    state.dragging = null;
-  }
 
   // src/utils/usageLog.js
   var DAY_MS = 24 * 60 * 60 * 1e3;
@@ -6082,38 +5966,38 @@
 
   // src/settings/usagePage.js
   var RANGES = [{ days: 1, label: "Today" }, { days: 7, label: "7 days" }, { days: 30, label: "30 days" }];
-  var esc3 = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  var esc2 = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   var SITES_SHOWN = 15;
-  var state2 = { store: null, loadedAt: 0, loading: false, range: 7, armed: false, watching: false };
+  var state = { store: null, loadedAt: 0, loading: false, range: 7, armed: false, watching: false };
   function redrawIfShowing() {
     const ui = window.AtlasSettingsUI;
     if (ui && ui.current() === "usage") ui.rerender();
   }
   function load() {
-    state2.loading = true;
+    state.loading = true;
     storageGet("local", ["atlas_usage"]).then((r) => {
-      state2.loading = false;
-      state2.loadedAt = Date.now();
+      state.loading = false;
+      state.loadedAt = Date.now();
       const next2 = r.atlas_usage || {};
-      if (JSON.stringify(next2) !== JSON.stringify(state2.store)) {
-        state2.store = next2;
+      if (JSON.stringify(next2) !== JSON.stringify(state.store)) {
+        state.store = next2;
         redrawIfShowing();
       }
     });
   }
   function watch() {
-    if (state2.watching || !window.chrome || !chrome.storage || !chrome.storage.onChanged) return;
-    state2.watching = true;
+    if (state.watching || !window.chrome || !chrome.storage || !chrome.storage.onChanged) return;
+    state.watching = true;
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "local" || !changes.atlas_usage) return;
-      state2.store = changes.atlas_usage.newValue || {};
+      state.store = changes.atlas_usage.newValue || {};
       redrawIfShowing();
     });
   }
   var pct = (x2) => `${Math.round(x2 * 100)}%`;
   var one = (x2) => (Math.round(x2 * 10) / 10).toString();
   function rangeRow() {
-    const buttons = RANGES.map((r) => `<button class="sp-seg-btn" data-action="usage-range" data-days="${r.days}" aria-pressed="${r.days === state2.range}">${r.label}</button>`).join("");
+    const buttons = RANGES.map((r) => `<button class="sp-seg-btn" data-action="usage-range" data-days="${r.days}" aria-pressed="${r.days === state.range}">${r.label}</button>`).join("");
     return row("Show", "", `<div class="sp-seg" role="group" aria-label="Time span">${buttons}</div>`);
   }
   function siteRows(sum) {
@@ -6124,37 +6008,37 @@
       const bits2 = [`hands on ${pct(d.handsOnShare)}`, `${s.pageViews} page view${s.pageViews === 1 ? "" : "s"}`, `${one(d.imagesPerMin)} images a minute`];
       if (d.mediaMs > 0) bits2.push(`${clock(d.mediaMs)} of video or audio`);
       const bar = `<span class="sp-usage-bar" aria-hidden="true"><i style="width:${Math.max(3, Math.round(s.visibleMs / most * 100))}%"></i></span>`;
-      return `<div class="sp-row sp-usage-site" tabindex="0"><div class="sp-row-text"><div class="sp-row-title">${esc3(s.host)}</div><div class="sp-row-desc">${bits2.join(" \xB7 ")}</div></div><div class="sp-row-ctrl">${bar}<span class="sp-usage-time">${clock(s.visibleMs)}</span></div></div>`;
+      return `<div class="sp-row sp-usage-site" tabindex="0"><div class="sp-row-text"><div class="sp-row-title">${esc2(s.host)}</div><div class="sp-row-desc">${bits2.join(" \xB7 ")}</div></div><div class="sp-row-ctrl">${bar}<span class="sp-usage-time">${clock(s.visibleMs)}</span></div></div>`;
     });
   }
   function clearRow() {
-    return state2.armed ? `<div class="sp-confirm"><div class="sp-row-desc">This erases every total on this computer. It cannot be undone.</div><div class="sp-confirm-btns"><button class="sp-pill danger" data-action="usage-clear-go">Clear</button><button class="sp-pill" data-action="usage-clear-cancel">Cancel</button></div></div>` : row("Clear usage data", "Erases the totals below on this computer", `<button class="sp-pill danger" data-action="usage-clear">Clear</button>`);
+    return state.armed ? `<div class="sp-confirm"><div class="sp-row-desc">This erases every total on this computer. It cannot be undone.</div><div class="sp-confirm-btns"><button class="sp-pill danger" data-action="usage-clear-go">Clear</button><button class="sp-pill" data-action="usage-clear-cancel">Cancel</button></div></div>` : row("Clear usage data", "Erases the totals below on this computer", `<button class="sp-pill danger" data-action="usage-clear">Clear</button>`);
   }
   function usagePage() {
     watch();
-    if (!state2.loading && Date.now() - state2.loadedAt > 5e3) load();
+    if (!state.loading && Date.now() - state.loadedAt > 5e3) load();
     const intro = row("Where your time goes", "Totals per site, saved on this computer only. Site names and numbers; never page addresses, titles, or what you type.", "");
-    if (state2.store === null) return section("", [card([intro, row("Loading\u2026", "", "")])]);
-    const sum = summarize(state2.store, { days: state2.range });
+    if (state.store === null) return section("", [card([intro, row("Loading\u2026", "", "")])]);
+    const sum = summarize(state.store, { days: state.range });
     const top = card([intro, rangeRow()]);
     const body = sum.sites.length ? section("By site", [card(siteRows(sum))]) + `<div class="sp-usage-hint">Move over a site, or Tab to it, to see how the time was spent.</div>` : section("", [card([row("Nothing recorded yet", "Open a few pages and come back; the totals fill in as you browse.", "")])]);
     return section("", [top]) + body + section("", [card([clearRow()])]);
   }
   function usageAction(act, el3, redraw) {
     if (act === "usage-range") {
-      state2.range = parseInt(el3.dataset.days, 10) || 7;
+      state.range = parseInt(el3.dataset.days, 10) || 7;
       redraw();
     } else if (act === "usage-clear") {
-      state2.armed = true;
+      state.armed = true;
       redraw();
     } else if (act === "usage-clear-cancel") {
-      state2.armed = false;
+      state.armed = false;
       redraw();
     } else if (act === "usage-clear-go") {
-      state2.armed = false;
+      state.armed = false;
       sendToBackground({ action: "clearUsage" }).then(() => {
-        state2.store = {};
-        state2.loadedAt = Date.now();
+        state.store = {};
+        state.loadedAt = Date.now();
         redraw();
       });
     }
@@ -6175,25 +6059,39 @@
     const mode = CONTROLS.theme.get();
     const thumbs = modeThumb("system", mode === "system") + modeThumb("light", mode === "light", "#fafafa", "#ececec", "#c9c9c9") + modeThumb("dark", mode === "dark", "#1c1c1c", "#2e2e2e", "#555");
     return section("Visual style", [
-      card([row("Theme", "", `<div class="sp-modes" role="radiogroup">${thumbs}</div>`)]),
-      card([row("UI scale", "Size of everything on the new tab", selectFor("scale")) + scalePreview(getSetting("uiScale"))])
+      card([row("Theme", "", `<div class="sp-modes" role="radiogroup">${thumbs}</div>`)])
     ]);
   }
-  var SATURATION_HELP = "Lock it to stop going back to color for 30 minutes.";
+  var LOCK_TEXT = {
+    tabLimit: { open: "Lock it to stop it going higher.", held: "Locked. It can go lower, but not higher." },
+    searchDelaySeconds: { open: "A pause before results. Lock it to stop it getting shorter.", held: "Locked. It can get longer, but not shorter." },
+    saturation: { open: "Lock it to stop going back to color.", held: "Locked. It can go grayer, but not back to color." }
+  };
+  var QUEUED = {
+    tabLimit: () => pendingIncreaseText(getSetting("pendingIncrease")),
+    searchDelaySeconds: () => pendingDecreaseText(getSetting("pendingDelayDecrease")),
+    saturation: () => ""
+  };
   var clockTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  var saturationNote = () => lockNote(getSetting("saturationLock"), clockTime) || SATURATION_HELP;
-  var lockCountdown = () => formatTimeCompact(lockSecondsLeft(getSetting("saturationLock")));
+  function lockNote(key) {
+    const locks = getSetting("focusLocks"), state2 = lockState(locks, key);
+    if (state2 === "unlocking") return `Unlocks at ${clockTime(unlockTime(locks, key))}. Click the lock to keep it locked.`;
+    return QUEUED[key]() || LOCK_TEXT[key][state2];
+  }
+  var lockCountdown = (key) => formatTimeCompact(unlockSecondsLeft(getSetting("focusLocks"), key));
+  var lockFor = (key) => {
+    const state2 = lockState(getSetting("focusLocks"), key);
+    return lockButton(key, state2, lockCountdown(key));
+  };
   function focusPage() {
-    const limitNote = pendingIncreaseText(getSetting("pendingIncrease")) || "Decreases apply now. Increases take 30 minutes.";
-    const delayNote = pendingDecreaseText(getSetting("pendingDelayDecrease")) || "A pause before results, to make searching deliberate. Increases apply now. Decreases take 30 minutes.";
     return section("Tab limiter", [card([
-      row("Tab limit", limitNote, selectFor("limit")),
+      row("Tab limit", lockNote("tabLimit"), selectFor("limit") + lockFor("tabLimit")),
       row("When the limit is hit", "", selectFor("method"))
     ])]) + section("Search delay", [card([
-      row("Delay", delayNote, selectFor("delay")),
+      row("Delay", lockNote("searchDelaySeconds"), selectFor("delay") + lockFor("searchDelaySeconds")),
       row("Show the search query", "While you wait", toggleFor("showQuery"))
     ])]) + section("Display", [card([
-      row("Color saturation", saturationNote(), slider("saturation", CONTROLS.saturation.get(), 0, 100) + lockButton(CONTROLS.saturation.locked(), lockCountdown())) + saturationPreview(CONTROLS.saturation.get())
+      row("Color saturation", lockNote("saturation"), slider("saturation", CONTROLS.saturation.get(), 0, 100) + lockFor("saturation")) + saturationPreview(CONTROLS.saturation.get())
     ])]);
   }
   function backupPage() {
@@ -6210,7 +6108,6 @@
     ])]);
   }
   var PAGES = {
-    pages: pagesPage,
     search: searchPage,
     appearance: appearancePage,
     focus: focusPage,
@@ -6221,7 +6118,6 @@
   var NAV = [
     { group: "General", items: [
       { id: "search", label: "Search", icon: I.search },
-      { id: "pages", label: "Pages", icon: I.pages },
       { id: "appearance", label: "Appearance", icon: I.sun },
       { id: "focus", label: "Focus", icon: I.focus },
       { id: "usage", label: "Usage", icon: I.chart }
@@ -6260,8 +6156,9 @@
     if (owner === btn) return closeMenu();
     owner = btn;
     const c = CONTROLS[btn.dataset.select], cur = String(c.get());
+    const off = (o) => !!c.allows && !c.allows(o.value);
     menu.innerHTML = c.options.map(
-      (o) => `<li class="sp-menu-item" role="menuitemradio" tabindex="-1" aria-checked="${String(o.value) === cur}" data-value="${o.value}"><span>${o.label}</span>${CHECK}</li>`
+      (o) => `<li class="sp-menu-item" role="menuitemradio" tabindex="-1" aria-checked="${String(o.value) === cur}"${off(o) ? ' aria-disabled="true"' : ""} data-value="${o.value}"><span>${o.label}</span>${CHECK}</li>`
     ).join("");
     const r = btn.getBoundingClientRect();
     menu.style.minWidth = Math.max(200, r.width) + "px";
@@ -6280,6 +6177,7 @@
   }
   var menuIsOpen = () => !!owner;
   function pick(li) {
+    if (li.getAttribute("aria-disabled") === "true") return;
     const btn = owner;
     btn.querySelector("span").textContent = li.textContent;
     closeMenu();
@@ -6340,24 +6238,22 @@
   var current = null;
   var currentArg = null;
   var $2 = (id) => document.getElementById(id);
-  var esc4 = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  var esc3 = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   var HIDDEN = {};
   function installSettingsPage() {
     if (root) return;
     root = buildRoot();
     navEl = $2("sp-nav");
     content = $2("sp-content");
-    keepUnzoomed();
     initMenu($2("sp-menu"), root.querySelector(".sp-main"));
     wireShell();
     wireContent();
-    wirePagesSection(content, () => renderPage());
     onSettingChange((key, value) => {
       if (typeof value === "number" && showSlider(key, value)) return;
-      if (key === "saturationLock" && showLock()) return;
+      if (key === "focusLocks" && showLocks()) return;
       rerenderSoon();
     });
-    setInterval(showLock, 1e3);
+    setInterval(showLocks, 1e3);
     publishApi();
   }
   var isSettingsOpen = () => !!root && !root.hidden;
@@ -6402,14 +6298,6 @@
     document.body.appendChild(el3);
     return el3;
   }
-  function keepUnzoomed() {
-    const unzoom = () => {
-      const z = parseFloat(document.body.style.zoom);
-      root.style.zoom = z && z !== 1 ? String(1 / z) : "";
-    };
-    unzoom();
-    new MutationObserver(unzoom).observe(document.body, { attributes: true, attributeFilter: ["style"] });
-  }
   function renderNav(filter = "") {
     const f = filter.trim().toLowerCase();
     navEl.innerHTML = NAV.map((g) => {
@@ -6426,9 +6314,9 @@
     closeMenu();
     const hidden = HIDDEN[current];
     const title = hidden ? hidden.title(currentArg) : navItem(current).label;
-    const back2 = hidden ? `<button class="sp-back-link" data-back="${hidden.parent}">${svg('<path d="M16 10H4m5-5-5 5 5 5"/>')}${esc4(navItem(hidden.parent).label)}</button>` : "";
+    const back2 = hidden ? `<button class="sp-back-link" data-back="${hidden.parent}">${svg('<path d="M16 10H4m5-5-5 5 5 5"/>')}${esc3(navItem(hidden.parent).label)}</button>` : "";
     const focusKey = focusedControl();
-    content.innerHTML = back2 + `<h1 class="sp-page-title">${esc4(title)}</h1>` + PAGES[current](currentArg);
+    content.innerHTML = back2 + `<h1 class="sp-page-title">${esc3(title)}</h1>` + PAGES[current](currentArg);
     if (focusKey) {
       const again = content.querySelector(`[${focusKey.attr}="${focusKey.value}"]`);
       if (again) again.focus();
@@ -6462,7 +6350,6 @@
     current = id;
     currentArg = arg;
     resetState.confirming = false;
-    resetPagesSection();
     render2();
   }
   function forgetSettingsUrl() {
@@ -6501,21 +6388,18 @@
     }
     return true;
   }
-  function showLock() {
-    const sl = content && content.querySelector('[data-slider="saturation"]');
-    if (!sl) return false;
-    const l = activeLock(getSetting("saturationLock"));
-    const desc = sl.closest(".sp-row") && sl.closest(".sp-row").querySelector(".sp-row-desc");
-    if (desc) desc.textContent = saturationNote();
-    const locked = !!l, btn = content.querySelector("[data-lockbtn]");
-    if (btn) {
-      btn.classList.toggle("on", locked);
-      btn.disabled = locked;
-      btn.setAttribute("aria-pressed", String(locked));
-      btn.innerHTML = locked ? LOCK_ICON : UNLOCK_ICON;
-    }
-    const count = content.querySelector("[data-lockcount]");
-    if (count) count.textContent = locked ? lockCountdown() : "";
+  function showLocks() {
+    const btns = content ? content.querySelectorAll("[data-lock]") : [];
+    if (!btns.length) return false;
+    btns.forEach((btn) => {
+      const key = btn.dataset.lock, state2 = lockState(getSetting("focusLocks"), key);
+      const desc = btn.closest(".sp-row") && btn.closest(".sp-row").querySelector(".sp-row-desc");
+      const note = lockNote(key);
+      if (desc && desc.textContent !== note) desc.textContent = note;
+      paintLockButton(btn, state2);
+      const count = content.querySelector(`[data-lockcount="${key}"]`);
+      if (count) count.textContent = state2 === "unlocking" ? lockCountdown(key) : "";
+    });
     return true;
   }
   function wireContent() {
@@ -6566,10 +6450,11 @@
     });
   }
   function runAction(act, el3) {
-    if (act.startsWith("page-")) pageAction(act, el3.dataset.id, renderPage, el3);
-    else if (act.startsWith("usage-")) usageAction(act, el3, renderPage);
-    else if (act === "saturation-lock") CONTROLS.saturation.lock();
-    else if (act === "export") exportBookmarks();
+    if (act.startsWith("usage-")) usageAction(act, el3, renderPage);
+    else if (act === "focus-lock") {
+      const c = lockControl(el3.dataset.lock);
+      if (c) c.clickLock();
+    } else if (act === "export") exportBookmarks();
     else if (act === "import") $2("import-file").click();
     else if (act === "reset-ask") {
       resetState.confirming = true;

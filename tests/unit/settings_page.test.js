@@ -1,5 +1,5 @@
 // The Settings page: every control saves at once, changes from other tabs show
-// up live, UI scale works, and switching profile does not reload the page.
+// up live, the UI scale and the Pages page are gone, and switching profile does not reload the page.
 "use strict";
 
 const test = require("node:test");
@@ -67,22 +67,28 @@ test("a change saved in another tab shows up live", async () => {
   assert.equal(slider.value, "100", "removed key = default (full color)");
 });
 
-test("UI scale applies, saves, and the first-paint cache matches storage", async () => {
-  const t = await openNewTab();
+test("Appearance has only Theme; a UI scale saved before is ignored, so every new tab is at 100%", async () => {
+  const t = await openNewTab({ sync: { uiScale: 1.25 } });
   const content = await openSettingsAt(t, "appearance");
-  assert.ok(content.querySelector(".sp-scale-sample"), "Settings shows a size sample");
-  await pick(t, "scale", "125%");
-  assert.equal(await stored(t, "uiScale"), 1.25);
-  assert.equal(t.document.body.style.zoom, "1.25", "the new tab is zoomed");
-  assert.equal(t.window.localStorage.getItem("_scaleCache"), "1.25");
-  assert.equal(t.document.getElementById("sp-root").style.zoom, "0.8", "Settings itself stays at 100%");
-  await waitFor(() => t.document.querySelector('.sp-scale-sample[style*="zoom:1.25"], .sp-scale-sample[style*="zoom: 1.25"]'), 2000, "sample at 125%");
+  assert.deepEqual([...content.querySelectorAll(".sp-row-title")].map(text), ["Theme"]);
+  assert.equal(content.querySelector('[data-select="scale"], .sp-scale-sample'), null, "no UI scale row or sample");
+  assert.equal(t.document.body.style.zoom, "", "the new tab is not zoomed");
+  assert.equal(t.document.getElementById("pre-scale"), null);
+  assert.equal(t.window.localStorage.getItem("_scaleCache"), null, "the first-paint copy is cleared");
+  assert.deepEqual(t.errors, []);
 });
 
-test("a stored UI scale is applied when a new tab opens", async () => {
-  const t = await openNewTab({ sync: { uiScale: 0.9 } });
-  assert.equal(t.document.body.style.zoom, "0.9");
-  assert.equal(t.window.localStorage.getItem("_scaleCache"), "0.9");
+test("Settings lists Profiles, Search, Appearance, Focus, Usage, then the data pages: Pages is gone", async () => {
+  const t = await openNewTab();
+  click(t.window, t.document.getElementById("global-settings-btn"));
+  await waitFor(() => t.document.querySelector('#sp-nav [data-page="profiles"]'), 2000, "Profiles in the list");
+  assert.deepEqual([...t.document.querySelectorAll("#sp-nav [data-page]")].map((b) => b.dataset.page),
+    ["profiles", "search", "appearance", "focus", "usage", "backup", "reset", "review"]);
+  await waitFor(() => text(t.document.querySelector("#sp-content .sp-page-title")) === "Profiles", 2000, "opens on Profiles");
+  const u = await openNewTab({ query: "?settings=pages" });
+  await waitFor(() => !u.document.getElementById("sp-root").hidden, 2000, "settings open from an old link");
+  assert.notEqual(text(u.document.querySelector("#sp-content .sp-page-title")), "Pages", "an old link to Pages opens Settings on another page");
+  assert.deepEqual(u.errors, []);
 });
 
 test("search, theme and focus choices each save at once", async () => {
@@ -113,27 +119,7 @@ test("search, theme and focus choices each save at once", async () => {
   assert.deepEqual(t.errors, []);
 });
 
-test("a lower tab limit applies now; a higher one waits 30 minutes", async () => {
-  const t = await openNewTab({ sync: { tabLimit: 6 } });
-  await openSettingsAt(t, "focus");
-  await pick(t, "limit", "3");
-  assert.equal(await stored(t, "tabLimit"), 3, "decrease is immediate");
-  await pick(t, "limit", "8");
-  assert.equal(await stored(t, "tabLimit"), 3, "increase does not apply yet");
-  assert.equal((await stored(t, "pendingIncrease")).targetLimit, 8);
-  await waitFor(() => /Queued: 8 in 30m|Queued: 8 in 29m/.test(text(t.document.getElementById("sp-content"))), 2000, "queued note");
-});
-
-test("a longer search delay applies now; a shorter one waits", async () => {
-  const t = await openNewTab();
-  await openSettingsAt(t, "focus");
-  await pick(t, "delay", "30 seconds");
-  assert.equal(await stored(t, "searchDelaySeconds"), 30);
-  await pick(t, "delay", "15 seconds");
-  assert.equal(await stored(t, "searchDelaySeconds"), 30, "decrease does not apply yet");
-  assert.equal((await stored(t, "pendingDelayDecrease")).targetDelay, 15);
-  await waitFor(() => /Queued: 15s in/.test(text(t.document.getElementById("sp-content"))), 2000, "queued note");
-});
+/* The tab limit, the delay and the color lock: settings_focus_locks.test.js. */
 
 test("Escape closes Settings, and ?settings=focus opens it on Focus", async () => {
   const t = await openNewTab();
@@ -220,65 +206,6 @@ test("dragging a slider keeps the same slider under the cursor", async () => {
   assert.equal(await stored(t, "saturation"), 40, "saved");
   assert.ok(content.contains(slider), "still the same slider after the save and the lock came back");
   assert.deepEqual(t.errors, []);
-});
-
-const drag = async (t, slider, v) => {
-  slider.value = String(v);
-  slider.dispatchEvent(new t.window.Event("input", { bubbles: true }));
-  slider.dispatchEvent(new t.window.Event("change", { bubbles: true }));
-  await settle(t.window, 80);
-};
-
-test("nothing locks by itself; pressing the lock holds the level so it can go grayer but not back", async () => {
-  const t = await openNewTab();
-  const content = await openSettingsAt(t, "focus");
-  const slider = content.querySelector('[data-slider="saturation"]');
-  const btn = content.querySelector("[data-lockbtn]");
-  assert.equal(content.querySelector("[data-lockzone], .sp-lockzone"), null, "no stripes or lock drawn on the slider");
-  assert.match(text(content), /Lock it to stop going back to color for 30 minutes\./);
-  await drag(t, slider, 40);
-  assert.equal(await stored(t, "saturation"), 40);
-  assert.ok(!(await stored(t, "saturationLock")), "dragging does not lock anything");
-  await drag(t, slider, 70);
-  assert.equal(await stored(t, "saturation"), 70, "it moves freely both ways");
-  await drag(t, slider, 40);
-
-  click(t.window, btn);
-  await settle(t.window, 80);
-  const lock = await stored(t, "saturationLock");
-  assert.deepEqual([lock.ceiling, lock.manual], [40, true]);
-  assert.ok(Math.abs(lock.until - Date.now() - 30 * 60 * 1000) < 5000, "30 minutes from the press");
-  assert.ok(btn.classList.contains("on") && btn.disabled, "the lock is closed, and cannot be pressed off");
-  assert.match(text(content.querySelector("[data-lockcount]")), /^(30:00|29:5\d)$/);
-  assert.match(text(content), /Locked\. You can go grayer, but not back above 40% until /);
-
-  await drag(t, slider, 70);                       // back up: the thumb stops at the lock
-  assert.equal(slider.value, "40");
-  assert.equal(await stored(t, "saturation"), 40);
-  await drag(t, slider, 25);                       // grayer: allowed, and the ceiling follows
-  assert.equal(await stored(t, "saturation"), 25);
-  const lower = await stored(t, "saturationLock");
-  assert.equal(lower.ceiling, 25);
-  assert.equal(lower.until, lock.until, "the 30 minutes were not restarted");
-  assert.ok(content.contains(slider) && content.contains(btn), "nothing was replaced");
-
-  await t.chrome.storage.sync.set({ saturationLock: { ceiling: 25, until: Date.now() - 1000, manual: true } });   // the time is up
-  await settle(t.window, 1100);
-  assert.ok(!btn.classList.contains("on") && !btn.disabled, "the lock is open again");
-  assert.match(text(content), /Lock it to stop going back to color/);
-  await drag(t, slider, 100);
-  assert.equal(await stored(t, "saturation"), 100, "full color again once the lock is over");
-  assert.deepEqual(t.errors, []);
-});
-
-test("an automatic lock saved by the earlier version does not hold, and is cleared", async () => {
-  const t = await openNewTab({ sync: { saturation: 40, saturationLock: { ceiling: 40, until: Date.now() + 20 * 60 * 1000 } } });
-  const content = await openSettingsAt(t, "focus");
-  const slider = content.querySelector('[data-slider="saturation"]');
-  assert.ok(!content.querySelector("[data-lockbtn]").disabled);
-  await drag(t, slider, 80);
-  assert.equal(await stored(t, "saturation"), 80);
-  assert.equal(await stored(t, "saturationLock"), null, "the old lock is gone");
 });
 
 test("the Grayscale switch is gone from Focus", async () => {

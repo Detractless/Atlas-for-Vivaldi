@@ -96,7 +96,7 @@ test("an unshared category is per profile and swaps on switch", async () => {
 });
 
 test("a new profile starts with defaults for unshared categories", async () => {
-  const { AP, areas } = boot({ sync: { tabLimit: 3, managementMethod: "block", uiScale: 1.25 } });
+  const { AP, areas } = boot({ sync: { tabLimit: 3, managementMethod: "block", fadeInEnabled: false } });
   await AP.ready;
   await AP.setShare("focus", false);
   await AP.setShare("appearance", false);
@@ -104,12 +104,10 @@ test("a new profile starts with defaults for unshared categories", async () => {
   await AP.switchTo(p.id);
   assert.equal(areas.sync.tabLimit, undefined);
   assert.equal(areas.sync.managementMethod, undefined);
-  assert.equal(areas.sync.uiScale, undefined);
-  assert.equal(areas.local.__atlas_localstorage__._scaleCache, "1");
+  assert.equal(areas.sync.fadeInEnabled, undefined);
   await AP.switchTo("personal");
   assert.equal(areas.sync.tabLimit, 3);
-  assert.equal(areas.sync.uiScale, 1.25);
-  assert.equal(areas.local.__atlas_localstorage__._scaleCache, "1.25");
+  assert.equal(areas.sync.fadeInEnabled, false);
 });
 
 test("turning sharing back on keeps the current profile's values", async () => {

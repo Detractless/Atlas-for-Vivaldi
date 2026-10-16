@@ -1,9 +1,10 @@
 import { BookmarkDB } from './bookmarksDB.js';
 import { pruneOrphanedPages } from './orphanCleanup.js';
 import { BACKUP_SYNC_KEYS } from '../constants/storageKeys.js';
-import { storageSet } from './storage.js';
+import { storageGet, storageSet } from './storage.js';
 import { warn } from './log.js';
 import { legacySaturation } from '../utils/saturationLock.js';
+import { LOCKABLE, withoutLoosening } from '../utils/focusLock.js';
 
 // Atlas: restore the backup's profiles first, then the usual import fills the active one.
 export async function persistImportData(importData) {
@@ -67,7 +68,10 @@ async function settingsFromImport(importData) {
   }
   if (storageData.customSearchEngines) await moveEngineIconsToDb(storageData.customSearchEngines);
   if (storageData.Theme) storageData.Theme = await themeWithBackgroundInDb(storageData.Theme);
-  return storageData;
+  // A locked Focus setting (utils/focusLock.js) keeps its value unless the backup's is stricter: importing a file
+  // must not undo a lock.
+  const live = await storageGet('sync', ['focusLocks', ...LOCKABLE]);
+  return withoutLoosening(storageData, live, live.focusLocks);
 }
 
 // Legacy backups stored base64 icons directly in the customSearchEngines object.

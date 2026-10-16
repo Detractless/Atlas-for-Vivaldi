@@ -36,11 +36,28 @@ export const slider = (key, val, min = 0, max = 100) =>
 
 export const LOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
 export const UNLOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.8-1"/></svg>';
-/** The lock at the right end of the slider's row: open and pressable, or closed with the time left beside it. */
-export const lockButton = (locked, countdown) =>
-  `<span class="sp-lockcount" data-lockcount>${locked ? countdown : ""}</span>` +
-  `<button type="button" class="sp-lockbtn${locked ? " on" : ""}" data-action="saturation-lock" data-lockbtn aria-pressed="${locked}"${locked ? " disabled" : ""} ` +
-  `aria-label="${locked ? "Locked: it cannot be undone early" : "Lock the slider for 30 minutes"}" title="${locked ? "Locked until the time is up" : "Lock it: you can go grayer but not back for 30 minutes"}">${locked ? LOCK_ICON : UNLOCK_ICON}</button>`;
+/* What the lock button says in each state of utils/focusLock.js. */
+const LOCK_LABEL = {
+  open: "Lock it: it can only get stricter until you unlock it",
+  held: "Locked. Click to start unlocking, which takes 30 minutes",
+  unlocking: "Unlocking. Click to keep it locked",
+};
+/** The lock at the right end of a Focus row (`key`: tabLimit, searchDelaySeconds or saturation): open, locked
+    (dark), or unlocking, with the time left beside it. Every state can be clicked. */
+export const lockButton = (key, state, countdown) =>
+  `<span class="sp-lockcount" data-lockcount="${key}">${state === "unlocking" ? countdown : ""}</span>` +
+  `<button type="button" class="sp-lockbtn${state === "held" ? " on" : state === "unlocking" ? " wait" : ""}" data-action="focus-lock" data-lock="${key}" ` +
+  `data-icon="${state === "open" ? "open" : "shut"}" aria-pressed="${state !== "open"}" aria-label="${LOCK_LABEL[state]}" title="${LOCK_LABEL[state]}">${state === "open" ? UNLOCK_ICON : LOCK_ICON}</button>`;
+/** The same button brought up to date in place, so a keyboard focus on it survives the countdown. */
+export function paintLockButton(btn, state) {
+  btn.classList.toggle("on", state === "held");
+  btn.classList.toggle("wait", state === "unlocking");
+  btn.setAttribute("aria-pressed", String(state !== "open"));
+  btn.setAttribute("aria-label", LOCK_LABEL[state]);
+  btn.title = LOCK_LABEL[state];
+  const shape = state === "open" ? "open" : "shut";
+  if (btn.dataset.icon !== shape) { btn.innerHTML = shape === "open" ? UNLOCK_ICON : LOCK_ICON; btn.dataset.icon = shape; }
+}
 /** A small picture of the page in one theme, used as a radio button. */
 export function modeThumb(id, checked, bg, panel, line) {
   return `
@@ -56,17 +73,6 @@ export function modeThumb(id, checked, bg, panel, line) {
     </button>`;
 }
 
-export const scalePreview = (scale) =>
-  `<div class="sp-scale-preview" aria-hidden="true"><div class="sp-scale-sample" style="zoom:${scale}">` +
-  `<div class="sp-scale-bar">${svg(I.search)}<span>Search the web</span></div>` +
-  `<div class="sp-scale-pills"><span>Notion</span><span>Gmail</span><span>Calendar</span></div></div></div>`;
-
 /** Live saturation preview showing a colorful fruit image that desaturates as the slider moves. */
 export const saturationPreview = (sat) =>
   `<div class="sp-sat-preview" aria-hidden="true"><img class="sp-sat-img" id="sp-sat-sample" src="src/assets/saturation-preview.jpg" alt="" style="filter:saturate(${sat}%);"></div>`;
-
-/** The ⋮ ("more") button's icon, and the drag handle's. */
-export const KEBAB =
-  '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="10" cy="4.5" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="15.5" r="1.5"/></svg>';
-export const GRIP =
-  '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="5" r="1.3"/><circle cx="12.5" cy="5" r="1.3"/><circle cx="7.5" cy="10" r="1.3"/><circle cx="12.5" cy="10" r="1.3"/><circle cx="7.5" cy="15" r="1.3"/><circle cx="12.5" cy="15" r="1.3"/></svg>';

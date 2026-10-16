@@ -199,29 +199,6 @@ test("Page and Group are drop-downs; a page with many groups shows five and scro
   }
 });
 
-test("the Add page flow makes a page with its subtitle and opens it; a bad subtitle is refused", async () => {
-  const t = await openNewTab();
-  const p = await openAdd(t, "page");
-  assert.equal(p.dataset.kind, "page");
-  assert.equal(titleOf(p), "What is the page called?");
-  assert.ok(!field(p, "sub"), "the subtitle is the next screen");
-  setField(t, p, "pageName", "Gym");
-  await next(t, p);
-  assert.equal(titleOf(p), "Give it a short subtitle");
-  setField(t, p, "sub", "Lifting");
-  assert.match(text(p.querySelector("[data-count]")), /1 of 3-5 words/);
-  await save(t, p, { waitClosed: false });
-  await settle(t.window, 100);
-  assert.match(errorFor(p, "sub"), /at least 3 words/);
-  assert.equal(plain((await t.chrome.storage.sync.get(["activeTabs"])).activeTabs).length, 3, "no page yet");
-  setField(t, p, "sub", "Workouts and meal plans");
-  await save(t, p);
-  const pages = plain((await t.chrome.storage.sync.get(["activeTabs"])).activeTabs);
-  assert.deepEqual([pages.length, pages[3].label, pages[3].sub], [4, "Gym", "Workouts and meal plans"]);
-  assert.equal(text(t.document.querySelector(".switcher-label")), "Gym", "the new page opens");
-  assert.deepEqual(t.errors, []);
-});
-
 test("Cancel, Escape and the backdrop all close it without saving", async () => {
   const t = await openNewTab();
   const before = JSON.stringify(plain(await t.chrome.storage.sync.get(["activeTabs"])));

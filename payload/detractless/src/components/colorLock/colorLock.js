@@ -1,9 +1,10 @@
 // Saving the color slider. Moves come in fast while dragging, so they are saved in short steps
 // (chrome.storage.sync allows only about 120 writes a minute), and the last one always lands.
-// What a move does is decided by utils/saturationLock.js: it applies, unless you have locked the
-// slider, when going grayer still applies and going back toward color waits for the lock to end.
+// What a move does is decided by utils/saturationLock.js: it applies, unless the slider is locked
+// (utils/focusLock.js), when going grayer still applies and going back toward color is refused.
 import { storageGet, storageSet } from '../../services/storage.js';
-import { planChange, activeLock, startLock } from '../../utils/saturationLock.js';
+import { planChange } from '../../utils/saturationLock.js';
+import { clickFocusLock } from '../../services/focusLocks.js';
 
 const STEP_MS = 250;
 let want = null;
@@ -37,33 +38,24 @@ export function flushSaturation() {
     .then(() => done.forEach((resolve) => resolve()));
 }
 
-/** Press the lock: from now on, for 30 minutes, the level can go down but not back up. */
-export function lockSaturation() {
+/** Click the slider's lock (lock it, start unlocking, or keep it locked), after saving where the slider is. */
+export function clickSaturationLock() {
   clearTimeout(timer);
   const done = waiting;
   waiting = [];
-  return enqueue(async () => { await saveWanted(); return lockNow(); })
+  return enqueue(async () => { await saveWanted(); return clickFocusLock('saturation'); })
     .finally(() => done.forEach((resolve) => resolve()));
-}
-
-async function lockNow() {
-  const stored = await storageGet('sync', ['saturation', 'saturationLock']);
-  if (activeLock(stored.saturationLock)) return false;   // already locked: it cannot be pressed again
-  const level = typeof stored.saturation === 'number' ? stored.saturation : 100;
-  await storageSet('sync', { saturationLock: startLock(level) });
-  return true;
 }
 
 async function saveWanted() {
   if (want === null) return;
   const target = want;
   want = null;
-  const stored = await storageGet('sync', ['saturation', 'saturationLock']);
+  const stored = await storageGet('sync', ['saturation', 'focusLocks']);
   const plan = planChange({
     current: typeof stored.saturation === 'number' ? stored.saturation : 100,
-    lock: stored.saturationLock,
+    locks: stored.focusLocks,
     target,
   });
-  if (plan.changed) await storageSet('sync', { saturation: plan.saturation, saturationLock: plan.lock });
-  else if (stored.saturationLock && !activeLock(stored.saturationLock)) await storageSet('sync', { saturationLock: null });   // an old or finished lock: cleared
+  if (plan.changed) await storageSet('sync', { saturation: plan.saturation });
 }

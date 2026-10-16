@@ -3,18 +3,16 @@
 // other tabs are the registry's (settings/registry.js).
 import { defineSetting } from './registry.js';
 import { DEFAULT_THEME } from '../constants/defaults.js';
-import { BookmarkDB } from '../services/bookmarksDB.js';
 import {
   setSpotlightVisible, setSearchEngineBehavior, setBookmarkPillBehavior, setFadeInEnabled,
   setAppThemeConfig, setSearchDelaySeconds,
 } from '../pages/newtab/newtabState.js';
-import { applySpotlightVisibility, applyFadeIn, applyScale } from '../pages/newtab/displayEffects.js';
+import { applySpotlightVisibility, applyFadeIn } from '../pages/newtab/displayEffects.js';
 import { requestSaturation } from '../components/colorLock/colorLock.js';
 import { applyThemeConfig } from '../pages/newtab/theme.js';
 import { updateCurrentEngine } from '../components/engines/enginesUI.js';
 import { requestTabLimit } from '../components/tabLimiter/tabLimiterUI.js';
 import { requestSearchDelay } from '../components/searchDelay/searchDelay.js';
-import { warn } from '../services/log.js';
 
 let defined = false;
 
@@ -45,14 +43,7 @@ export function defineAllSettings() {
     key: 'Theme',
     apply: (v) => { setAppThemeConfig(v || DEFAULT_THEME); applyThemeConfig(v || DEFAULT_THEME); },
   });
-  defineSetting({
-    key: 'uiScale',
-    apply: (v, { local }) => {
-      applyScale(v);
-      // preinit.js falls back to this IndexedDB copy when its cache is empty.
-      if (local) BookmarkDB.setUiPref('uiScale', v).catch((e) => warn('saving the UI scale for first paint failed', e));
-    },
-  });
+  // The UI scale stood here. Nothing on the page is meant to scale any more, so it is gone; a saved one is ignored.
   defineSetting({ key: 'fadeInEnabled', apply: (v) => { setFadeInEnabled(v); applyFadeIn(); } });
 
   // ── Focus ──
@@ -63,5 +54,6 @@ export function defineAllSettings() {
   defineSetting({ key: 'pendingDelayDecrease' });
   defineSetting({ key: 'showQueryOnDelay' });
   defineSetting({ key: 'saturation', write: requestSaturation });
-  defineSetting({ key: 'saturationLock' });
+  // The locks beside the tab limit, the delay and the color slider (utils/focusLock.js).
+  defineSetting({ key: 'focusLocks' });
 }

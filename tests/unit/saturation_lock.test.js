@@ -1,5 +1,6 @@
-// The color slider's rules (utils/saturationLock.js), the fold of the old Grayscale switch into it
+// The color slider's rules (utils/saturationLock.js), the folds of old settings into it
 // (background/saturationMigration.js), and the Never setting for bookmark pills (utils/pillSelection.js).
+// The lock itself is shared with the tab limit and the delay: focus_lock.test.js.
 // These source files are ES modules, so each is bundled to CommonJS here and run as plain code.
 "use strict";
 
@@ -16,42 +17,36 @@ function load(rel) {
   return m.exports;
 }
 
-const { planChange, activeLock, lockedMax, clampSaturation, legacySaturation, lockNote, lockSecondsLeft, startLock, LOCK_MS } = load("utils/saturationLock.js");
+const { planChange, clampSaturation, legacySaturation } = load("utils/saturationLock.js");
 const NOW = 1_800_000_000_000;
-const lockAt40 = { ceiling: 40, until: NOW + 10 * 60 * 1000, manual: true };
+const locked = { saturation: { unlockAt: null } };
 
-test("without a lock the slider moves freely, both ways, and nothing locks by itself", () => {
-  assert.deepEqual(planChange({ current: 100, lock: null, target: 40, now: NOW }), { saturation: 40, lock: null, changed: true });
-  assert.deepEqual(planChange({ current: 40, lock: null, target: 90, now: NOW }), { saturation: 90, lock: null, changed: true });
-  assert.deepEqual(planChange({ current: 40, lock: null, target: 40, now: NOW }), { saturation: 40, lock: null, changed: false });
+/** A chrome.storage.sync stand-in holding `data`. */
+function fakeSync(data) {
+  const area = {
+    get: (keys, cb) => { const out = {}; for (const k of [].concat(keys)) if (k in data) out[k] = data[k]; cb(out); },
+    set: (items, cb) => { Object.assign(data, items); cb(); },
+    remove: (keys, cb) => { for (const k of [].concat(keys)) delete data[k]; cb(); },
+  };
+  globalThis.chrome = { storage: { sync: area }, runtime: {} };
+}
+
+test("without a lock the slider moves freely, both ways", () => {
+  assert.deepEqual(planChange({ current: 100, locks: null, target: 40, now: NOW }), { saturation: 40, changed: true });
+  assert.deepEqual(planChange({ current: 40, locks: {}, target: 90, now: NOW }), { saturation: 90, changed: true });
+  assert.deepEqual(planChange({ current: 40, locks: null, target: 40, now: NOW }), { saturation: 40, changed: false });
 });
 
-test("pressing the lock holds the level for 30 minutes", () => {
-  assert.deepEqual(startLock(40, NOW), { ceiling: 40, until: NOW + LOCK_MS, manual: true });
-  assert.equal(LOCK_MS, 30 * 60 * 1000);
-  assert.equal(lockedMax(lockAt40, NOW), 40);
-  assert.equal(lockedMax(null, NOW), 100);
+test("while locked: going grayer works, more color is refused, however long it has been locked", () => {
+  assert.deepEqual(planChange({ current: 40, locks: locked, target: 25, now: NOW }), { saturation: 25, changed: true });
+  assert.deepEqual(planChange({ current: 25, locks: locked, target: 35, now: NOW }), { saturation: 25, changed: false }, "not even back up to where it was");
+  assert.deepEqual(planChange({ current: 40, locks: locked, target: 70, now: NOW + 365 * 864e5 }), { saturation: 40, changed: false }, "a year later: still locked");
 });
 
-test("while locked: going grayer works and lowers the ceiling, more color is refused, the time left stays", () => {
-  const grayer = planChange({ current: 40, lock: lockAt40, target: 25, now: NOW });
-  assert.deepEqual(grayer, { saturation: 25, lock: { ceiling: 25, until: lockAt40.until, manual: true }, changed: true }, "same end time");
-  assert.deepEqual(planChange({ current: 40, lock: lockAt40, target: 70, now: NOW }), { saturation: 40, lock: lockAt40, changed: false });
-  assert.deepEqual(planChange({ current: 25, lock: grayer.lock, target: 35, now: NOW }), { saturation: 25, lock: grayer.lock, changed: false }, "not even back up to where it was");
-  assert.deepEqual(planChange({ current: 40, lock: lockAt40, target: 40, now: NOW }), { saturation: 40, lock: lockAt40, changed: false });
-});
-
-test("when the 30 minutes are up it frees itself", () => {
-  const later = NOW + 11 * 60 * 1000;
-  assert.equal(activeLock(lockAt40, later), null);
-  assert.deepEqual(planChange({ current: 40, lock: lockAt40, target: 90, now: later }), { saturation: 90, lock: null, changed: true });
-  assert.equal(lockedMax(lockAt40, later), 100);
-});
-
-test("an automatic lock from before (not pressed by hand) no longer holds", () => {
-  const old = { ceiling: 40, until: NOW + 10 * 60 * 1000 };
-  assert.equal(activeLock(old, NOW), null);
-  assert.deepEqual(planChange({ current: 40, lock: old, target: 80, now: NOW }), { saturation: 80, lock: null, changed: true });
+test("while unlocking it still holds; when the 30 minutes are up it moves freely again", () => {
+  const unlocking = { saturation: { unlockAt: NOW + 60 * 1000 } };
+  assert.deepEqual(planChange({ current: 40, locks: unlocking, target: 70, now: NOW }), { saturation: 40, changed: false });
+  assert.deepEqual(planChange({ current: 40, locks: unlocking, target: 70, now: NOW + 61 * 1000 }), { saturation: 70, changed: true });
 });
 
 test("levels stay between 0 and 100; nonsense means full color", () => {
@@ -59,17 +54,6 @@ test("levels stay between 0 and 100; nonsense means full color", () => {
   assert.equal(clampSaturation(140), 100);
   assert.equal(clampSaturation("55"), 55);
   assert.equal(clampSaturation("x"), 100);
-  assert.equal(activeLock({ ceiling: "x", until: NOW + 1000 }, NOW), null, "a damaged lock does not lock");
-  assert.equal(activeLock("nope", NOW), null);
-});
-
-test("the note says until when the lock holds, and the seconds left", () => {
-  const fmt = (ms) => (ms === lockAt40.until ? "4:42 pm" : "?");
-  assert.equal(lockNote(lockAt40, fmt, NOW), "Locked. You can go grayer, but not back above 40% until 4:42 pm.");
-  assert.equal(lockNote(null, fmt, NOW), "");
-  assert.equal(lockNote({ ceiling: 40, until: NOW - 1, manual: true }, fmt, NOW), "");
-  assert.equal(lockSecondsLeft(lockAt40, NOW), 600);
-  assert.equal(lockSecondsLeft(null, NOW), 0);
 });
 
 test("settings from before the slider: the level that was showing is kept", () => {
@@ -82,12 +66,7 @@ test("settings from before the slider: the level that was showing is kept", () =
 
 test("the service worker folds the old Grayscale switch into the slider once, then drops it", async () => {
   const data = { grayscale: true, saturation: 30 };
-  const area = {
-    get: (keys, cb) => { const out = {}; for (const k of [].concat(keys)) if (k in data) out[k] = data[k]; cb(out); },
-    set: (items, cb) => { Object.assign(data, items); cb(); },
-    remove: (keys, cb) => { for (const k of [].concat(keys)) delete data[k]; cb(); },
-  };
-  globalThis.chrome = { storage: { sync: area }, runtime: {} };
+  fakeSync(data);
   const { migrateGrayscale } = load("background/saturationMigration.js");
   await migrateGrayscale();
   assert.deepEqual(data, { saturation: 30 });
@@ -96,6 +75,23 @@ test("the service worker folds the old Grayscale switch into the slider once, th
   assert.deepEqual(data, { saturation: 100 }, "switch off became full color");
   await migrateGrayscale();
   assert.deepEqual(data, { saturation: 100 }, "nothing left to fold: nothing changes");
+  delete globalThis.chrome;
+});
+
+test("a color lock running when you update becomes a Focus lock that unlocks when it would have ended", async () => {
+  const until = Date.now() + 10 * 60 * 1000;
+  const data = { saturation: 40, saturationLock: { ceiling: 40, until, manual: true }, focusLocks: { searchDelaySeconds: { unlockAt: null } } };
+  fakeSync(data);
+  const { migrateSaturationLock } = load("background/saturationMigration.js");
+  await migrateSaturationLock();
+  assert.deepEqual(data, { saturation: 40, focusLocks: { searchDelaySeconds: { unlockAt: null }, saturation: { unlockAt: until } } }, "the other locks are kept");
+  data.saturationLock = { ceiling: 40, until: Date.now() - 1, manual: true };
+  await migrateSaturationLock();
+  assert.equal("saturationLock" in data, false, "a finished one is just removed");
+  data.saturationLock = null;
+  await migrateSaturationLock();
+  assert.equal("saturationLock" in data, false, "so is an empty one");
+  assert.deepEqual(data.focusLocks.saturation, { unlockAt: until }, "and nothing else changes");
   delete globalThis.chrome;
 });
 

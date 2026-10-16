@@ -86,7 +86,17 @@ function abRender() {
   ab.card.innerHTML = s.body + '<div class="atlas-adderror" data-ab-error role="alert"></div>';
   abUpdateCount();
   var input = ab.field.querySelector('input');
-  setTimeout(function () { if (input && ab) { input.focus(); if (ab.kind === 'edit' && !input.readOnly && input.select) input.select(); } }, 0);
+  setTimeout(function () { if (input && ab) abFocusField(input); }, 0);
+}
+
+/* A field that was just rebuilt with text in it gets the cursor at its start, so typing went in front of the
+   name and Backspace deleted nothing. Edit screens select the text to replace it; every other screen puts the
+   cursor after it. */
+function abFocusField(input) {
+  input.focus();
+  if (input.readOnly || !input.value) return;
+  if (ab.kind === 'edit' && input.select) input.select();
+  else if (input.setSelectionRange) input.setSelectionRange(input.value.length, input.value.length);
 }
 
 function abPaintPills() {

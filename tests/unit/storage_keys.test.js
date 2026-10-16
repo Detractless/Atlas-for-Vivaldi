@@ -85,7 +85,7 @@ test("profile categories in profilesCore.js match the list's profile fields", ()
 });
 
 test("plain scripts use the listed database name", () => {
-  for (const rel of ["pages/newtab/preinit.js", "pages/shared/themePreinit.js"]) {
+  for (const rel of ["pages/shared/themePreinit.js"]) {   // preinit.js no longer opens the database (the UI scale is gone)
     const text = fs.readFileSync(path.join(SRC, rel), "utf8");
     const opened = [...text.matchAll(/indexedDB\.open\('([^']+)'/g)].map((m) => m[1]);
     assert.deepEqual(opened, [KEYS.databases.bookmarks], rel);

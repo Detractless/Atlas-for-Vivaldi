@@ -7,16 +7,10 @@ const text = (el) => (el ? el.textContent.replace(/\s+/g, " ").trim() : "");
 const field = (p, name) => p.querySelector(`[data-field="${name}"]`);
 const titleOf = (p) => text(p.querySelector("[data-title]"));
 
-/** The + button on the new tab opens the bookmark flow; Settings > Pages > Add page opens the page flow.
-    (The profile menu's Add bookmark and Add page open in the address bar instead.) */
-async function openAdd(t, mode) {
-  if (mode === "page") {
-    click(t.window, t.document.getElementById("global-settings-btn"));
-    click(t.window, await waitFor(() => t.document.querySelector('#sp-nav [data-page="pages"]'), 2000, "Pages in the menu"));
-    click(t.window, await waitFor(() => t.document.querySelector('#sp-content [data-action="page-add"]'), 2000, "Add page"));
-  } else {
-    click(t.window, t.document.getElementById("global-add-btn"));
-  }
+/** The + button on the new tab opens the bookmark flow. Pages are added in the address bar (the profile menu's
+    Add > Add page; addbarHarness.js drives that), so the popup's Page mode has no button any more. */
+async function openAdd(t) {
+  click(t.window, t.document.getElementById("global-add-btn"));
   return waitFor(() => t.document.querySelector(".add-popup"), 2000, "add popup");
 }
 

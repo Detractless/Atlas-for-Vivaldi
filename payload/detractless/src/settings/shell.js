@@ -1,15 +1,14 @@
 // src/settings/shell.js — the full-page Settings UI: sidebar, page content,
 // opening and closing. Every control saves the moment it changes (registry.js),
 // so there is no Save button and nothing to discard: "Back to dashboard" closes.
-import { PAGES, NAV, REVIEW_URL, resetState, saturationNote, lockCountdown } from './pages.js';
-import { activeLock } from '../utils/saturationLock.js';
-import { CONTROLS } from './controls.js';
+import { PAGES, NAV, REVIEW_URL, resetState, lockNote, lockCountdown } from './pages.js';
+import { lockState } from '../utils/focusLock.js';
+import { CONTROLS, lockControl } from './controls.js';
 import { onSettingChange, getSetting } from './registry.js';
-import { I, svg, row, card, section, LOCK_ICON as LOCKED_ICON, UNLOCK_ICON as UNLOCKED_ICON } from './markup.js';
+import { I, svg, row, card, section, paintLockButton } from './markup.js';
 import { initMenu, openMenu, closeMenu, menuIsOpen } from './menu.js';
 import { importBookmarks, exportBookmarks } from '../pages/newtab/importExport.js';
 import { resetAllData } from '../services/resetService.js';
-import { pageAction, resetPagesSection, wirePagesSection } from './pagesSection.js';
 import { usageAction } from './usagePage.js';
 
 /* `current` is null until Settings first opens, which then shows the first page in the list (Profiles). */
@@ -27,19 +26,17 @@ export function installSettingsPage() {
   root = buildRoot();
   navEl = $("sp-nav");
   content = $("sp-content");
-  keepUnzoomed();
   initMenu($("sp-menu"), root.querySelector(".sp-main"));
   wireShell();
   wireContent();
-  wirePagesSection(content, () => renderPage());
   onSettingChange((key, value) => {
     // A slider updates in place: redrawing the page would replace it mid-drag and end the drag.
     if (typeof value === "number" && showSlider(key, value)) return;
-    if (key === "saturationLock" && showLock()) return;
+    if (key === "focusLocks" && showLocks()) return;
     rerenderSoon();
   });
-  // The time left on the lock counts down, and the locked stretch frees itself when it ends.
-  setInterval(showLock, 1000);
+  // The time left on an unlock counts down, and the lock opens when it ends.
+  setInterval(showLocks, 1000);
   publishApi();
 }
 
@@ -83,17 +80,6 @@ function buildRoot() {
     <input type="file" id="import-file" accept=".detractless,.pastekit,.json" hidden>`;
   document.body.appendChild(el);
   return el;
-}
-
-/* The page-wide UI Scale zoom is cancelled on Settings so it stays at 100%;
-   the UI scale row shows a sample at the chosen size instead. */
-function keepUnzoomed() {
-  const unzoom = () => {
-    const z = parseFloat(document.body.style.zoom);
-    root.style.zoom = z && z !== 1 ? String(1 / z) : "";
-  };
-  unzoom();
-  new MutationObserver(unzoom).observe(document.body, { attributes: true, attributeFilter: ["style"] });
 }
 
 function renderNav(filter = "") {
@@ -151,7 +137,6 @@ function go(id, arg = null) {
   current = id;
   currentArg = arg;
   resetState.confirming = false;
-  resetPagesSection();
   render();
 }
 
@@ -194,17 +179,20 @@ function showSlider(key, v) {
   return true;
 }
 
-/** The note under the slider, the lock button and its countdown, redrawn in place (never the slider itself). */
-function showLock() {
-  const sl = content && content.querySelector('[data-slider="saturation"]');
-  if (!sl) return false;
-  const l = activeLock(getSetting("saturationLock"));
-  const desc = sl.closest(".sp-row") && sl.closest(".sp-row").querySelector(".sp-row-desc");
-  if (desc) desc.textContent = saturationNote();
-  const locked = !!l, btn = content.querySelector("[data-lockbtn]");
-  if (btn) { btn.classList.toggle("on", locked); btn.disabled = locked; btn.setAttribute("aria-pressed", String(locked)); btn.innerHTML = locked ? LOCKED_ICON : UNLOCKED_ICON; }
-  const count = content.querySelector("[data-lockcount]");
-  if (count) count.textContent = locked ? lockCountdown() : "";
+/** Each Focus lock's note, button and countdown, redrawn in place (never the slider or the pill beside it).
+    Returns false when no lock is on screen. */
+function showLocks() {
+  const btns = content ? content.querySelectorAll("[data-lock]") : [];
+  if (!btns.length) return false;
+  btns.forEach((btn) => {
+    const key = btn.dataset.lock, state = lockState(getSetting("focusLocks"), key);
+    const desc = btn.closest(".sp-row") && btn.closest(".sp-row").querySelector(".sp-row-desc");
+    const note = lockNote(key);
+    if (desc && desc.textContent !== note) desc.textContent = note;
+    paintLockButton(btn, state);
+    const count = content.querySelector(`[data-lockcount="${key}"]`);
+    if (count) count.textContent = state === "unlocking" ? lockCountdown(key) : "";
+  });
   return true;
 }
 
@@ -250,9 +238,8 @@ function wireContent() {
 }
 
 function runAction(act, el) {
-  if (act.startsWith("page-")) pageAction(act, el.dataset.id, renderPage, el);
-  else if (act.startsWith("usage-")) usageAction(act, el, renderPage);
-  else if (act === "saturation-lock") CONTROLS.saturation.lock();
+  if (act.startsWith("usage-")) usageAction(act, el, renderPage);
+  else if (act === "focus-lock") { const c = lockControl(el.dataset.lock); if (c) c.clickLock(); }
   else if (act === "export") exportBookmarks();
   else if (act === "import") $("import-file").click();
   else if (act === "reset-ask") { resetState.confirming = true; renderPage(); }

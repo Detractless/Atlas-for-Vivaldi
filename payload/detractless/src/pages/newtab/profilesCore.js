@@ -24,14 +24,14 @@
       off: 'Each profile has its own bookmarks and pages. Profiles other than the current one start empty.' },
     { id: 'theme', label: 'Theme', keys: ['Theme'],
       on: 'Every profile uses the same theme.', off: 'Each profile has its own theme.' },
-    { id: 'appearance', label: 'Appearance', keys: ['uiScale', 'fadeInEnabled'],
-      on: 'Every profile uses the same UI scale.', off: 'Each profile has its own UI scale.' },
+    { id: 'appearance', label: 'Appearance', keys: ['fadeInEnabled'],
+      on: 'Every profile uses the same page animations.', off: 'Each profile has its own page animations.' },
     { id: 'search', label: 'Search', keys: ['spotlightVisible', 'searchEngineBehavior', 'bookmarkPillBehavior',
       'customSearchEngines', 'defaultEngineKey', 'selectedSearchEngine'],
       on: 'Every profile uses the same engines and pills.',
       off: 'Each profile has its own engines and pills.' },
-    { id: 'focus', label: 'Focus', keys: ['tabLimit', 'managementMethod', 'pendingIncrease', 'searchDelaySeconds',
-      'showQueryOnDelay', 'saturation', 'saturationLock'],
+    { id: 'focus', label: 'Focus', keys: ['tabLimit', 'managementMethod', 'searchDelaySeconds',
+      'showQueryOnDelay', 'saturation'],
       on: 'Every profile uses the same tab limit, search delay and color level.',
       off: 'Each profile has its own tab limit, search delay and color level.' }
   ];
@@ -167,7 +167,6 @@
     var add = {}, loc = {};
     cs.forEach(function (c) {
       if (c.id === 'theme') { add._themeCache = (snap.Theme && snap.Theme.Theme) || 'dark'; loc._themeCache = add._themeCache; }
-      if (c.id === 'appearance') add._scaleCache = String(snap.uiScale !== undefined ? snap.uiScale : 1);
     });
     if (!Object.keys(add).length) return Promise.resolve();
     return sget('local', LKEY).then(function (g) {
@@ -191,13 +190,30 @@
     });
   }
 
+  /* The Focus locks (focusLocks) aren't per profile, and a locked setting keeps its live value on a switch unless the
+     other profile's is stricter: utils/focusLock.js's rule in this file's words (it can't import). Keep them the same. */
+  var LOCK_DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100 };
+  var STRICT = { tabLimit: function (v) { return +v === 0 ? -Infinity : -v; }, searchDelaySeconds: function (v) { return +v; }, saturation: function (v) { return -v; } };
+  function lockedLooser(snap, live, keys) {
+    var now = Date.now(), locks = live.focusLocks && typeof live.focusLocks === 'object' ? live.focusLocks : {};
+    return keys.filter(function (k) {
+      var l = STRICT[k] && locks[k], at = l && Number(l.unlockAt);
+      if (!l || typeof l !== 'object' || (l.unlockAt != null && isFinite(at) && at <= now)) return false;   // not locked
+      var val = function (o) { return o[k] !== undefined ? o[k] : LOCK_DEFAULTS[k]; };
+      return STRICT[k](val(snap)) < STRICT[k](val(live));
+    });
+  }
+
   function switchTo(id) {
     return mutate(function (s) {
       var to = s.list.filter(function (p) { return p.id === id; })[0];
       if (!to || s.owner === id) { if (to) s.active = id; return; }
       var cs = unsharedCats(s), keys = keysOf(cs);
       return captureOwner(s).then(function () {
-        return applyLive(to.settings || {}, keys);
+        return sget('sync', ['focusLocks'].concat(Object.keys(STRICT)));
+      }).then(function (live) {
+        var snap = to.settings || {}, held = lockedLooser(snap, live, keys);
+        return applyLive(snap, keys.filter(function (k) { return held.indexOf(k) < 0; }));
       }).then(function () {
         return writeCaches(to.settings || {}, cs);
       }).then(function () { s.active = s.owner = id; });

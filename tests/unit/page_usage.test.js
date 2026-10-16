@@ -116,6 +116,67 @@ test("media: playing with the tab in front, and playing with it in the backgroun
   assert.equal(d.mediaBackMs, 40000);
 });
 
+/* Reddit's player is a web component: the <video> sits inside its shadow root, where the page's own events do not
+   reach (measured 2026-10-16 on a Reddit feed: 22 videos, all 22 in shadow roots, none in the page). */
+function player(p, { into = p.document.body, attach = true } = {}) {
+  const host = p.document.createElement("reddit-player");
+  const pl = { host, video: p.document.createElement("video") };
+  pl.attach = () => { pl.root = host.attachShadow({ mode: "open" }); pl.root.appendChild(pl.video); };
+  if (attach) pl.attach();
+  into.appendChild(host);
+  return pl;
+}
+function play(p, v, on = true) {
+  Object.defineProperty(v, "paused", { value: !on, configurable: true });
+  v.dispatchEvent(new p.window.Event(on ? "playing" : "pause"));
+}
+const batch = () => new Promise((r) => setTimeout(r, 350));   // new content is looked at in a batch
+
+test("media inside a web component's shadow root counts: one there at load, and one a feed adds later", async () => {
+  const p = page();
+  const first = player(p);
+  play(p, first.video);                 // already playing when the script starts
+  run(p);
+  pass(p, 4);
+  play(p, first.video, false);
+  pass(p, 3);
+  const later = player(p);              // the feed loads another post
+  const nested = player(p, { into: later.root });   // a player inside another component
+  await batch();
+  play(p, later.video);
+  pass(p, 2);
+  play(p, later.video, false);
+  play(p, nested.video);
+  pass(p, 5);
+  flush(p);
+  assert.equal(sent(p)[0].delta.mediaFrontMs, 4000 + 2000 + 5000, "its pause is seen too: the 3 paused seconds are not counted");
+  assert.ok([first.video, later.video, nested.video].every((v) => p.observed.includes(v)), "and they can count as seen");
+  assert.deepEqual(p.errors, []);
+});
+
+test("a web component that gets its shadow root after it is in the page is still found", async () => {
+  const p = page();
+  const pl = player(p, { attach: false });   // its code had not loaded yet
+  run(p);
+  pass(p, 2);
+  pl.attach();
+  play(p, pl.video);
+  pass(p, 1);                           // the once-a-second look finds it
+  pass(p, 6);
+  flush(p);
+  assert.ok(sent(p)[0].delta.mediaFrontMs >= 6000, `counted from the next second on (${sent(p)[0].delta.mediaFrontMs})`);
+  play(p, pl.video, false);
+  const slow = player(p, { attach: false });
+  await batch();
+  pass(p, 31);                          // its code took longer than the 30 seconds it is looked at
+  slow.attach();
+  slow.video.dispatchEvent(new p.window.MouseEvent("click", { bubbles: true, composed: true }));   // a person clicks play
+  play(p, slow.video);
+  pass(p, 3);
+  flush(p);
+  assert.equal(sent(p)[1].delta.mediaFrontMs, 3000, "a click inside it finds it");
+});
+
 test("page views: the load, and every change of address inside the site, but not a #fragment", async () => {
   const p = page("https://www.youtube.com/watch?v=a"); run(p);
   p.window.history.pushState({}, "", "/watch?v=b");

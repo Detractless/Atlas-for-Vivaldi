@@ -8,7 +8,6 @@ const assert = require("node:assert/strict");
 const path = require("path");
 const esbuild = require("esbuild");
 const { openNewTab, closeAll, waitFor, settle, click, pressEnter } = require("./helpers/newtabDom");
-const { openAdd } = require("./helpers/addFlow");
 
 test.afterEach(closeAll);
 
@@ -114,49 +113,4 @@ test("Home's subtitle can be edited too, and Home can't be deleted", async () =>
   click(win, [...root.querySelectorAll(".picker-row")].find((r) => text(r).startsWith("Edit subtitle")));
   await answer(win, "Edit subtitle", "Start every day here");
   assert.equal((await stored(t))[0].sub, "Start every day here");
-});
-
-/** The add popup (components/addPopup), switched to Page mode. */
-async function pagePopup(t) { return openAdd(t, "page"); }
-function setField(win, p, name, value) {
-  const el = p.querySelector(`[data-field="${name}"]`);
-  el.value = value;
-  el.dispatchEvent(new win.Event("input", { bubbles: true }));
-}
-
-test("a new page needs a name and a valid subtitle", async () => {
-  const t = await seeded();
-  const { window: win, document: doc } = t;
-  const p = await pagePopup(t);
-  setField(win, p, "pageName", "Gym");
-  click(win, p.querySelector("[data-add-next]"));
-  await settle(win, 40);
-  setField(win, p, "sub", "Lifting");
-  click(win, p.querySelector("[data-add-save]"));
-  await settle(win, 100);
-  assert.match(text(p.querySelector('[data-error-for="sub"]')), /at least 3 words/);
-  assert.equal((await stored(t)).length, 3, "no page yet");
-
-  setField(win, p, "sub", "Workouts and meal plans");
-  click(win, p.querySelector("[data-add-save]"));
-  await settle(win, 200);
-  const page = (await stored(t))[3];
-  assert.equal(page.label, "Gym");
-  assert.equal(page.sub, "Workouts and meal plans");
-  assert.equal(subs(doc)[3], "Workouts and meal plans");
-  assert.deepEqual(t.errors, []);
-});
-
-test("closing the popup in Page mode creates no page", async () => {
-  const t = await seeded();
-  const { window: win, document: doc } = t;
-  const p = await pagePopup(t);
-  setField(win, p, "pageName", "Gym");
-  click(win, p.querySelector("[data-add-next]"));
-  await settle(win, 40);
-  setField(win, p, "sub", "Workouts and meal plans");
-  click(win, p.querySelector("[data-add-back]"));
-  click(win, p.querySelector("[data-add-cancel]"));
-  await settle(win, 100);
-  assert.equal((await stored(t)).length, 3);
 });

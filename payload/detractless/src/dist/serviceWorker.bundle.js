@@ -187,7 +187,7 @@
       list.unshift(target);
     }
     const byUrl = new Map(target.tabs.map((t) => [t.url, t]));
-    for (const entry of fresh) byUrl.set(entry.url, entry);
+    for (const entry2 of fresh) byUrl.set(entry2.url, entry2);
     target.tabs = [...byUrl.values()].sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0));
     target.savedAt = Math.max(target.savedAt || 0, now);
     return list.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
@@ -337,6 +337,51 @@
     }
   });
 
+  // src/utils/focusLock.js
+  var UNLOCK_MS = 30 * 60 * 1e3;
+  var LOCKABLE = ["tabLimit", "searchDelaySeconds", "saturation"];
+  var DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100 };
+  var STRICTNESS = {
+    tabLimit: (v) => Number(v) === 0 ? -Infinity : -Number(v),
+    // fewer tabs is stricter; Off is no limit at all
+    searchDelaySeconds: (v) => Number(v),
+    // a longer pause is stricter
+    saturation: (v) => -Number(v)
+    // grayer is stricter
+  };
+  var entry = (locks, key) => locks && typeof locks === "object" && locks[key] && typeof locks[key] === "object" ? locks[key] : null;
+  function lockState(locks, key, now = Date.now()) {
+    const l = entry(locks, key);
+    if (!l) return "open";
+    if (l.unlockAt === null || l.unlockAt === void 0) return "held";
+    const at = Number(l.unlockAt);
+    if (!Number.isFinite(at)) return "held";
+    return at > now ? "unlocking" : "open";
+  }
+  var isLocked = (locks, key, now = Date.now()) => lockState(locks, key, now) !== "open";
+  function unlockTime(locks, key, now = Date.now()) {
+    return lockState(locks, key, now) === "unlocking" ? Number(entry(locks, key).unlockAt) : null;
+  }
+  function changeAllowed(locks, key, from, to, now = Date.now()) {
+    if (!isLocked(locks, key, now) || !STRICTNESS[key]) return true;
+    const was = from === void 0 || from === null ? DEFAULTS[key] : from;
+    return STRICTNESS[key](to) >= STRICTNESS[key](was);
+  }
+  function tidyLocks(locks, now = Date.now()) {
+    const out = {};
+    for (const key of LOCKABLE) {
+      const state = lockState(locks, key, now);
+      if (state === "held") out[key] = { unlockAt: null };
+      else if (state === "unlocking") out[key] = { unlockAt: unlockTime(locks, key, now) };
+    }
+    return out;
+  }
+  function fromSaturationLock(old, now = Date.now()) {
+    if (!old || typeof old !== "object" || old.manual !== true) return null;
+    const until = Number(old.until);
+    return Number.isFinite(until) && until > now ? { unlockAt: until } : null;
+  }
+
   // src/background/pendingChanges.js
   var DELAY_TTL_MS = 24 * 60 * 60 * 1e3;
   function pruneActiveDelays() {
@@ -351,14 +396,15 @@
     if (changed) storageSet("local", { activeDelays });
   }
   async function checkPendingIncrease() {
-    const result = await storageGet("sync", ["pendingIncrease"]);
+    const result = await storageGet("sync", ["pendingIncrease", "tabLimit", "focusLocks"]);
     const pending = result.pendingIncrease;
     if (pending && pending.targetLimit !== void 0 && pending.startTime) {
       const elapsed = Date.now() - pending.startTime;
       const duration = 30 * 60 * 1e3;
       if (elapsed >= duration) {
-        await storageSet("sync", { tabLimit: pending.targetLimit });
         await storageRemove("sync", "pendingIncrease");
+        if (!changeAllowed(result.focusLocks, "tabLimit", result.tabLimit, pending.targetLimit)) return;
+        await storageSet("sync", { tabLimit: pending.targetLimit });
         setTabLimit(pending.targetLimit);
         enforceTabLimit();
       } else {
@@ -367,14 +413,15 @@
     }
   }
   async function checkPendingDelayDecrease() {
-    const result = await storageGet("sync", ["pendingDelayDecrease"]);
+    const result = await storageGet("sync", ["pendingDelayDecrease", "searchDelaySeconds", "focusLocks"]);
     const pending = result.pendingDelayDecrease;
     if (pending && pending.targetDelay !== void 0 && pending.startTime) {
       const elapsed = Date.now() - pending.startTime;
       const duration = 30 * 60 * 1e3;
       if (elapsed >= duration) {
-        await storageSet("sync", { searchDelaySeconds: pending.targetDelay });
         await storageRemove("sync", "pendingDelayDecrease");
+        if (!changeAllowed(result.focusLocks, "searchDelaySeconds", result.searchDelaySeconds, pending.targetDelay)) return;
+        await storageSet("sync", { searchDelaySeconds: pending.targetDelay });
         setSearchDelayMs(pending.targetDelay * 1e3);
       } else {
         setTimeout(checkPendingDelayDecrease, Math.min(duration - elapsed, 6e4));
@@ -536,7 +583,7 @@
         importWhen: "truthy",
         profile: "theme"
       },
-      uiScale: { default: 1, backup: true, importWhen: "defined", profile: "appearance" },
+      uiScale: { default: 1, backup: false, note: "Legacy: the UI scale, removed from Settings. Nothing reads it; a saved value is ignored, so every new tab is at 100%." },
       fadeInEnabled: { default: true, backup: true, importWhen: "defined", profile: "appearance" },
       spotlightVisible: { default: true, backup: true, importWhen: "defined", profile: "search" },
       searchEngineBehavior: { default: "remember", backup: true, importWhen: "defined", profile: "search" },
@@ -546,13 +593,14 @@
       selectedSearchEngine: { default: null, backup: true, importWhen: "truthy", profile: "search" },
       tabLimit: { default: 0, backup: true, importWhen: "defined", profile: "focus" },
       managementMethod: { default: "block", backup: true, importWhen: "truthy", profile: "focus" },
-      pendingIncrease: { default: null, backup: false, profile: "focus", note: "A tab-limit increase waiting out its 30 minutes." },
+      pendingIncrease: { default: null, backup: false, note: "Legacy: a tab-limit increase queued for 30 minutes by the version before the Focus locks. Still finished on time (background/pendingChanges.js); no longer written." },
       searchDelaySeconds: { default: 0, backup: true, importWhen: "defined", profile: "focus" },
-      pendingDelayDecrease: { default: null, backup: false, note: "A search-delay decrease waiting out its 30 minutes." },
+      pendingDelayDecrease: { default: null, backup: false, note: "Legacy: a search-delay decrease queued for 30 minutes by the version before the Focus locks. Still finished on time (background/pendingChanges.js); no longer written." },
       showQueryOnDelay: { default: true, backup: true, importWhen: "defined", profile: "focus" },
       grayscale: { default: null, backup: false, note: "Legacy: the old on/off switch. Read once and folded into saturation (utils/saturationLock.js legacySaturation), then removed." },
       saturation: { default: 100, backup: true, importWhen: "defined", profile: "focus", note: "Color level for web pages, 0 to 100. 100 is full color." },
-      saturationLock: { default: null, backup: false, profile: "focus", note: "After going grayer, the stretch above it is locked for 30 minutes: { ceiling, until }." },
+      saturationLock: { default: null, backup: false, note: "Legacy: the color lock before the Focus locks, { ceiling, until, manual }. Moved into focusLocks once at startup (background/saturationMigration.js), then removed." },
+      focusLocks: { default: null, backup: false, note: "The locks on Settings > Focus (utils/focusLock.js): { tabLimit | searchDelaySeconds | saturation: { unlockAt } }, unlockAt null while locked or the time its 30-minute unlock ends. Not per profile and not in backups, so a switch or an import can't undo a lock." },
       "bookmarks-migrated": { default: null, backup: false, note: "Legacy: set once bookmarks moved from sync storage to IndexedDB." },
       "bookmarks-page-1": { default: null, backup: false, note: "Legacy bookmark storage, read once by migrateFromChromeStorage." },
       "bookmarks-page-2": { default: null, backup: false, note: "Legacy, as bookmarks-page-1." },
@@ -580,8 +628,8 @@
     },
     localStorage: {
       _themeCache: "Theme preference for the first paint (themePreinit.js).",
-      _scaleCache: "UI scale for the first paint (preinit.js). Always the stored uiScale.",
-      uiScale: "Legacy scale value, read only as a last fallback by preinit.js.",
+      _scaleCache: "Legacy: the UI scale's first-paint copy. preinit.js removes it.",
+      uiScale: "Legacy scale value. preinit.js removes it.",
       themePref: "Legacy theme value, migrated into IndexedDB uiPrefs."
     }
   };
@@ -591,9 +639,9 @@
   var BOOKMARKS_DB = atlasKeys_default.databases.bookmarks;
   var PASTEKIT_DB = atlasKeys_default.databases.pastekit;
   function syncDefault(key) {
-    const entry = atlasKeys_default.sync[key];
-    if (!entry) throw new Error(`Unknown sync key: ${key}`);
-    return entry.default === void 0 ? void 0 : JSON.parse(JSON.stringify(entry.default));
+    const entry2 = atlasKeys_default.sync[key];
+    if (!entry2) throw new Error(`Unknown sync key: ${key}`);
+    return entry2.default === void 0 ? void 0 : JSON.parse(JSON.stringify(entry2.default));
   }
   var BACKUP_SYNC_KEYS = Object.keys(atlasKeys_default.sync).filter((k) => atlasKeys_default.sync[k].backup).map((k) => ({ key: k, importWhen: atlasKeys_default.sync[k].importWhen || "defined" }));
 
@@ -1224,12 +1272,15 @@
     return { ok: true };
   }
   async function editPage(m) {
-    if (m.id === void 0 || m.id === null || !["rename", "sub", "delete"].includes(m.op)) return MISSING;
+    if (m.id === void 0 || m.id === null || !["rename", "sub", "move", "delete"].includes(m.op)) return MISSING;
     const { activeTabs } = await storageGet("sync", ["activeTabs"]);
     const tabs = Array.isArray(activeTabs) ? activeTabs : [];
     const at = tabs.findIndex((t) => same(t.id, m.id));
     if (at === -1) return { error: "That page is not there any more." };
-    if (m.op === "rename") {
+    if (m.op === "move") {
+      const problem = movePage(tabs, at, m.after);
+      if (problem) return problem;
+    } else if (m.op === "rename") {
       const label = String(m.value || "").trim();
       if (!label) return { error: "Give the page a name." };
       tabs[at] = { ...tabs[at], label };
@@ -1246,6 +1297,16 @@
     }
     await storageSet("sync", { activeTabs: tabs });
     return { ok: true };
+  }
+  function movePage(tabs, at, after) {
+    if (tabs[at].type === "search") return { error: "Home always stays first." };
+    const first = after === "" || after === null || after === void 0;
+    if (!first && same(after, tabs[at].id)) return { error: "Choose another page." };
+    if (!first && !tabs.some((t) => same(t.id, after))) return { error: "That page is not there any more." };
+    const [page] = tabs.splice(at, 1);
+    const to = first ? tabs.findIndex((t) => t.type === "search") + 1 : tabs.findIndex((t) => same(t.id, after)) + 1;
+    tabs.splice(to, 0, page);
+    return null;
   }
 
   // src/background/messaging.js
@@ -1349,7 +1410,6 @@
   };
 
   // src/utils/saturationLock.js
-  var LOCK_MS = 30 * 60 * 1e3;
   var clampSaturation = (v) => {
     const n = Math.round(Number(v));
     return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 100;
@@ -1367,6 +1427,15 @@
     if (level === void 0) return;
     await storageSet("sync", { saturation: level });
     await storageRemove("sync", "grayscale");
+  }
+  async function migrateSaturationLock(now = Date.now()) {
+    const stored = await storageGet("sync", ["saturationLock", "focusLocks"]);
+    if (stored.saturationLock === void 0) return;
+    const lock = fromSaturationLock(stored.saturationLock, now);
+    if (lock && !isLocked(stored.focusLocks, "saturation", now)) {
+      await storageSet("sync", { focusLocks: { ...tidyLocks(stored.focusLocks, now), saturation: lock } });
+    }
+    await storageRemove("sync", "saturationLock");
   }
 
   // src/background/stateSync.js
@@ -1393,6 +1462,7 @@
       checkPendingIncrease();
       checkPendingDelayDecrease();
       migrateGrayscale().catch((e) => console.error("Folding Grayscale into the color level failed:", e));
+      migrateSaturationLock().catch((e) => console.error("Moving the old color lock to the Focus locks failed:", e));
       console.log("Detractless background state initialized");
     } catch (e) {
       console.error("Error initializing background state:", e);

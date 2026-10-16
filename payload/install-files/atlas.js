@@ -1057,7 +1057,15 @@ var PI = {
   group: pIcon('<rect x="3.5" y="4" width="13" height="5" rx="1.8"/><rect x="3.5" y="11" width="13" height="5" rx="1.8"/>'),
   clock: pIcon('<circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 1.5"/>'),
   down: pIcon('<path d="M10 3.5v9M6.5 9.5 10 13l3.5-3.5M4 16.5h12"/>'),
-  gear: pIcon('<circle cx="10" cy="10" r="2.4"/><path d="M8.6 2.8h2.8l.4 2 1.6.9 1.9-.7 1.4 2.4-1.5 1.3v1.8l1.5 1.3-1.4 2.4-1.9-.7-1.6.9-.4 2H8.6l-.4-2-1.6-.9-1.9.7-1.4-2.4 1.5-1.3V9.1L3.3 7.8l1.4-2.4 1.9.7 1.6-.9z"/>')
+  gear: pIcon('<circle cx="10" cy="10" r="2.4"/><path d="M8.6 2.8h2.8l.4 2 1.6.9 1.9-.7 1.4 2.4-1.5 1.3v1.8l1.5 1.3-1.4 2.4-1.9-.7-1.6.9-.4 2H8.6l-.4-2-1.6-.9-1.9.7-1.4-2.4 1.5-1.3V9.1L3.3 7.8l1.4-2.4 1.9.7 1.6-.9z"/>'),
+  atlas: pIcon('<circle cx="10" cy="10" r="7"/><path d="m12.8 7.2-1.9 3.7-3.7 1.9 1.9-3.7z"/>'),
+  sliders: pIcon('<path d="M4 6h8M15 6h1M4 14h2M9 14h7"/><circle cx="13.5" cy="6" r="1.6"/><circle cx="7.5" cy="14" r="1.6"/>')
+};
+/* Rows that open a second menu in place of the first, with a way back: its title and its rows [act, icon, label].
+   Settings: Atlas is Atlas's own settings page; Advanced is everything else the browser has (Vivaldi's settings). */
+var PSUBS = {
+  add: { title: 'Add', rows: [['add-bookmark', PI.bm, 'Add bookmark'], ['add-group', PI.group, 'Add group'], ['add-page', PI.page, 'Add page']] },
+  settings: { title: 'Settings', rows: [['ext', PI.atlas, 'Atlas'], ['browser', PI.sliders, 'Advanced']] }
 };
 var PACTS = {
   'add-bookmark': function () { Atlas.openAdd('bookmark'); },
@@ -1080,8 +1088,8 @@ function openMenu(btn) {
   menu = document.createElement('div');
   menu.className = 'atlas-profile-menu atlas-nosurf-menu atlas-newmenu';
   menu.setAttribute('role', 'menu');
-  /* 'main' is the profiles and the rows; 'add' is what is left after Add is clicked:
-     three choices (bookmark, group, page) and a way back, so the menu is shorter. */
+  /* 'main' is the profiles and the rows; 'add' or 'settings' (PSUBS) is what is left after that row is clicked:
+     its choices and a way back, so the menu is shorter. */
   var view = 'main';
 
   function row(act, icon, label) {
@@ -1089,10 +1097,10 @@ function openMenu(btn) {
       icon + '<span class="apm-row-label">' + label + '</span></button>';
   }
   function fill() {
-    var s = ap && ap.get(), head = '';
-    if (view === 'add') {
-      menu.innerHTML = '<button type="button" class="apm-head" data-back aria-label="Back">' + PI.back + '<span>Add</span></button>' +
-        '<div class="apm-sep"></div>' + row('add-bookmark', PI.bm, 'Add bookmark') + row('add-group', PI.group, 'Add group') + row('add-page', PI.page, 'Add page');
+    var s = ap && ap.get(), head = '', sub = PSUBS[view];
+    if (sub) {
+      menu.innerHTML = '<button type="button" class="apm-head" data-back aria-label="Back">' + PI.back + '<span>' + sub.title + '</span></button>' +
+        '<div class="apm-sep"></div>' + sub.rows.map(function (x) { return row(x[0], x[1], x[2]); }).join('');
       menu.style.top = Math.round(r.bottom + 6) + 'px';
       menu.style.right = Math.round(window.innerWidth - r.right) + 'px';
       addDropTail(menu, r);
@@ -1108,8 +1116,7 @@ function openMenu(btn) {
         (cur.label ? '<span class="apm-plan">' + pEsc(cur.label) + '</span>' : '') + '</div><div class="apm-sep"></div>';
     }
     menu.innerHTML = head + row('add', PI.plus, 'Add') +
-      row('history', PI.clock, 'History') + row('downloads', PI.down, 'Downloads') +
-      row('ext', PI.gear, 'Extension settings') + row('browser', PI.gear, 'Browser settings');
+      row('history', PI.clock, 'History') + row('downloads', PI.down, 'Downloads') + row('settings', PI.gear, 'Settings');
     menu.style.top = Math.round(r.bottom + 6) + 'px';
     menu.style.right = Math.round(window.innerWidth - r.right) + 'px';
     addDropTail(menu, r);
@@ -1124,7 +1131,7 @@ function openMenu(btn) {
     if (pk && ap) ap.switchTo(pk.getAttribute('data-pick')).then(function () { if (menu) fill(); });
     else if (t && t.closest('[data-add]')) { closeMenu(); openNewTabSettings('profiles'); }
     else if (t && t.closest('[data-back]')) { view = 'main'; fill(); }
-    else if (act && act.getAttribute('data-act') === 'add') { view = 'add'; fill(); }
+    else if (act && PSUBS[act.getAttribute('data-act')]) { view = act.getAttribute('data-act'); fill(); }
     else if (act) { var f = PACTS[act.getAttribute('data-act')]; closeMenu(); try { f(); } catch (err) { atlasWarn('profile menu action failed', err); } }
   });
 
@@ -3888,7 +3895,17 @@ function abRender() {
   ab.card.innerHTML = s.body + '<div class="atlas-adderror" data-ab-error role="alert"></div>';
   abUpdateCount();
   var input = ab.field.querySelector('input');
-  setTimeout(function () { if (input && ab) { input.focus(); if (ab.kind === 'edit' && !input.readOnly && input.select) input.select(); } }, 0);
+  setTimeout(function () { if (input && ab) abFocusField(input); }, 0);
+}
+
+/* A field that was just rebuilt with text in it gets the cursor at its start, so typing went in front of the
+   name and Backspace deleted nothing. Edit screens select the text to replace it; every other screen puts the
+   cursor after it. */
+function abFocusField(input) {
+  input.focus();
+  if (input.readOnly || !input.value) return;
+  if (ab.kind === 'edit' && input.select) input.select();
+  else if (input.setSelectionRange) input.setSelectionRange(input.value.length, input.value.length);
 }
 
 function abPaintPills() {
@@ -4193,7 +4210,8 @@ function abBackWithGroup(group) {
    Right-clicking a bookmark, a group's name or a page in the new tab's page switcher sends the window a
    message (04-bridge-messages.js) and the bar opens here, as Add does, with the page behind dimmed.
    Screen 1 names what was clicked and offers pills: Rename, Edit URL, Delete for a bookmark; Rename, Move
-   to page, Delete group for a group; Rename, Subtitle, Delete for a page (Home has no Delete). Picking one
+   to page, Delete group for a group; Rename, Subtitle, Move, Delete for a page (Home has no Move or Delete:
+   it always stays first). A page's Move picks the page it goes after, so pages can be put in order. Picking one
    turns the bar into that job, and the back arrow returns to the pills. A save is asked of the service
    worker script in this page (background/editFlow.js), which tells the new tab to show it.
    The state, `ab`, is in 23-addbar-core.js; its `edit` is what the new tab sent:
@@ -4207,7 +4225,7 @@ function abEditPills() {
   if (k === 'bookmark') return [{ job: 'rename', label: 'Rename' }, { job: 'url', label: 'Edit URL' }, { job: 'delete', label: 'Delete' }];
   if (k === 'group') return [{ job: 'rename', label: 'Rename' }, { job: 'move', label: 'Move to page' }, { job: 'delete', label: 'Delete group' }];
   var pills = [{ job: 'rename', label: 'Rename' }, { job: 'sub', label: 'Subtitle' }];
-  if (ab.edit.type !== 'search') pills.push({ job: 'delete', label: 'Delete' });
+  if (ab.edit.type !== 'search') pills.push({ job: 'move', label: 'Move' }, { job: 'delete', label: 'Delete' });
   return pills;
 }
 
@@ -4291,25 +4309,47 @@ function abEditPick(job) {
   abRender();
 }
 
-/* ── moving a group: the pages it could go to are every page but this one ── */
+/* ── moving: a group goes to another page; a page goes after another page ──
+   ab.pages leaves Home out (it holds no bookmarks), so a page's first choice is Home, value '': right after it. */
 
 function abEditOthers() {
-  return ab.pages.filter(function (p) { return String(p.id) !== String(ab.edit.page); });
+  var self = ab.edit.kind === 'page' ? ab.edit.id : ab.edit.page;
+  return ab.pages.filter(function (p) { return String(p.id) !== String(self); });
 }
 
+function abEditAfterItems() {
+  return [{ value: '', label: 'Home' }].concat(abEditOthers().map(function (p) { return { value: String(p.id), label: p.label }; }));
+}
+
+/* A group starts on the first other page; a page starts after the page it is after now. */
 function abEditPagesLoaded(flow) {
+  if (flow.edit.kind === 'page') {
+    var at = -1;
+    flow.pages.forEach(function (p, i) { if (String(p.id) === String(flow.edit.id)) at = i; });
+    if (flow.moveTo === null) flow.moveTo = at > 0 ? String(flow.pages[at - 1].id) : '';
+    return;
+  }
   var others = abEditOthers();
   if (flow.moveTo === null && others.length) flow.moveTo = others[0].id;
 }
 
 function abEditChoose(value) {
-  var p = abEditOthers().filter(function (x) { return String(x.id) === value; })[0];
-  if (!p) return;
-  ab.moveTo = p.id;
+  if (ab.edit.kind === 'page') {
+    if (!abEditAfterItems().some(function (x) { return x.value === value; })) return;
+    ab.moveTo = value;
+  } else {
+    var p = abEditOthers().filter(function (x) { return String(x.id) === value; })[0];
+    if (!p) return;
+    ab.moveTo = p.id;
+  }
   abPaintPlace();
 }
 
 function abEditPlaceInner() {
+  if (ab.edit.kind === 'page') {
+    return '<div class="atlas-addplace"><span class="atlas-addlbl">After</span>' + abDropdown('page', 'After', abEditAfterItems(), ab.moveTo === null ? '' : ab.moveTo) + '</div>' +
+      '<div class="atlas-addtools"><span class="atlas-addhint">Home always stays first &middot; Enter moves &middot; Esc cancels</span>' + abAddButton('Move') + '</div>';
+  }
   var others = abEditOthers();
   if (!others.length) return '<div class="atlas-addtools"><span class="atlas-addhint">There is only one page, so there is nowhere to move it &middot; Esc cancels</span></div>';
   var items = others.map(function (p) { return { value: String(p.id), label: p.label }; });
@@ -4333,10 +4373,10 @@ function abEditSave() {
   if (flow.busy) return;
   abError('');
   var msg;
-  if (job === 'move' && flow.moveTo === null) { abError('There is only one page.'); return; }
+  if (job === 'move' && flow.moveTo === null) { abError(e.kind === 'page' ? 'The pages are still loading. Try again.' : 'There is only one page.'); return; }
   if (e.kind === 'bookmark') msg = { action: 'editBookmark', db: abDb(), page: e.page, group: e.group, name: e.name, url: e.url, op: job, value: flow.value };
   else if (e.kind === 'group') msg = { action: 'editGroup', db: abDb(), page: e.page, group: e.group, op: job, value: flow.value, to: job === 'move' ? flow.moveTo : undefined };
-  else msg = { action: 'editPage', db: abDb(), id: e.id, op: job, value: flow.value };
+  else msg = { action: 'editPage', db: abDb(), id: e.id, op: job, value: flow.value, after: job === 'move' ? flow.moveTo : undefined };
   flow.busy = true;
   abAsk(msg).then(function (r) {
     flow.busy = false;

@@ -11,9 +11,11 @@
                             In front = the tab is showing AND the window is the one in use (it has the
                             focus, or you touched it in the last 15 seconds). Two windows side by side
                             do not both count at once.
-   - mediaFrontMs / mediaBackMs  video or audio playing with the tab showing / hidden
+   - mediaFrontMs / mediaBackMs  video or audio playing with the tab showing / hidden, players inside
+                             web components (Reddit's) too
    - pageViews              this load, plus every change of address inside the site (video to video)
-   - imagesSeen             images and videos that scrolled into view (100px or bigger), once each
+   - imagesSeen             images and videos that scrolled into view (100px or bigger), once each,
+                             inside web components too
    - clicks, keys           how many
    - scrollScreens / scrollMs  distance scrolled in window heights, and the time spent scrolling.
                             A jump of more than two screens in one step (Home, End, a page returning to
@@ -61,6 +63,7 @@
     var now = Date.now(), dt = now - lastTick;
     lastTick = now;
     if (dt <= 0) return;
+    checkWaiting(now);
     var seen = showing();
     if (inFront(now)) {
       var d = Math.min(dt, 5000);   // a sleeping computer does not count
@@ -75,19 +78,22 @@
     if (now2 !== lastHref) { lastHref = now2; acc.pageViews++; }
   }
 
-  ['playing', 'pause', 'ended', 'emptied'].forEach(function (type) {
-    document.addEventListener(type, function (e) {
-      var el = e.target;
-      if (!el || (el.tagName !== 'VIDEO' && el.tagName !== 'AUDIO')) return;
-      if (type === 'playing') playing.add(el); else playing.delete(el);
-    }, true);
-  });
-  Array.prototype.forEach.call(document.querySelectorAll('video, audio'), function (el) {
-    if (!el.paused && !el.ended) playing.add(el);
-  });
+  function onMedia(e) {
+    var el = e.target;
+    if (!el || (el.tagName !== 'VIDEO' && el.tagName !== 'AUDIO')) return;
+    if (e.type === 'playing') playing.add(el); else playing.delete(el);
+  }
+  /* The page, or a web component's shadow root (below): its media events, and what is playing already. */
+  function listenWithin(root) {
+    ['playing', 'pause', 'ended', 'emptied'].forEach(function (type) { root.addEventListener(type, onMedia, true); });
+    Array.prototype.forEach.call(root.querySelectorAll('video, audio'), function (el) {
+      if (!el.paused && !el.ended) playing.add(el);
+    });
+  }
+  listenWithin(document);
 
   /* ── what you do ── */
-  document.addEventListener('click', function (e) { if (e.isTrusted) { acc.clicks++; touch(); } }, true);
+  document.addEventListener('click', function (e) { if (e.isTrusted) { acc.clicks++; touch(); adoptPath(e); } }, true);
   document.addEventListener('keydown', function (e) { if (e.isTrusted) { acc.keys++; touch(); } }, true);
   window.addEventListener('wheel', touch, { passive: true, capture: true });
   window.addEventListener('pointermove', touch, { passive: true, capture: true });
@@ -135,17 +141,56 @@
   function takeBatch() {
     batchTimer = 0;
     var nodes = added.splice(0, 300);
-    nodes.forEach(function (n) { if (n.tagName === 'IMG' || n.tagName === 'VIDEO') watch(n); else watchWithin(n); });
+    nodes.forEach(function (n) {
+      if (n.tagName === 'IMG' || n.tagName === 'VIDEO') watch(n); else watchWithin(n);
+      findShadows(n);
+    });
     if (added.length) batchTimer = setTimeout(takeBatch, 300);
   }
-  if (typeof MutationObserver === 'function') {
-    new MutationObserver(function (muts) {
-      muts.forEach(function (mu) {
-        Array.prototype.forEach.call(mu.addedNodes, function (n) { if (n.nodeType === 1) added.push(n); });
-      });
-      if (added.length && !batchTimer) batchTimer = setTimeout(takeBatch, 300);
-    }).observe(document.documentElement, { childList: true, subtree: true });
+  var mo = typeof MutationObserver === 'function' ? new MutationObserver(function (muts) {
+    muts.forEach(function (mu) {
+      Array.prototype.forEach.call(mu.addedNodes, function (n) { if (n.nodeType === 1) added.push(n); });
+    });
+    if (added.length && !batchTimer) batchTimer = setTimeout(takeBatch, 300);
+  }) : null;
+  if (mo) mo.observe(document.documentElement, { childList: true, subtree: true });
+
+  /* ── web components ──
+     A player built as a web component (Reddit's) keeps its <video> in a shadow root: media events stop there and
+     never reach the page, and the page's querySelectorAll and MutationObserver do not look inside. So each open
+     shadow root found is watched like the page itself. A component whose code loads late gets its shadow root
+     after it is already in the page, with no event to say so: those are looked at once a second for 30 seconds,
+     and any shadow root a person clicks inside is picked up then. Closed shadow roots cannot be seen. */
+  var adopted = new WeakSet(), queued = new WeakSet(), waiting = [], WAIT_MS = 30000;
+  function adopt(sr) {
+    if (adopted.has(sr)) return;
+    adopted.add(sr);
+    listenWithin(sr);
+    watchWithin(sr);
+    if (mo) mo.observe(sr, { childList: true, subtree: true });
+    findShadows(sr);
   }
+  function look(el, now) {
+    if (el.shadowRoot) adopt(el.shadowRoot);
+    else if (el.tagName.indexOf('-') > 0 && !queued.has(el)) { queued.add(el); waiting.push({ el: el, since: now }); }
+  }
+  function findShadows(root) {
+    var now = Date.now();
+    if (root.nodeType === 1) look(root, now);
+    Array.prototype.forEach.call(root.querySelectorAll('*'), function (el) { look(el, now); });
+  }
+  function checkWaiting(now) {
+    if (!waiting.length) return;
+    waiting = waiting.filter(function (w) {
+      if (w.el.shadowRoot) { adopt(w.el.shadowRoot); return false; }
+      return w.el.isConnected && now - w.since < WAIT_MS;
+    });
+  }
+  function adoptPath(e) {
+    if (!e.composedPath) return;
+    e.composedPath().forEach(function (n) { if (n.nodeType === 11 && n.host) adopt(n); });
+  }
+  findShadows(document);
 
   /* ── sending ── */
   function stop() {

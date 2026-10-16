@@ -107,6 +107,23 @@ test("Deleting a page removes it from the page list, with its bookmarks and save
   assert.deepEqual(w.errors, []);
 });
 
+test("Move puts a page after another, or first after Home; Home itself stays first", async () => {
+  const w = await start();
+  const plain = (v) => JSON.parse(JSON.stringify(v));
+  const order = async () => Array.from((await w.window.chrome.storage.sync.get(["activeTabs"])).activeTabs, (t) => t.id);
+  assert.deepEqual(plain(await w.ask({ action: "editPage", id: 12, op: "move", after: "" })), { ok: true });
+  assert.deepEqual(await order(), ["search", 12, 11], "first, right after Home");
+  assert.equal(told(w), 1, "the new tab is told, so its page switcher shows the new order");
+  assert.deepEqual(plain(await w.ask({ action: "editPage", id: 12, op: "move", after: 11 })), { ok: true });
+  assert.deepEqual(await order(), ["search", 11, 12]);
+  assert.deepEqual(plain(await w.ask({ action: "editPage", id: "search", op: "move", after: 12 })), { error: "Home always stays first." });
+  assert.deepEqual(plain(await w.ask({ action: "editPage", id: 12, op: "move", after: 12 })), { error: "Choose another page." });
+  assert.deepEqual(plain(await w.ask({ action: "editPage", id: 12, op: "move", after: 99 })), { error: "That page is not there any more." });
+  assert.deepEqual(await order(), ["search", 11, 12], "a refused move changes nothing");
+  assert.equal((await w.window.chrome.storage.sync.get(["activeTabs"])).activeTabs[2].sub, "Shows and movies", "a moved page keeps its subtitle");
+  assert.deepEqual(w.errors, []);
+});
+
 test("Subtitle: a bad one says why in the bar and saves nothing; a good one is saved", async () => {
   const w = await start();
   w.window.__Atlas.openEdit({ kind: "page", id: 12, label: "Streaming", name: "Streaming", sub: "Shows and movies", type: "bookmarks" });

@@ -24,7 +24,7 @@
       },
       "backup": true, "importWhen": "truthy", "profile": "theme"
     },
-    "uiScale": { "default": 1, "backup": true, "importWhen": "defined", "profile": "appearance" },
+    "uiScale": { "default": 1, "backup": false, "note": "Legacy: the UI scale, removed from Settings. Nothing reads it; a saved value is ignored, so every new tab is at 100%." },
     "fadeInEnabled": { "default": true, "backup": true, "importWhen": "defined", "profile": "appearance" },
     "spotlightVisible": { "default": true, "backup": true, "importWhen": "defined", "profile": "search" },
     "searchEngineBehavior": { "default": "remember", "backup": true, "importWhen": "defined", "profile": "search" },
@@ -34,13 +34,14 @@
     "selectedSearchEngine": { "default": null, "backup": true, "importWhen": "truthy", "profile": "search" },
     "tabLimit": { "default": 0, "backup": true, "importWhen": "defined", "profile": "focus" },
     "managementMethod": { "default": "block", "backup": true, "importWhen": "truthy", "profile": "focus" },
-    "pendingIncrease": { "default": null, "backup": false, "profile": "focus", "note": "A tab-limit increase waiting out its 30 minutes." },
+    "pendingIncrease": { "default": null, "backup": false, "note": "Legacy: a tab-limit increase queued for 30 minutes by the version before the Focus locks. Still finished on time (background/pendingChanges.js); no longer written." },
     "searchDelaySeconds": { "default": 0, "backup": true, "importWhen": "defined", "profile": "focus" },
-    "pendingDelayDecrease": { "default": null, "backup": false, "note": "A search-delay decrease waiting out its 30 minutes." },
+    "pendingDelayDecrease": { "default": null, "backup": false, "note": "Legacy: a search-delay decrease queued for 30 minutes by the version before the Focus locks. Still finished on time (background/pendingChanges.js); no longer written." },
     "showQueryOnDelay": { "default": true, "backup": true, "importWhen": "defined", "profile": "focus" },
     "grayscale": { "default": null, "backup": false, "note": "Legacy: the old on/off switch. Read once and folded into saturation (utils/saturationLock.js legacySaturation), then removed." },
     "saturation": { "default": 100, "backup": true, "importWhen": "defined", "profile": "focus", "note": "Color level for web pages, 0 to 100. 100 is full color." },
-    "saturationLock": { "default": null, "backup": false, "profile": "focus", "note": "After going grayer, the stretch above it is locked for 30 minutes: { ceiling, until }." },
+    "saturationLock": { "default": null, "backup": false, "note": "Legacy: the color lock before the Focus locks, { ceiling, until, manual }. Moved into focusLocks once at startup (background/saturationMigration.js), then removed." },
+    "focusLocks": { "default": null, "backup": false, "note": "The locks on Settings > Focus (utils/focusLock.js): { tabLimit | searchDelaySeconds | saturation: { unlockAt } }, unlockAt null while locked or the time its 30-minute unlock ends. Not per profile and not in backups, so a switch or an import can't undo a lock." },
     "bookmarks-migrated": { "default": null, "backup": false, "note": "Legacy: set once bookmarks moved from sync storage to IndexedDB." },
     "bookmarks-page-1": { "default": null, "backup": false, "note": "Legacy bookmark storage, read once by migrateFromChromeStorage." },
     "bookmarks-page-2": { "default": null, "backup": false, "note": "Legacy, as bookmarks-page-1." },
@@ -68,8 +69,8 @@
   },
   "localStorage": {
     "_themeCache": "Theme preference for the first paint (themePreinit.js).",
-    "_scaleCache": "UI scale for the first paint (preinit.js). Always the stored uiScale.",
-    "uiScale": "Legacy scale value, read only as a last fallback by preinit.js.",
+    "_scaleCache": "Legacy: the UI scale's first-paint copy. preinit.js removes it.",
+    "uiScale": "Legacy scale value. preinit.js removes it.",
     "themePref": "Legacy theme value, migrated into IndexedDB uiPrefs."
   }
 }

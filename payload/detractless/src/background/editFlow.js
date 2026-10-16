@@ -72,14 +72,18 @@ async function moveGroup(h, m, groups) {
   return { ok: true };
 }
 
-/** One page of the page list, with its bookmarks on delete. op: 'rename' | 'sub' | 'delete'. Home can't be deleted. */
+/** One page of the page list, with its bookmarks on delete. op: 'rename' | 'sub' | 'move' | 'delete'.
+    Home can't be moved or deleted. */
 export async function editPage(m) {
-  if (m.id === undefined || m.id === null || !['rename', 'sub', 'delete'].includes(m.op)) return MISSING;
+  if (m.id === undefined || m.id === null || !['rename', 'sub', 'move', 'delete'].includes(m.op)) return MISSING;
   const { activeTabs } = await storageGet('sync', ['activeTabs']);
   const tabs = Array.isArray(activeTabs) ? activeTabs : [];
   const at = tabs.findIndex((t) => same(t.id, m.id));
   if (at === -1) return { error: 'That page is not there any more.' };
-  if (m.op === 'rename') {
+  if (m.op === 'move') {
+    const problem = movePage(tabs, at, m.after);
+    if (problem) return problem;
+  } else if (m.op === 'rename') {
     const label = String(m.value || '').trim();
     if (!label) return { error: 'Give the page a name.' };
     tabs[at] = { ...tabs[at], label };
@@ -96,4 +100,17 @@ export async function editPage(m) {
   }
   await storageSet('sync', { activeTabs: tabs });
   return { ok: true };
+}
+
+/** Put the page at `at` right after the page `after` ('' for right after Home, so first). Home always stays first.
+    Changes `tabs` in place; returns { error } and changes nothing when it can't. */
+function movePage(tabs, at, after) {
+  if (tabs[at].type === 'search') return { error: 'Home always stays first.' };
+  const first = after === '' || after === null || after === undefined;
+  if (!first && same(after, tabs[at].id)) return { error: 'Choose another page.' };
+  if (!first && !tabs.some((t) => same(t.id, after))) return { error: 'That page is not there any more.' };
+  const [page] = tabs.splice(at, 1);
+  const to = first ? tabs.findIndex((t) => t.type === 'search') + 1 : tabs.findIndex((t) => same(t.id, after)) + 1;
+  tabs.splice(to, 0, page);
+  return null;
 }

@@ -2,7 +2,8 @@
    Right-clicking a bookmark, a group's name or a page in the new tab's page switcher sends the window a
    message (04-bridge-messages.js) and the bar opens here, as Add does, with the page behind dimmed.
    Screen 1 names what was clicked and offers pills: Rename, Edit URL, Delete for a bookmark; Rename, Move
-   to page, Delete group for a group; Rename, Subtitle, Delete for a page (Home has no Delete). Picking one
+   to page, Delete group for a group; Rename, Subtitle, Move, Delete for a page (Home has no Move or Delete:
+   it always stays first). A page's Move picks the page it goes after, so pages can be put in order. Picking one
    turns the bar into that job, and the back arrow returns to the pills. A save is asked of the service
    worker script in this page (background/editFlow.js), which tells the new tab to show it.
    The state, `ab`, is in 23-addbar-core.js; its `edit` is what the new tab sent:
@@ -16,7 +17,7 @@ function abEditPills() {
   if (k === 'bookmark') return [{ job: 'rename', label: 'Rename' }, { job: 'url', label: 'Edit URL' }, { job: 'delete', label: 'Delete' }];
   if (k === 'group') return [{ job: 'rename', label: 'Rename' }, { job: 'move', label: 'Move to page' }, { job: 'delete', label: 'Delete group' }];
   var pills = [{ job: 'rename', label: 'Rename' }, { job: 'sub', label: 'Subtitle' }];
-  if (ab.edit.type !== 'search') pills.push({ job: 'delete', label: 'Delete' });
+  if (ab.edit.type !== 'search') pills.push({ job: 'move', label: 'Move' }, { job: 'delete', label: 'Delete' });
   return pills;
 }
 
@@ -100,25 +101,47 @@ function abEditPick(job) {
   abRender();
 }
 
-/* ── moving a group: the pages it could go to are every page but this one ── */
+/* ── moving: a group goes to another page; a page goes after another page ──
+   ab.pages leaves Home out (it holds no bookmarks), so a page's first choice is Home, value '': right after it. */
 
 function abEditOthers() {
-  return ab.pages.filter(function (p) { return String(p.id) !== String(ab.edit.page); });
+  var self = ab.edit.kind === 'page' ? ab.edit.id : ab.edit.page;
+  return ab.pages.filter(function (p) { return String(p.id) !== String(self); });
 }
 
+function abEditAfterItems() {
+  return [{ value: '', label: 'Home' }].concat(abEditOthers().map(function (p) { return { value: String(p.id), label: p.label }; }));
+}
+
+/* A group starts on the first other page; a page starts after the page it is after now. */
 function abEditPagesLoaded(flow) {
+  if (flow.edit.kind === 'page') {
+    var at = -1;
+    flow.pages.forEach(function (p, i) { if (String(p.id) === String(flow.edit.id)) at = i; });
+    if (flow.moveTo === null) flow.moveTo = at > 0 ? String(flow.pages[at - 1].id) : '';
+    return;
+  }
   var others = abEditOthers();
   if (flow.moveTo === null && others.length) flow.moveTo = others[0].id;
 }
 
 function abEditChoose(value) {
-  var p = abEditOthers().filter(function (x) { return String(x.id) === value; })[0];
-  if (!p) return;
-  ab.moveTo = p.id;
+  if (ab.edit.kind === 'page') {
+    if (!abEditAfterItems().some(function (x) { return x.value === value; })) return;
+    ab.moveTo = value;
+  } else {
+    var p = abEditOthers().filter(function (x) { return String(x.id) === value; })[0];
+    if (!p) return;
+    ab.moveTo = p.id;
+  }
   abPaintPlace();
 }
 
 function abEditPlaceInner() {
+  if (ab.edit.kind === 'page') {
+    return '<div class="atlas-addplace"><span class="atlas-addlbl">After</span>' + abDropdown('page', 'After', abEditAfterItems(), ab.moveTo === null ? '' : ab.moveTo) + '</div>' +
+      '<div class="atlas-addtools"><span class="atlas-addhint">Home always stays first &middot; Enter moves &middot; Esc cancels</span>' + abAddButton('Move') + '</div>';
+  }
   var others = abEditOthers();
   if (!others.length) return '<div class="atlas-addtools"><span class="atlas-addhint">There is only one page, so there is nowhere to move it &middot; Esc cancels</span></div>';
   var items = others.map(function (p) { return { value: String(p.id), label: p.label }; });
@@ -142,10 +165,10 @@ function abEditSave() {
   if (flow.busy) return;
   abError('');
   var msg;
-  if (job === 'move' && flow.moveTo === null) { abError('There is only one page.'); return; }
+  if (job === 'move' && flow.moveTo === null) { abError(e.kind === 'page' ? 'The pages are still loading. Try again.' : 'There is only one page.'); return; }
   if (e.kind === 'bookmark') msg = { action: 'editBookmark', db: abDb(), page: e.page, group: e.group, name: e.name, url: e.url, op: job, value: flow.value };
   else if (e.kind === 'group') msg = { action: 'editGroup', db: abDb(), page: e.page, group: e.group, op: job, value: flow.value, to: job === 'move' ? flow.moveTo : undefined };
-  else msg = { action: 'editPage', db: abDb(), id: e.id, op: job, value: flow.value };
+  else msg = { action: 'editPage', db: abDb(), id: e.id, op: job, value: flow.value, after: job === 'move' ? flow.moveTo : undefined };
   flow.busy = true;
   abAsk(msg).then(function (r) {
     flow.busy = false;

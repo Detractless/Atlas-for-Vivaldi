@@ -222,3 +222,24 @@ test("clicking a pill moves on, named for the pick", async () => {
   assert.equal(step(w), "name");
   assert.equal(input(w).value, "Netflix");
 });
+
+test("a screen that opens with text in it puts the cursor after the text, not before it", async () => {
+  const w = await start({ thisUrl: "" });
+  const atEnd = (label) => {
+    const el = input(w);
+    assert.equal(w.window.document.activeElement, el, `${label}: the field has the focus`);
+    assert.deepEqual([el.selectionStart, el.selectionEnd], [el.value.length, el.value.length], `${label}: the cursor is after "${el.value}"`);
+  };
+  await opened(w);
+  click(w, card(w).querySelector('[data-ab-site="netflix.com"]'));
+  await wait(120);
+  atEnd("the name, filled in from the pick");
+  await next(w);
+  click(w, field(w).querySelector("[data-ab-back]"));
+  await wait(60);
+  atEnd("the name again, after Back");
+  click(w, field(w).querySelector("[data-ab-back]"));
+  await wait(60);
+  assert.equal(step(w), "url");
+  atEnd("the address, after Back");
+});

@@ -1,5 +1,5 @@
-// Spec 001 end to end (phase 5): page subtitles, the add popup, Settings >
-// Pages, the profile edit page and the Google account working together, plus
+// Spec 001 end to end (phase 5): page subtitles, the add popup, the profile
+// edit page and the Google account working together, plus
 // the checks that span them (privacy of the linked email, the subtitle
 // migration running once, profile edits reaching the browser's menu).
 "use strict";
@@ -47,18 +47,16 @@ async function save(t, p) {
 test("a page with a subtitle, a bookmark on it, opened as one Google account, then the other", async () => {
   const t = await openNewTab({
     local: { hasSeededDefaults: true, atlasProfilesV2: profiles("school") },
-    sync: { activeTabs: [{ id: "search", label: "Home", type: "search" }] },
+    sync: { activeTabs: [{ id: "search", label: "Home", type: "search" }, { id: 7, label: "Classes", type: "bookmarks", sub: "Courses and due dates" }] },
   });
   const { window: win, document: doc } = t;
 
-  let p = await popup(t, "page");
-  set(t, p, "pageName", "Classes");
-  await next(t, p);
-  set(t, p, "sub", "Courses and due dates");
-  await save(t, p);
-  assert.equal(text(doc.querySelector(".switcher-label")), "Classes", "the new page opens");
+  // Pages are added in the address bar now (addbar_flow.test.js); this one is already saved. Open it.
+  click(win, doc.querySelector(".switcher-btn"));
+  click(win, await waitFor(() => [...doc.querySelectorAll(".switcher-item")].find((li) => li.textContent.includes("Classes")), 2000, "Classes in the switcher"));
+  await waitFor(() => text(doc.querySelector(".switcher-label")) === "Classes", 2000, "Classes opens");
 
-  p = await popup(t);
+  const p = await popup(t);
   set(t, p, "url", "drive.google.com/drive/u/0/my-drive");
   await next(t, p);
   assert.equal(p.querySelector('[data-dd-label="page"]').textContent, "Classes", "the open page is chosen");
@@ -85,22 +83,6 @@ test("a page with a subtitle, a bookmark on it, opened as one Google account, th
   const classes = [...doc.querySelectorAll(".switcher-item")].find((li) => li.textContent.includes("Classes"));
   assert.equal(text(classes.querySelector(".sub")), "Courses and due dates");
   assert.deepEqual(t.errors, []);
-});
-
-test("a page added from the + popup shows up in Settings > Pages", async () => {
-  const t = await openNewTab();
-  const p = await popup(t, "page");
-  set(t, p, "pageName", "Reading");
-  await next(t, p);
-  set(t, p, "sub", "Books to read next");
-  await save(t, p);
-  click(t.window, t.document.getElementById("global-settings-btn"));
-  click(t.window, await waitFor(() => t.document.querySelector('#sp-nav [data-page="pages"]'), 2000, "Pages"));
-  const rows = await waitFor(() => {
-    const r = [...t.document.querySelectorAll("#sp-content .pg-row")];
-    return r.length ? r : null;
-  }, 2000, "page rows");
-  assert.deepEqual([text(rows.at(-1).querySelector(".sp-row-title")), text(rows.at(-1).querySelector(".sp-row-desc"))], ["Reading", "Books to read next"]);
 });
 
 test("the linked email goes only into Google links and the profile's own storage", async () => {

@@ -1,5 +1,6 @@
-// The profile menu's Add row (src/modules/07-profile-menu.js): clicking it shrinks the menu
+// The profile menu's Add and Settings rows (src/modules/07-profile-menu.js): clicking Add shrinks the menu
 // to three choices (bookmark, group, page) and a way back, and each choice opens that flow in the address bar.
+// Clicking Settings shrinks it to Atlas (Atlas's own settings) and Advanced (the browser's, vivaldi://settings).
 "use strict";
 
 const test = require("node:test");
@@ -54,7 +55,7 @@ test("Add shrinks the menu to three choices and a way back; each choice opens th
   assert.equal(menu.querySelector(".apm-strip"), null, "the profiles are out of the way while choosing");
 
   click(menu.querySelector(".apm-head"));
-  assert.deepEqual(rows(), ["Add", "History", "Downloads", "Extension settings", "Browser settings"]);
+  assert.deepEqual(rows(), ["Add", "History", "Downloads", "Settings"]);
   assert.ok(menu.querySelector(".apm-strip"), "back to the profiles");
 
   click(row("Add"));
@@ -82,4 +83,36 @@ test("Add shrinks the menu to three choices and a way back; each choice opens th
   pick(third, "Add page");
   assert.equal(w.window.document.querySelector(".atlas-addfield input").placeholder, "Give the new page a name, like Streaming");
   assert.ok(!w.calls.some((c) => c.name === "chrome.tabs.create"), "still no new tab");
+});
+
+test("Settings shrinks the menu to Atlas and Advanced and a way back: Atlas opens Atlas's settings, Advanced the browser's", async () => {
+  const w = await start();
+  w.window.document.getElementById("browser").insertAdjacentHTML("beforeend",
+    '<div class="toolbar-mainbar"><button data-name="AccountButton">P</button><div class="UrlBar-AddressField"><input class="url"></div></div>');
+  const click = (el) => el.dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
+  const pick = (m, label) => click([...m.querySelectorAll(".apm-item")].find((b) => b.textContent.trim() === label));
+  const menu = await openProfileMenu(w);
+  const rows = () => [...menu.querySelectorAll(".apm-item .apm-row-label")].map((s) => s.textContent);
+  assert.ok(!rows().some((r) => /extension|browser/i.test(r)), "neither says extension or browser any more");
+
+  pick(menu, "Settings");
+  assert.ok(w.window.document.querySelector(".atlas-nosurf-menu"), "the menu stays open");
+  assert.deepEqual(rows(), ["Atlas", "Advanced"]);
+  assert.equal(menu.querySelector(".apm-head").textContent.trim(), "Settings", "a way back, named Settings");
+  assert.equal(menu.querySelector(".apm-strip"), null, "the profiles are out of the way while choosing");
+  click(menu.querySelector(".apm-head"));
+  assert.deepEqual(rows(), ["Add", "History", "Downloads", "Settings"], "back");
+
+  pick(menu, "Settings");
+  pick(menu, "Advanced");
+  assert.equal(w.window.document.querySelector(".atlas-nosurf-menu"), null, "the menu closes");
+  assert.ok(w.calls.some((c) => c.name === "chrome.tabs.create" && plain(c.args[0]).url === "vivaldi://settings"), "Advanced: the browser's own settings");
+
+  await new Promise((r) => setTimeout(r, 300));   // the button ignores a second press within 250 ms
+  const again = await openProfileMenu(w);
+  pick(again, "Settings");
+  pick(again, "Atlas");
+  answer(w, "chrome.tabs.query", [{ id: 7, url: "https://example.com/" }]);
+  const opened = [...w.calls].reverse().find((c) => c.name === "chrome.tabs.create");
+  assert.match(plain(opened.args[0]).url, /^chrome-extension:\/\/[a-z]+\/index\.html#settings$/, "Atlas: Atlas's settings page, in a new tab");
 });

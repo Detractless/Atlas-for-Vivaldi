@@ -152,10 +152,10 @@ test("a group with nowhere to move to says so, and Delete group names how many b
   assert.equal(input(w).value, "Delete WORK?", "an empty group has no bookmarks to name");
 });
 
-test("a page: Rename, Subtitle, Delete; Home has no Delete", async () => {
+test("a page: Rename, Subtitle, Move, Delete; Home has no Move or Delete", async () => {
   const w = await start();
   await edit(w, PAGE);
-  assert.deepEqual(pills(w), ["Rename", "Subtitle", "Delete"]);
+  assert.deepEqual(pills(w), ["Rename", "Subtitle", "Move", "Delete"]);
   assert.equal(field(w).querySelector(".atlas-addwhere").textContent, "Page");
   await pickPill(w, "Subtitle");
   assert.equal(input(w).value, "Shows and movies");
@@ -174,7 +174,36 @@ test("a page: Rename, Subtitle, Delete; Home has no Delete", async () => {
   assert.deepEqual(w.saved.edits[1], { action: "editPage", db: DB, id: 12, op: "delete", value: "" });
 
   await edit(w, HOME);
-  assert.deepEqual(pills(w), ["Rename", "Subtitle"], "Home can't be deleted");
+  assert.deepEqual(pills(w), ["Rename", "Subtitle"], "Home can't be moved or deleted: it always stays first");
+});
+
+test("a page's Move: After offers Home and the other pages, starts where the page is now, and sends where it goes", async () => {
+  const w = await start({ pages: [{ id: 11, label: "Essentials" }, { id: 12, label: "Streaming" }, { id: 13, label: "Work" }] });
+  const after = () => card(w).querySelector('[data-ab-dd="page"] span').textContent;
+  await edit(w, PAGE);
+  await pickPill(w, "Move");
+  assert.equal(step(w), "editMove");
+  assert.equal(card(w).querySelector(".atlas-addlbl").textContent, "After");
+  assert.equal(after(), "Essentials", "Streaming is after Essentials now");
+  assert.match(hint(w), /^Home always stays first · Enter moves · Esc cancels$/);
+  assert.equal(card(w).querySelector("[data-ab-save]").textContent, "Move");
+  click(w, card(w).querySelector('[data-ab-dd="page"]'));
+  assert.deepEqual([...card(w).querySelectorAll('[data-ab-item="page"]')].map((b) => b.textContent), ["Home", "Essentials", "Work"], "every page but itself");
+  click(w, card(w).querySelector('[data-ab-item="page"][data-value=""]'));
+  assert.equal(after(), "Home");
+  key(w, input(w), "Enter");
+  await wait(80);
+  assert.deepEqual(w.saved.edits[0], { action: "editPage", db: DB, id: 12, op: "move", value: "", after: "" }, "after Home: first");
+  assert.equal(card(w), null);
+
+  await edit(w, { ...PAGE, id: 11, label: "Essentials", name: "Essentials" });
+  await pickPill(w, "Move");
+  assert.equal(after(), "Home", "the first page starts after Home");
+  click(w, card(w).querySelector('[data-ab-dd="page"]'));
+  click(w, card(w).querySelector('[data-ab-item="page"][data-value="13"]'));
+  click(w, card(w).querySelector("[data-ab-save]"));
+  await wait(80);
+  assert.deepEqual(w.saved.edits[1], { action: "editPage", db: DB, id: 11, op: "move", value: "", after: "13" });
 });
 
 test("the new tab's message opens the bar in its own window only, and says it did", async () => {
