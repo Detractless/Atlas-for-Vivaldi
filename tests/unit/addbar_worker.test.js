@@ -76,6 +76,28 @@ test("a pick leads to the name and the page list, and Add saves the bookmark", a
   assert.deepEqual(w.errors, []);
 });
 
+test("Shift+Enter saves the typed address with its path, through the real worker", async () => {
+  const w = await start();
+  w.window.__Atlas.openAdd("bookmark");
+  await wait(200);
+  type(w, input(w), "discord.com/channels/9");
+  await wait(400);
+  assert.deepEqual(pills(w), ["discord.com"], "the pill is the main address only");
+  input(w).dispatchEvent(new w.window.KeyboardEvent("keydown", { key: "Enter", shiftKey: true, bubbles: true, cancelable: true }));
+  await wait(400);
+  assert.equal(input(w).value, "Discord");
+  type(w, w.window.document.querySelector('[data-ab-field="newGroup"]'), "chat");
+  enter(w);
+  await wait(600);
+  const saved = await new Promise((resolve, reject) => {
+    const r = w.window.indexedDB.open(w.window.AtlasProfiles.dbName());
+    r.onsuccess = () => { const g = r.result.transaction(["bookmarks"]).objectStore("bookmarks").get(11); g.onsuccess = () => resolve(g.result); g.onerror = () => reject(g.error); };
+    r.onerror = () => reject(r.error);
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(saved.data)), { CHAT: [{ name: "Discord", url: "https://discord.com/channels/9" }] });
+  assert.deepEqual(w.errors, []);
+});
+
 test("Add page saves a page through the real worker", async () => {
   const w = await start();
   w.window.__Atlas.openAdd("page");

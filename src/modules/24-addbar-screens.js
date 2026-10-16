@@ -1,8 +1,8 @@
 /* ── 24-addbar-screens.js: the screens of the address bar's Add flow, and what they do ──
    Add bookmark: which website, then the name and where it goes. Add page: its name, then a
    subtitle. Like the address bar's "Search Google or enter address", the bar's placeholder is an
-   instruction. Screen 1 has no buttons (Enter or a pill moves on, Esc cancels); screen 2 has one
-   small row. Looks: the address bar's own card, at its size (css-mods/03-addressbar.css 4c, 08-addbar.css). */
+   instruction. Screen 1 has no buttons (Enter takes the highlighted pill, Shift+Enter takes exactly what
+   was typed, Esc cancels); screen 2 has one small row. Looks: the address bar's own card, at its size (css-mods/03-addressbar.css 4c, 08-addbar.css). */
 
 var AB_ICON_BM = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5h8v11l-4-2.8-4 2.8z"/></svg>';
 var AB_ICON_PAGE = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="3"/><path d="M2.5 6.5h11"/></svg>';
@@ -63,7 +63,8 @@ function abScreen() {
 function abDropInner() {
   var pills = ab.sites.map(function (s) { return { label: s.label, value: s.value }; });
   if (!pills.length) return '<div class="atlas-addhint">Type a website, then Enter &middot; Esc cancels</div>';
-  return abPills(pills, ab.siteAt, 'data-ab-site') + '<div class="atlas-addhint">Enter picks ' + abEsc(pills[ab.siteAt].value) + ' &middot; &uarr;&darr; to move &middot; Esc cancels</div>';
+  var typed = ab.urlText.trim() ? ' &middot; Shift+Enter uses what you typed' : '';
+  return abPills(pills, ab.siteAt, 'data-ab-site') + '<div class="atlas-addhint">Enter picks ' + abEsc(pills[ab.siteAt].value) + typed + ' &middot; &uarr;&darr; to move &middot; Esc cancels</div>';
 }
 
 function abColsInner() {
@@ -270,7 +271,7 @@ function abWire() {
       abPaintPills();
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (field === 'url') { if (flow.sites.length) abPickSite(flow.sites[flow.siteAt].value); else abNext(); }
+      if (field === 'url') { if (flow.sites.length && !e.shiftKey) abPickSite(flow.sites[flow.siteAt].value); else abNext(); }   // Shift+Enter: what was typed, as it is
       else if (flow.step === 1) abNext();
       else abSave();
     }

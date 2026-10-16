@@ -56,7 +56,7 @@ const step = (w) => input(w).getAttribute("data-ab-field");     // url, name | p
 const pills = (w) => [...card(w).querySelectorAll("[data-ab-site]")].map((b) => b.getAttribute("data-ab-site"));
 const click = (w, el) => el.dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
 const type = (w, el, value) => { el.value = value; el.dispatchEvent(new w.window.Event("input", { bubbles: true })); };
-const key = (w, el, k) => el.dispatchEvent(new w.window.KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+const key = (w, el, k, extra = {}) => el.dispatchEvent(new w.window.KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...extra }));
 const input = (w) => field(w).querySelector("input");
 const next = async (w) => { key(w, input(w), "Enter"); await wait(60); };   // screen 1 has no button: Enter moves on
 async function opened(w, mode = "bookmark") { w.window.__Atlas.openAdd(mode); await wait(80); }
@@ -118,6 +118,39 @@ test("a pick goes to screen 2, named for the site, with the first page and its f
   assert.deepEqual([...card(w).querySelectorAll("[data-ab-name]")].map((b) => b.textContent), ["Example", "Example.com"]);
   assert.equal(card(w).querySelector('[data-ab-dd="page"] span').textContent, "Home");
   assert.equal(card(w).querySelector('[data-ab-dd="group"] span').textContent, "SHOWS");
+});
+
+test("Shift+Enter uses exactly what was typed, where Enter takes the highlighted pill", async () => {
+  const save = async (w) => { click(w, card(w).querySelector("[data-ab-save]")); await wait(80); return w.saved.bookmarks.map((b) => b.url); };
+
+  const plain = await start();
+  await opened(plain);
+  type(plain, input(plain), "reddit.com/r/cats");
+  await wait(150);
+  key(plain, input(plain), "Enter");
+  await wait(150);
+  assert.deepEqual(await save(plain), ["example.com"], "Enter: the highlighted pill, the typed path is dropped");
+
+  const shift = await start();
+  await opened(shift);
+  type(shift, input(shift), "reddit.com/r/cats");
+  await wait(150);
+  assert.match(card(shift).querySelector(".atlas-addhint").textContent, /Enter picks example\.com · Shift\+Enter uses what you typed · /);
+  key(shift, input(shift), "Enter", { shiftKey: true });
+  await wait(150);
+  assert.equal(step(shift), "name");
+  assert.equal(input(shift).value, "Reddit", "the name comes from the typed address");
+  assert.deepEqual(await save(shift), ["reddit.com/r/cats"], "Shift+Enter: the typed address, path and all");
+});
+
+test("the Shift+Enter hint waits for something typed, and an empty field still asks for an address", async () => {
+  const w = await start();
+  await opened(w);
+  assert.doesNotMatch(card(w).textContent, /Shift\+Enter/);
+  key(w, input(w), "Enter", { shiftKey: true });
+  await wait(60);
+  assert.equal(step(w), "url", "nothing typed, nothing to use");
+  assert.equal(card(w).querySelector("[data-ab-error]").textContent, "Give the bookmark a URL.");
 });
 
 test("Back keeps what was typed, and a name you changed is kept", async () => {
