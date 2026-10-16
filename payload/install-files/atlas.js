@@ -371,11 +371,11 @@ if (chrome.tabs) {
 }
 
   /* ═══ Module: 04-bridge-messages.js ═══ */
-/* ── 04-bridge-messages.js: acts on the messages the page context menu sends,
-   and sends http://home to the Atlas new tab. ── */
+/* ── 04-bridge-messages.js: acts on the messages the page context menu sends (and the new tab's right-click
+   edits), and sends http://home to the Atlas new tab. ── */
 
 if (chrome.runtime && chrome.runtime.onMessage) {
-  chrome.runtime.onMessage.addListener(function (msg, sender) {
+  chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     var m = msg && msg.atlas;
     if (!m) return;
     if (m.act === 'opentab' && m.url) {
@@ -395,6 +395,15 @@ if (chrome.runtime && chrome.runtime.onMessage) {
     } else if (m.act === 'savepage') {
       var u = m.url || (sender && sender.tab && sender.tab.url);
       if (u) chrome.downloads.download({ url: u, saveAs: true }, function () { void chrome.runtime.lastError; });
+    } else if (m.act === 'edit-open' && m.edit) {
+      /* Right-click on the new tab (a bookmark, a group, a page): the bar opens in the window that owns the tab. */
+      var editWin = (sender && sender.tab && sender.tab.windowId) || undefined;
+      var mineWin = (typeof window !== 'undefined' && window.vivaldiWindowId) || undefined;
+      if (editWin && mineWin && editWin !== mineWin) return;
+      if (typeof Atlas.openEdit === 'function') {
+        Atlas.openEdit(m.edit);
+        if (typeof sendResponse === 'function') sendResponse({ ok: true });   // tells the tab it was handled; unanswered, it opens its own pop-up
+      }
     } else if (m.act === 'focus-addressbar') {
       var winId = (sender && sender.tab && sender.tab.windowId) || undefined;
       var myWin = (typeof window !== 'undefined' && window.vivaldiWindowId) || undefined;
@@ -3607,11 +3616,12 @@ if (typeof document !== 'undefined' && document.addEventListener) {
 })();
 
   /* ═══ Module: 23-addbar-core.js ═══ */
-/* ── 23-addbar-core.js: "Add bookmark", "Add group" and "Add page" in the address bar ──
+/* ── 23-addbar-core.js: "Add bookmark", "Add group" and "Add page" in the address bar, and right-click on the new tab ──
    The profile menu's Add bookmark / Add group / Add page open here, on whatever page you are on: the address bar
    grows into the container (a field over the bar, a card under it, the page behind dimmed), at the
    address bar card's own size (css-mods/08-addbar.css). The
-   screens are in 24-addbar-screens.js and the page and group lists in 25-addbar-place.js. This file holds the state, the questions put to the service
+   screens are in 24-addbar-screens.js, the page and group lists in 25-addbar-place.js and the right-click edits in
+   26-addbar-edit.js. This file holds the state, the questions put to the service
    worker (background/addFlow.js, which owns the bookmark database and the page list), and the
    opening, placing and closing.
    One flow at a time: `ab` is the open flow, or null. */
@@ -3665,6 +3675,7 @@ function abFresh(kind) {
     urlText: '', name: '', nameTouched: false, sites: [], siteAt: 0, names: [], thisUrl: '',
     pages: [], page: null, groups: [], group: null, groupsLoaded: false,   // groupsLoaded: the page's groups have been read
     groupName: '', returnTo: null,                                          // returnTo: 'bookmark' when a group is made from Add bookmark's screen 3
+    edit: null, job: null, value: '', pillAt: 0, moveTo: null,              // right-click on the new tab: what it was on, the job picked, its text, the page to move to
     pageName: '', sub: '',
     pageCount: 1, scrim: null, field: null, card: null
   };
@@ -3717,13 +3728,14 @@ function abClose() {
   ab = null;
 }
 
-var AB_LABELS = { bookmark: 'Add bookmark', group: 'Add group', page: 'Add page' };
+var AB_LABELS = { bookmark: 'Add bookmark', group: 'Add group', page: 'Add page', edit: 'Edit' };
 
-/** Open the flow: mode is 'bookmark', 'group' or 'page'. */
-function abOpen(mode) {
+/** Open the flow: mode is 'bookmark', 'group' or 'page'; 'edit' is a right-click on the new tab, with what it was on. */
+function abOpen(mode, edit) {
   abClose();
   if (typeof Atlas.closeUiMenu === 'function') Atlas.closeUiMenu();
-  ab = abFresh(AB_LABELS[mode] ? mode : 'bookmark');
+  ab = abFresh(AB_LABELS[mode] && (mode !== 'edit' || edit) ? mode : 'bookmark');
+  ab.edit = edit || null;
   var host = document.getElementById('browser') || document.body;
   ab.scrim = abDiv('atlas-addscrim');
   ab.field = abDiv('atlas-addfield');
@@ -3754,7 +3766,8 @@ function abLoad(flow) {
     if (ab !== flow) return;
     flow.pages = r.pages || [];
     flow.pageCount = flow.pages.length + 1;   // the new page's default name is Page N
-    if (flow.page === null && flow.pages.length) flow.page = flow.pages[0].id;
+    if (flow.kind === 'edit') abEditPagesLoaded(flow);
+    else if (flow.page === null && flow.pages.length) flow.page = flow.pages[0].id;
     var note = flow.kind === 'page' && flow.step === 1 && flow.card.querySelector('[data-ab-default]');
     if (note) note.textContent = 'Page ' + flow.pageCount;
     abPaintPlace();   // a Page choice already on screen shows the first page
@@ -3783,6 +3796,7 @@ function abSuggest() {
 if (chrome.tabs && chrome.tabs.onActivated) chrome.tabs.onActivated.addListener(function () { abClose(); });
 
 Atlas.openAdd = abOpen;
+Atlas.openEdit = function (edit) { abOpen('edit', edit); };
 Atlas.closeAdd = abClose;
 
   /* ═══ Module: 24-addbar-screens.js ═══ */
@@ -3815,6 +3829,7 @@ function abPills(list, at, attr) {
 /* What each screen shows: { icon, value, placeholder, body, back, where (the address, beside the name), readonly }. */
 function abScreen() {
   var a = ab;
+  if (a.kind === 'edit') return abEditScreen();
   if (a.kind === 'bookmark') {
     if (a.step === 1) {
       return { icon: AB_ICON_BM, value: a.urlText, placeholder: 'Type a website to bookmark, or pick one below',
@@ -3855,6 +3870,7 @@ function abDropInner() {
 }
 
 function abFieldName() {
+  if (ab.kind === 'edit') return abEditField();
   if (ab.kind === 'page') return ab.step === 1 ? 'pageName' : 'sub';
   if (ab.kind === 'group') return ab.step === 1 ? 'groupName' : 'place';
   return ['url', 'name', 'place'][ab.step - 1];
@@ -3872,7 +3888,7 @@ function abRender() {
   ab.card.innerHTML = s.body + '<div class="atlas-adderror" data-ab-error role="alert"></div>';
   abUpdateCount();
   var input = ab.field.querySelector('input');
-  setTimeout(function () { if (input && ab) input.focus(); }, 0);
+  setTimeout(function () { if (input && ab) { input.focus(); if (ab.kind === 'edit' && !input.readOnly && input.select) input.select(); } }, 0);
 }
 
 function abPaintPills() {
@@ -3884,7 +3900,7 @@ function abPaintPills() {
 function abUpdateCount() {
   var slot = ab && ab.card.querySelector('[data-ab-count]');
   if (!slot) return;
-  var c = abSubCount(ab.sub);
+  var c = abSubCount(ab.kind === 'edit' ? ab.value : ab.sub);
   slot.textContent = c.words + ' of ' + AB_SUB_MIN + '-' + AB_SUB_MAX + ' words · ' + c.chars + ' / ' + AB_SUB_CHARS + ' · Enter adds · Esc cancels';
 }
 
@@ -3899,6 +3915,7 @@ function abError(text) {
 function abNext() {
   var flow = ab;
   abError('');
+  if (flow.kind === 'edit') { abEditNext(); return; }
   if (flow.kind === 'bookmark') {
     if (flow.step === 1) {
       var text = flow.urlText.trim();
@@ -3993,6 +4010,9 @@ function abWire() {
   flow.card.addEventListener('click', function (e) {
     var t = e.target;
     if (t.closest('[data-ab-save]')) return abNext();
+    var job = t.closest('[data-ab-job]');
+    if (job) return abEditPick(job.getAttribute('data-ab-job'));
+    if (t.closest('[data-ab-cancel]')) return abBack();
     var site = t.closest('[data-ab-site]');
     if (site) return abPickSite(site.getAttribute('data-ab-site'));
     var np = t.closest('[data-ab-name]');
@@ -4015,6 +4035,7 @@ function abWire() {
     if (name === 'url') { flow.urlText = e.target.value; flow.siteAt = 0; abPaintPills(); abSuggest(); }
     else if (name === 'name') { flow.name = e.target.value; flow.nameTouched = true; }
     else if (name === 'groupName') flow.groupName = e.target.value;
+    else if (name === 'editValue') { flow.value = e.target.value; if (flow.job === 'sub') abUpdateCount(); }
     else if (name === 'pageName') flow.pageName = e.target.value;
     else if (name === 'sub') { flow.sub = e.target.value; abUpdateCount(); }
   }
@@ -4028,8 +4049,12 @@ function abWire() {
       e.preventDefault();
       flow.siteAt = (flow.siteAt + (e.key === 'ArrowDown' ? 1 : flow.sites.length - 1)) % flow.sites.length;
       abPaintPills();
+    } else if (field === 'editPick' && /^Arrow/.test(e.key)) {
+      e.preventDefault();
+      abEditMove(e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1);
     } else if (e.key === 'Enter') {
       e.preventDefault();
+      if (e.repeat) return;   // a held key must not carry on from one screen to the next (a delete)
       if (field === 'url' && flow.sites.length && !e.shiftKey) abPickSite(flow.sites[flow.siteAt].value);   // Shift+Enter: what was typed, as it is
       else abNext();
     }
@@ -4073,6 +4098,7 @@ function abNoGroups() { return ab.page !== null && abGroupsEmpty(); }
 
 /* The card of screen 3 (bookmark) or screen 2 (group): Page, and for a bookmark Group, each named, and the button. */
 function abPlaceInner() {
+  if (ab.kind === 'edit') return abEditPlaceInner();
   var page = '<span class="atlas-addlbl">Page</span>' + abDropdown('page', 'Page', abPageItems(), ab.page === null ? '' : ab.page);
   if (ab.kind === 'group') {
     return '<div class="atlas-addplace">' + page + '</div>' +
@@ -4125,6 +4151,7 @@ function abToggleMenu(key) {
 }
 
 function abChoose(key, value) {
+  if (ab.kind === 'edit') { abEditChoose(value); abCloseMenus(); return; }
   if (key === 'page') {
     var id = ab.pages.filter(function (p) { return String(p.id) === value; })[0];
     if (!id) return;
@@ -4159,6 +4186,163 @@ function abBackWithGroup(group) {
   ab.groupsLoaded = false;
   abRender();
   abLoadGroups();
+}
+
+  /* ═══ Module: 26-addbar-edit.js ═══ */
+/* ── 26-addbar-edit.js: right-click on the new tab, in the address bar ──
+   Right-clicking a bookmark, a group's name or a page in the new tab's page switcher sends the window a
+   message (04-bridge-messages.js) and the bar opens here, as Add does, with the page behind dimmed.
+   Screen 1 names what was clicked and offers pills: Rename, Edit URL, Delete for a bookmark; Rename, Move
+   to page, Delete group for a group; Rename, Subtitle, Delete for a page (Home has no Delete). Picking one
+   turns the bar into that job, and the back arrow returns to the pills. A save is asked of the service
+   worker script in this page (background/editFlow.js), which tells the new tab to show it.
+   The state, `ab`, is in 23-addbar-core.js; its `edit` is what the new tab sent:
+     { kind: 'bookmark', page, group, name, url } | { kind: 'group', page, group, count }
+     | { kind: 'page', id, label, name, sub, type } */
+
+var AB_ICON_TRASH = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4.5h9M6.5 4.5V3h3v1.5M5 4.5l.5 8h5l.5-8"/></svg>';
+
+function abEditPills() {
+  var k = ab.edit.kind;
+  if (k === 'bookmark') return [{ job: 'rename', label: 'Rename' }, { job: 'url', label: 'Edit URL' }, { job: 'delete', label: 'Delete' }];
+  if (k === 'group') return [{ job: 'rename', label: 'Rename' }, { job: 'move', label: 'Move to page' }, { job: 'delete', label: 'Delete group' }];
+  var pills = [{ job: 'rename', label: 'Rename' }, { job: 'sub', label: 'Subtitle' }];
+  if (ab.edit.type !== 'search') pills.push({ job: 'delete', label: 'Delete' });
+  return pills;
+}
+
+/* What the bar calls it, what is beside that, and its picture. */
+function abEditName() {
+  var e = ab.edit;
+  return e.kind === 'group' ? e.group : (e.name || e.label || '');
+}
+function abEditWhere() {
+  var e = ab.edit;
+  if (e.kind === 'bookmark') return String(e.url || '').replace(/^https?:\/\//, '').replace(/^www\./, '');
+  if (e.kind === 'group') return e.count === 1 ? '1 bookmark' : (e.count || 0) + ' bookmarks';
+  return 'Page';
+}
+function abEditIcon() { return ab.edit.kind === 'bookmark' ? AB_ICON_BM : ab.edit.kind === 'group' ? AB_ICON_GROUP : AB_ICON_PAGE; }
+
+/* The text the job starts from. */
+function abEditStart(job) {
+  var e = ab.edit;
+  if (job === 'rename') return e.kind === 'group' ? e.group : e.kind === 'page' ? (e.label || e.name || '') : e.name;
+  if (job === 'url') return e.url || '';
+  return job === 'sub' ? (e.sub || '') : '';
+}
+
+function abEditField() {
+  if (ab.step === 1) return 'editPick';
+  return ab.job === 'move' ? 'editMove' : ab.job === 'delete' ? 'editDelete' : 'editValue';
+}
+
+function abEditPickInner() {
+  var pills = abEditPills(), at = Math.min(ab.pillAt, pills.length - 1);
+  return abPills(pills.map(function (p) { return { label: p.label, value: p.job }; }), at, 'data-ab-job') +
+    '<div class="atlas-addhint">Enter picks ' + abEsc(pills[at].label) + ' &middot; &larr;&rarr; to move &middot; Esc cancels</div>';
+}
+
+function abEditQuestion() {
+  var e = ab.edit;
+  if (e.kind === 'group') return 'Delete ' + e.group + (e.count ? ' and ' + (e.count === 1 ? 'its bookmark' : 'its ' + e.count + ' bookmarks') : '') + '?';
+  return e.kind === 'page' ? 'Delete ' + abEditName() + ' and its bookmarks?' : 'Delete ' + e.name + '?';
+}
+
+var AB_EDIT_ASK = { rename: ['Name this bookmark', 'Name this group', 'Name this page'], url: ['Address, like example.com'], sub: ['Add a short subtitle, 3 to 5 words'] };
+
+/* What each screen shows, in the shape abScreen() returns. */
+function abEditScreen() {
+  var a = ab, e = a.edit;
+  if (a.step === 1) {
+    return { icon: abEditIcon(), value: abEditName(), placeholder: '', readonly: true, where: abEditWhere(),
+      body: '<div data-ab-drop>' + abEditPickInner() + '</div>' };
+  }
+  if (a.job === 'move') {
+    return { icon: abEditIcon(), value: abEditName(), placeholder: '', back: true, readonly: true, where: abEditWhere(),
+      body: '<div data-ab-place>' + abEditPlaceInner() + '</div>' };
+  }
+  if (a.job === 'delete') {
+    return { icon: AB_ICON_TRASH, value: abEditQuestion(), placeholder: '', back: true, readonly: true,
+      body: '<div class="atlas-addtools"><span class="atlas-addhint">It goes for good &middot; Enter deletes &middot; Esc cancels</span>' +
+        '<button type="button" class="atlas-addbtn is-soft" data-ab-cancel>Cancel</button>' +
+        '<button type="button" class="atlas-addbtn is-danger" data-ab-save>Delete</button></div>' };
+  }
+  var asks = AB_EDIT_ASK[a.job], ask = asks[a.job === 'rename' ? ['bookmark', 'group', 'page'].indexOf(e.kind) : 0];
+  var hint = a.job === 'sub' ? '<span class="atlas-addhint" data-ab-count></span>' : '<span class="atlas-addhint">Enter saves &middot; Esc cancels</span>';
+  return { icon: abEditIcon(), value: a.value, placeholder: ask, back: true,
+    body: '<div class="atlas-addtools">' + hint + abAddButton('Save') + '</div>' };
+}
+
+/* ── the pills ── */
+
+function abEditMove(by) {
+  var n = abEditPills().length;
+  ab.pillAt = (ab.pillAt + by + n) % n;
+  var drop = ab.card.querySelector('[data-ab-drop]');
+  if (drop) drop.innerHTML = abEditPickInner();
+}
+
+function abEditPick(job) {
+  if (!ab || ab.kind !== 'edit') return;
+  ab.job = job;
+  ab.step = 2;
+  ab.value = abEditStart(job);
+  abRender();
+}
+
+/* ── moving a group: the pages it could go to are every page but this one ── */
+
+function abEditOthers() {
+  return ab.pages.filter(function (p) { return String(p.id) !== String(ab.edit.page); });
+}
+
+function abEditPagesLoaded(flow) {
+  var others = abEditOthers();
+  if (flow.moveTo === null && others.length) flow.moveTo = others[0].id;
+}
+
+function abEditChoose(value) {
+  var p = abEditOthers().filter(function (x) { return String(x.id) === value; })[0];
+  if (!p) return;
+  ab.moveTo = p.id;
+  abPaintPlace();
+}
+
+function abEditPlaceInner() {
+  var others = abEditOthers();
+  if (!others.length) return '<div class="atlas-addtools"><span class="atlas-addhint">There is only one page, so there is nowhere to move it &middot; Esc cancels</span></div>';
+  var items = others.map(function (p) { return { value: String(p.id), label: p.label }; });
+  return '<div class="atlas-addplace"><span class="atlas-addlbl">Page</span>' + abDropdown('page', 'Page', items, ab.moveTo === null ? '' : ab.moveTo) + '</div>' +
+    '<div class="atlas-addtools"><span class="atlas-addhint">Moves the group, with its bookmarks &middot; Enter moves &middot; Esc cancels</span>' + abAddButton('Move') + '</div>';
+}
+
+/* ── Enter, or the button: pick the highlighted pill, or do the job ── */
+
+function abEditNext() {
+  if (ab.step === 1) {
+    var pills = abEditPills();
+    abEditPick(pills[Math.min(ab.pillAt, pills.length - 1)].job);
+    return;
+  }
+  abEditSave();
+}
+
+function abEditSave() {
+  var flow = ab, e = flow.edit, job = flow.job;
+  if (flow.busy) return;
+  abError('');
+  var msg;
+  if (job === 'move' && flow.moveTo === null) { abError('There is only one page.'); return; }
+  if (e.kind === 'bookmark') msg = { action: 'editBookmark', db: abDb(), page: e.page, group: e.group, name: e.name, url: e.url, op: job, value: flow.value };
+  else if (e.kind === 'group') msg = { action: 'editGroup', db: abDb(), page: e.page, group: e.group, op: job, value: flow.value, to: job === 'move' ? flow.moveTo : undefined };
+  else msg = { action: 'editPage', db: abDb(), id: e.id, op: job, value: flow.value };
+  flow.busy = true;
+  abAsk(msg).then(function (r) {
+    flow.busy = false;
+    if (ab !== flow) return;
+    if (r && r.ok) abClose(); else abError((r && r.error) || 'That did not work. Try again.');
+  });
 }
 
 })();

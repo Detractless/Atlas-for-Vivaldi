@@ -116,9 +116,9 @@ function makeFakeChrome(window, seed = {}) {
     sentMessages,
     searches,
     /** Deliver a runtime message the way another extension page would. */
-    deliver(msg) {
+    deliver(msg, sender = {}) {
       const replies = [];
-      for (const fn of messageListeners.slice()) fn(clone(msg), {}, (r) => replies.push(r));
+      for (const fn of messageListeners.slice()) fn(clone(msg), clone(sender), (r) => replies.push(r));
       return replies;
     },
   };

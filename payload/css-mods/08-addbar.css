@@ -91,3 +91,6 @@
   background: var(--atlas-text-1); color: var(--atlas-bar); font: inherit; font-size: 12.5px; line-height: 18px;
 }
 #browser .atlas-addbtn:hover { opacity: .85; }
+#browser .atlas-addbtn + .atlas-addbtn { margin-left: 0; }   /* two buttons: Cancel and Delete sit together on the right */
+#browser .atlas-addbtn.is-soft { background: var(--atlas-hover-2); color: var(--atlas-text-1); }
+#browser .atlas-addbtn.is-danger { background: var(--atlas-error, #d14343); color: #fff; }

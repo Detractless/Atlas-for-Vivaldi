@@ -27,6 +27,7 @@ function abPills(list, at, attr) {
 /* What each screen shows: { icon, value, placeholder, body, back, where (the address, beside the name), readonly }. */
 function abScreen() {
   var a = ab;
+  if (a.kind === 'edit') return abEditScreen();
   if (a.kind === 'bookmark') {
     if (a.step === 1) {
       return { icon: AB_ICON_BM, value: a.urlText, placeholder: 'Type a website to bookmark, or pick one below',
@@ -67,6 +68,7 @@ function abDropInner() {
 }
 
 function abFieldName() {
+  if (ab.kind === 'edit') return abEditField();
   if (ab.kind === 'page') return ab.step === 1 ? 'pageName' : 'sub';
   if (ab.kind === 'group') return ab.step === 1 ? 'groupName' : 'place';
   return ['url', 'name', 'place'][ab.step - 1];
@@ -84,7 +86,7 @@ function abRender() {
   ab.card.innerHTML = s.body + '<div class="atlas-adderror" data-ab-error role="alert"></div>';
   abUpdateCount();
   var input = ab.field.querySelector('input');
-  setTimeout(function () { if (input && ab) input.focus(); }, 0);
+  setTimeout(function () { if (input && ab) { input.focus(); if (ab.kind === 'edit' && !input.readOnly && input.select) input.select(); } }, 0);
 }
 
 function abPaintPills() {
@@ -96,7 +98,7 @@ function abPaintPills() {
 function abUpdateCount() {
   var slot = ab && ab.card.querySelector('[data-ab-count]');
   if (!slot) return;
-  var c = abSubCount(ab.sub);
+  var c = abSubCount(ab.kind === 'edit' ? ab.value : ab.sub);
   slot.textContent = c.words + ' of ' + AB_SUB_MIN + '-' + AB_SUB_MAX + ' words · ' + c.chars + ' / ' + AB_SUB_CHARS + ' · Enter adds · Esc cancels';
 }
 
@@ -111,6 +113,7 @@ function abError(text) {
 function abNext() {
   var flow = ab;
   abError('');
+  if (flow.kind === 'edit') { abEditNext(); return; }
   if (flow.kind === 'bookmark') {
     if (flow.step === 1) {
       var text = flow.urlText.trim();
@@ -205,6 +208,9 @@ function abWire() {
   flow.card.addEventListener('click', function (e) {
     var t = e.target;
     if (t.closest('[data-ab-save]')) return abNext();
+    var job = t.closest('[data-ab-job]');
+    if (job) return abEditPick(job.getAttribute('data-ab-job'));
+    if (t.closest('[data-ab-cancel]')) return abBack();
     var site = t.closest('[data-ab-site]');
     if (site) return abPickSite(site.getAttribute('data-ab-site'));
     var np = t.closest('[data-ab-name]');
@@ -227,6 +233,7 @@ function abWire() {
     if (name === 'url') { flow.urlText = e.target.value; flow.siteAt = 0; abPaintPills(); abSuggest(); }
     else if (name === 'name') { flow.name = e.target.value; flow.nameTouched = true; }
     else if (name === 'groupName') flow.groupName = e.target.value;
+    else if (name === 'editValue') { flow.value = e.target.value; if (flow.job === 'sub') abUpdateCount(); }
     else if (name === 'pageName') flow.pageName = e.target.value;
     else if (name === 'sub') { flow.sub = e.target.value; abUpdateCount(); }
   }
@@ -240,8 +247,12 @@ function abWire() {
       e.preventDefault();
       flow.siteAt = (flow.siteAt + (e.key === 'ArrowDown' ? 1 : flow.sites.length - 1)) % flow.sites.length;
       abPaintPills();
+    } else if (field === 'editPick' && /^Arrow/.test(e.key)) {
+      e.preventDefault();
+      abEditMove(e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1);
     } else if (e.key === 'Enter') {
       e.preventDefault();
+      if (e.repeat) return;   // a held key must not carry on from one screen to the next (a delete)
       if (field === 'url' && flow.sites.length && !e.shiftKey) abPickSite(flow.sites[flow.siteAt].value);   // Shift+Enter: what was typed, as it is
       else abNext();
     }

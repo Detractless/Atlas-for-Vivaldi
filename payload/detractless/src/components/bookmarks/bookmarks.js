@@ -13,6 +13,7 @@ import {
 /* addBookmark takes resolved values from whatever collected them (today the
    add popup), so the writer never depends on the widget. */
 import { attachScrollAffordance } from '../shared/scrollAffordance.js';
+import { editInBar } from '../shared/editInBar.js';
 import { refreshBookmarkCache } from './bookmarkCache.js';
 import { forActiveAccount } from '../../services/googleAccount.js';
 
@@ -221,10 +222,16 @@ function onGroupContextMenu(e, groupName, rowBookmarks) {
      to parse or bounds-check. */
   const row = e.target.closest?.('.bookmark-link');
   const bookmark = row && rowBookmarks.get(row);
-  if (bookmark) { openBookmarkMenu(groupName, bookmark); return; }
+  /* The address bar opens for it (editInBar.js); the pop-up below is what runs when nothing answers. */
+  if (bookmark) {
+    editInBar({ kind: 'bookmark', page: currentBookmarkPage, group: groupName, name: bookmark.name, url: bookmark.url },
+      () => openBookmarkMenu(groupName, bookmark));
+    return;
+  }
   // Tested AFTER the row, since every row is itself inside the well.
   if (e.target.closest?.('.bookmark-well')) return;
-  openGroupMenu(groupName);
+  editInBar({ kind: 'group', page: currentBookmarkPage, group: groupName, count: bookmarks[groupName].length },
+    () => openGroupMenu(groupName));
 }
 
 /* ── Right-click dialogs (R-012, hit area widened in R-018) ──────────────

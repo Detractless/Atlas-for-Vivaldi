@@ -15,6 +15,7 @@ import './tabs.css';
 import { DEFAULT_TABS } from '../../constants/defaults.js';
 import { ContextMenu } from '../contextMenu/contextMenu.js';
 import { openTabDialog } from '../bookmarks/bookmarkDialog.js';
+import { editInBar } from '../shared/editInBar.js';
 import { BookmarkDB } from '../../services/bookmarksDB.js';
 // Unused here since the switcher replaced the filtered page list; kept so the
 // bundle's module order (and so its start-up order) stays the same.
@@ -194,7 +195,9 @@ function switcherItem(tab) {
     e.preventDefault();
     if (ContextMenu.disabled) return;
     setOpen(false);
-    openPageDialog(tab);
+    // The address bar opens for it (editInBar.js); the pop-up is what runs when nothing answers.
+    editInBar({ kind: 'page', id: tab.id, label: tab.label, name: displayName(tab), sub: cleanSubtitle(tab.sub) || starterSubtitle(tab), type: tab.type },
+      () => openPageDialog(tab));
   });
   return li;
 }

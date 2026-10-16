@@ -23,6 +23,7 @@ const DYNAMIC_OK = {
   "payload/detractless/src/services/dataExport.js": "keys come from BACKUP_SYNC_KEYS (the list)",
   "payload/detractless/src/background/stateSync.js": "SEEDED_KEYS, each checked by syncDefault()",
   "payload/detractless/src/components/tabs/tabs.js": "legacy page<id> key (syncPatterns)",
+  "payload/detractless/src/background/editFlow.js": "legacy page<id> key (syncPatterns), removed with its page as tabs.js deletePage does",
   "src/modules/02-bridge-setup.js": "seeds the service-worker defaults (atlas_window.test.js checks the values)",
 };
 

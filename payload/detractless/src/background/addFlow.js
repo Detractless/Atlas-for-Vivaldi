@@ -11,7 +11,7 @@ const SITES_FRESH_MS = 60 * 1000;
 let sites = { at: 0, list: [] };
 
 /** The bookmark database of the profile the window is showing, as a handle of its own (closed after use). */
-async function withDb(name, work) {
+export async function withDb(name, work) {
   if (!DB_NAME.test(String(name || ''))) throw new Error('Not a bookmark database name');
   const handle = Object.assign(Object.create(BookmarkDB), { fixedName: true, dbName: name, db: null });
   try {

@@ -1,8 +1,8 @@
-/* ── 04-bridge-messages.js: acts on the messages the page context menu sends,
-   and sends http://home to the Atlas new tab. ── */
+/* ── 04-bridge-messages.js: acts on the messages the page context menu sends (and the new tab's right-click
+   edits), and sends http://home to the Atlas new tab. ── */
 
 if (chrome.runtime && chrome.runtime.onMessage) {
-  chrome.runtime.onMessage.addListener(function (msg, sender) {
+  chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     var m = msg && msg.atlas;
     if (!m) return;
     if (m.act === 'opentab' && m.url) {
@@ -22,6 +22,15 @@ if (chrome.runtime && chrome.runtime.onMessage) {
     } else if (m.act === 'savepage') {
       var u = m.url || (sender && sender.tab && sender.tab.url);
       if (u) chrome.downloads.download({ url: u, saveAs: true }, function () { void chrome.runtime.lastError; });
+    } else if (m.act === 'edit-open' && m.edit) {
+      /* Right-click on the new tab (a bookmark, a group, a page): the bar opens in the window that owns the tab. */
+      var editWin = (sender && sender.tab && sender.tab.windowId) || undefined;
+      var mineWin = (typeof window !== 'undefined' && window.vivaldiWindowId) || undefined;
+      if (editWin && mineWin && editWin !== mineWin) return;
+      if (typeof Atlas.openEdit === 'function') {
+        Atlas.openEdit(m.edit);
+        if (typeof sendResponse === 'function') sendResponse({ ok: true });   // tells the tab it was handled; unanswered, it opens its own pop-up
+      }
     } else if (m.act === 'focus-addressbar') {
       var winId = (sender && sender.tab && sender.tab.windowId) || undefined;
       var myWin = (typeof window !== 'undefined' && window.vivaldiWindowId) || undefined;

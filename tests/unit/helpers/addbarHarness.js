@@ -22,7 +22,7 @@ async function start({ thisUrl = "https://www.example.com/post", groups = { 11: 
     '<div class="toolbar-mainbar"><div class="UrlBar-AddressField"><input class="url"></div></div><div id="webpage-stack"></div>');
   if (rect) doc.querySelector(".UrlBar-AddressField").getBoundingClientRect = () => rect;
   w.asked = [];
-  w.saved = { bookmarks: [], groups: [], pages: [] };
+  w.saved = { bookmarks: [], groups: [], pages: [], edits: [] };
   const book = Object.fromEntries(Object.entries(groups).map(([page, list]) => [page, [...list]]));
   w.fail = null;
   w.window.chrome.tabs.query = (q, cb) => cb([{ id: 1, url: thisUrl }]);
@@ -41,6 +41,7 @@ async function start({ thisUrl = "https://www.example.com/post", groups = { 11: 
       return reply({ sites: [...here, ...list].slice(0, 8), names: host.includes(".") ? [cap(host.split(".")[0]), cap(host)] : [] });
     }
     if (msg.action === "addBookmark") { w.saved.bookmarks.push(plain(msg)); return reply({ ok: true }); }
+    if (/^edit(Bookmark|Group|Page)$/.test(msg.action)) { w.saved.edits.push(plain(msg)); return reply({ ok: true }); }
     if (msg.action === "addGroup") { w.saved.groups.push(plain(msg)); (book[msg.page] = book[msg.page] || []).push(msg.group); return reply({ ok: true }); }
     if (msg.action === "addPage") { w.saved.pages.push(plain(msg)); return reply({ ok: true }); }
     return reply({});

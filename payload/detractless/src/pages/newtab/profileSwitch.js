@@ -17,7 +17,7 @@ export function installProfileSwitch() {
   if (ap && ap.setSwitchHandler) ap.setSwitchHandler(applyProfileSwitch);
 }
 
-/** Bookmarks or pages were added from the address bar (background/addFlow.js): show them. */
+/** Bookmarks or pages were added or changed from the address bar (background/addFlow.js, editFlow.js): show them. */
 export function installDataChanged() {
   try {
     chrome.runtime.onMessage.addListener((msg) => { if (msg && msg.atlas && msg.atlas.act === 'data-changed') refreshAfterOutsideAdd(); });
@@ -27,7 +27,10 @@ export function installDataChanged() {
 async function refreshAfterOutsideAdd() {
   await refreshBookmarkCache();
   await initializeTabs();
-  if (currentPage === 'bookmarks' && activeTabs.some((t) => String(t.id) === String(currentBookmarkPage))) loadBookmarks();
+  if (currentPage === 'bookmarks') {
+    if (activeTabs.some((t) => String(t.id) === String(currentBookmarkPage))) loadBookmarks();
+    else { selectSearchTab(); showPage('search'); }   // the page on screen was deleted from the address bar: back to Home
+  }
   if (window.AtlasSettingsUI) window.AtlasSettingsUI.rerender();
 }
 

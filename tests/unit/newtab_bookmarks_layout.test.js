@@ -77,17 +77,21 @@ test("the row measurements are one set of tokens, and bookmarks.js reads the sam
   }
 });
 
-test("right-click: a link opens its bookmark, the name line opens the group, the list between does nothing", async () => {
+test("right-click with no window to answer: a link opens its bookmark pop-up, the name line the group's, the list between nothing", async () => {
   const t = await openNewTab();
   const page = await openEssentials(t);
   const { window: win, document: doc } = t;
   const dialogTitle = () => text(doc.querySelector(".bookmark-dialog .picker-title"));
+  // Nothing answers the message to the window here, so the pop-up opens (editInBar.js); the answered case is in newtab_edit_in_bar.test.js.
   contextMenu(win, page.querySelector(".bookmark-link"));
+  await settle(win, 80);
   assert.equal(dialogTitle(), "Notion", "the bookmark's own dialog");
   contextMenu(win, page.querySelector(".group-title"));
+  await settle(win, 80);
   assert.equal(dialogTitle(), "PRODUCTIVITY", "the group's dialog (it replaces the first one)");
   doc.querySelectorAll(".bookmark-dialog").forEach((d) => d.remove());
   contextMenu(win, page.querySelector(".bookmark-list"));
+  await settle(win, 80);
   assert.equal(doc.querySelector(".bookmark-dialog"), null, "empty space in the list opens nothing");
   assert.deepEqual(t.errors, []);
 });
@@ -111,6 +115,7 @@ test("a group with nothing in it (made with Add group) shows its name and a quie
   assert.equal(empty.querySelector(".bookmark-list"), null, "no list, so no scroll chrome");
   assert.equal(empty.querySelectorAll(".bookmark-link").length, 0);
   contextMenu(win, empty.querySelector(".group-title"));
+  await settle(win, 80);
   assert.equal(text(doc.querySelector(".bookmark-dialog .picker-title")), "MOVIES", "right-click on the name still opens the group dialog");
   assert.equal(text(doc.querySelector(".bookmark-dialog .picker-subtitle")), "0 bookmarks");
   assert.deepEqual(t.errors, []);

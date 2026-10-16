@@ -32,6 +32,7 @@ function abNoGroups() { return ab.page !== null && abGroupsEmpty(); }
 
 /* The card of screen 3 (bookmark) or screen 2 (group): Page, and for a bookmark Group, each named, and the button. */
 function abPlaceInner() {
+  if (ab.kind === 'edit') return abEditPlaceInner();
   var page = '<span class="atlas-addlbl">Page</span>' + abDropdown('page', 'Page', abPageItems(), ab.page === null ? '' : ab.page);
   if (ab.kind === 'group') {
     return '<div class="atlas-addplace">' + page + '</div>' +
@@ -84,6 +85,7 @@ function abToggleMenu(key) {
 }
 
 function abChoose(key, value) {
+  if (ab.kind === 'edit') { abEditChoose(value); abCloseMenus(); return; }
   if (key === 'page') {
     var id = ab.pages.filter(function (p) { return String(p.id) === value; })[0];
     if (!id) return;

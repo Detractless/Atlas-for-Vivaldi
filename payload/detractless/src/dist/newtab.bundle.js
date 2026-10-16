@@ -1155,6 +1155,21 @@
     }
   }
 
+  // src/components/shared/editInBar.js
+  function editInBar(edit, fallback) {
+    const handled = (reply) => {
+      const lastError = chrome.runtime && chrome.runtime.lastError;
+      return !lastError && !!reply && reply.ok === true;
+    };
+    try {
+      chrome.runtime.sendMessage({ atlas: { act: "edit-open", edit } }, (reply) => {
+        if (!handled(reply)) fallback();
+      });
+    } catch (e) {
+      fallback();
+    }
+  }
+
   // src/components/bookmarks/bookmarkCache.js
   async function refreshBookmarkCache() {
     try {
@@ -1471,11 +1486,17 @@
     const row2 = e.target.closest?.(".bookmark-link");
     const bookmark = row2 && rowBookmarks.get(row2);
     if (bookmark) {
-      openBookmarkMenu(groupName, bookmark);
+      editInBar(
+        { kind: "bookmark", page: currentBookmarkPage, group: groupName, name: bookmark.name, url: bookmark.url },
+        () => openBookmarkMenu(groupName, bookmark)
+      );
       return;
     }
     if (e.target.closest?.(".bookmark-well")) return;
-    openGroupMenu(groupName);
+    editInBar(
+      { kind: "group", page: currentBookmarkPage, group: groupName, count: bookmarks[groupName].length },
+      () => openGroupMenu(groupName)
+    );
   }
   function openGroupMenu(groupName) {
     const pages = activeTabs.filter((t) => t.type !== "search" && t.id !== currentBookmarkPage).map((t) => ({ label: t.label, value: t.id }));
@@ -1758,7 +1779,10 @@
       e.preventDefault();
       if (ContextMenu.disabled) return;
       setOpen(false);
-      openPageDialog(tab);
+      editInBar(
+        { kind: "page", id: tab.id, label: tab.label, name: displayName(tab), sub: cleanSubtitle(tab.sub) || starterSubtitle(tab), type: tab.type },
+        () => openPageDialog(tab)
+      );
     });
     return li;
   }
@@ -5616,7 +5640,13 @@
   async function refreshAfterOutsideAdd() {
     await refreshBookmarkCache();
     await initializeTabs();
-    if (currentPage === "bookmarks" && activeTabs.some((t) => String(t.id) === String(currentBookmarkPage))) loadBookmarks();
+    if (currentPage === "bookmarks") {
+      if (activeTabs.some((t) => String(t.id) === String(currentBookmarkPage))) loadBookmarks();
+      else {
+        selectSearchTab();
+        showPage("search");
+      }
+    }
     if (window.AtlasSettingsUI) window.AtlasSettingsUI.rerender();
   }
   async function applyProfileSwitch() {

@@ -211,6 +211,78 @@ test("a group added from the bar is saved with nothing in it, a name the page ha
   assert.deepEqual(w.errors, []);
 });
 
+/* ── Right-click on the new tab: change a bookmark, group or page (background/editFlow.js) ── */
+
+const PAGES2 = [...PAGES, { id: 2, label: "Streaming", type: "bookmarks", sub: "Shows and movies" }];
+const put = (w, page, group, name, url) => send(w, { action: "addBookmark", db: DB, name, url, page, group });
+
+test("a bookmark changed from the bar is renamed, re-addressed or deleted, and its group goes with the last one", async () => {
+  const w = loadWorker({ sync: { activeTabs: PAGES } });
+  await put(w, 1, "WATCH", "Netflix", "netflix.com");
+  await put(w, 1, "WATCH", "Disney+", "disneyplus.com");
+  const edit = (op, extra, name = "Netflix", url = "https://netflix.com") => send(w, { action: "editBookmark", db: DB, page: 1, group: "WATCH", name, url, op, ...extra });
+  const told = toldNewTabs(w);
+  assert.deepEqual(await edit("rename", { value: "  Netflix HQ " }), { ok: true });
+  assert.deepEqual((await stored(w, 1)).WATCH.map((b) => b.name), ["Netflix HQ", "Disney+"], "renamed in place, trimmed");
+  assert.match((await edit("rename", { value: "  " }, "Netflix HQ")).error, /Give the bookmark a name/);
+  assert.deepEqual(await edit("url", { value: "netflix.com/browse" }, "Netflix HQ"), { ok: true });
+  assert.equal((await stored(w, 1)).WATCH[0].url, "https://netflix.com/browse", "https:// added");
+  assert.match((await edit("url", { value: "" }, "Netflix HQ", "https://netflix.com/browse")).error, /Give the bookmark a URL/);
+  assert.match((await edit("rename", { value: "x" }, "Nobody")).error, /not there any more/);
+  assert.equal(toldNewTabs(w), told + 2, "new tabs are told once per change that worked");
+  assert.deepEqual(await edit("delete", {}, "Netflix HQ", "https://netflix.com/browse"), { ok: true });
+  assert.deepEqual((await stored(w, 1)).WATCH.map((b) => b.name), ["Disney+"], "the group is still there");
+  assert.deepEqual(await edit("delete", {}, "Disney+", "https://disneyplus.com"), { ok: true });
+  assert.deepEqual(await stored(w, 1), {}, "the last bookmark takes its group with it");
+  assert.match((await send(w, { action: "editBookmark", db: DB, page: 1, group: "WATCH", name: "a", url: "b", op: "fly" })).error, /missing/i);
+  assert.deepEqual(w.errors, []);
+});
+
+test("a group changed from the bar is renamed in place, moved unless the other page has the name, or deleted", async () => {
+  const w = loadWorker({ sync: { activeTabs: PAGES2 } });
+  await put(w, 1, "WATCH", "Netflix", "netflix.com");
+  await put(w, 1, "WORK", "Notion", "notion.so");
+  await put(w, 2, "WORK", "Slack", "slack.com");
+  const edit = (op, extra, group = "WATCH", page = 1) => send(w, { action: "editGroup", db: DB, page, group, op, ...extra });
+  assert.deepEqual(await edit("rename", { value: " binge " }), { ok: true });
+  assert.deepEqual(Object.keys(await stored(w, 1)), ["BINGE", "WORK"], "capitals, and still first");
+  assert.match((await edit("rename", { value: "work" }, "BINGE")).error, /already exists/);
+  assert.match((await edit("rename", { value: " " }, "BINGE")).error, /Give the group a name/);
+  assert.deepEqual(await edit("rename", { value: "Binge" }, "BINGE"), { ok: true }, "the same name is not an error");
+  assert.match((await edit("move", { to: 2 }, "WORK")).error, /WORK already exists on that page/, "a same-named group on the other page is refused");
+  assert.deepEqual((await stored(w, 2)).WORK, [{ name: "Slack", url: "https://slack.com" }], "and left as it was");
+  assert.deepEqual((await stored(w, 1)).WORK, [{ name: "Notion", url: "https://notion.so" }], "with nothing lost here either");
+  assert.match((await edit("move", { to: 1 }, "BINGE")).error, /another page/);
+  assert.deepEqual(await edit("move", { to: 2 }, "BINGE"), { ok: true });
+  assert.deepEqual(Object.keys(await stored(w, 1)), ["WORK"]);
+  assert.deepEqual(Object.keys(await stored(w, 2)), ["WORK", "BINGE"]);
+  assert.deepEqual((await stored(w, 2)).BINGE, [{ name: "Netflix", url: "https://netflix.com" }], "its bookmarks came along");
+  assert.deepEqual(await edit("delete", {}, "WORK"), { ok: true });
+  assert.deepEqual(await stored(w, 1), {});
+  assert.match((await edit("delete", {}, "WORK")).error, /not there any more/);
+  assert.deepEqual(w.errors, []);
+});
+
+test("a page changed from the bar is renamed, given a subtitle or deleted with its bookmarks; Home stays", async () => {
+  const w = loadWorker({ sync: { activeTabs: PAGES2, page2: "old" } });
+  await put(w, 2, "WATCH", "Netflix", "netflix.com");
+  const edit = (op, extra, id = 2) => send(w, { action: "editPage", db: DB, id, op, ...extra });
+  assert.deepEqual(await edit("rename", { value: " Binge " }), { ok: true });
+  assert.equal(w.storage.sync._data.activeTabs[2].label, "Binge");
+  assert.match((await edit("rename", { value: "" })).error, /Give the page a name/);
+  assert.match((await edit("sub", { value: "Lifting" })).error, /at least 3 words/);
+  assert.deepEqual(await edit("sub", { value: "Shows   and movies list" }), { ok: true });
+  assert.equal(w.storage.sync._data.activeTabs[2].sub, "Shows and movies list");
+  assert.match((await edit("delete", {}, "search")).error, /Home/, "Home is kept");
+  assert.equal(w.storage.sync._data.activeTabs.length, 3);
+  assert.deepEqual(await edit("delete", {}), { ok: true });
+  assert.deepEqual(w.storage.sync._data.activeTabs.map((t) => t.id), ["search", 1]);
+  assert.equal(await stored(w, 2), null, "its bookmarks went with it");
+  assert.equal(w.storage.sync._data.page2, undefined, "and its saved page data");
+  assert.match((await edit("delete", {})).error, /not there any more/);
+  assert.deepEqual(w.errors, []);
+});
+
 test("a page added from the bar joins the page list with its subtitle, and a bad subtitle is refused", async () => {
   const w = loadWorker({ sync: { activeTabs: PAGES } });
   assert.match((await send(w, { action: "addPage", label: "Gym", sub: "Lifting" })).error, /at least 3 words/);

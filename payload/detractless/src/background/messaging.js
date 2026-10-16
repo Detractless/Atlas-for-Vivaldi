@@ -5,6 +5,7 @@ import { checkPendingIncrease, checkPendingDelayDecrease, pruneActiveDelays } fr
 import { storageSet } from '../services/storage.js';
 import { recordUsage, clearUsage } from './usageLog.js';
 import { addInfo, addGroups, addSuggest, addBookmarkTo, addGroupTo, addPageTo } from './addFlow.js';
+import { editBookmark, editGroup, editPage } from './editFlow.js';
 
 const ok = (sendResponse) => sendResponse({ success: true });
 
@@ -70,6 +71,10 @@ const ACTIONS = {
   addBookmark: (m, send) => answer(addBookmarkTo(m).then(announce), send),
   addGroup: (m, send) => answer(addGroupTo(m).then(announce), send),
   addPage: (m, send) => answer(addPageTo(m).then(announce), send),
+  // --- Right-click on the new tab: change a bookmark, a group or a page (src/modules/26-addbar-edit.js) ---
+  editBookmark: (m, send) => answer(editBookmark(m).then(announce), send),
+  editGroup: (m, send) => answer(editGroup(m).then(announce), send),
+  editPage: (m, send) => answer(editPage(m).then(announce), send),
 };
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

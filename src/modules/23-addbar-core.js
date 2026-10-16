@@ -1,8 +1,9 @@
-/* ── 23-addbar-core.js: "Add bookmark", "Add group" and "Add page" in the address bar ──
+/* ── 23-addbar-core.js: "Add bookmark", "Add group" and "Add page" in the address bar, and right-click on the new tab ──
    The profile menu's Add bookmark / Add group / Add page open here, on whatever page you are on: the address bar
    grows into the container (a field over the bar, a card under it, the page behind dimmed), at the
    address bar card's own size (css-mods/08-addbar.css). The
-   screens are in 24-addbar-screens.js and the page and group lists in 25-addbar-place.js. This file holds the state, the questions put to the service
+   screens are in 24-addbar-screens.js, the page and group lists in 25-addbar-place.js and the right-click edits in
+   26-addbar-edit.js. This file holds the state, the questions put to the service
    worker (background/addFlow.js, which owns the bookmark database and the page list), and the
    opening, placing and closing.
    One flow at a time: `ab` is the open flow, or null. */
@@ -56,6 +57,7 @@ function abFresh(kind) {
     urlText: '', name: '', nameTouched: false, sites: [], siteAt: 0, names: [], thisUrl: '',
     pages: [], page: null, groups: [], group: null, groupsLoaded: false,   // groupsLoaded: the page's groups have been read
     groupName: '', returnTo: null,                                          // returnTo: 'bookmark' when a group is made from Add bookmark's screen 3
+    edit: null, job: null, value: '', pillAt: 0, moveTo: null,              // right-click on the new tab: what it was on, the job picked, its text, the page to move to
     pageName: '', sub: '',
     pageCount: 1, scrim: null, field: null, card: null
   };
@@ -108,13 +110,14 @@ function abClose() {
   ab = null;
 }
 
-var AB_LABELS = { bookmark: 'Add bookmark', group: 'Add group', page: 'Add page' };
+var AB_LABELS = { bookmark: 'Add bookmark', group: 'Add group', page: 'Add page', edit: 'Edit' };
 
-/** Open the flow: mode is 'bookmark', 'group' or 'page'. */
-function abOpen(mode) {
+/** Open the flow: mode is 'bookmark', 'group' or 'page'; 'edit' is a right-click on the new tab, with what it was on. */
+function abOpen(mode, edit) {
   abClose();
   if (typeof Atlas.closeUiMenu === 'function') Atlas.closeUiMenu();
-  ab = abFresh(AB_LABELS[mode] ? mode : 'bookmark');
+  ab = abFresh(AB_LABELS[mode] && (mode !== 'edit' || edit) ? mode : 'bookmark');
+  ab.edit = edit || null;
   var host = document.getElementById('browser') || document.body;
   ab.scrim = abDiv('atlas-addscrim');
   ab.field = abDiv('atlas-addfield');
@@ -145,7 +148,8 @@ function abLoad(flow) {
     if (ab !== flow) return;
     flow.pages = r.pages || [];
     flow.pageCount = flow.pages.length + 1;   // the new page's default name is Page N
-    if (flow.page === null && flow.pages.length) flow.page = flow.pages[0].id;
+    if (flow.kind === 'edit') abEditPagesLoaded(flow);
+    else if (flow.page === null && flow.pages.length) flow.page = flow.pages[0].id;
     var note = flow.kind === 'page' && flow.step === 1 && flow.card.querySelector('[data-ab-default]');
     if (note) note.textContent = 'Page ' + flow.pageCount;
     abPaintPlace();   // a Page choice already on screen shows the first page
@@ -174,4 +178,5 @@ function abSuggest() {
 if (chrome.tabs && chrome.tabs.onActivated) chrome.tabs.onActivated.addListener(function () { abClose(); });
 
 Atlas.openAdd = abOpen;
+Atlas.openEdit = function (edit) { abOpen('edit', edit); };
 Atlas.closeAdd = abClose;

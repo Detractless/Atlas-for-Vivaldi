@@ -1165,6 +1165,89 @@
     return { ok: true, id: page.id };
   }
 
+  // src/background/editFlow.js
+  var MISSING = { error: "Something is missing" };
+  var same = (a, b) => String(a) === String(b);
+  async function editBookmark(m) {
+    if (m.page === void 0 || m.page === null || !m.group || !["rename", "url", "delete"].includes(m.op)) return MISSING;
+    return withDb(m.db, async (h) => {
+      const groups = await h.getBookmarks(m.page) || {};
+      const list = groups[m.group];
+      const at = list ? list.findIndex((b) => b.name === m.name && b.url === m.url) : -1;
+      if (at === -1) return { error: "That bookmark is not there any more." };
+      const value = String(m.value || "").trim();
+      if (m.op === "rename") {
+        if (!value) return { error: "Give the bookmark a name." };
+        list[at].name = value;
+      } else if (m.op === "url") {
+        if (!value) return { error: "Give the bookmark a URL." };
+        list[at].url = /^https?:\/\//.test(value) ? value : `https://${value}`;
+      } else {
+        list.splice(at, 1);
+        if (!list.length) delete groups[m.group];
+      }
+      await h.saveBookmarks(m.page, groups);
+      return { ok: true };
+    });
+  }
+  async function editGroup(m) {
+    if (m.page === void 0 || m.page === null || !m.group || !["rename", "move", "delete"].includes(m.op)) return MISSING;
+    return withDb(m.db, async (h) => {
+      const groups = await h.getBookmarks(m.page) || {};
+      if (!groups[m.group]) return { error: "That group is not there any more." };
+      if (m.op === "rename") return renameGroup(h, m, groups);
+      if (m.op === "move") return moveGroup(h, m, groups);
+      delete groups[m.group];
+      await h.saveBookmarks(m.page, groups);
+      return { ok: true };
+    });
+  }
+  async function renameGroup(h, m, groups) {
+    const name = String(m.value || "").trim().toUpperCase();
+    if (!name) return { error: "Give the group a name." };
+    if (name === m.group) return { ok: true };
+    if (groups[name]) return { error: "A group called that already exists." };
+    const renamed = {};
+    for (const key of Object.keys(groups)) renamed[key === m.group ? name : key] = groups[key];
+    await h.saveBookmarks(m.page, renamed);
+    return { ok: true };
+  }
+  async function moveGroup(h, m, groups) {
+    if (m.to === void 0 || m.to === null) return MISSING;
+    if (same(m.to, m.page)) return { error: "Choose another page." };
+    const target = await h.getBookmarks(m.to) || {};
+    if (target[m.group]) return { error: `${m.group} already exists on that page.` };
+    target[m.group] = groups[m.group];
+    await h.saveBookmarks(m.to, target);
+    delete groups[m.group];
+    await h.saveBookmarks(m.page, groups);
+    return { ok: true };
+  }
+  async function editPage(m) {
+    if (m.id === void 0 || m.id === null || !["rename", "sub", "delete"].includes(m.op)) return MISSING;
+    const { activeTabs } = await storageGet("sync", ["activeTabs"]);
+    const tabs = Array.isArray(activeTabs) ? activeTabs : [];
+    const at = tabs.findIndex((t) => same(t.id, m.id));
+    if (at === -1) return { error: "That page is not there any more." };
+    if (m.op === "rename") {
+      const label = String(m.value || "").trim();
+      if (!label) return { error: "Give the page a name." };
+      tabs[at] = { ...tabs[at], label };
+    } else if (m.op === "sub") {
+      const problem = subtitleProblem(m.value);
+      if (problem) return { error: problem };
+      tabs[at] = { ...tabs[at], sub: cleanSubtitle(m.value) };
+    } else {
+      if (tabs[at].type === "search") return { error: "Home can\u2019t be deleted." };
+      const id = tabs[at].id;
+      await withDb(m.db, (h) => h.deleteBookmarks(id));
+      await storageRemove("sync", `page${id}`);
+      tabs.splice(at, 1);
+    }
+    await storageSet("sync", { activeTabs: tabs });
+    return { ok: true };
+  }
+
   // src/background/messaging.js
   var ok = (sendResponse) => sendResponse({ success: true });
   function answer(work, sendResponse) {
@@ -1235,7 +1318,11 @@
     addSuggest: (m, send) => answer(addSuggest(m), send),
     addBookmark: (m, send) => answer(addBookmarkTo(m).then(announce), send),
     addGroup: (m, send) => answer(addGroupTo(m).then(announce), send),
-    addPage: (m, send) => answer(addPageTo(m).then(announce), send)
+    addPage: (m, send) => answer(addPageTo(m).then(announce), send),
+    // --- Right-click on the new tab: change a bookmark, a group or a page (src/modules/26-addbar-edit.js) ---
+    editBookmark: (m, send) => answer(editBookmark(m).then(announce), send),
+    editGroup: (m, send) => answer(editGroup(m).then(announce), send),
+    editPage: (m, send) => answer(editPage(m).then(announce), send)
   };
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (Object.prototype.hasOwnProperty.call(ACTIONS, message.action)) {
