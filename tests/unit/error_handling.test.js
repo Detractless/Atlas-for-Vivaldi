@@ -14,7 +14,7 @@ const acorn = require("acorn");
 const walk = require("acorn-walk");
 
 const ROOT = path.resolve(__dirname, "..", "..");
-const SKIP = /(^|\/)(_old|dist|vendor|node_modules|tests)\/|^payload\/extensions\/|^payload\/install-files\/atlas\.js$|atlas-spelling\.js$/;
+const SKIP = /(^|\/)(_old|dist|vendor|node_modules|tests)\/|^payload\/extensions\/|^payload\/install-files\/atlas\.js$|atlas-spelling\.js$|^payload\/install-files\/components\/atlas\/nsfw\/(offscreen\.js|ort-wasm-simd-threaded\.jsep\.mjs|tf\.min\.js)$/;
 
 function files(ext) {
   return execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { cwd: ROOT, encoding: "utf8" })

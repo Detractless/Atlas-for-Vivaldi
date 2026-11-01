@@ -55,6 +55,7 @@ ARCHIVED_SIDEBAR_FILES = [
 
 def step1_atlas_files(masters: Path, res: Path):
     copy_file(masters / "atlas.js", res)
+    copy_file(masters / "atlas-native-menu-bridge.js", res)
     copy_tree(masters / "components" / "atlas", res / "components" / "atlas")
     copy_file(masters / "src" / "atlas-localstorage-shim.js", res / "src")
     copy_file(masters / "src" / "atlas-preinit-bridge.js", res / "src")
@@ -80,6 +81,20 @@ def step2_window_html(res: Path):
         say("window.html          patched")
     else:
         say("window.html          already patched", dim=True)
+
+
+def step2_core_html(res: Path):
+    core = res / "main.html"
+    html = read_text(core)
+    tag = '<script src="atlas-native-menu-bridge.js"></script>'
+    if tag in html and html.index(tag) < html.index('src="background-common-bundle.js"'):
+        return
+    clean = re.sub(r'\s*<script src="atlas-native-menu-bridge.js"></script>', '', html)
+    marker = '<script src="background-common-bundle.js"></script>'
+    if marker not in clean:
+        fail("Vivaldi core script layout changed; native shortcut bridge was not installed.")
+    write_text(core, clean.replace(marker, tag + "\n    " + marker, 1), label="main.html")
+    say("main.html            native shortcut event bridge patched")
 
 
 def _remove_archived_sidebar_files(res: Path):

@@ -4,6 +4,7 @@ import { getSetting, setSetting } from './registry.js';
 import { lockState, changeAllowed } from '../utils/focusLock.js';
 import { clickFocusLock } from '../services/focusLocks.js';
 import { flushSaturation, clickSaturationLock } from '../components/colorLock/colorLock.js';
+import { MODES, normalize, withMode, togglePart } from '../utils/socialFilter.js';
 
 const options = (labels) => Object.entries(labels).map(([value, label]) => ({ value, label }));
 
@@ -24,6 +25,7 @@ function numberChoice(key, labels, parse) {
 }
 
 const flag = (key) => ({ get: () => !!getSetting(key), set: (v) => setSetting(key, !!v) });
+const text = (key) => ({ get: () => String(getSetting(key) || ""), set: (v) => setSetting(key, String(v).trim()) });
 
 const LIMITS = Object.fromEntries(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].map((v) => [v, v === "0" ? "Off" : v]));
 const DELAYS = { "0": "Off", "15": "15 seconds", "30": "30 seconds", "60": "1 minute", "120": "2 minutes", "300": "5 minutes" };
@@ -43,7 +45,7 @@ function lockable(control, key, click = () => clickFocusLock(key)) {
     lockKey: key,
     lockState: () => lockState(getSetting("focusLocks"), key),
     clickLock: click,
-    allows: (v) => changeAllowed(getSetting("focusLocks"), key, Number(getSetting(key)), Number(v)),
+    allows: (v) => changeAllowed(getSetting("focusLocks"), key, getSetting(key), v),
   });
 }
 
@@ -58,7 +60,37 @@ const saturation = {
   flush: flushSaturation,
 };
 
+const NSFW_ACTIONS = {
+  off: "Off",
+  blur: "Blur image",
+  blackout: "Make image black"
+};
+/* The social media filter is one setting, { mode, parts }: the mode is the pill, the parts are the chips (pages.js), and one
+   lock covers both (utils/socialFilter.js says when a change loosens it). */
+const socialFilter = lockable({
+  options: options(MODES),
+  get: () => normalize(getSetting("socialFilter")).mode,
+  set: (mode) => setSetting("socialFilter", withMode(getSetting("socialFilter"), mode)),
+}, "socialFilter");
+socialFilter.allows = (mode) => changeAllowed(getSetting("focusLocks"), "socialFilter", getSetting("socialFilter"), withMode(getSetting("socialFilter"), mode));
+
+/** Choose or unchoose one part of the filter. False when its lock stops it: a chosen part can't be unchosen while locked. */
+export function toggleSocialPart(id) {
+  const now = getSetting("socialFilter"), next = togglePart(now, id);
+  if (!changeAllowed(getSetting("focusLocks"), "socialFilter", now, next)) return false;
+  setSetting("socialFilter", next);
+  return true;
+}
+
+/** Whether a part is chosen, and whether the lock holds it chosen. */
+export function socialPartState(id) {
+  const f = normalize(getSetting("socialFilter")), on = f.parts.includes(id);
+  return { on, held: on && f.mode === "parts" && lockState(getSetting("focusLocks"), "socialFilter") !== "open" };
+}
+
 export const CONTROLS = {
+  nsfwAction: lockable(choice("nsfwAction", NSFW_ACTIONS), "nsfwAction"),
+  socialFilter,
   saturation: lockable(saturation, "saturation", clickSaturationLock),
   showQuery: flag("showQueryOnDelay"),
   engine: choice("searchEngineBehavior", { "remember": "Remember last selected", "always-default": "Always reset to default" }),
@@ -69,7 +101,7 @@ export const CONTROLS = {
   delay: lockable(numberChoice("searchDelaySeconds", DELAYS, (v) => parseInt(v, 10)), "searchDelaySeconds"),
 };
 
-/** The control whose lock is `key` (tabLimit, searchDelaySeconds or saturation). */
+/** The control whose lock is `key` (tabLimit, searchDelaySeconds, saturation, nsfwAction or socialFilter). */
 export const lockControl = (key) => Object.values(CONTROLS).find((c) => c.lockKey === key);
 
 /** The label of a control's current value, or "-". */

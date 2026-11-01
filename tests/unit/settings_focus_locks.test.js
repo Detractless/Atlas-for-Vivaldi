@@ -145,18 +145,20 @@ test("the color lock: grayer only while locked, and it never frees itself", asyn
   assert.deepEqual(t.errors, []);
 });
 
-test("switching profile can't loosen a locked setting, but the other profile's stricter values come in", async () => {
+test("switching profile can't loosen a locked setting, including the shield mode", async () => {
   const profiles = {
     v: 2, active: "personal", owner: "personal",
     share: { bookmarks: true, theme: true, appearance: true, search: true, focus: false },
     list: [
       { id: "personal", name: "Pat", label: "Personal", color: 0, icon: "", db: "", settings: {} },
-      { id: "school", name: "Pat (School)", label: "School", color: 1, icon: "", db: "", settings: { searchDelaySeconds: 15, saturation: 20, tabLimit: 9 } },
+      { id: "school", name: "Pat (School)", label: "School", color: 1, icon: "", db: "", settings: { searchDelaySeconds: 15, saturation: 20, tabLimit: 9, nsfwAction: "off" } },
     ],
   };
   const t = await openNewTab({
     local: { atlasProfilesV2: profiles },
-    sync: { searchDelaySeconds: 60, saturation: 50, tabLimit: 4, focusLocks: { searchDelaySeconds: { unlockAt: null }, saturation: { unlockAt: Date.now() + 10 * MIN } } },
+    sync: { searchDelaySeconds: 60, saturation: 50, tabLimit: 4, nsfwAction: "blur", focusLocks: {
+      searchDelaySeconds: { unlockAt: null }, saturation: { unlockAt: Date.now() + 10 * MIN }, nsfwAction: { unlockAt: null }
+    } },
   });
   await t.window.AtlasProfiles.ready;
   await t.window.AtlasProfiles.switchTo("school");
@@ -164,6 +166,11 @@ test("switching profile can't loosen a locked setting, but the other profile's s
   assert.equal(live.searchDelaySeconds, 60, "locked: school's shorter delay stays out");
   assert.equal(live.saturation, 20, "locked, but school's is grayer: it comes in");
   assert.equal(live.tabLimit, 9, "the tab limit isn't locked: school's comes in");
-  assert.deepEqual(plain(live.focusLocks), { searchDelaySeconds: { unlockAt: null }, saturation: { unlockAt: plain(live.focusLocks).saturation.unlockAt } }, "the locks didn't move");
+  assert.equal(live.nsfwAction, "blur", "the shield lock prevents a profile switch from turning it off");
+  assert.deepEqual(plain(live.focusLocks), {
+    searchDelaySeconds: { unlockAt: null },
+    saturation: { unlockAt: plain(live.focusLocks).saturation.unlockAt },
+    nsfwAction: { unlockAt: null },
+  }, "the locks didn't move");
   assert.deepEqual(t.errors, []);
 });

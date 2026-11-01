@@ -118,31 +118,213 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
     }
   }, true);
 
-  /* 5. Double-tap Command (macOS) or Control (Windows) focuses the address bar */
+  /* 5. Double-tap Command is owned by the native browser listener on macOS.
+     The legacy Control double tap remains on Windows.
+     Command -> Comma (<) twice navigates back.
+     Command -> Period (>) twice navigates forward.
+     Command -> Space twice opens a new tab.
+     Command -> Delete (Backspace) twice closes current tab.
+     Command -> Left / Right arrow twice moves to previous / next tab. */
   var _lastUiModDown = 0;
+  var _uiNavPending = null;
+  var _uiNavPendingUntil = 0;
+  var _uiNavLeaderUntil = 0;
+  var _uiSpacePending = false;
+  var _uiSpacePendingUntil = 0;
+
+  function isUiMod(e) {
+    return e.key === 'Meta' || (e.key === 'Control' && /Win/.test(navigator.platform));
+  }
+  function isBackKey(e) {
+    return e.key === ',' || e.key === '<' || e.code === 'Comma';
+  }
+  function isForwardKey(e) {
+    return e.key === '.' || e.key === '>' || e.code === 'Period';
+  }
+  function isSpaceKey(e) {
+    return e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar';
+  }
+  function isDeleteKey(e) {
+    return e.key === 'Backspace' || e.key === 'Delete' || e.code === 'Backspace' || e.code === 'Delete';
+  }
+  function isArrowLeft(e) {
+    return e.key === 'ArrowLeft' || e.code === 'ArrowLeft';
+  }
+  function isArrowRight(e) {
+    return e.key === 'ArrowRight' || e.code === 'ArrowRight';
+  }
+
+  function swallow(e) {
+    e.preventDefault();
+    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+  }
+
+  function resetUiShortcuts() {
+    _lastUiModDown = 0;
+    _uiNavLeaderUntil = 0;
+    _uiNavPending = null;
+    _uiNavPendingUntil = 0;
+    _uiSpacePending = false;
+    _uiSpacePendingUntil = 0;
+  }
+
+  Atlas.resetUiShortcuts = resetUiShortcuts;
+
+  function handleUiSpace(e, now) {
+    if (!isSpaceKey(e)) return false;
+    if (_uiSpacePending && _uiSpacePendingUntil > now) {
+      swallow(e);
+      resetUiShortcuts();
+      openNewTab();
+      return true;
+    }
+    if (_uiNavLeaderUntil > now && !_uiNavPending) {
+      swallow(e);
+      _uiSpacePending = true;
+      _uiSpacePendingUntil = now + 2000;
+      _uiNavLeaderUntil = 0;
+      _lastUiModDown = 0;
+      return true;
+    }
+    return false;
+  }
+
+  function getNavAction(e) {
+    if (isBackKey(e)) return 'back';
+    if (isForwardKey(e)) return 'forward';
+    if (isDeleteKey(e)) return 'close';
+    if (isArrowLeft(e)) return 'tab-left';
+    if (isArrowRight(e)) return 'tab-right';
+    return null;
+  }
+
+  function handleUiNav(e, now) {
+    var act = getNavAction(e);
+    if (!act) return false;
+    if (_uiNavLeaderUntil > now && !_uiNavPending && !_uiSpacePending) {
+      swallow(e);
+      _uiNavPending = act;
+      _uiNavPendingUntil = now + 2000;
+      _uiNavLeaderUntil = 0;
+      _lastUiModDown = 0;
+      return true;
+    }
+    if (_uiNavPending && _uiNavPendingUntil > now) {
+      if (_uiNavPending === act) {
+        swallow(e);
+        var pDir = _uiNavPending;
+        resetUiShortcuts();
+        if (pDir === 'back') navigateBack();
+        else if (pDir === 'forward') navigateForward();
+        else if (pDir === 'close') closeCurrentTab();
+        else if (pDir === 'tab-left') switchTab('left');
+        else if (pDir === 'tab-right') switchTab('right');
+        return true;
+      }
+      swallow(e);
+      _uiNavPending = act;
+      _uiNavPendingUntil = now + 2000;
+      return true;
+    }
+    return false;
+  }
+
   window.addEventListener('keydown', function (e) {
-    if (e.key === 'Meta' || e.key === 'Control') {
+    var now = Date.now();
+    if (isUiMod(e)) {
       if (e.repeat) return;
-      var now = Date.now();
-      if (now - _lastUiModDown < 350) {
+      var wasDown = _lastUiModDown;
+      resetUiShortcuts();
+      if (e.key === 'Control' && wasDown && now - wasDown < 450) {
         focusAddressBar();
-        _lastUiModDown = 0;
       } else {
         _lastUiModDown = now;
+        _uiNavLeaderUntil = now + 2000;
       }
-    } else {
-      _lastUiModDown = 0;
+      return;
     }
+    if (handleUiSpace(e, now)) return;
+    if (handleUiNav(e, now)) return;
+    resetUiShortcuts();
   }, true);
 }
 
-function focusAddressBar() {
-  var input = document.querySelector ? (document.querySelector('.UrlBar-UrlField.url') ||
+function focusAddressBar(forceFocus) {
+  var input = document.querySelector ? (document.querySelector('.toolbar-mainbar #urlFieldInput') ||
+              document.getElementById('urlFieldInput') || document.querySelector('.UrlBar-UrlField.url') ||
               document.querySelector('.UrlBar-AddressField input')) : null;
-  if (input) {
+  var active = typeof document !== 'undefined' ? document.activeElement : null;
+  var isFocused = !forceFocus && active && (active === input || (active.closest && active.closest('.UrlBar-AddressField, .UrlBar-SearchField, .SearchField')));
+
+  if (isFocused) {
+    if (active && typeof active.blur === 'function') active.blur();
+    if (input && typeof input.blur === 'function') input.blur();
+    var webview = document.querySelector ? (document.querySelector('.webpageview.active webview') ||
+                  document.querySelector('webview:not([tabindex="-1"])') ||
+                  document.querySelector('webview')) : null;
+    if (webview && typeof webview.focus === 'function') {
+      try { webview.focus(); } catch (e) { /* webview may be unmounted or cross-process */ }
+    }
+  } else if (input) {
     input.focus();
     if (typeof input.select === 'function') input.select();
   }
 }
 Atlas.focusAddressBar = focusAddressBar;
 
+function navigateBack() {
+  if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
+      if (ts && ts[0] && chrome.tabs.goBack) chrome.tabs.goBack(ts[0].id);
+    });
+  } else if (typeof history !== 'undefined' && history.back) {
+    history.back();
+  }
+}
+
+function navigateForward() {
+  if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
+      if (ts && ts[0] && chrome.tabs.goForward) chrome.tabs.goForward(ts[0].id);
+    });
+  } else if (typeof history !== 'undefined' && history.forward) {
+    history.forward();
+  }
+}
+Atlas.navigateBack = navigateBack;
+Atlas.navigateForward = navigateForward;
+
+function openNewTab() {
+  if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
+    chrome.tabs.create({ url: ATLAS_NEWTAB_URL });
+  }
+}
+
+function closeCurrentTab() {
+  if (typeof chrome !== 'undefined' && chrome.tabs) {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
+      if (ts && ts[0] && chrome.tabs.remove) chrome.tabs.remove(ts[0].id);
+    });
+  }
+}
+function switchTab(dir) {
+  if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query && chrome.tabs.update) {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (activeTabs) {
+      var activeTab = activeTabs && activeTabs[0];
+      chrome.tabs.query({ currentWindow: true }, function (ts) {
+        if (!ts || ts.length <= 1) return;
+        var cur = -1;
+        for (var i = 0; i < ts.length; i++) {
+          if (ts[i].active || (activeTab && ts[i].id === activeTab.id)) { cur = i; break; }
+        }
+        if (cur === -1) return;
+        var step = dir === 'left' ? -1 : 1;
+        var next = (cur + step + ts.length) % ts.length;
+        chrome.tabs.update(ts[next].id, { active: true });
+      });
+    });
+  }
+}
+Atlas.openNewTab = openNewTab;
+Atlas.closeCurrentTab = closeCurrentTab;
+Atlas.switchTab = switchTab;

@@ -11,6 +11,11 @@
     "acorn-walk": "^8.3.5",
     "esbuild": "^0.28.2",
     "fake-indexeddb": "^6.2.5",
-    "jsdom": "^30.1.2"
+    "jsdom": "^30.1.2",
+    "onnxruntime-node": "^1.30.0",
+    "sharp": "^0.35.5"
+  },
+  "allowScripts": {
+    "onnxruntime-node@1.30.0": true
   }
 }

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="light dark">
+  <title>Download History</title>
+  <script src="../../src/pages/shared/themePreinit.js"></script>
+  <link rel="stylesheet" href="downloads-panel.css">
+</head>
+<body>
+  <header id="bar">
+    <img id="logo" src="../../resources/vivaldi-icon-macos.png" alt="Vivaldi" width="28" height="28">
+    <h1 id="title">Download History</h1>
+    <input id="search" type="search" placeholder="Search downloads" aria-label="Search downloads" hidden>
+    <button id="search-toggle" class="icon-button" type="button" title="Search downloads" aria-label="Search downloads">
+      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+    </button>
+    <button id="clear-all" class="pill" type="button" hidden>Clear all</button>
+  </header>
+  <main id="list" aria-live="polite"></main>
+  <script src="downloads-core.js"></script>
+  <script src="downloads-panel.js"></script>
+</body>
+</html>

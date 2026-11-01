@@ -1,13 +1,15 @@
 // src/settings/pages.js — what each Settings page shows. Every function returns
 // HTML; settings/shell.js renders it and wires the clicks.
-import { CONTROLS, labelOf } from './controls.js';
+import { CONTROLS, labelOf, socialPartState } from './controls.js';
 import { getSetting } from './registry.js';
-import { I, row, card, section, select, toggle, slider, lockButton, modeThumb, saturationPreview } from './markup.js';
+import { I, row, card, section, select, toggle, slider, lockButton, modeThumb, saturationPreview, chip } from './markup.js';
 import { lockState, unlockTime, unlockSecondsLeft } from '../utils/focusLock.js';
 import { formatTimeCompact } from '../utils/formatDuration.js';
 import { pendingIncreaseText } from '../components/tabLimiter/tabLimiterUI.js';
 import { pendingDecreaseText } from '../components/searchDelay/searchDelay.js';
 import { usagePage } from './usagePage.js';
+import { BLOCKING_LIVE, GROUPS, normalize } from '../utils/socialFilter.js';
+import { restingPane } from './chipPane.js';
 
 export const REVIEW_URL = "https://chromewebstore.google.com/detail/ipgmbcinekdcmhhnbanlahedgpehffab";
 
@@ -39,15 +41,23 @@ const LOCK_TEXT = {
   tabLimit: { open: "Lock it to stop it going higher.", held: "Locked. It can go lower, but not higher." },
   searchDelaySeconds: { open: "A pause before results. Lock it to stop it getting shorter.", held: "Locked. It can get longer, but not shorter." },
   saturation: { open: "Lock it to stop going back to color.", held: "Locked. It can go grayer, but not back to color." },
+  nsfwAction: { open: "Lock it to prevent turning the shield off.", held: "Locked. You can make it more protective, but not turn it off." },
+  // Until the blocking is built (utils/socialFilter.js BLOCKING_LIVE) the page says so: a lock on a filter that blocks nothing would mislead.
+  socialFilter: {
+    open: BLOCKING_LIVE ? "Hide the parts of social sites that pull you in. Lock it to prevent turning it off." : "Not blocking yet. Lock it to prevent turning it off.",
+    held: "Locked. You can block more, but not less." + (BLOCKING_LIVE ? "" : " Not blocking yet."),
+  },
 };
 /* A change queued by the version before the locks, shown until it finishes (tabLimiterUI.js, searchDelay.js). */
 const QUEUED = {
   tabLimit: () => pendingIncreaseText(getSetting("pendingIncrease")),
   searchDelaySeconds: () => pendingDecreaseText(getSetting("pendingDelayDecrease")),
   saturation: () => "",
+  nsfwAction: () => "",
+  socialFilter: () => "",
 };
 export const clockTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-/** The note under a locked setting (`key`: tabLimit, searchDelaySeconds or saturation). */
+/** The note under a locked setting (`key`: tabLimit, searchDelaySeconds, saturation, nsfwAction or socialFilter). */
 export function lockNote(key) {
   const locks = getSetting("focusLocks"), state = lockState(locks, key);
   if (state === "unlocking") return `Unlocks at ${clockTime(unlockTime(locks, key))}. Click the lock to keep it locked.`;
@@ -59,7 +69,24 @@ const lockFor = (key) => {
   return lockButton(key, state, lockCountdown(key));
 };
 
+/** The parts of the social media filter, as pills in groups with a panel beside them, shown while its mode is "Block selected
+    parts". The panel (settings/chipPane.js) shows the part you point at. */
+function socialChips() {
+  if (normalize(getSetting("socialFilter")).mode !== "parts") return "";
+  const groups = GROUPS.map((g) =>
+    `<div class="sp-chip-label">${g.label}</div><div class="sp-chips">` +
+    g.parts.map((p) => { const s = socialPartState(p.id); return chip(p.id, p.label, s.on, s.held); }).join("") + `</div>`
+  ).join("");
+  return `<div class="sp-chip-box"><div class="sp-chip-split"><div class="sp-chip-area">${groups}</div>` +
+    `<aside class="sp-chip-pane" id="sp-chip-pane" aria-live="polite">${restingPane()}</aside></div></div>`;
+}
+
 function focusPage() {
+  const nsfwRows = [
+    row("NSFW image detection", lockNote("nsfwAction"), selectFor("nsfwAction") + lockFor("nsfwAction")),
+    row("Social media filter", lockNote("socialFilter"), selectFor("socialFilter") + lockFor("socialFilter")),
+    socialChips(),
+  ];
   return section("Tab limiter", [card([
     row("Tab limit", lockNote("tabLimit"), selectFor("limit") + lockFor("tabLimit")),
     row("When the limit is hit", "", selectFor("method"))
@@ -71,7 +98,8 @@ function focusPage() {
   section("Display", [card([
     row("Color saturation", lockNote("saturation"), slider("saturation", CONTROLS.saturation.get(), 0, 100) + lockFor("saturation")) +
       saturationPreview(CONTROLS.saturation.get())
-  ])]);
+  ])]) +
+  section("Content shield", [card(nsfwRows)]);
 }
 
 function backupPage() {

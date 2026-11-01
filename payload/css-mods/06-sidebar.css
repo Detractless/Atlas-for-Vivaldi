@@ -56,30 +56,93 @@
 #browser #switch .active-indicator,
 #browser .toolbar-panel .active-indicator { display: none !important; }
 
-/* ── 14. History page (vivaldi://history — rendered in the UI document) ──── */
+/* ── 13b. Downloads panel ────────────────────────────────────────────────
+   Not styled here: the Downloads sidebar is our own page, laid out like Chromium's
+   chrome://downloads (components/atlas/downloads-panel.html), so Vivaldi's built-in
+   Downloads panel never opens. src/modules/34-downloads-panel.js opens ours. */
 
-/* The analytics sidebar (activity chart, transition donut, top domains) is
-   the least Atlas thing in the browser. Gone. The (i) toolbar button that
-   toggles it becomes a no-op while this rule stands. */
-#browser .history.manager .manager-editor.more-info {
-  display: none !important;
+/* The sidebar's menu tab (src/modules/35-panel-handle.js): the browser frame's own colour growing
+   into the sidebar's top-right corner, flush with its edges and rounded only where it meets the
+   page, so it reads as part of the frame. Click it for the card below. */
+#browser .atlas-panel-handle {
+  position: fixed;
+  z-index: 100;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--atlas-border);
+  border-left: 1px solid var(--atlas-border);
+  border-radius: 0 0 0 9px;
+  background: var(--atlas-bar);
+  cursor: pointer;
+  transition: background-color .15s ease;
 }
+#browser .atlas-panel-handle::after { /* three dots, painted in the theme's icon colour */
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 4px;
+  width: 14px;
+  height: 14px;
+  background: var(--atlas-icon);
+  opacity: .75;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Ccircle cx='2.5' cy='7' r='1.4'/%3E%3Ccircle cx='7' cy='7' r='1.4'/%3E%3Ccircle cx='11.5' cy='7' r='1.4'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+#browser .atlas-panel-handle:hover::after { opacity: 1; }
+#browser .atlas-panel-handle:hover,
+#browser .atlas-panel-handle:focus-visible { background: var(--atlas-strip); }
 
-/* Column header row: quiet label treatment instead of a table chrome. */
-#browser .history.manager .sortselector-tableheader {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  color: var(--atlas-text-2) !important;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: .04em;
+/* The card: the profile menu's look, with a small arrow pointing up at the tab's dots. The card sits flush
+   with the sidebar's right edge and its top-right corner is a tight 6px curve, so the arrow's base fits
+   beside the curve. */
+#browser .atlas-panel-pop {
+  position: fixed;
+  z-index: 101;
+  box-sizing: border-box;
+  padding: 8px 8px 6px;
+  border-radius: 14px 6px 14px 14px;
+  background: var(--atlas-menu);
+  color: var(--atlas-text-1, inherit);
+  box-shadow: 0 0 0 1px var(--atlas-border), 0 12px 32px rgba(0, 0, 0, .22);
+  font: 13.5px/1.3 system-ui, -apple-system, 'Helvetica Neue', sans-serif;
 }
+/* Two triangles: the outer one in the border colour, the inner one in the card colour, so the arrow has the card's outline on both slanted sides. */
+#browser .atlas-panel-pop::before,
+#browser .atlas-panel-pop::after {
+  content: '';
+  position: absolute;
+  left: var(--atlas-pop-arrow, 200px);
+  clip-path: polygon(0 100%, 50% 0, 100% 100%);
+}
+#browser .atlas-panel-pop::before { top: -7px; width: 14px; height: 7px; background: var(--atlas-border); }
+#browser .atlas-panel-pop::after { top: -6px; left: calc(var(--atlas-pop-arrow, 200px) + 1px); width: 12px; height: 6px; background: var(--atlas-menu); }
+#browser .atlas-panel-pop-head { padding: 8px 10px 10px; margin-bottom: 6px; border-bottom: 1px solid var(--atlas-border); }
+#browser .atlas-panel-pop-head b { display: block; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#browser .atlas-panel-pop-head span { display: block; font-size: 12px; opacity: .6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#browser .atlas-panel-pop-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+#browser .atlas-panel-pop-item:hover,
+#browser .atlas-panel-pop-item:focus-visible { background: var(--atlas-hover-2); outline: 0; }
+#browser .atlas-panel-pop-item svg { flex: none; width: 18px; height: 18px; fill: none; stroke: var(--atlas-icon); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#browser .atlas-panel-handle[hidden] { display: none; }
 
-/* Soften row hover to our wash and drop heavy separators. */
-#browser .history.manager .manager-content {
-  background: var(--atlas-content) !important;
-}
+/* ── 14. History page ────────────────────────────────────────────────────
+   Not styled here: History is Chromium's own chrome://history, which CSS cannot
+   reach. src/modules/33-history-redirect.js swaps Vivaldi's page for it. */
 
 /* ── 15. Panel column — Tools sidebar only ───────────────────────────────
    History and Downloads are full pages now, so Vivaldi's built-in panels are

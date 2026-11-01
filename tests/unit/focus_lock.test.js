@@ -50,8 +50,8 @@ test("each lock is its own: clicking one leaves the others as they are", () => {
   assert.deepEqual(L.clickLock(locks, "searchDelaySeconds", NOW), { ...locks, searchDelaySeconds: { unlockAt: null } });
 });
 
-test("locked, a setting can only get stricter: fewer tabs, a longer delay, grayer", () => {
-  const all = { tabLimit: { unlockAt: null }, searchDelaySeconds: { unlockAt: null }, saturation: { unlockAt: null } };
+test("locked, settings can only get stricter: fewer tabs, a longer delay, grayer, or a stronger shield mode", () => {
+  const all = { tabLimit: { unlockAt: null }, searchDelaySeconds: { unlockAt: null }, saturation: { unlockAt: null }, nsfwAction: { unlockAt: null } };
   const ok = (key, from, to) => L.changeAllowed(all, key, from, to, NOW);
   assert.equal(ok("tabLimit", 5, 3), true);
   assert.equal(ok("tabLimit", 5, 8), false);
@@ -64,6 +64,10 @@ test("locked, a setting can only get stricter: fewer tabs, a longer delay, graye
   assert.equal(ok("saturation", 40, 20), true);
   assert.equal(ok("saturation", 40, 60), false);
   assert.equal(ok("saturation", undefined, 100), true, "nothing saved means full color: staying there is fine");
+  assert.equal(ok("nsfwAction", "blur", "off"), false, "the shield cannot be turned off");
+  assert.equal(ok("nsfwAction", "blur", "blackout"), true, "blackout is more protective than blur");
+  assert.equal(ok("nsfwAction", "blackout", "blur"), false, "blur cannot replace blackout while locked");
+  assert.equal(ok("nsfwAction", "off", "blur"), true, "turning on the shield is allowed while locked at Off");
   for (const key of L.LOCKABLE) assert.equal(ok(key, 7, 7), true, `${key}: no change is always fine`);
   assert.equal(L.changeAllowed({ searchDelaySeconds: { unlockAt: NOW + MIN } }, "searchDelaySeconds", 60, 15, NOW), false, "unlocking still holds");
 });
@@ -78,11 +82,12 @@ test("damaged locks: a bad time stays locked until clicked; anything else that i
 });
 
 test("a profile's values or a backup can't loosen a locked setting; stricter ones and unlocked ones come in", () => {
-  const locks = { searchDelaySeconds: { unlockAt: null }, saturation: { unlockAt: NOW + MIN } };
-  const current = { searchDelaySeconds: 60, saturation: 40, tabLimit: 5 };
-  assert.deepEqual(L.withoutLoosening({ searchDelaySeconds: 15, saturation: 30, tabLimit: 0, Theme: "x" }, current, locks, NOW),
+  const locks = { searchDelaySeconds: { unlockAt: null }, saturation: { unlockAt: NOW + MIN }, nsfwAction: { unlockAt: null } };
+  const current = { searchDelaySeconds: 60, saturation: 40, tabLimit: 5, nsfwAction: "blur" };
+  assert.deepEqual(L.withoutLoosening({ searchDelaySeconds: 15, saturation: 30, tabLimit: 0, nsfwAction: "off", Theme: "x" }, current, locks, NOW),
     { saturation: 30, tabLimit: 0, Theme: "x" });
-  assert.deepEqual(L.withoutLoosening({ searchDelaySeconds: 120, saturation: 90 }, current, locks, NOW), { searchDelaySeconds: 120 });
+  assert.deepEqual(L.withoutLoosening({ searchDelaySeconds: 120, saturation: 90, nsfwAction: "blackout" }, current, locks, NOW),
+    { searchDelaySeconds: 120, nsfwAction: "blackout" });
 });
 
 test("an old color lock carries on until it would have ended", () => {

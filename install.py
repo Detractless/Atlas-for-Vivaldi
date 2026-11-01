@@ -8,8 +8,9 @@ Everything - including the JSON edits to your profile Preferences - is done here
 with the standard library; no Node, no PowerShell, no system Python needed when
 run from the packaged .exe.
 
-Vivaldi MUST be closed. This script closes it for you and (unless --no-launch)
-reopens it at the end.
+Installs in the background: a running Vivaldi is left alone (the old files keep
+serving until you quit and relaunch Vivaldi yourself). Pass --close to have the
+installer quit Vivaldi first, or --launch to reopen it when done.
 
 The steps live in the installer/ package next to this file.
 """
@@ -21,11 +22,12 @@ from pathlib import Path
 
 from installer import util
 from installer.extensions import step7_harper_extension
-from installer.files import step1_atlas_files, step2_window_html, step3_detractless, step4_css_mods
+from installer.files import step1_atlas_files, step2_core_html, step2_window_html, step3_detractless, step4_css_mods
 from installer.menus import step5_context_menus
+from installer.native_shortcuts import preflight_native_shortcuts, install_native_shortcuts
 from installer.paths import find_vivaldi_res, payload_root
 from installer.preferences import step6_preferences
-from installer.process import close_vivaldi
+from installer.process import close_vivaldi, vivaldi_running
 from installer.staging import MacOSStagingContext
 from installer.system import step8_disable_autoupdates, step9_macos_codesign
 from installer.util import fail, say
@@ -33,9 +35,11 @@ from installer.util import fail, say
 
 def main():
     ap = argparse.ArgumentParser(description="Atlas for Vivaldi installer")
-    ap.add_argument("--yes", "-y", action="store_true", help="skip the confirmation prompt")
-    ap.add_argument("--no-launch", action="store_true", help="do not reopen Vivaldi when done")
-    ap.add_argument("--no-close", action="store_true", help="do not close running Vivaldi")
+    ap.add_argument("--yes", "-y", action="store_true", help="kept for compatibility; nothing to confirm now")
+    ap.add_argument("--close", action="store_true", help="quit Vivaldi before installing (old behaviour)")
+    ap.add_argument("--launch", action="store_true", help="launch Vivaldi when finished")
+    ap.add_argument("--no-close", action="store_true", help="kept for compatibility; background install is now the default")
+    ap.add_argument("--no-launch", action="store_true", help="kept for compatibility; never launching is now the default")
     ap.add_argument("--skip-detractless", action="store_true", help="do not install Detractless")
     ap.add_argument("--dry-run", action="store_true", help="print every change, touch nothing")
     args = ap.parse_args()
@@ -54,22 +58,20 @@ def main():
     res = find_vivaldi_res()
     app_root = res.parent.parent.parent  # ...\Application\<ver>\resources\vivaldi
 
-    if not args.yes and not util.DRY and not args.no_close:
-        print()
-        say("Vivaldi will be CLOSED during installation and reopened when finished.")
-        try:
-            input("  Press Enter to begin, or Ctrl+C to cancel... ")
-        except (KeyboardInterrupt, EOFError):
-            print()
-            fail("Cancelled.")
-
-    if not args.no_close:
+    if args.close:
         close_vivaldi()
+    elif vivaldi_running():
+        say("Vivaldi is running: installing in the background. Quit and relaunch")
+        say("Vivaldi when you are ready for the new Atlas to take effect.")
 
-    staging_ctx = MacOSStagingContext(res)
+    preflight_native_shortcuts(masters, res)
+    staging_ctx = MacOSStagingContext(res, allow_live=not args.close)
     with staging_ctx as target_res:
         step1_atlas_files(masters, target_res)
         step2_window_html(target_res)
+        if sys.platform == "darwin":
+            step2_core_html(target_res)
+            install_native_shortcuts(masters, target_res)
         step3_detractless(detract, target_res, args.skip_detractless)
         css_dst = step4_css_mods(payload)
         step5_context_menus(target_res)
@@ -82,7 +84,7 @@ def main():
     print()
     say("Done." + ("  (dry run - nothing was changed)" if util.DRY else ""))
 
-    if not args.no_launch and not util.DRY:
+    if args.launch and not util.DRY:
         if sys.platform == "darwin":
             app_candidates = [
                 Path("/Applications/Vivaldi.app"),

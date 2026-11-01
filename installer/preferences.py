@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 from . import util
-from .paths import get_prefs_file, newtab_url
+from .paths import atlas_keys, get_prefs_file, newtab_url
 from .util import fail, read_text, say, write_json
 
 
@@ -14,6 +14,10 @@ from .util import fail, read_text, say, write_json
 # installed: see _old/archive/sidebar-tools/RESTORE.md. The ids below are only used to
 # remove a panel an earlier install left in the profile.
 PANEL_ID = "WEBPANEL_atlas_sidebar"
+
+# The Downloads sidebar: our own page, laid out like chrome://downloads, as a web panel.
+DOWNLOADS_PANEL_ID = "WEBPANEL_atlas_downloads"
+DOWNLOADS_PANEL_PATH = "components/atlas/downloads-panel.html"
 
 
 def _ensure(d: dict, key: str) -> dict:
@@ -84,6 +88,33 @@ def _prefs_remove_tools_panel(v: dict):
     panel_bar = list(panel_bar) if isinstance(panel_bar, list) else []
     # Extensions moves to the mainbar (see _prefs_navigation_toolbar).
     toolbars["panel"] = [x for x in panel_bar if str(x) != PANEL_ID and x != "Extensions"]
+
+
+def _prefs_downloads_panel(v: dict):
+    # Vivaldi's own panel stops opening on a new download; src/modules/34-downloads-panel.js
+    # opens ours instead. The panel bar stays hidden by the CSS, so this adds only the
+    # panel itself and its switch button.
+    url = f"chrome-extension://{atlas_keys()['extensionId']}/{DOWNLOADS_PANEL_PATH}"
+    web = _ensure(_ensure(v, "panels"), "web")
+    elements = web.get("elements")
+    elements = list(elements) if isinstance(elements, list) else []
+    ours = [e for e in elements if isinstance(e, dict) and e.get("id") == DOWNLOADS_PANEL_ID]
+    if ours:
+        ours[0]["url"] = url
+    else:
+        elements.append({
+            "id": DOWNLOADS_PANEL_ID, "url": url, "title": "Downloads", "faviconUrl": "",
+            "faviconUrlValid": False, "mobileMode": False, "origin": "user", "resizable": False,
+            "width": -1, "zoom": 1,
+        })
+    web["elements"] = elements
+    toolbars = _ensure(v, "toolbars")
+    bar = toolbars.get("panel")
+    bar = list(bar) if isinstance(bar, list) else []
+    if DOWNLOADS_PANEL_ID not in bar:
+        bar.append(DOWNLOADS_PANEL_ID)
+    toolbars["panel"] = bar
+    _ensure(v, "downloads")["open_panel_on_new"] = False
 
 
 def _prefs_address_bar(prefs: dict, v: dict):
@@ -186,16 +217,15 @@ def _prefs_themes(v: dict, payload: Path):
         themes["current"] = "AtlasLight"
 
 
-def _prefs_startup(prefs: dict, v: dict):
+def _prefs_startup(prefs: dict):
     # Developer Mode on, so unpacked extensions can be managed freely.
     _ensure(_ensure(prefs, "extensions"), "ui")["developer_mode"] = True
     # A clean exit state prevents crash-recovery loops on restored tabs.
     prof = _ensure(prefs, "profile")
     prof["exit_type"] = "Normal"
     prof["exited_cleanly"] = True
-    # Open a fresh new tab on startup rather than restoring the last session.
-    _ensure(prefs, "session")["restore_on_startup"] = 1
-    _ensure(v, "startup")["type"] = 2
+    # Startup/restore behaviour is left untouched: the installer must not
+    # discard tabs or override the user's "continue where you left off" choice.
 
 
 def step6_preferences(payload: Path, css_dst: Path):
@@ -204,11 +234,12 @@ def step6_preferences(payload: Path, css_dst: Path):
     v = _ensure(prefs, "vivaldi")
     _prefs_appearance(v, css_dst)
     _prefs_remove_tools_panel(v)
+    _prefs_downloads_panel(v)
     _prefs_address_bar(prefs, v)
     _prefs_navigation_toolbar(v)
     _prefs_new_tab(v)
     _prefs_themes(v, payload)
-    _prefs_startup(prefs, v)
+    _prefs_startup(prefs)
     _backup_prefs(prefs_file)
     write_json(prefs_file, prefs, label="Preferences")
     say("Preferences          panel + mainbar + new-tab + css dir + themes set")

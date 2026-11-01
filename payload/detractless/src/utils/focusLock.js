@@ -1,4 +1,5 @@
-// The locks on Settings > Focus: the tab limit, the search delay and the color level can each be locked.
+// The locks on Settings > Focus: the tab limit, search delay, color level, content-shield mode and social media
+// filter can each be locked.
 // You lock it. While it is locked it can only get stricter. Clicking the lock again starts a 30-minute unlock,
 // and clicking it during those 30 minutes keeps it locked. When the time is up it is unlocked. Nothing locks or
 // unlocks by itself. No page or storage in here, so the rules can be tested alone; services/focusLocks.js saves them.
@@ -7,17 +8,23 @@
 // or the time the unlock ends. A key that is missing, or whose unlockAt has passed, is unlocked.
 // pages/newtab/profilesCore.js repeats changeAllowed() in its own words (it can't import); keep the two the same.
 
+import { looser as filterLooser } from './socialFilter.js';
+
 export const UNLOCK_MS = 30 * 60 * 1000;
-export const LOCKABLE = ['tabLimit', 'searchDelaySeconds', 'saturation'];
+export const LOCKABLE = ['tabLimit', 'searchDelaySeconds', 'saturation', 'nsfwAction', 'socialFilter'];
 /* What each setting is when nothing was saved (constants/atlasKeys.json). */
-const DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100 };
+const DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: 'off', socialFilter: { mode: 'off', parts: [] } };
 
 /* How strict a value is: higher is stricter. Off (0) is the loosest tab limit and the loosest delay. */
 const STRICTNESS = {
   tabLimit: (v) => (Number(v) === 0 ? -Infinity : -Number(v)),   // fewer tabs is stricter; Off is no limit at all
   searchDelaySeconds: (v) => Number(v),                          // a longer pause is stricter
   saturation: (v) => -Number(v),                                 // grayer is stricter
+  nsfwAction: (v) => ({ off: 0, blur: 1, blackout: 2 }[String(v)] || 0), // stricter actions cannot return to Off
 };
+
+/* A setting that is more than one number says for itself whether a change loosens it: (from, to) => true when it does. */
+const LOOSER = { socialFilter: filterLooser };
 
 const entry = (locks, key) => (locks && typeof locks === 'object' && locks[key] && typeof locks[key] === 'object' ? locks[key] : null);
 
@@ -46,8 +53,9 @@ export function unlockSecondsLeft(locks, key, now = Date.now()) {
 
 /** Whether `key` may go from `from` to `to` now: always when unlocked; when locked, only to as strict or stricter. */
 export function changeAllowed(locks, key, from, to, now = Date.now()) {
-  if (!isLocked(locks, key, now) || !STRICTNESS[key]) return true;
+  if (!isLocked(locks, key, now) || !(STRICTNESS[key] || LOOSER[key])) return true;
   const was = from === undefined || from === null ? DEFAULTS[key] : from;
+  if (LOOSER[key]) return !LOOSER[key](was, to);
   return STRICTNESS[key](to) >= STRICTNESS[key](was);
 }
 

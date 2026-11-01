@@ -179,34 +179,216 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
     }
   }, true);
 
-  /* 5. Double-tap Command (macOS) or Control (Windows) focuses the address bar */
+  /* 5. Double-tap Command is owned by the native browser listener on macOS.
+     The legacy Control double tap remains on Windows.
+     Command -> Comma (<) twice navigates back.
+     Command -> Period (>) twice navigates forward.
+     Command -> Space twice opens a new tab.
+     Command -> Delete (Backspace) twice closes current tab.
+     Command -> Left / Right arrow twice moves to previous / next tab. */
   var _lastUiModDown = 0;
+  var _uiNavPending = null;
+  var _uiNavPendingUntil = 0;
+  var _uiNavLeaderUntil = 0;
+  var _uiSpacePending = false;
+  var _uiSpacePendingUntil = 0;
+
+  function isUiMod(e) {
+    return e.key === 'Meta' || (e.key === 'Control' && /Win/.test(navigator.platform));
+  }
+  function isBackKey(e) {
+    return e.key === ',' || e.key === '<' || e.code === 'Comma';
+  }
+  function isForwardKey(e) {
+    return e.key === '.' || e.key === '>' || e.code === 'Period';
+  }
+  function isSpaceKey(e) {
+    return e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar';
+  }
+  function isDeleteKey(e) {
+    return e.key === 'Backspace' || e.key === 'Delete' || e.code === 'Backspace' || e.code === 'Delete';
+  }
+  function isArrowLeft(e) {
+    return e.key === 'ArrowLeft' || e.code === 'ArrowLeft';
+  }
+  function isArrowRight(e) {
+    return e.key === 'ArrowRight' || e.code === 'ArrowRight';
+  }
+
+  function swallow(e) {
+    e.preventDefault();
+    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+  }
+
+  function resetUiShortcuts() {
+    _lastUiModDown = 0;
+    _uiNavLeaderUntil = 0;
+    _uiNavPending = null;
+    _uiNavPendingUntil = 0;
+    _uiSpacePending = false;
+    _uiSpacePendingUntil = 0;
+  }
+
+  Atlas.resetUiShortcuts = resetUiShortcuts;
+
+  function handleUiSpace(e, now) {
+    if (!isSpaceKey(e)) return false;
+    if (_uiSpacePending && _uiSpacePendingUntil > now) {
+      swallow(e);
+      resetUiShortcuts();
+      openNewTab();
+      return true;
+    }
+    if (_uiNavLeaderUntil > now && !_uiNavPending) {
+      swallow(e);
+      _uiSpacePending = true;
+      _uiSpacePendingUntil = now + 2000;
+      _uiNavLeaderUntil = 0;
+      _lastUiModDown = 0;
+      return true;
+    }
+    return false;
+  }
+
+  function getNavAction(e) {
+    if (isBackKey(e)) return 'back';
+    if (isForwardKey(e)) return 'forward';
+    if (isDeleteKey(e)) return 'close';
+    if (isArrowLeft(e)) return 'tab-left';
+    if (isArrowRight(e)) return 'tab-right';
+    return null;
+  }
+
+  function handleUiNav(e, now) {
+    var act = getNavAction(e);
+    if (!act) return false;
+    if (_uiNavLeaderUntil > now && !_uiNavPending && !_uiSpacePending) {
+      swallow(e);
+      _uiNavPending = act;
+      _uiNavPendingUntil = now + 2000;
+      _uiNavLeaderUntil = 0;
+      _lastUiModDown = 0;
+      return true;
+    }
+    if (_uiNavPending && _uiNavPendingUntil > now) {
+      if (_uiNavPending === act) {
+        swallow(e);
+        var pDir = _uiNavPending;
+        resetUiShortcuts();
+        if (pDir === 'back') navigateBack();
+        else if (pDir === 'forward') navigateForward();
+        else if (pDir === 'close') closeCurrentTab();
+        else if (pDir === 'tab-left') switchTab('left');
+        else if (pDir === 'tab-right') switchTab('right');
+        return true;
+      }
+      swallow(e);
+      _uiNavPending = act;
+      _uiNavPendingUntil = now + 2000;
+      return true;
+    }
+    return false;
+  }
+
   window.addEventListener('keydown', function (e) {
-    if (e.key === 'Meta' || e.key === 'Control') {
+    var now = Date.now();
+    if (isUiMod(e)) {
       if (e.repeat) return;
-      var now = Date.now();
-      if (now - _lastUiModDown < 350) {
+      var wasDown = _lastUiModDown;
+      resetUiShortcuts();
+      if (e.key === 'Control' && wasDown && now - wasDown < 450) {
         focusAddressBar();
-        _lastUiModDown = 0;
       } else {
         _lastUiModDown = now;
+        _uiNavLeaderUntil = now + 2000;
       }
-    } else {
-      _lastUiModDown = 0;
+      return;
     }
+    if (handleUiSpace(e, now)) return;
+    if (handleUiNav(e, now)) return;
+    resetUiShortcuts();
   }, true);
 }
 
-function focusAddressBar() {
-  var input = document.querySelector ? (document.querySelector('.UrlBar-UrlField.url') ||
+function focusAddressBar(forceFocus) {
+  var input = document.querySelector ? (document.querySelector('.toolbar-mainbar #urlFieldInput') ||
+              document.getElementById('urlFieldInput') || document.querySelector('.UrlBar-UrlField.url') ||
               document.querySelector('.UrlBar-AddressField input')) : null;
-  if (input) {
+  var active = typeof document !== 'undefined' ? document.activeElement : null;
+  var isFocused = !forceFocus && active && (active === input || (active.closest && active.closest('.UrlBar-AddressField, .UrlBar-SearchField, .SearchField')));
+
+  if (isFocused) {
+    if (active && typeof active.blur === 'function') active.blur();
+    if (input && typeof input.blur === 'function') input.blur();
+    var webview = document.querySelector ? (document.querySelector('.webpageview.active webview') ||
+                  document.querySelector('webview:not([tabindex="-1"])') ||
+                  document.querySelector('webview')) : null;
+    if (webview && typeof webview.focus === 'function') {
+      try { webview.focus(); } catch (e) { /* webview may be unmounted or cross-process */ }
+    }
+  } else if (input) {
     input.focus();
     if (typeof input.select === 'function') input.select();
   }
 }
 Atlas.focusAddressBar = focusAddressBar;
 
+function navigateBack() {
+  if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
+      if (ts && ts[0] && chrome.tabs.goBack) chrome.tabs.goBack(ts[0].id);
+    });
+  } else if (typeof history !== 'undefined' && history.back) {
+    history.back();
+  }
+}
+
+function navigateForward() {
+  if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
+      if (ts && ts[0] && chrome.tabs.goForward) chrome.tabs.goForward(ts[0].id);
+    });
+  } else if (typeof history !== 'undefined' && history.forward) {
+    history.forward();
+  }
+}
+Atlas.navigateBack = navigateBack;
+Atlas.navigateForward = navigateForward;
+
+function openNewTab() {
+  if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
+    chrome.tabs.create({ url: ATLAS_NEWTAB_URL });
+  }
+}
+
+function closeCurrentTab() {
+  if (typeof chrome !== 'undefined' && chrome.tabs) {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
+      if (ts && ts[0] && chrome.tabs.remove) chrome.tabs.remove(ts[0].id);
+    });
+  }
+}
+function switchTab(dir) {
+  if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query && chrome.tabs.update) {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (activeTabs) {
+      var activeTab = activeTabs && activeTabs[0];
+      chrome.tabs.query({ currentWindow: true }, function (ts) {
+        if (!ts || ts.length <= 1) return;
+        var cur = -1;
+        for (var i = 0; i < ts.length; i++) {
+          if (ts[i].active || (activeTab && ts[i].id === activeTab.id)) { cur = i; break; }
+        }
+        if (cur === -1) return;
+        var step = dir === 'left' ? -1 : 1;
+        var next = (cur + step + ts.length) % ts.length;
+        chrome.tabs.update(ts[next].id, { active: true });
+      });
+    });
+  }
+}
+Atlas.openNewTab = openNewTab;
+Atlas.closeCurrentTab = closeCurrentTab;
+Atlas.switchTab = switchTab;
 
   /* ═══ Module: 02-bridge-setup.js ═══ */
 /* ── 02-bridge-setup.js: Detractless runs inside this window. Stubs the three
@@ -314,7 +496,13 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
     /* Usage totals: how long a site is in front of you and what you do there (Settings > Usage). */
     { id: 'atlas-usage', matches: ['http://*/*', 'https://*/*'],
       excludeMatches: ['https://chromewebstore.google.com/*'],
-      js: ['components/atlas/atlas-usage.js'], runAt: 'document_idle' }
+      js: ['components/atlas/atlas-usage.js'], runAt: 'document_idle' },
+    /* NSFW image guard: document_start and all_frames so no explicit image flashes;
+       the drag script stops a drag from exposing a flagged image's original. */
+    { id: 'atlas-nsfw-guard', matches: ['http://*/*', 'https://*/*'],
+      excludeMatches: ['https://chromewebstore.google.com/*'],
+      allFrames: true,
+      js: ['components/atlas/atlas-nsfw-log.js', 'components/atlas/atlas-nsfw-work.js', 'components/atlas/atlas-nsfw-image-work.js', 'components/atlas/atlas-nsfw-image-layout.js', 'components/atlas/atlas-nsfw-image-observer.js', 'components/atlas/atlas-nsfw-image-ui.js', 'components/atlas/atlas-nsfw-image-sources.js', 'components/atlas/atlas-nsfw-image-shield.js', 'components/atlas/atlas-nsfw-guard-watch.js', 'components/atlas/atlas-nsfw-guard.js', 'components/atlas/atlas-nsfw-drag.js'], runAt: 'document_start' }
   ];
   /* Registrations persist in the profile, and a plain register throws
      "Duplicate" for an existing id. UPDATE existing ones in place (so a params
@@ -323,7 +511,7 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
      restoring tab loads with no context-menu script. Only ids we no longer
      want (the archived Remover and PasteKit scripts, atlas-remover-rules from an
      earlier build) are swept. */
-  var OUR_CS_IDS = ['atlas-ctxmenu', 'atlas-google-account', 'atlas-usage', 'detractless-rules', 'detractless-pastekit', 'atlas-remover-rules'];
+  var OUR_CS_IDS = ['atlas-ctxmenu', 'atlas-google-account', 'atlas-usage', 'atlas-nsfw-guard', 'detractless-rules', 'detractless-pastekit', 'atlas-remover-rules'];
   var WANTED_IDS = DESIRED_CS.map(function (c) { return c.id; });
   chrome.scripting.getRegisteredContentScripts(function (existing) {
     void chrome.runtime.lastError;
@@ -347,7 +535,7 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
    on the messages its items send. Protected pages (Web Store, PDFs) are
    refused by Chromium and keep the pruned native menu. */
 var CTX_SCRIPTS = ['components/atlas/atlas-spelling.js', 'components/atlas/atlas-menu.js', 'components/atlas/atlas-ctxmenu.js'];
-var INJECTABLE = /^(https?|vivaldi|chrome|chrome-extension):/;
+var INJECTABLE = /^(https?|file|vivaldi|chrome|chrome-extension):/;
 /* The Web Store is unscriptable by Chromium. Our own history and downloads
    pages deliberately have no context menu at all, so skip them too. */
 var NO_INJECT = /^(chrome:\/\/webstore|https:\/\/chromewebstore\.google\.com)|\/components\/atlas\//;
@@ -371,44 +559,333 @@ if (chrome.tabs) {
 }
 
   /* ═══ Module: 04-bridge-messages.js ═══ */
+var _offscreenCreating = null;
+function ensureOffscreenDoc(cb) {
+  if (typeof chrome === "undefined" || !chrome.offscreen || !chrome.offscreen.createDocument) {
+    if (typeof cb === "function") cb(false);
+    return;
+  }
+  if (typeof chrome.runtime.getContexts === "function") {
+    chrome.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"] }, function (ctxs) {
+      if (ctxs && ctxs.length > 0) { if (typeof cb === "function") cb(true); return; }
+      createOffscreen(cb);
+    });
+    return;
+  }
+  createOffscreen(cb);
+}
+
+function createOffscreen(cb) {
+  if (_offscreenCreating) {
+    _offscreenCreating.then(function () { if (typeof cb === "function") cb(true); });
+    return;
+  }
+  _offscreenCreating = chrome.offscreen.createDocument({
+    url: "components/atlas/nsfw/offscreen.html",
+    reasons: ["DOM_SCRAPING"],
+    justification: "Classify images with NSFWJS model"
+  }).then(function () {
+    _offscreenCreating = null;
+    _nsfwSentSettings = null;
+    if (typeof cb === "function") cb(true);
+  }).catch(function (e) {
+    _offscreenCreating = null;
+    if (typeof cb === "function") cb(false);
+  });
+}
+
+/* The Vivaldi UI extension does not carry the "offscreen" permission, so its
+   page has no chrome.offscreen. The page and the detector share an origin, so a
+   hidden iframe hosts the model instead. One window owns it through a
+   localStorage lease; the other windows message it. */
+var _detectorOwner = Math.random().toString(36).slice(2);
+var _detectorLeaseKey = "atlas-nsfw-detector-owner";
+var _detectorFrameId = "atlas-nsfw-detector";
+
+function claimDetector(cb) {
+  var lease = null;
+  try { lease = JSON.parse(localStorage.getItem(_detectorLeaseKey) || "null"); } catch (e) { lease = null; }
+  var now = Date.now();
+  if (lease && lease.id !== _detectorOwner && now - (lease.ts || 0) < 20000) { cb(false); return; }
+  try { localStorage.setItem(_detectorLeaseKey, JSON.stringify({ id: _detectorOwner, ts: now })); } catch (e) { void e; }
+  cb(true);
+}
+
+function detectorFrame() {
+  var f = document.getElementById(_detectorFrameId);
+  if (f) return f;
+  if (!document.body || !chrome.runtime.getURL) return null;
+  f = document.createElement("iframe");
+  f.id = _detectorFrameId;
+  f.src = chrome.runtime.getURL("components/atlas/nsfw/offscreen.html");
+  f.style.cssText = "position:fixed;left:-10000px;top:-10000px;width:320px;height:240px;border:0;opacity:0;pointer-events:none";
+  document.body.appendChild(f);
+  _nsfwSentSettings = null;
+  setInterval(function () { claimDetector(function () { void 0; }); }, 5000);
+  return f;
+}
+
+function ensureDetector(cb) {
+  if (typeof chrome !== "undefined" && chrome.offscreen && chrome.offscreen.createDocument) {
+    ensureOffscreenDoc(cb);
+    return;
+  }
+  if (typeof document === "undefined" || !document.getElementById) { cb(false); return; }
+  if (document.getElementById(_detectorFrameId)) { cb(true); return; }
+  claimDetector(function (mine) {
+    if (mine) detectorFrame();
+    cb(true);
+  });
+}
+
+var _nsfwSettings = { action: null };
+var _nsfwSentSettings = null;
+var _nsfwInFlight = new Map();
+
+function readNsfwSettings() {
+  if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.sync || !chrome.storage.sync.get) return;
+  chrome.storage.sync.get(["nsfwAction"], function (r) {
+    void chrome.runtime.lastError;
+    _nsfwSettings.action = (r && r.nsfwAction) || "off";
+  });
+}
+
+readNsfwSettings();
+if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged && chrome.storage.onChanged.addListener) {
+  chrome.storage.onChanged.addListener(function (ch, area) {
+    if (area === "sync" && ch.nsfwAction) readNsfwSettings();
+    if (area === "local" && ch.nsfwDebugLog && ch.nsfwDebugLog.newValue === false) {
+      chrome.storage.local.remove("nsfwDebugEvents", function () { void chrome.runtime.lastError; });
+    }
+  });
+}
+
+/* Shield diagnostics on disk: 500 detailed events in verbose mode, or the last
+   20 private retry-failure summaries in quiet mode. Batches append in order. */
+var _nsfwLogChain = Promise.resolve();
+function safeNsfwRetryEvent(e) {
+  var d = e && e.data && typeof e.data === "object" ? e.data : {};
+  var code = String(d.errorCode || "retry-failed").toLowerCase();
+  if (!/^[a-z0-9-]{1,48}$/.test(code)) code = "retry-failed";
+  var detail = String(d.errorDetail || "").replace(/(?:https?|chrome-extension|blob|data):[^\s"'<>]+/gi, "[resource]")
+    .replace(/[\u0000-\u001f]+/g, " ").slice(0, 180);
+  return { t: new Date().toISOString(), event: "retry.error", data: {
+    kind: "img", stage: "strong", model: "freepik-448-fp16", errorCode: code, errorDetail: detail
+  } };
+}
+
+function saveNsfwDebugEvents(events) {
+  if (!Array.isArray(events) || !events.length || !chrome.storage || !chrome.storage.local) return;
+  var batch = events.slice(0, 200).filter(function (e) { return e && typeof e === "object"; });
+  _nsfwLogChain = _nsfwLogChain.then(function () {
+    return new Promise(function (done) {
+      chrome.storage.local.get(["nsfwDebugLog", "nsfwDebugEvents"], function (r) {
+        void chrome.runtime.lastError;
+        if (!r || r.nsfwDebugLog === false) return done();
+        var verbose = r.nsfwDebugLog === "verbose";
+        var accepted = verbose ? batch : batch.filter(function (e) { return e.event === "retry.error"; }).map(safeNsfwRetryEvent);
+        if (!accepted.length) return done();
+        var previous = r && Array.isArray(r.nsfwDebugEvents) ? r.nsfwDebugEvents : [];
+        if (!verbose) previous = previous.filter(function (e) { return e && e.event === "retry.error"; }).map(safeNsfwRetryEvent);
+        var kept = previous.concat(accepted).slice(verbose ? -500 : -20);
+        chrome.storage.local.set({ nsfwDebugEvents: kept }, function () { void chrome.runtime.lastError; done(); });
+      });
+    });
+  });
+}
+
+function ensureNsfwSettings() {
+  var key = nsfwThreshold() + "|MobileNetV2_NSFWJS";
+  if (_nsfwSentSettings === key) return;
+  _nsfwSentSettings = key;
+  chrome.runtime.sendMessage({ target: "offscreen", type: "SET_SETTINGS", filterThreshold: nsfwThreshold() }, function () {
+    void chrome.runtime.lastError;
+  });
+}
+
+function nsfwResponse(score, source) {
+  return { isNsfw: nsfwVerdict(score), score: score,
+    source: source, threshold: nsfwThreshold() };
+}
+
+function sendClassify(url, page, cb, attempt, shield, preparedId, forceFresh, requestId) {
+  attempt = attempt || 0;
+  ensureNsfwSettings();
+  chrome.runtime.sendMessage({ target: "offscreen", type: "CLASSIFY", url: url, page: page, shield: shield === true, preparedId: preparedId || "", forceFresh: forceFresh === true, requestId: requestId }, function (resp) {
+    var err = chrome.runtime.lastError;
+    if ((err || resp === undefined) && attempt < 20) {
+      setTimeout(function () { sendClassify(url, page, cb, attempt + 1, shield, preparedId, forceFresh, requestId); }, 250);
+      return;
+    }
+    cb(resp || null);
+  });
+}
+
+function classifyNsfwImage(m, sendResponse) {
+  if (_nsfwSettings.action === "off") {
+    if (typeof sendResponse === "function") sendResponse({ isNsfw: false });
+    return;
+  }
+  var url = m.url || "";
+  var cachedOut = m.forceFresh ? null : nsfwCachedVerdict(url);
+  /* First-model flagged hits still need current pixels and an independent retry snapshot. */
+  if (cachedOut && (cachedOut.confirmed || !m.shield || !cachedOut.isNsfw)) {
+    if (typeof sendResponse === "function") sendResponse(cachedOut);
+    return;
+  }
+  var flightKey = JSON.stringify([url, m.shield === true, m.shield ? String(m.requestId || "") : "", m.forceFresh === true]);
+  var waiting = _nsfwInFlight.get(flightKey);
+  if (waiting) {
+    if (typeof sendResponse === "function") waiting.push(sendResponse);
+    return;
+  }
+  waiting = [];
+  _nsfwInFlight.set(flightKey, waiting);
+  if (typeof sendResponse === "function") waiting.push(sendResponse);
+
+  var finish = function (out) {
+    _nsfwInFlight.delete(flightKey);
+    for (var i = 0; i < waiting.length; i++) waiting[i](out);
+  };
+
+  ensureDetector(function (ok) {
+    if (!ok) { finish({ isNsfw: false, error: "detector-unavailable" }); return; }
+    sendClassify(url, m.page || "", function (resp) {
+      if (!resp) { _nsfwSentSettings = null; finish({ isNsfw: false, error: "detector-timeout" }); return; }
+      var out;
+      if (typeof resp.score === "number" && isFinite(resp.score)) {
+        nsfwCacheSet(url, resp.score);
+        out = (!m.forceFresh && nsfwConfirmationResponse(url)) || nsfwResponse(resp.score, "detector");
+      } else {
+        out = { isNsfw: !!resp.result };
+      }
+      if (resp.shieldPreview) out.shieldPreview = resp.shieldPreview;
+      if (resp.shieldWidth) out.shieldWidth = resp.shieldWidth;
+      if (resp.shieldHeight) out.shieldHeight = resp.shieldHeight;
+      if (resp.snapshotId) out.snapshotId = resp.snapshotId;
+      if (resp.previewError) out.previewError = String(resp.previewError);
+      if (resp.error) out.error = String(resp.error);
+      if (resp.status) out.status = resp.status;
+      finish(out);
+    }, 0, m.shield === true, m.preparedId, m.forceFresh === true, m.requestId);
+  });
+}
+
 /* ── 04-bridge-messages.js: acts on the messages the page context menu sends (and the new tab's right-click
    edits), and sends http://home to the Atlas new tab. ── */
+
+function handleBridgeTabNav(m, sender) {
+  var winId = (sender && sender.tab && typeof sender.tab.windowId === "number" && sender.tab.windowId >= 0) ? sender.tab.windowId : undefined;
+  var myWin = (typeof window !== "undefined" && typeof window.vivaldiWindowId === "number" && window.vivaldiWindowId >= 0) ? window.vivaldiWindowId : undefined;
+  if (winId !== undefined && myWin !== undefined && winId !== myWin) return;
+  var q = typeof winId === "number" ? { windowId: winId } : { currentWindow: true };
+  if (chrome.tabs && chrome.tabs.query && chrome.tabs.update) {
+    chrome.tabs.query(q, function (ts) {
+      if (!ts || ts.length <= 1) return;
+      var cur = -1;
+      for (var i = 0; i < ts.length; i++) {
+        if (ts[i].active) { cur = i; break; }
+      }
+      if (cur === -1) return;
+      var step = m.act === "tab-prev" ? -1 : 1;
+      var next = (cur + step + ts.length) % ts.length;
+      chrome.tabs.update(ts[next].id, { active: true });
+    });
+  }
+}
+
+function bridgeOwnWindow(sender) {
+  var winId = sender && sender.tab && sender.tab.windowId;
+  var myWin = typeof window !== "undefined" ? window.vivaldiWindowId : undefined;
+  return !(typeof winId === "number" && typeof myWin === "number" && winId !== myWin);
+}
+
+function handleNsfwBridgeMessage(m, sender, sendResponse) {
+  if (!bridgeOwnWindow(sender)) return;
+  if (m.act === "nsfw-cancel-work") { cancelNsfwWork(m, sendResponse); return true; }
+  if (m.act === "nsfw-cached-verdict") cachedNsfwImage(m, sendResponse);
+  else if (m.act === "nsfw-prepare-shield") prepareNsfwImage(m, sendResponse);
+  else if (m.act === "nsfw-release-prepared") {
+    releasePreparedImage(m, sendResponse);
+  }
+  else if (m.act === "nsfw-classify") classifyNsfwImage(m, sendResponse);
+  else if (m.act === "nsfw-retry") retryNsfwImage(m, sendResponse);
+  else if (m.act === "nsfw-release-snapshot") releaseNsfwImage(m, sendResponse);
+  else if (m.act === "nsfw-debug-log") saveNsfwDebugEvents(m.events);
+  else return;
+  return m.act !== "nsfw-debug-log";
+}
 
 if (chrome.runtime && chrome.runtime.onMessage) {
   chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     var m = msg && msg.atlas;
     if (!m) return;
-    if (m.act === 'opentab' && m.url) {
+    if (m.act === "opentab" && m.url) {
       var winId = (sender && sender.tab && sender.tab.windowId) || undefined;
-      var myWin = (typeof window !== 'undefined' && window.vivaldiWindowId) || undefined;
+      var myWin = (typeof window !== "undefined" && window.vivaldiWindowId) || undefined;
       if (winId && myWin && winId !== myWin) return;
       chrome.tabs.create({ url: m.url, active: m.active !== false, windowId: winId });
-    } else if (m.act === 'opentab-current' && m.url) {
+    } else if (m.act === "opentab-current" && m.url) {
       var tid = sender && sender.tab && sender.tab.id;
       if (tid) chrome.tabs.update(tid, { url: m.url });
       else chrome.tabs.update({ url: m.url });
-    } else if (m.act === 'ctxmenu-open') {
-      if (typeof Atlas.closeUiMenu === 'function') Atlas.closeUiMenu();
-      if (typeof Atlas.closeMenu === 'function') Atlas.closeMenu();
-    } else if (m.act === 'download' && m.url) {
+    } else if (m.act === "ctxmenu-open") {
+      if (typeof Atlas.closeUiMenu === "function") Atlas.closeUiMenu();
+      if (typeof Atlas.closeMenu === "function") Atlas.closeMenu();
+    } else if (m.act === "download" && m.url) {
       chrome.downloads.download({ url: m.url, saveAs: true }, function () { void chrome.runtime.lastError; });
-    } else if (m.act === 'savepage') {
+    } else if (m.act === "savepage") {
       var u = m.url || (sender && sender.tab && sender.tab.url);
       if (u) chrome.downloads.download({ url: u, saveAs: true }, function () { void chrome.runtime.lastError; });
-    } else if (m.act === 'edit-open' && m.edit) {
+    } else if (m.act === "edit-open" && m.edit) {
       /* Right-click on the new tab (a bookmark, a group, a page): the bar opens in the window that owns the tab. */
       var editWin = (sender && sender.tab && sender.tab.windowId) || undefined;
-      var mineWin = (typeof window !== 'undefined' && window.vivaldiWindowId) || undefined;
+      var mineWin = (typeof window !== "undefined" && window.vivaldiWindowId) || undefined;
       if (editWin && mineWin && editWin !== mineWin) return;
-      if (typeof Atlas.openEdit === 'function') {
+      if (typeof Atlas.openEdit === "function") {
         Atlas.openEdit(m.edit);
-        if (typeof sendResponse === 'function') sendResponse({ ok: true });   // tells the tab it was handled; unanswered, it opens its own pop-up
+        if (typeof sendResponse === "function") sendResponse({ ok: true });   // tells the tab it was handled; unanswered, it opens its own pop-up
       }
-    } else if (m.act === 'focus-addressbar') {
-      var winId = (sender && sender.tab && sender.tab.windowId) || undefined;
-      var myWin = (typeof window !== 'undefined' && window.vivaldiWindowId) || undefined;
-      if (winId && myWin && winId !== myWin) return;
-      if (typeof Atlas.focusAddressBar === 'function') Atlas.focusAddressBar();
+    } else if (m.act === "focus-addressbar") {
+      var winId = (sender && sender.tab && typeof sender.tab.windowId === "number" && sender.tab.windowId >= 0) ? sender.tab.windowId : undefined;
+      var myWin = (typeof window !== "undefined" && typeof window.vivaldiWindowId === "number" && window.vivaldiWindowId >= 0) ? window.vivaldiWindowId : undefined;
+      if (winId !== undefined && myWin !== undefined && winId !== myWin) return;
+      /* Ignore an old page script while the native listener owns this gesture. */
+      if (!Atlas.nativeCommandTapsEnabled && typeof Atlas.focusAddressBar === "function") Atlas.focusAddressBar(true);
+    } else if (m.act === "navigate-back") {
+      var tid = sender && sender.tab && sender.tab.id;
+      if (tid && chrome.tabs && chrome.tabs.goBack) {
+        chrome.tabs.goBack(tid);
+      } else if (typeof Atlas.navigateBack === "function") {
+        Atlas.navigateBack();
+      }
+    } else if (m.act === "navigate-forward") {
+      var tid = sender && sender.tab && sender.tab.id;
+      if (tid && chrome.tabs && chrome.tabs.goForward) {
+        chrome.tabs.goForward(tid);
+      } else if (typeof Atlas.navigateForward === "function") {
+        Atlas.navigateForward();
+      }
+    } else if (m.act === "tab-new") {
+      var winId = (sender && sender.tab && typeof sender.tab.windowId === "number" && sender.tab.windowId >= 0) ? sender.tab.windowId : undefined;
+      var myWin = (typeof window !== "undefined" && window.vivaldiWindowId) || undefined;
+      if (winId !== undefined && myWin !== undefined && winId !== myWin) return;
+      var opts = { url: ATLAS_NEWTAB_URL };
+      if (typeof winId === "number") opts.windowId = winId;
+      if (chrome.tabs && chrome.tabs.create) {
+        chrome.tabs.create(opts);
+      }
+    } else if (m.act === "tab-close") {
+      var tid = sender && sender.tab && sender.tab.id;
+      if (tid && chrome.tabs && chrome.tabs.remove) {
+        chrome.tabs.remove(tid, function () { void chrome.runtime.lastError; });
+      } else if (typeof Atlas.closeCurrentTab === "function") {
+        Atlas.closeCurrentTab();
+      }
+    } else if (m.act === "tab-prev" || m.act === "tab-next") {
+      handleBridgeTabNav(m, sender);
+    } else if (typeof m.act === "string" && m.act.indexOf("nsfw-") === 0) {
+      return handleNsfwBridgeMessage(m, sender, sendResponse);
     }
   });
 }
@@ -418,7 +895,7 @@ if (chrome.tabs && chrome.tabs.onUpdated) {
   chrome.tabs.onUpdated.addListener(function (tabId, info) {
     if (!info.url) return;
     if (/^https?:\/\/home\/?$/.test(info.url)) {
-      chrome.tabs.update(tabId, { url: EXT + 'index.html' });
+      chrome.tabs.update(tabId, { url: EXT + "index.html" });
     }
   });
 }
@@ -961,24 +1438,29 @@ function ensureHomeButton() {
   /* ═══ Module: 07-profile-menu.js ═══ */
 /* ── 07-profile-menu.js: Profile menu dropdown and "D" account button interceptor ── */
 
+/* The pointer under a dropdown. 45-degree sides and a rounded tip, the same shape as the tab card and the
+   toolbar popups: the tip stands about 7px above the panel and the pointer is 16px wide where it meets the edge.
+   It is kept clear of the panel's rounded corners so its feet never land on the curve. */
 function addDropTail(panel, anchorRect) {
-  var TW = 16, TH = 9;
+  var TH = 9, TW = TH * 2, R = 1.7, MID = TW / 2;
   var pr = panel.getBoundingClientRect();
   var cs = window.getComputedStyle(panel);
   var bg = cs.backgroundColor, border = cs.borderTopColor;
+  var edge = (parseFloat(cs.borderTopLeftRadius) || 12) + MID;
   var ax = anchorRect.left + anchorRect.width / 2;
-  var tx = Math.max(pr.left + 12, Math.min(ax, pr.right - 12));
+  var tx = Math.max(pr.left + edge, Math.min(ax, pr.right - edge));
+  var side = 'M0,' + TH + ' L' + (MID - R) + ',' + R + ' Q' + MID + ',0 ' + (MID + R) + ',' + R + ' L' + TW + ',' + TH;
   var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('class', 'atlas-drop-tail');
   svg.setAttribute('width', TW);
   svg.setAttribute('height', TH + 2);
   svg.setAttribute('viewBox', '0 0 ' + TW + ' ' + (TH + 2));
   svg.innerHTML =
-    '<path d="M' + (TW / 2) + ',0 L' + TW + ',' + TH + ' L0,' + TH + ' Z" style="fill:' + bg + '"/>' +
-    '<path d="M0,' + TH + ' L' + (TW / 2) + ',0 L' + TW + ',' + TH + '" style="fill:none;stroke:' + border + ';stroke-width:1"/>';
+    '<path d="' + side + ' Z" style="fill:' + bg + '"/>' +
+    '<path d="' + side + '" style="fill:none;stroke:' + border + ';stroke-width:1"/>';
   svg.style.position = 'fixed';
-  svg.style.left = (tx - TW / 2) + 'px';
-  svg.style.top = (pr.top - TH + 2) + 'px';
+  svg.style.left = (tx - MID) + 'px';
+  svg.style.top = (pr.top - TH + 1) + 'px';
   svg.style.zIndex = '10001';
   svg.style.pointerEvents = 'none';
   panel.appendChild(svg);
@@ -1071,7 +1553,7 @@ var PACTS = {
   'add-bookmark': function () { Atlas.openAdd('bookmark'); },
   'add-group': function () { Atlas.openAdd('group'); },
   'add-page': function () { Atlas.openAdd('page'); },
-  history: function () { chrome.tabs.create({ url: 'vivaldi://history' }); },
+  history: function () { if (Atlas.openHistory) Atlas.openHistory(); else chrome.tabs.create({ url: 'chrome://history/' }); },
   downloads: function () { chrome.tabs.create({ url: 'vivaldi://downloads' }); },
   ext: function () { openNewTabSettings(); },
   browser: function () { chrome.tabs.create({ url: 'vivaldi://settings' }); }
@@ -1689,7 +2171,20 @@ Atlas.closeExtPop = closeExtPop;
   var known = false;
   var browser = null;
 
+  var syncSeq = 0;
+
   function val(v) { return v && v.value !== undefined ? v.value : v; }
+
+  /* A flash of the wrong theme left no trace (2026-10-30). Every switch now goes
+     into the shield debug log (event "theme"), so a flash can be matched to its cause. */
+  function traceTheme(act, data) {
+    try {
+      if (typeof saveNsfwDebugEvents !== 'function') return;
+      var d = data || {};
+      d.act = act;
+      saveNsfwDebugEvents([{ event: 'theme', page: 'browser-ui', t: new Date().toISOString(), data: d }]);
+    } catch (e) { atlasWarn('theme trace', e); }
+  }
 
   function resolveDark(cfg) {
     var m = (cfg && cfg.Theme) || 'dark';
@@ -1705,6 +2200,7 @@ Atlas.closeExtPop = closeExtPop;
     if (!browser && typeof document !== 'undefined' && document.getElementById) browser = document.getElementById('browser');
     if (!browser) return;
     var has = browser.classList.contains('theme-dark');
+    if (wantDark !== has) traceTheme('stamp', { dark: wantDark });
     if (wantDark && !has) {
       browser.classList.add('theme-dark');
       browser.classList.remove('theme-light');
@@ -1717,27 +2213,58 @@ Atlas.closeExtPop = closeExtPop;
   function syncVivaldiTheme() {
     if (!window.vivaldi || !vivaldi.prefs) return;
     var want = wantDark ? /atlas\s*dark/i : /atlas\s*light/i;
+    /* Each call owns a number. The reads and the write are asynchronous, so an older
+       call must not write after a newer one has started: the last request wins. */
+    var mine = ++syncSeq;
     try {
       vivaldi.prefs.get('vivaldi.themes.current', function (cur) {
+        if (mine !== syncSeq) return;
         vivaldi.prefs.get('vivaldi.themes.user', function (user) {
+          if (mine !== syncSeq) return;
           var all = val(user) || [];
           var t = all.filter(function (x) {
             return x && (want.test(x.name || '') || want.test(x.id || ''));
           })[0];
           if (t && t.id !== val(cur)) {
+            traceTheme('set', { from: val(cur), to: t.id });
             vivaldi.prefs.set({ path: 'vivaldi.themes.current', value: t.id });
           }
         });
       });
-    } catch (e) { void e; }
+    } catch (e) { atlasWarn('theme sync', e); }
+  }
+
+  /* Vivaldi's "website appearance" setting (0 follow the Mac, 1 light, 2 dark) decides whether
+     Chromium's own pages (History, Downloads, Bookmarks) and websites render light or dark. It
+     follows the Atlas Theme, so those pages match the browser instead of the Mac. */
+  var SCHEME_PREF = 'vivaldi.PreferredColorScheme';
+  function wantScheme(cfg) {
+    var m = (cfg && cfg.Theme) || 'dark';
+    return m === 'system' ? 0 : m === 'light' ? 1 : 2;
+  }
+  var schemeSeq = 0;
+  function syncWebScheme(cfg) {
+    if (!window.vivaldi || !vivaldi.prefs) return;
+    var want = wantScheme(cfg), mine = ++schemeSeq;
+    try {
+      vivaldi.prefs.get(SCHEME_PREF, function (cur) {
+        if (mine !== schemeSeq || val(cur) === want) return;
+        traceTheme('scheme', { from: val(cur), to: want });
+        vivaldi.prefs.set({ path: SCHEME_PREF, value: want });
+      });
+    } catch (e) { atlasWarn('scheme sync', e); }
   }
 
   function applyChromeTheme(cfg) {
+    /* A read that comes back empty (a window opened mid-switch, storage not ready)
+       means "dark" for a first paint, but must not undo a theme already chosen. */
+    if (known && !(cfg && cfg.Theme)) { traceTheme('ignoredEmpty', {}); return; }
     lastCfg = cfg;
     wantDark = resolveDark(cfg);
     known = true;
     stamp();
     syncVivaldiTheme();
+    syncWebScheme(cfg);
   }
 
   /* Re-read the saved theme and apply it. The chrome only changes on storage
@@ -4384,5 +4911,844 @@ function abEditSave() {
     if (r && r.ok) abClose(); else abError((r && r.error) || 'That did not work. Try again.');
   });
 }
+
+  /* ═══ Module: 27-nsfw-verdicts.js ═══ */
+/* Versioned first-model scores and independent stronger-model confirmations.
+   Persist digests and verdict metadata only; never persist source URLs or pixels. */
+var NSFW_CACHE_MAX = 5000;
+var NSFW_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+var NSFW_STORE_KEY = "atlasNsfwScores";
+var NSFW_STORE_BYTES = 1024 * 1024;
+var NSFW_STORE_FLUSH_MS = 2000;
+var NSFW_MOBILENET_THRESHOLD = 0.889871;
+var NSFW_FIRST_MODEL_VERSION = "mobilenetv2-224-rgb01-v1";
+var NSFW_STRONG_MODEL_VERSION = "freepik-eva02-448-fp16-clip-v1";
+var NSFW_STRONG_THRESHOLD = 0.729;
+var _nsfwScores = new Map();
+var _nsfwStoreDirty = false;
+var _nsfwStoreTimer = 0;
+var _nsfwStoreLoading = false;
+var _nsfwStoreWaiters = [];
+
+function nsfwThreshold() { return NSFW_MOBILENET_THRESHOLD; }
+function nsfwVerdict(score) { return score >= NSFW_MOBILENET_THRESHOLD; }
+function nsfwHash(url) {
+  var h1 = 0x811c9dc5, h2 = 0x9e3779b9, i, c;
+  for (i = 0; i < url.length; i++) {
+    c = url.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 16777619);
+    h2 = Math.imul(h2 ^ c, 2246822507);
+  }
+  return ((h1 >>> 0).toString(16) + "00000000").slice(0, 8) +
+    ((h2 >>> 0).toString(16) + "00000000").slice(0, 8);
+}
+function nsfwStoreReady() {
+  return typeof chrome !== "undefined" && chrome.storage && chrome.storage.local &&
+    typeof chrome.storage.local.get === "function" && typeof chrome.storage.local.set === "function";
+}
+function nsfwFresh(ts) { return typeof ts === "number" && Date.now() - ts <= NSFW_CACHE_TTL; }
+function nsfwCacheGet(url) {
+  if (!url || !/^https?:\/\//i.test(url)) return null;
+  var h = nsfwHash(url), hit = _nsfwScores.get(h);
+  if (!hit || hit.version !== NSFW_FIRST_MODEL_VERSION || !nsfwFresh(hit.ts) ||
+      typeof hit.score !== "number" || !isFinite(hit.score)) return null;
+  _nsfwScores.delete(h); _nsfwScores.set(h, hit);
+  return hit;
+}
+function nsfwConfirmationGet(url) {
+  if (!url) return null;
+  var entry = _nsfwScores.get(nsfwHash(url)), hit = entry && entry.confirmation;
+  return hit && hit.version === NSFW_STRONG_MODEL_VERSION && hit.threshold === NSFW_STRONG_THRESHOLD &&
+    nsfwFresh(hit.ts) && typeof hit.isNsfw === "boolean" ? hit : null;
+}
+function nsfwConfirmationResponse(url) {
+  var hit = nsfwConfirmationGet(url);
+  return hit ? { isNsfw: hit.isNsfw, score: hit.score, threshold: hit.threshold,
+    source: "confirmation-cache", stage: "strong", model: "freepik-448-fp16",
+    modelVersion: hit.version, confirmed: true } : null;
+}
+function nsfwCachedVerdict(url) {
+  var confirmed = nsfwConfirmationResponse(url);
+  if (confirmed) return confirmed;
+  var hit = nsfwCacheGet(url);
+  return hit ? nsfwResponse(hit.score, "cache") : null;
+}
+function nsfwScheduleStore() {
+  while (_nsfwScores.size > NSFW_CACHE_MAX) _nsfwScores.delete(_nsfwScores.keys().next().value);
+  _nsfwStoreDirty = true;
+  if (!_nsfwStoreTimer) _nsfwStoreTimer = setTimeout(nsfwFlushStore, NSFW_STORE_FLUSH_MS);
+}
+function nsfwCacheSet(url, score) {
+  if (!url || !/^https?:\/\//i.test(url) || typeof score !== "number" || !isFinite(score)) return;
+  var h = nsfwHash(url), entry = _nsfwScores.get(h) || {};
+  entry.score = Math.round(score * 1e5) / 1e5;
+  entry.ts = Date.now(); entry.version = NSFW_FIRST_MODEL_VERSION;
+  _nsfwScores.delete(h); _nsfwScores.set(h, entry); nsfwScheduleStore();
+}
+function nsfwConfirmationSet(url, result) {
+  if (!url || !/^(https?:\/\/|data:image\/)/i.test(url) || !result || result.error ||
+      result.model !== "freepik-448-fp16" || result.modelVersion !== NSFW_STRONG_MODEL_VERSION ||
+      result.threshold !== NSFW_STRONG_THRESHOLD || typeof result.isNsfw !== "boolean" ||
+      typeof result.score !== "number" || !isFinite(result.score)) return;
+  var h = nsfwHash(url), entry = _nsfwScores.get(h) || {};
+  entry.confirmation = { score: result.score, ts: Date.now(), version: result.modelVersion,
+    threshold: result.threshold, isNsfw: result.isNsfw };
+  _nsfwScores.delete(h); _nsfwScores.set(h, entry); nsfwScheduleStore();
+}
+function nsfwEncodeEntry(entry) {
+  var first = entry.version === NSFW_FIRST_MODEL_VERSION && nsfwFresh(entry.ts) && typeof entry.score === "number";
+  var strong = entry.confirmation;
+  if (strong && (!nsfwFresh(strong.ts) || strong.version !== NSFW_STRONG_MODEL_VERSION ||
+      strong.threshold !== NSFW_STRONG_THRESHOLD)) strong = null;
+  if (!first && !strong) return null;
+  return [first ? entry.score : null, first ? entry.ts : 0, NSFW_FIRST_MODEL_VERSION,
+    strong ? [strong.score, strong.ts, strong.version, strong.threshold, strong.isNsfw] : null];
+}
+function nsfwDecodeEntry(value) {
+  if (!Array.isArray(value)) return null;
+  var entry = {}, strong = value[3];
+  if (value[2] === NSFW_FIRST_MODEL_VERSION && typeof value[0] === "number" && isFinite(value[0]) && nsfwFresh(value[1])) {
+    entry.score = value[0]; entry.ts = value[1]; entry.version = value[2];
+  }
+  if (Array.isArray(strong) && typeof strong[0] === "number" && isFinite(strong[0]) && nsfwFresh(strong[1]) &&
+      strong[2] === NSFW_STRONG_MODEL_VERSION && strong[3] === NSFW_STRONG_THRESHOLD && typeof strong[4] === "boolean") {
+    entry.confirmation = { score: strong[0], ts: strong[1], version: strong[2], threshold: strong[3], isNsfw: strong[4] };
+  }
+  return entry.version || entry.confirmation ? entry : null;
+}
+function nsfwMergeStored(saved) {
+  if (!saved || typeof saved !== "object") return;
+  Object.keys(saved).forEach(function (h) {
+    if (!/^[0-9a-f]{16}$/.test(h)) return;
+    var incoming = nsfwDecodeEntry(saved[h]);
+    if (!incoming) return;
+    var known = _nsfwScores.get(h) || {};
+    if (incoming.ts && (!known.ts || incoming.ts > known.ts)) {
+      known.score = incoming.score; known.ts = incoming.ts; known.version = incoming.version;
+    }
+    if (incoming.confirmation && (!known.confirmation || incoming.confirmation.ts > known.confirmation.ts)) {
+      known.confirmation = incoming.confirmation;
+    }
+    _nsfwScores.set(h, known);
+  });
+  while (_nsfwScores.size > NSFW_CACHE_MAX) _nsfwScores.delete(_nsfwScores.keys().next().value);
+}
+function nsfwFlushStore() {
+  _nsfwStoreTimer = 0;
+  if (!_nsfwStoreDirty || !nsfwStoreReady()) return;
+  _nsfwStoreDirty = false;
+  var entries = Array.from(_nsfwScores.entries()), out = {}, bytes = 26;
+  for (var i = entries.length - 1; i >= 0; i--) {
+    var h = entries[i][0], value = nsfwEncodeEntry(entries[i][1]);
+    if (!value) continue;
+    bytes += h.length + JSON.stringify(value).length + 6;
+    if (bytes > NSFW_STORE_BYTES) break;
+    out[h] = value;
+  }
+  chrome.storage.local.set({ [NSFW_STORE_KEY]: out }, function () { void chrome.runtime.lastError; });
+}
+function nsfwWhenStoreReady(callback) {
+  if (_nsfwStoreLoading) _nsfwStoreWaiters.push(callback); else callback();
+}
+function nsfwLoadStore() {
+  if (!nsfwStoreReady()) return;
+  _nsfwStoreLoading = true;
+  chrome.storage.local.get(NSFW_STORE_KEY, function (items) {
+    nsfwMergeStored(items && items[NSFW_STORE_KEY]);
+    _nsfwStoreLoading = false;
+    var pending = _nsfwStoreWaiters; _nsfwStoreWaiters = [];
+    pending.forEach(function (callback) { callback(); });
+  });
+}
+nsfwLoadStore();
+if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged && chrome.storage.onChanged.addListener) {
+  chrome.storage.onChanged.addListener(function (changes, area) {
+    if (area === "local" && changes[NSFW_STORE_KEY]) nsfwMergeStored(changes[NSFW_STORE_KEY].newValue);
+  });
+}
+
+  /* ═══ Module: 28-nsfw-retry-bridge.js ═══ */
+/* ── 28-nsfw-retry-bridge.js: routes explicit stronger-model retries and
+   releases their short-lived detector snapshots. ── */
+
+var _nsfwRetryInFlight = new Map();
+
+function sendStrongRetry(snapshotId, cb, attempt) {
+  attempt = attempt || 0;
+  ensureNsfwSettings();
+  chrome.runtime.sendMessage({ target: "offscreen", type: "RETRY_STRONG", snapshotId: snapshotId }, function (resp) {
+    var err = chrome.runtime.lastError;
+    if ((err || resp === undefined) && attempt < 20) {
+      setTimeout(function () { sendStrongRetry(snapshotId, cb, attempt + 1); }, 250);
+      return;
+    }
+    cb(resp || { stage: "strong", model: "freepik-448-fp16", error: "detector-timeout",
+      errorCode: "detector-timeout", errorDetail: "The local detector did not answer after 20 attempts" });
+  });
+}
+
+function releaseNsfwSnapshot(snapshotId) {
+  if (!snapshotId) return;
+  chrome.runtime.sendMessage({ target: "offscreen", type: "RELEASE_SNAPSHOT", snapshotId: snapshotId }, function () {
+    void chrome.runtime.lastError;
+  });
+}
+
+function retryNsfwImage(m, sendResponse) {
+  var snapshotId = String(m.snapshotId || "");
+  if (!snapshotId || snapshotId.length > 80) {
+    if (typeof sendResponse === "function") sendResponse({ stage: "strong", error: "invalid-snapshot",
+      errorCode: "invalid-snapshot", errorDetail: "The retry snapshot identifier is missing or invalid" });
+    return;
+  }
+  var waiting = _nsfwRetryInFlight.get(snapshotId);
+  if (waiting) {
+    if (typeof sendResponse === "function") waiting.push(sendResponse);
+    return;
+  }
+  waiting = [];
+  _nsfwRetryInFlight.set(snapshotId, waiting);
+  if (typeof sendResponse === "function") waiting.push(sendResponse);
+  var finish = function (out) {
+    _nsfwRetryInFlight.delete(snapshotId);
+    for (var i = 0; i < waiting.length; i++) waiting[i](out);
+  };
+  ensureDetector(function (ok) {
+    if (!ok) { finish({ stage: "strong", error: "detector-unavailable", errorCode: "detector-unavailable",
+      errorDetail: "No local detector is available in this window" }); return; }
+    sendStrongRetry(snapshotId, function (resp) {
+      if (!resp) { _nsfwSentSettings = null; finish({ stage: "strong", error: "detector-timeout",
+        errorCode: "detector-timeout", errorDetail: "The local detector returned no response" }); return; }
+      if (resp.error && !resp.errorCode) resp.errorCode = "retry-failed";
+      if (resp.error && !resp.errorDetail) resp.errorDetail = String(resp.error).slice(0, 180);
+      if (!resp.error && typeof resp.isNsfw !== "boolean") {
+        resp.error = "invalid-response"; resp.errorCode = "invalid-response";
+        resp.errorDetail = "The stronger model returned no verdict";
+      }
+      if (!resp.error) nsfwConfirmationSet(resp.sourceUrl, resp);
+      delete resp.sourceUrl;
+      finish(resp);
+    });
+  });
+}
+
+function releaseNsfwImage(m, sendResponse) {
+  var snapshotId = String(m.snapshotId || "");
+  if (snapshotId) releaseNsfwSnapshot(snapshotId);
+  if (typeof sendResponse === "function") sendResponse({ ok: true });
+}
+
+  /* ═══ Module: 29-nsfw-shield-prepare.js ═══ */
+/* ── 29-nsfw-shield-prepare.js: gives each image a blurred checking surface
+   before classification, then reuses its fetched bytes for the first pass. ── */
+
+function sendPreparedShield(url, page, cb, attempt, forceFresh, requestId, priority) {
+  attempt = attempt || 0;
+  chrome.runtime.sendMessage({ target: "offscreen", type: "PREPARE_SHIELD", url: url, page: page, forceFresh: forceFresh === true, requestId: requestId, priority: priority }, function (resp) {
+    var err = chrome.runtime.lastError;
+    if ((err || resp === undefined) && attempt < 20) {
+      setTimeout(function () { sendPreparedShield(url, page, cb, attempt + 1, forceFresh, requestId, priority); }, 250);
+      return;
+    }
+    cb(resp || null);
+  });
+}
+
+function cachedNsfwImage(m, sendResponse) {
+  nsfwWhenStoreReady(function () {
+    var verdict = m.forceFresh ? null : nsfwCachedVerdict(m.url || "");
+    if (verdict && verdict.isNsfw && !verdict.confirmed) verdict = null;
+    sendResponse({ verdict: verdict });
+  });
+}
+
+function prepareNsfwImage(m, sendResponse) {
+  var url = m.url || "";
+  if (_nsfwSettings.action === "off") {
+    if (typeof sendResponse === "function") sendResponse({ disabled: true });
+    return;
+  }
+  var verdict = m.forceFresh ? null : nsfwCachedVerdict(url);
+  if (verdict && !verdict.isNsfw) {
+    if (typeof sendResponse === "function") sendResponse({ verdict: verdict });
+    return;
+  }
+  ensureDetector(function (ok) {
+    if (!ok) {
+      if (typeof sendResponse === "function") sendResponse({ previewError: "detector-unavailable" });
+      return;
+    }
+    sendPreparedShield(url, m.page || "", function (response) {
+      if (response && verdict && verdict.confirmed) response.verdict = verdict;
+      if (typeof sendResponse === "function") sendResponse(response || { previewError: "detector-timeout" });
+    }, 0, m.forceFresh === true, m.requestId, m.priority);
+  });
+}
+
+function releasePreparedImage(m, sendResponse) {
+  var preparedId = String(m.preparedId || "");
+  if (preparedId) {
+    chrome.runtime.sendMessage({ target: "offscreen", type: "RELEASE_PREPARED", preparedId: preparedId }, function () {
+      void chrome.runtime.lastError;
+    });
+  }
+  if (typeof sendResponse === "function") sendResponse({ ok: true });
+}
+
+function cancelNsfwWork(m, sendResponse) {
+  chrome.runtime.sendMessage({ target: "offscreen", type: "CANCEL_WORK", requestId: m.requestId }, function () { void chrome.runtime.lastError; });
+  if (typeof sendResponse === "function") sendResponse({ ok: true });
+}
+
+  /* ═══ Module: 30-command-taps.js ═══ */
+/* Native Command taps reach protected pages without injecting page scripts.
+   The detector and bounded focus handoff were verified in the isolated probe. */
+function createAtlasCommandTapDetector(options) {
+  options = options || {};
+  var now = options.now || function () { return performance.now(); };
+  var interval = options.intervalMs || 450;
+  var held = null, firstDown = null;
+
+  function reset() { held = null; firstDown = null; }
+
+  function feed(event) {
+    if (!event || typeof event.down !== 'boolean' || !Number.isInteger(event.code) ||
+        !Number.isInteger(event.modifiers) || event.afterGesture ||
+        (options.windowId != null && event.windowId !== options.windowId)) {
+      reset(); return false;
+    }
+    // macOS Chromium also reports right Command as legacy VKEY_APPS (93).
+    // Require the Command flag so a bare context-menu key cannot activate it.
+    var command = event.code === 91 || event.code === 92 || event.code === 93;
+    var modifiers = event.modifiers & 15; // Shift=1, Control=2, Alt=4, Command=8.
+    if (!command) { reset(); return false; }
+    if (event.autoRepeat) return false;
+    var time = now();
+    if (event.down) {
+      if (modifiers !== 8) { reset(); return false; }
+      if (held) {
+        if (held.code !== event.code) reset();
+        return false;
+      }
+      held = { at: time, code: event.code };
+      return false;
+    }
+    if (!held || held.code !== event.code || modifiers !== 0) { reset(); return false; }
+    var tap = held; held = null;
+    if (time < tap.at || time - tap.at > interval) { firstDown = null; return false; }
+    if (firstDown !== null && tap.at >= firstDown && tap.at - firstDown <= interval) {
+      firstDown = null;
+      if (options.onDoubleTap) options.onDoubleTap();
+      return true;
+    }
+    firstDown = tap.at;
+    return false;
+  }
+
+  return { feed: feed, reset: reset };
+}
+
+function createAtlasAddressFocusHandoff(options) {
+  var schedule = options.schedule || setTimeout;
+  var generation = 0, pending = false;
+
+  function finish(ok, attempts) {
+    pending = false;
+    if (options.onDone) options.onDone(ok, attempts);
+  }
+
+  function attempt(token, number) {
+    if (token !== generation || !pending) return;
+    var field = options.getField();
+    if (!field) { finish(false, number + 1); return; }
+    if (!options.hasFocus()) options.focusWindow();
+    field.focus();
+    if (typeof field.select === 'function') field.select();
+    schedule(function () {
+      if (token !== generation || !pending) return;
+      var currentField = options.getField();
+      if (currentField && options.isFocused(currentField) && options.hasFocus()) {
+        finish(true, number + 1);
+      } else if (number < 2) {
+        attempt(token, number + 1);
+      } else finish(false, number + 1);
+    }, 50);
+  }
+
+  return {
+    request: function () { pending = true; attempt(++generation, 0); },
+    cancel: function () { generation++; pending = false; },
+    isPending: function () { return pending; }
+  };
+}
+
+function installAtlasCommandTaps(api, owner) {
+  var handoff = createAtlasAddressFocusHandoff({
+    getField: function () { return document.querySelector('.toolbar-mainbar #urlFieldInput') || document.getElementById('urlFieldInput'); },
+    hasFocus: function () { return document.hasFocus(); },
+    focusWindow: function () { window.focus(); },
+    isFocused: function (field) { return document.activeElement === field; }
+  });
+  var detector = createAtlasCommandTapDetector({ windowId: owner, onDoubleTap: function () {
+    if (Atlas.resetUiShortcuts) Atlas.resetUiShortcuts();
+    if (Atlas.resetNativeSequencePage) Atlas.resetNativeSequencePage();
+    var field = document.querySelector('.toolbar-mainbar #urlFieldInput') || document.getElementById('urlFieldInput');
+    var active = document.activeElement;
+    var focused = document.hasFocus() && active && (active === field ||
+      (active.closest && active.closest('.UrlBar-AddressField, .UrlBar-SearchField, .SearchField')));
+    // A pending focus retry must not reclaim the field after toggling it off.
+    handoff.cancel();
+    if (focused) Atlas.focusAddressBar();
+    else handoff.request();
+  } });
+
+  function cancel() { detector.reset(); handoff.cancel(); }
+  Atlas.resetCommandTaps = cancel;
+  function rawKey(windowId, down, modifiers, code, afterGesture, autoRepeat) {
+    if (windowId !== owner) { cancel(); return; }
+    if ((code !== 91 && code !== 92 && code !== 93) || (modifiers & 7) || afterGesture) handoff.cancel();
+    detector.feed({ windowId: windowId, down: down, modifiers: modifiers, code: code, afterGesture: afterGesture, autoRepeat: autoRepeat });
+  }
+  function mouseChanged(motion) { if (!motion) cancel(); }
+  function windowChanged(id) { if (id !== owner) cancel(); }
+  function tabChanged(info) { if (info.windowId === owner) cancel(); }
+
+  api.onKeyboardChanged.addListener(rawKey);
+  if (api.onMouseChanged) api.onMouseChanged.addListener(mouseChanged);
+  if (chrome.windows.onFocusChanged) chrome.windows.onFocusChanged.addListener(windowChanged);
+  if (chrome.tabs.onActivated) chrome.tabs.onActivated.addListener(tabChanged);
+  window.addEventListener('pointerdown', cancel, true);
+  Atlas.nativeCommandTapsEnabled = true;
+  window.addEventListener('unload', function () {
+    cancel();
+    api.onKeyboardChanged.removeListener(rawKey);
+    if (api.onMouseChanged) api.onMouseChanged.removeListener(mouseChanged);
+    if (chrome.windows.onFocusChanged) chrome.windows.onFocusChanged.removeListener(windowChanged);
+    if (chrome.tabs.onActivated) chrome.tabs.onActivated.removeListener(tabChanged);
+    window.removeEventListener('pointerdown', cancel, true);
+    Atlas.nativeCommandTapsEnabled = false;
+    if (Atlas.resetCommandTaps === cancel) delete Atlas.resetCommandTaps;
+  }, { once: true });
+}
+
+function startAtlasCommandTaps(attempt) {
+  if (Atlas.nativeCommandTapsEnabled) return;
+  var api = window.vivaldi && window.vivaldi.tabsPrivate;
+  function retry() {
+    if (attempt < 24) setTimeout(function () { startAtlasCommandTaps(attempt + 1); }, 200);
+    else atlasWarn('Native Command taps unavailable', 'No keyboard API or owning browser window');
+  }
+  if (!api || !api.onKeyboardChanged) { retry(); return; }
+  var id = window.vivaldiWindowId;
+  if (Number.isInteger(id) && id >= 0) { installAtlasCommandTaps(api, id); return; }
+  chrome.windows.getCurrent(function (w) {
+    if (chrome.runtime.lastError || !w || !Number.isInteger(w.id) || w.id < 0) { retry(); return; }
+    if (!Atlas.nativeCommandTapsEnabled) installAtlasCommandTaps(api, w.id);
+  });
+}
+
+if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)) {
+  startAtlasCommandTaps(0);
+}
+
+  /* ═══ Module: 31-native-sequences.js ═══ */
+/* Native key capture emits these menu events only after swallowing its two
+   target taps. Keep actions within the owning window and original tab. */
+(function () {
+  'use strict';
+  var Atlas = window.__Atlas;
+  var api = window.vivaldi && window.vivaldi.menubar;
+  if (!Atlas || Atlas.nativeSequencesEnabled || !api || !api.onActivated || !/Mac/.test(navigator.platform)) return;
+  var owner = window.vivaldiWindowId, pending = null, generation = 0;
+  function resetPage(id) {
+    chrome.tabs.sendMessage(id, { atlasResetShortcuts: true }, function () { void chrome.runtime.lastError; });
+  }
+  function reset() {
+    if (Atlas.resetCommandTaps) Atlas.resetCommandTaps();
+    if (Atlas.resetUiShortcuts) Atlas.resetUiShortcuts();
+  }
+  function cancel() { pending = null; generation++; }
+  function switchFrom(p, step) {
+    chrome.tabs.query({ windowId: owner }, function (tabs) {
+      if (p.generation !== generation || chrome.runtime.lastError || !tabs || tabs.length < 2) return;
+      var at = -1;
+      for (var i = 0; i < tabs.length; i++) if (tabs[i].id === p.tabId) { at = i; break; }
+      if (at < 0) return;
+      chrome.tabs.update(tabs[(at + step + tabs.length) % tabs.length].id, { active: true }, function () { void chrome.runtime.lastError; });
+    });
+  }
+  function finish(p) {
+    if (pending !== p || !p.ready || !p.action) return;
+    pending = null;
+    if (!Number.isInteger(p.tabId) || performance.now() - p.at > 4100) return;
+    // Check again: a page/script may have changed tabs between the two taps.
+    chrome.tabs.query({ active: true, windowId: owner }, function (tabs) {
+      if (p.generation !== generation || chrome.runtime.lastError || !tabs || !tabs[0] || tabs[0].id !== p.tabId) return;
+      if (p.action === 'ATLAS_SEQUENCE_NEW_TAB') chrome.tabs.create({ url: ATLAS_NEWTAB_URL, windowId: owner });
+      else if (p.action === 'ATLAS_SEQUENCE_CLOSE_TAB') chrome.tabs.remove(p.tabId, function () { void chrome.runtime.lastError; });
+      else if (p.action === 'ATLAS_SEQUENCE_NAV_BACK') chrome.tabs.goBack(p.tabId, function () { void chrome.runtime.lastError; });
+      else if (p.action === 'ATLAS_SEQUENCE_NAV_FORWARD') chrome.tabs.goForward(p.tabId, function () { void chrome.runtime.lastError; });
+      else switchFrom(p, p.action === 'ATLAS_SEQUENCE_TAB_PREV' ? -1 : 1);
+    });
+  }
+  function activated(id, action) {
+    if (id !== owner || typeof action !== 'string' || !/^ATLAS_SEQUENCE_(ACTIVITY|NEW_TAB|CLOSE_TAB|TAB_PREV|TAB_NEXT|NAV_BACK|NAV_FORWARD)$/.test(action)) return;
+    reset();
+    if (action === 'ATLAS_SEQUENCE_ACTIVITY') {
+      cancel();
+      var p = pending = { at: performance.now(), generation: generation, ready: false, action: null };
+      chrome.tabs.query({ active: true, windowId: owner }, function (tabs) {
+        if (pending !== p || chrome.runtime.lastError) return;
+        p.ready = true; p.tabId = tabs && tabs[0] && tabs[0].id;
+        if (Number.isInteger(p.tabId)) resetPage(p.tabId);
+        finish(p);
+      });
+    } else if (pending) { pending.action = action; finish(pending); }
+  }
+  function tabChanged(info) { if (info.windowId === owner) cancel(); }
+  function focusChanged(id) { if (id !== owner) cancel(); }
+  function start(id) {
+    if (Atlas.nativeSequencesEnabled || !Number.isInteger(id) || id < 0) return;
+    Atlas.nativeSequencesEnabled = true;
+    owner = id;
+    Atlas.resetNativeSequencePage = function () {
+      cancel();
+      chrome.tabs.query({ active: true, windowId: owner }, function (tabs) {
+        if (!chrome.runtime.lastError && tabs && tabs[0]) resetPage(tabs[0].id);
+      });
+    };
+    api.onActivated.addListener(activated);
+    chrome.tabs.onActivated.addListener(tabChanged);
+    chrome.windows.onFocusChanged.addListener(focusChanged);
+    chrome.runtime.sendMessage({ atlasNativeSequenceReady: true }, function () { void chrome.runtime.lastError; });
+    window.addEventListener('unload', function () {
+      cancel(); Atlas.nativeSequencesEnabled = false;
+      delete Atlas.resetNativeSequencePage;
+      api.onActivated.removeListener(activated);
+      chrome.tabs.onActivated.removeListener(tabChanged);
+      chrome.windows.onFocusChanged.removeListener(focusChanged);
+    }, { once: true });
+  }
+  if (Number.isInteger(owner) && owner >= 0) start(owner);
+  else chrome.windows.getCurrent(function (w) { if (!chrome.runtime.lastError && w) start(w.id); });
+})();
+
+  /* ═══ Module: 32-tab-card.js ═══ */
+/* The hover card prints the host of every page it can parse. Atlas's own pages
+   (new tab, History, Settings) live under the browser's own extension id, so that
+   line is marked atlas-own and CSS shows "Atlas" in its place; any other extension
+   id is marked atlas-no-id and hidden. Real sites keep their domain. The line's own
+   text is never edited: the card is drawn by React, which would lose track of it. */
+function atlasMarkTabCard(root) {
+  var own = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) || '';
+  var lines = root.querySelectorAll('.tooltip-item .thumbnail-text .url'), i, text, isOwn, isId;
+  for (i = 0; i < lines.length; i++) {
+    text = (lines[i].textContent || '').trim();
+    isOwn = text !== '' && text === own;
+    isId = !isOwn && /^[a-p]{32}$/.test(text);
+    if (lines[i].classList.contains('atlas-own') !== isOwn) lines[i].classList.toggle('atlas-own', isOwn);
+    if (lines[i].classList.contains('atlas-no-id') !== isId) lines[i].classList.toggle('atlas-no-id', isId);
+  }
+}
+
+function startAtlasTabCard(attempt) {
+  var tip = document.getElementById('vivaldi-tooltip');
+  if (!tip) {
+    if (attempt < 40) setTimeout(function () { startAtlasTabCard(attempt + 1); }, 500);
+    return;
+  }
+  if (typeof MutationObserver === 'undefined') return;
+  // Class changes are not observed, so toggling the class cannot loop.
+  new MutationObserver(function () { atlasMarkTabCard(tip); })
+    .observe(tip, { childList: true, subtree: true, characterData: true });
+  atlasMarkTabCard(tip);
+}
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') startAtlasTabCard(0);
+
+  /* ═══ Module: 33-chromium-pages.js ═══ */
+/* History and Bookmarks are Chromium's own pages (chrome://history, chrome://bookmarks), not
+   Vivaldi's busier ones. Vivaldi's menus, shortcuts, panel buttons and address bar all open its own
+   page, so any tab that lands there is swapped for the Chromium one. An open Chromium tab is
+   reused, because Vivaldi looks for its own page first and would otherwise stack up a new tab
+   every time. Downloads needs nothing: Vivaldi never replaced it. */
+function atlasChromiumPage(name) {
+  return {
+    url: 'chrome://' + name + '/',
+    vivaldi: new RegExp('^vivaldi:\\/\\/' + name + '(?:[\\/?#]|$)|\\/startpage\\?(?:[^#]*&)?section=' + name + '(?:[&#]|$)'),
+    chromium: new RegExp('^chrome:\\/\\/' + name + '(?:[\\/?#]|$)'),
+  };
+}
+var ATLAS_PAGES = { history: atlasChromiumPage('history'), bookmarks: atlasChromiumPage('bookmarks') };
+var atlasPageBusy = {};
+
+function atlasPageIgnore() { void chrome.runtime.lastError; }
+
+/* Show the page: reuse an open one, else turn `tab` (Vivaldi's page, just opened) into it,
+   else open a new one. */
+function atlasShowPage(page, tab) {
+  var windowId = tab ? tab.windowId : window.vivaldiWindowId;
+  chrome.tabs.query(Number.isInteger(windowId) ? { windowId: windowId } : { currentWindow: true }, function (tabs) {
+    if (chrome.runtime.lastError || !tabs) return;
+    var open = null, i;
+    for (i = 0; i < tabs.length; i++) {
+      if (page.chromium.test(tabs[i].url || tabs[i].pendingUrl || '')) { open = tabs[i]; break; }
+    }
+    if (open) {
+      chrome.tabs.update(open.id, { active: true }, atlasPageIgnore);
+      if (tab) chrome.tabs.remove(tab.id, atlasPageIgnore);
+    } else if (tab) chrome.tabs.update(tab.id, { url: page.url }, atlasPageIgnore);
+    else chrome.tabs.create({ url: page.url }, atlasPageIgnore);
+  });
+}
+
+function atlasPageTabSeen(tab, url) {
+  if (!tab || !Number.isInteger(tab.id)) return;
+  var address = url || tab.url || tab.pendingUrl || '', name;
+  for (name in ATLAS_PAGES) {
+    if (!ATLAS_PAGES[name].vivaldi.test(address)) continue;
+    if (atlasPageBusy[tab.id]) return;
+    atlasPageBusy[tab.id] = true;
+    setTimeout(function () { delete atlasPageBusy[tab.id]; }, 1500);
+    atlasShowPage(ATLAS_PAGES[name], tab);
+    return;
+  }
+}
+
+if (typeof chrome !== 'undefined' && chrome.tabs) {
+  if (chrome.tabs.onCreated) chrome.tabs.onCreated.addListener(function (tab) { atlasPageTabSeen(tab); });
+  if (chrome.tabs.onUpdated) chrome.tabs.onUpdated.addListener(function (id, info, tab) { atlasPageTabSeen(tab || { id: id }, info && info.url); });
+  Atlas.openHistory = function () { atlasShowPage(ATLAS_PAGES.history, null); };
+}
+
+  /* ═══ Module: 34-downloads-panel.js ═══ */
+/* The Downloads sidebar is our own page, laid out like Chromium's (components/atlas/
+   downloads-panel.html), registered as a web panel by the installer. Vivaldi's own
+   "open the panel when a download starts" is switched off there, so this opens ours:
+   when a download starts, press the panel's switch button, unless it is already showing.
+   Downloads that an extension starts (Atlas's own saves) stay quiet. */
+var ATLAS_DL_PANEL = 'WEBPANEL_atlas_downloads';
+var atlasDlOpening = false;
+
+function atlasDownloadsPanelShowing() {
+  var view = document.querySelector('#panels-container webview[src*="downloads-panel.html"]');
+  return !!view && view.getBoundingClientRect().width > 0;
+}
+
+function atlasOpenDownloadsPanel() {
+  var button = document.querySelector('[data-name="' + ATLAS_DL_PANEL + '"]');
+  if (!button || atlasDlOpening || atlasDownloadsPanelShowing()) return;
+  atlasDlOpening = true;
+  setTimeout(function () { atlasDlOpening = false; }, 400);
+  ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (type) {
+    var Kind = type.indexOf('pointer') === 0 ? PointerEvent : MouseEvent;
+    button.dispatchEvent(new Kind(type, { bubbles: true, cancelable: true, composed: true, button: 0 }));
+  });
+}
+
+if (typeof chrome !== 'undefined' && chrome.downloads && chrome.downloads.onCreated) {
+  chrome.downloads.onCreated.addListener(function (item) {
+    if (item && !item.byExtensionId) atlasOpenDownloadsPanel();
+  });
+  Atlas.openDownloadsPanel = atlasOpenDownloadsPanel;
+}
+
+  /* ═══ Module: 35-panel-handle.js ═══ */
+/* A small three-dot tab joined to the top-right corner of the open sidebar. Click it for a card that
+   drops down from it, in the style of the profile and shield menus: Close sidebar, Reload, Open in a
+   new tab, Copy address. It lives in the browser window, outside the page, so it works for every
+   sidebar, including pages Atlas can't put its own right-click menu into (another extension's
+   panel, ChatGPT, Claude). */
+var ATLAS_HANDLE_W = 26;
+var ATLAS_HANDLE_H = 24;
+var ATLAS_POP_W = 250;
+var ATLAS_POP_GAP = 6; // space between the tab and the card, where the arrow sits
+var atlasHandle = null;
+var atlasPop = null;
+var atlasHandleUntil = 0;
+var ATLAS_POP_ICONS = {
+  close: 'M6 6l12 12M18 6L6 18',
+  reload: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7',
+  external: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
+  copy: 'M11 9h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM5 15V6a2 2 0 0 1 2-2h8',
+};
+
+function atlasPanelContainer() { return document.getElementById('panels-container'); }
+
+/* The page in the sidebar that is showing: the panel webview with a width. */
+function atlasPanelView() {
+  var views = document.querySelectorAll('#panels-container webview'), i;
+  for (i = 0; i < views.length; i++) if (views[i].getBoundingClientRect().width > 0) return views[i];
+  return null;
+}
+
+/* The panel's own button in the (hidden) switch strip; pressing it again closes the sidebar. */
+function atlasPanelSwitch(view) {
+  var src = view.getAttribute('src') || '', id = null, m;
+  if (/\/components\/atlas\/downloads-panel\.html/.test(src)) id = 'WEBPANEL_atlas_downloads';
+  else if ((m = /^chrome-extension:\/\/([a-p]{32})\//.exec(src))) id = 'EXT_PANEL_' + m[1];
+  var named = id && document.querySelector('[data-name="' + id + '"]');
+  return named || document.querySelector('#switch button.button-on');
+}
+
+function atlasCloseSidebar() {
+  var view = atlasPanelView(), button = view && atlasPanelSwitch(view);
+  if (!button) return;
+  ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (type) {
+    var Kind = type.indexOf('pointer') === 0 && typeof PointerEvent === 'function' ? PointerEvent : MouseEvent;
+    button.dispatchEvent(new Kind(type, { bubbles: true, cancelable: true, composed: true, button: 0 }));
+  });
+}
+
+/* Extension panels show a page the browser UI can't read (ChatGPT's panel is an extension page holding
+   chatgpt.com), so the address line for those is set here. */
+var ATLAS_PANEL_HOSTS = { hehggadaopoacecdllhhajmbjkdcmajg: 'chatgpt.com' };
+
+/* The card's heading: the page's tab title, and the website's address under it. Calls done(info). */
+function atlasPanelInfo(view, done) {
+  var src = view.getAttribute('src') || '', m = /^https?:\/\/([^\/?#]+)/.exec(src), ext = /^chrome-extension:\/\/([a-p]{32})\//.exec(src);
+  if (/\/components\/atlas\/downloads-panel\.html/.test(src)) return done({ title: 'Downloads', sub: 'Atlas' });
+  var host = m ? m[1].replace(/^www\./, '') : (ext && ATLAS_PANEL_HOSTS[ext[1]]) || '';
+  var fallback = view.getAttribute('title') || host || 'Sidebar';
+  if (!chrome.tabs || !chrome.tabs.query) return done({ title: fallback, sub: host });
+  chrome.tabs.query({}, function (tabs) {
+    var tab = (tabs || []).filter(function (t) { return t.url === src; })[0];
+    done({ title: (tab && tab.title) || fallback, sub: host });
+  });
+}
+
+function atlasPanelMenuItems(view) {
+  var src = view.getAttribute('src') || '';
+  return [
+    { label: 'Close sidebar', icon: 'close', run: atlasCloseSidebar },
+    { label: 'Reload sidebar', icon: 'reload', run: function () { if (view.reload) view.reload(); } },
+    { label: 'Open in a new tab', icon: 'external', run: function () { chrome.tabs.create({ url: src }); } },
+    { label: 'Copy address', icon: 'copy', run: function () { try { navigator.clipboard.writeText(src); } catch (err) { atlasWarn('copy address failed', err); } } },
+  ];
+}
+
+function atlasPopIcon(name) {
+  var NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'), path = document.createElementNS(NS, 'path');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  path.setAttribute('d', ATLAS_POP_ICONS[name]);
+  svg.appendChild(path);
+  return svg;
+}
+
+function atlasPopNode(tag, cls, text) {
+  var el = document.createElement(tag);
+  if (cls) el.className = cls;
+  if (text) el.textContent = text;
+  return el;
+}
+
+function atlasClosePop() {
+  if (!atlasPop) return;
+  atlasPop.remove();
+  atlasPop = null;
+  document.removeEventListener('mousedown', atlasPopOutside, true);
+  document.removeEventListener('keydown', atlasPopKey, true);
+  window.removeEventListener('blur', atlasClosePop);
+  window.removeEventListener('resize', atlasClosePop);
+}
+
+function atlasPopOutside(e) {
+  if (atlasPop && !atlasPop.contains(e.target) && e.target !== atlasHandle) atlasClosePop();
+}
+
+function atlasPopKey(e) { if (e.key === 'Escape') atlasClosePop(); }
+
+function atlasOpenPanelMenu(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (atlasPop) { atlasClosePop(); return; }
+  var view = atlasPanelView(), box = atlasPanelContainer(), host = document.getElementById('browser');
+  if (!view || !box || !host) return;
+  var rect = box.getBoundingClientRect();
+  atlasPanelInfo(view, function (info) {
+    if (atlasPop) return;
+    atlasBuildPop(view, info, rect, host);
+  });
+}
+
+function atlasBuildPop(view, info, rect, host) {
+  var pop = atlasPopNode('div', 'atlas-panel-pop');
+  pop.setAttribute('role', 'menu');
+  var head = atlasPopNode('div', 'atlas-panel-pop-head');
+  head.appendChild(atlasPopNode('b', '', info.title));
+  if (info.sub) head.appendChild(atlasPopNode('span', '', info.sub));
+  pop.appendChild(head);
+  atlasPanelMenuItems(view).forEach(function (it) {
+    var row = atlasPopNode('button', 'atlas-panel-pop-item');
+    row.type = 'button';
+    row.setAttribute('role', 'menuitem');
+    row.appendChild(atlasPopIcon(it.icon));
+    row.appendChild(document.createTextNode(it.label));
+    row.addEventListener('click', function (ev) { ev.stopPropagation(); atlasClosePop(); it.run(); });
+    pop.appendChild(row);
+  });
+  // The card lines up with the sidebar's right edge; the arrow points up at the dots, 13px in from it.
+  var right = rect.right, left = Math.max(rect.left + 6, right - ATLAS_POP_W);
+  var dots = rect.right - ATLAS_HANDLE_W / 2;
+  pop.style.left = Math.round(left) + 'px';
+  pop.style.top = Math.round(rect.top + ATLAS_HANDLE_H + ATLAS_POP_GAP) + 'px';
+  pop.style.width = Math.round(right - left) + 'px';
+  pop.style.setProperty('--atlas-pop-arrow', Math.round(dots - left - 7) + 'px'); // the arrow is 14px wide, centred on the dots
+  host.appendChild(pop);
+  atlasPop = pop;
+  document.addEventListener('mousedown', atlasPopOutside, true);
+  document.addEventListener('keydown', atlasPopKey, true);
+  window.addEventListener('blur', atlasClosePop);
+  window.addEventListener('resize', atlasClosePop);
+}
+
+function atlasEnsureHandle() {
+  if (atlasHandle && atlasHandle.isConnected) return atlasHandle;
+  var host = document.getElementById('browser');
+  if (!host) return null;
+  atlasHandle = document.createElement('button');
+  atlasHandle.type = 'button';
+  atlasHandle.className = 'atlas-panel-handle';
+  atlasHandle.title = 'Sidebar menu';
+  atlasHandle.setAttribute('aria-label', 'Sidebar menu');
+  atlasHandle.hidden = true;
+  atlasHandle.addEventListener('click', atlasOpenPanelMenu);
+  atlasHandle.addEventListener('contextmenu', atlasOpenPanelMenu);
+  host.appendChild(atlasHandle);
+  return atlasHandle;
+}
+
+/* Sit flush in the container's top-right corner while a sidebar page is showing; hide otherwise. */
+function atlasPlaceHandle() {
+  var box = atlasPanelContainer(), handle = atlasEnsureHandle();
+  if (!box || !handle) return;
+  var rect = box.getBoundingClientRect();
+  var show = box.classList.contains('expanded') && rect.width > 40 && !!atlasPanelView();
+  handle.hidden = !show;
+  if (!show) { atlasClosePop(); return; }
+  handle.style.left = Math.round(rect.right - ATLAS_HANDLE_W) + 'px';
+  handle.style.top = Math.round(rect.top) + 'px';
+}
+
+/* The sidebar slides open and shut, so follow its edge for a moment after any change. */
+function atlasTrackHandle() {
+  atlasHandleUntil = Date.now() + 600;
+  if (atlasTrackHandle.running) return;
+  atlasTrackHandle.running = true;
+  (function frame() {
+    atlasPlaceHandle();
+    if (Date.now() < atlasHandleUntil) requestAnimationFrame(frame);
+    else atlasTrackHandle.running = false;
+  })();
+}
+
+(function atlasWatchPanels() {
+  var box = atlasPanelContainer();
+  if (!box) { setTimeout(atlasWatchPanels, 500); return; } // the window is still being drawn
+  if (typeof MutationObserver === 'function') new MutationObserver(atlasTrackHandle).observe(box, { attributes: true, childList: true, subtree: true, attributeFilter: ['class', 'style', 'src'] });
+  if (typeof ResizeObserver === 'function') new ResizeObserver(atlasTrackHandle).observe(box);
+  window.addEventListener('resize', atlasTrackHandle);
+  atlasTrackHandle();
+})();
 
 })();

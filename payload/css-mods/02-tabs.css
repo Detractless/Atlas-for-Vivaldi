@@ -127,3 +127,54 @@
   display: none !important;
 }
 
+/* Tab hover card: the Atlas card with title and site only and a small pointer at
+   the tab. The thumbnail, RAM line and favicon are hidden; the audio button stays.
+   The pointer is only drawn when tabs are on top, where the card hangs below them. */
+#browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item {
+  width: 200px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 12px;
+  background-color: var(--atlas-menu);
+  color: var(--atlas-text-1);
+  box-shadow: var(--atlas-shadow);
+}
+#browser.tabs-top #vivaldi-tooltip .tooltip .tab-solo .tooltip-item { margin-top: 8px; }
+/* Above the address bar's engine logo (z-index 2147483001), which would otherwise draw
+   over the card. Vivaldi's own rule is more specific, hence !important. */
+#browser #vivaldi-tooltip .tooltip { z-index: 2147483002 !important; }
+#browser.tabs-top #vivaldi-tooltip .tooltip .tab-solo .tooltip-item::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: calc(50% - 5px);
+  width: 10px;
+  height: 10px;
+  background-color: var(--atlas-menu);
+  border-top: 1px solid var(--atlas-border);
+  border-left: 1px solid var(--atlas-border);
+  border-top-left-radius: 2px;
+  transform: rotate(45deg);
+}
+#browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-image,
+#browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text .size,
+#browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-buttons .favicon,
+#browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text .url.atlas-no-id {
+  display: none;
+}
+#browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-caption { padding: 10px 12px 11px; }
+#browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text { gap: 1px; }
+#browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text .title,
+#browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text .title:has(~ .info.size) {
+  color: var(--atlas-text-1);
+  font-size: 12.5px;
+  -webkit-line-clamp: 2;
+}
+#browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text .url { color: var(--atlas-text-2); }
+/* Atlas's own pages: the extension id is replaced by the app name (src/modules/32-tab-card.js). */
+#browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text .url.atlas-own { font-size: 0; }
+#browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text .url.atlas-own::after {
+  content: "Atlas";
+  display: block;
+  font-size: 12px;
+}
+

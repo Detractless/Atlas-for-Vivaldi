@@ -40,7 +40,7 @@ test("the context-menu content script is registered", async () => {
   await new Promise((r) => setTimeout(r, 20));
   const registered = w.calls.filter((c) => c.name === "chrome.scripting.registerContentScripts").map((c) => plain(c.args[0])[0].id);
   // Called twice: the stand-in answers once by itself ("none registered") and once here.
-  assert.deepEqual([...new Set(registered)], ["atlas-ctxmenu", "atlas-google-account", "atlas-usage"], "the page menu, the Google account check (spec 002), and the usage totals");
+  assert.deepEqual([...new Set(registered)], ["atlas-ctxmenu", "atlas-google-account", "atlas-usage", "atlas-nsfw-guard"], "the page menu, the Google account check (spec 002), usage totals, and nsfw guard");
   const swept = w.calls.find((c) => c.name === "chrome.scripting.unregisterContentScripts");
   assert.deepEqual(plain(swept.args[0]), { ids: ["detractless-rules"] }, "an archived script registration is removed");
 });
@@ -259,7 +259,8 @@ test("the avatar button opens the profile menu: profiles, then shortcuts", async
   assert.ok(menu.querySelector(".apm-addbtn"), "+ to add or edit profiles");
   [...menu.querySelectorAll(".apm-item")].find((b) => b.textContent.includes("History"))
     .dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
-  assert.ok(w.calls.some((c) => c.name === "chrome.tabs.create" && plain(c.args[0]).url === "vivaldi://history"));
+  answer(w, "chrome.tabs.query", [{ id: 3, url: "https://b.test/" }]);
+  assert.ok(w.calls.some((c) => c.name === "chrome.tabs.create" && plain(c.args[0]).url === "chrome://history/"), "History opens Chromium's own page");
   assert.equal(w.window.document.querySelector(".atlas-nosurf-menu"), null, "the menu closes");
 });
 
@@ -363,4 +364,20 @@ test("extra copies of an engine Atlas added are removed, keeping the one in use"
   assert.deepEqual(e.state.added, []);
   assert.deepEqual(e.state.setDefault, [], "a3 already is the default");
   assert.ok(e.state.templateUrls.some((t) => t.guid === "user-google"), "the user's own engine stays");
+});
+
+test("explicit address-bar toggle helper preserves focus and blur", async () => {
+  const w = await start();
+  const doc = w.window.document;
+  doc.getElementById("browser").insertAdjacentHTML("beforeend", '<div class="UrlBar-AddressField"><input value="test"></div>');
+  const input = doc.querySelector(".UrlBar-AddressField input");
+  assert.notEqual(doc.activeElement, input);
+
+  // First call: focuses input
+  w.window.__Atlas.focusAddressBar();
+  assert.equal(doc.activeElement, input);
+
+  // Second call: blurs input
+  w.window.__Atlas.focusAddressBar();
+  assert.notEqual(doc.activeElement, input);
 });

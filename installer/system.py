@@ -93,6 +93,14 @@ def step9_macos_codesign(res: Path):
     if util.DRY:
         say(f"[dry-run] strip quarantine and ad-hoc re-sign {app_bundle.name}")
         return
+    from .process import vivaldi_running
+    if vivaldi_running():
+        # --deep re-signing rewrites the executable files the live process is
+        # running from, which can kill it. The signature is already ad-hoc and
+        # quarantine was stripped when it was first installed, so the next
+        # launch needs no re-sign; the warning keeps future signers honest.
+        say("Code signing         skipped (Vivaldi is running; signature is already ad-hoc)", dim=True)
+        return
     say("Code signing         clearing quarantine & re-signing bundle...")
     subprocess.run(["xattr", "-cr", str(app_bundle)], capture_output=True)
     sign = subprocess.run(

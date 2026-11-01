@@ -215,8 +215,10 @@
 
   // src/background/tabLimiter.js
   function isTabLimitExcluded(tab) {
+    const data = typeof tab?.vivExtData === "string" ? tab.vivExtData : "";
+    if (/"panelId"\s*:/.test(data)) return true;
     const url = typeof tab?.url === "string" ? tab.url : "";
-    return /^chrome-extension:\/\/mpognobbkildjkofajifpdfhcoklimli\/sidepanel\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/fcoeoabgfenejglbffodgkkbkcdhcgfn\/sidepanel\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/hehggadaopoacecdllhhajmbjkdcmajg\/codex-sidepanel\/index\.html(?:\?.*)?$/.test(url);
+    return /^chrome-extension:\/\/mpognobbkildjkofajifpdfhcoklimli\/sidepanel\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/fcoeoabgfenejglbffodgkkbkcdhcgfn\/sidepanel\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/hehggadaopoacecdllhhajmbjkdcmajg\/codex-sidepanel\/index\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/[a-p]{32}\/components\/atlas\/downloads-panel\.html(?:\?.*)?$/.test(url);
   }
   async function getAllTabs() {
     const tabs = await chrome.tabs.query({});
@@ -337,18 +339,66 @@
     }
   });
 
+  // src/utils/socialFilter.js
+  var RANK = { off: 0, parts: 1, all: 2 };
+  var GROUPS = [
+    { id: "feeds", label: "Feeds", parts: [
+      { id: "homeFeed", label: "Home feed", desc: "Endless scrolling feeds", sites: ["Reddit", "TikTok", "Facebook"] },
+      { id: "suggested", label: "Suggested content", desc: "\u201CUp next\u201D, \u201CFor you\u201D and related videos", sites: ["YouTube", "Reddit"] },
+      { id: "trending", label: "Trending and Explore", desc: "Trending topics, Explore pages, Popular and All", sites: ["X", "Reddit"] },
+      { id: "whoToFollow", label: "Who to follow", desc: "Account suggestions", sites: ["X", "Instagram"] },
+      { id: "stories", label: "Stories", desc: "The round tray of short-lived posts", sites: ["Instagram", "Facebook"] }
+    ] },
+    { id: "video", label: "Video", parts: [
+      { id: "shortVideos", label: "Short videos", desc: "Shorts, Reels and TikTok-style clips", sites: ["YouTube", "TikTok", "Instagram", "Snapchat"] },
+      { id: "autoplay", label: "Autoplay", desc: "The next video, and previews that play on their own", sites: ["YouTube"] },
+      { id: "liveStreams", label: "Live streams", desc: "Live videos and their chat", sites: ["Twitch", "YouTube"] },
+      { id: "upNext", label: "Up-next cards", desc: "The cards and countdown that come after a video", sites: ["YouTube"] },
+      { id: "hoverPreviews", label: "Hover previews", desc: "Thumbnails that play when you point at them", sites: ["YouTube"] }
+    ] },
+    { id: "interaction", label: "Interaction", parts: [
+      { id: "likes", label: "Likes and dislikes", desc: "The buttons and reactions", sites: ["YouTube", "Reddit", "TikTok", "Instagram"] },
+      { id: "follow", label: "Subscribe and follow", desc: "The buttons that ask you to follow", sites: ["X", "YouTube", "Instagram", "TikTok"] },
+      { id: "comments", label: "Comments", desc: "Reading and writing them", sites: ["YouTube", "Reddit"] },
+      { id: "share", label: "Share and repost", desc: "The share and repost buttons", sites: ["YouTube", "Reddit", "TikTok"] },
+      { id: "messages", label: "Direct messages", desc: "Inboxes and chat pop-ups", sites: ["Instagram"] },
+      { id: "posting", label: "Posting", desc: "The boxes and buttons for making a post", sites: ["Facebook", "TikTok"] }
+    ] },
+    { id: "numbers", label: "Numbers and alerts", parts: [
+      { id: "counts", label: "Like and view counts", desc: "Likes, views and comments, shown as numbers", sites: ["YouTube", "TikTok", "Instagram", "Reddit"] },
+      { id: "followers", label: "Follower counts", desc: "Followers and subscribers, shown as numbers", sites: ["YouTube", "X", "Instagram"] },
+      { id: "badges", label: "Notification badges", desc: "Red dots, the bell, and the \u201C(3)\u201D in tab titles", sites: ["Twitch", "Facebook"] },
+      { id: "newPosts", label: "New-posts banners", desc: "The \u201Csee new posts\u201D bars", sites: ["X"] }
+    ] }
+  ];
+  var PARTS = GROUPS.flatMap((g) => g.parts);
+  var PART_IDS = PARTS.map((p) => p.id);
+  function normalize(value) {
+    const v = value && typeof value === "object" ? value : {};
+    const chosen = new Set(Array.isArray(v.parts) ? v.parts : []);
+    return { mode: Object.prototype.hasOwnProperty.call(RANK, v.mode) ? v.mode : "off", parts: PART_IDS.filter((id) => chosen.has(id)) };
+  }
+  function looser(from, to) {
+    const a = normalize(from), b = normalize(to);
+    if (RANK[b.mode] !== RANK[a.mode]) return RANK[b.mode] < RANK[a.mode];
+    return a.mode === "parts" && a.parts.some((id) => !b.parts.includes(id));
+  }
+
   // src/utils/focusLock.js
   var UNLOCK_MS = 30 * 60 * 1e3;
-  var LOCKABLE = ["tabLimit", "searchDelaySeconds", "saturation"];
-  var DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100 };
+  var LOCKABLE = ["tabLimit", "searchDelaySeconds", "saturation", "nsfwAction", "socialFilter"];
+  var DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: "off", socialFilter: { mode: "off", parts: [] } };
   var STRICTNESS = {
     tabLimit: (v) => Number(v) === 0 ? -Infinity : -Number(v),
     // fewer tabs is stricter; Off is no limit at all
     searchDelaySeconds: (v) => Number(v),
     // a longer pause is stricter
-    saturation: (v) => -Number(v)
+    saturation: (v) => -Number(v),
     // grayer is stricter
+    nsfwAction: (v) => ({ off: 0, blur: 1, blackout: 2 })[String(v)] || 0
+    // stricter actions cannot return to Off
   };
+  var LOOSER = { socialFilter: looser };
   var entry = (locks, key) => locks && typeof locks === "object" && locks[key] && typeof locks[key] === "object" ? locks[key] : null;
   function lockState(locks, key, now = Date.now()) {
     const l = entry(locks, key);
@@ -363,8 +413,9 @@
     return lockState(locks, key, now) === "unlocking" ? Number(entry(locks, key).unlockAt) : null;
   }
   function changeAllowed(locks, key, from, to, now = Date.now()) {
-    if (!isLocked(locks, key, now) || !STRICTNESS[key]) return true;
+    if (!isLocked(locks, key, now) || !(STRICTNESS[key] || LOOSER[key])) return true;
     const was = from === void 0 || from === null ? DEFAULTS[key] : from;
+    if (LOOSER[key]) return !LOOSER[key](was, to);
     return STRICTNESS[key](to) >= STRICTNESS[key](was);
   }
   function tidyLocks(locks, now = Date.now()) {
@@ -564,7 +615,13 @@
       pastekit: "pastekit"
     },
     sync: {
-      activeTabs: { default: null, backup: true, importWhen: "truthy", profile: "bookmarks", note: "Pages list: {id, label, type, sub}; sub is the subtitle under the name (services/pageSubtitle.js). Export takes it from memory, not storage." },
+      activeTabs: {
+        default: null,
+        backup: true,
+        importWhen: "truthy",
+        profile: "bookmarks",
+        note: "Pages list: {id, label, type, sub}; sub is the subtitle under the name (services/pageSubtitle.js). Export takes it from memory, not storage."
+      },
       Theme: {
         default: {
           _comment: "Theme settings: 'system' <- Follows System settings (Light/Dark). 'dark' <- Forces standard Dark mode. 'light' <- Forces standard Light mode. 'custom' <- Uses the CustomColors mapped below. Note: To apply changes, reload the page.",
@@ -583,48 +640,243 @@
         importWhen: "truthy",
         profile: "theme"
       },
-      uiScale: { default: 1, backup: false, note: "Legacy: the UI scale, removed from Settings. Nothing reads it; a saved value is ignored, so every new tab is at 100%." },
-      fadeInEnabled: { default: true, backup: true, importWhen: "defined", profile: "appearance" },
-      spotlightVisible: { default: true, backup: true, importWhen: "defined", profile: "search" },
-      searchEngineBehavior: { default: "remember", backup: true, importWhen: "defined", profile: "search" },
-      bookmarkPillBehavior: { default: "always", backup: true, importWhen: "defined", profile: "search" },
-      customSearchEngines: { default: {}, backup: true, importWhen: "truthy", profile: "search" },
-      defaultEngineKey: { default: "default", backup: true, importWhen: "truthy", profile: "search" },
-      selectedSearchEngine: { default: null, backup: true, importWhen: "truthy", profile: "search" },
-      tabLimit: { default: 0, backup: true, importWhen: "defined", profile: "focus" },
-      managementMethod: { default: "block", backup: true, importWhen: "truthy", profile: "focus" },
-      pendingIncrease: { default: null, backup: false, note: "Legacy: a tab-limit increase queued for 30 minutes by the version before the Focus locks. Still finished on time (background/pendingChanges.js); no longer written." },
-      searchDelaySeconds: { default: 0, backup: true, importWhen: "defined", profile: "focus" },
-      pendingDelayDecrease: { default: null, backup: false, note: "Legacy: a search-delay decrease queued for 30 minutes by the version before the Focus locks. Still finished on time (background/pendingChanges.js); no longer written." },
-      showQueryOnDelay: { default: true, backup: true, importWhen: "defined", profile: "focus" },
-      grayscale: { default: null, backup: false, note: "Legacy: the old on/off switch. Read once and folded into saturation (utils/saturationLock.js legacySaturation), then removed." },
-      saturation: { default: 100, backup: true, importWhen: "defined", profile: "focus", note: "Color level for web pages, 0 to 100. 100 is full color." },
-      saturationLock: { default: null, backup: false, note: "Legacy: the color lock before the Focus locks, { ceiling, until, manual }. Moved into focusLocks once at startup (background/saturationMigration.js), then removed." },
-      focusLocks: { default: null, backup: false, note: "The locks on Settings > Focus (utils/focusLock.js): { tabLimit | searchDelaySeconds | saturation: { unlockAt } }, unlockAt null while locked or the time its 30-minute unlock ends. Not per profile and not in backups, so a switch or an import can't undo a lock." },
-      "bookmarks-migrated": { default: null, backup: false, note: "Legacy: set once bookmarks moved from sync storage to IndexedDB." },
-      "bookmarks-page-1": { default: null, backup: false, note: "Legacy bookmark storage, read once by migrateFromChromeStorage." },
-      "bookmarks-page-2": { default: null, backup: false, note: "Legacy, as bookmarks-page-1." },
-      "bookmarks-page-3": { default: null, backup: false, note: "Legacy, as bookmarks-page-1." }
+      uiScale: {
+        default: 1,
+        backup: false,
+        note: "Legacy: the UI scale, removed from Settings. Nothing reads it; a saved value is ignored, so every new tab is at 100%."
+      },
+      fadeInEnabled: {
+        default: true,
+        backup: true,
+        importWhen: "defined",
+        profile: "appearance"
+      },
+      spotlightVisible: {
+        default: true,
+        backup: true,
+        importWhen: "defined",
+        profile: "search"
+      },
+      searchEngineBehavior: {
+        default: "remember",
+        backup: true,
+        importWhen: "defined",
+        profile: "search"
+      },
+      bookmarkPillBehavior: {
+        default: "always",
+        backup: true,
+        importWhen: "defined",
+        profile: "search"
+      },
+      customSearchEngines: {
+        default: {},
+        backup: true,
+        importWhen: "truthy",
+        profile: "search"
+      },
+      defaultEngineKey: {
+        default: "default",
+        backup: true,
+        importWhen: "truthy",
+        profile: "search"
+      },
+      selectedSearchEngine: {
+        default: null,
+        backup: true,
+        importWhen: "truthy",
+        profile: "search"
+      },
+      tabLimit: {
+        default: 0,
+        backup: true,
+        importWhen: "defined",
+        profile: "focus"
+      },
+      managementMethod: {
+        default: "block",
+        backup: true,
+        importWhen: "truthy",
+        profile: "focus"
+      },
+      pendingIncrease: {
+        default: null,
+        backup: false,
+        note: "Legacy: a tab-limit increase queued for 30 minutes by the version before the Focus locks. Still finished on time (background/pendingChanges.js); no longer written."
+      },
+      searchDelaySeconds: {
+        default: 0,
+        backup: true,
+        importWhen: "defined",
+        profile: "focus"
+      },
+      pendingDelayDecrease: {
+        default: null,
+        backup: false,
+        note: "Legacy: a search-delay decrease queued for 30 minutes by the version before the Focus locks. Still finished on time (background/pendingChanges.js); no longer written."
+      },
+      showQueryOnDelay: {
+        default: true,
+        backup: true,
+        importWhen: "defined",
+        profile: "focus"
+      },
+      grayscale: {
+        default: null,
+        backup: false,
+        note: "Legacy: the old on/off switch. Read once and folded into saturation (utils/saturationLock.js legacySaturation), then removed."
+      },
+      saturation: {
+        default: 100,
+        backup: true,
+        importWhen: "defined",
+        profile: "focus",
+        note: "Color level for web pages, 0 to 100. 100 is full color."
+      },
+      saturationLock: {
+        default: null,
+        backup: false,
+        note: "Legacy: the color lock before the Focus locks, { ceiling, until, manual }. Moved into focusLocks once at startup (background/saturationMigration.js), then removed."
+      },
+      focusLocks: {
+        default: null,
+        backup: false,
+        note: "The locks on Settings > Focus (utils/focusLock.js): { tabLimit | searchDelaySeconds | saturation | nsfwAction | socialFilter: { unlockAt } }, unlockAt null while locked or the time its 30-minute unlock ends. Not per profile and not in backups, so a switch or an import can't undo a lock."
+      },
+      "bookmarks-migrated": {
+        default: null,
+        backup: false,
+        note: "Legacy: set once bookmarks moved from sync storage to IndexedDB."
+      },
+      "bookmarks-page-1": {
+        default: null,
+        backup: false,
+        note: "Legacy bookmark storage, read once by migrateFromChromeStorage."
+      },
+      "bookmarks-page-2": {
+        default: null,
+        backup: false,
+        note: "Legacy, as bookmarks-page-1."
+      },
+      "bookmarks-page-3": {
+        default: null,
+        backup: false,
+        note: "Legacy, as bookmarks-page-1."
+      },
+      nsfwAction: {
+        default: "off",
+        backup: true,
+        importWhen: "truthy",
+        profile: "focus",
+        note: "What the shield does when explicit content is detected: off, blur, black (blackout)."
+      },
+      socialFilter: {
+        default: { mode: "off", parts: [] },
+        backup: true,
+        importWhen: "truthy",
+        profile: "focus",
+        note: "The social media filter (utils/socialFilter.js): { mode: off | parts | all, parts: [ids of the parts to hide] }. Only the choices are saved so far: nothing is blocked yet."
+      },
+      nsfwStrictness: {
+        default: 65,
+        backup: false,
+        archived: true,
+        note: "Legacy: adjustable sensitivity removed. The detector now uses one locally evaluated fixed threshold; saved values are ignored."
+      },
+      nsfwThreshold: {
+        default: 75,
+        archived: true,
+        note: "Legacy page-level blocking threshold. The image shield uses its fixed detector threshold instead; no code reads this key."
+      },
+      nsfwCountLimit: {
+        default: 3,
+        archived: true,
+        note: "Number of flagged images before blocking a page or redirecting, retired with the block_page and redirect actions (2026-10-19); the shield only blurs or blacks out in place now. Left in place; no code reads it."
+      },
+      nsfwRedirectUrl: {
+        default: "http://home",
+        archived: true,
+        note: "URL the redirect action went to, retired with it (2026-10-19). Left in place; no code reads it."
+      }
     },
     syncPatterns: {
       "page<id>": "Legacy per-page bookmark key, removed when a page is deleted (tabs.js)."
     },
     local: {
-      hasSeededDefaults: { default: false, note: "Starter pages were added once." },
-      hasRepairedOrphanPages: { default: false, note: "Orphan-page repair ran once." },
-      _themeCache: { default: null, note: "Theme preference copy for first paint in other pages." },
-      rhe_rules: { default: null, backup: true, note: "Element Remover rules (archived feature); still carried by backups." },
-      activeDelays: { default: {}, note: "Service worker: search delays in progress." },
-      atlas_usage: { default: null, backup: false, note: "Usage totals per site and hour (utils/usageLog.js), written by the service worker, shown in Settings > Usage. Never backed up." },
-      atlasProfilesV2: { default: null, note: "Profiles state (profilesCore.js)." },
-      atlasGoogleAccounts: { default: null, note: "Google accounts signed into Vivaldi, read by the browser window (src/modules/16-google-accounts.js). Never backed up." },
-      __atlas_localstorage__: { default: {}, note: "Backing store of the localStorage shim (atlas-localstorage-shim.js)." },
-      "pastekit.settings": { default: null, archived: true, note: "PasteKit settings (archived feature). Left in place; no code reads it now." },
-      savedTabGroups: { default: null, note: "Tab saver (service worker)." },
-      atlas_scroll_telemetry: { default: {}, archived: true, note: "The first scroll logs (replaced by atlas_usage, 2026-10-15). Left in place; nothing writes or reads it now." }
+      hasSeededDefaults: {
+        default: false,
+        note: "Starter pages were added once."
+      },
+      hasRepairedOrphanPages: {
+        default: false,
+        note: "Orphan-page repair ran once."
+      },
+      _themeCache: {
+        default: null,
+        note: "Theme preference copy for first paint in other pages."
+      },
+      rhe_rules: {
+        default: null,
+        backup: true,
+        note: "Element Remover rules (archived feature); still carried by backups."
+      },
+      activeDelays: {
+        default: {},
+        note: "Service worker: search delays in progress."
+      },
+      atlas_usage: {
+        default: null,
+        backup: false,
+        note: "Usage totals per site and hour (utils/usageLog.js), written by the service worker, shown in Settings > Usage. Never backed up."
+      },
+      atlasProfilesV2: {
+        default: null,
+        note: "Profiles state (profilesCore.js)."
+      },
+      atlasGoogleAccounts: {
+        default: null,
+        note: "Google accounts signed into Vivaldi, read by the browser window (src/modules/16-google-accounts.js). Never backed up."
+      },
+      atlasNsfwScores: {
+        default: null,
+        backup: false,
+        note: "Content Shield scores by URL digest so images are not classified again after a restart: {16-char digest: [score, time]}. Capped at 5000 entries / 1 MB, 7-day expiry (src/modules/27-nsfw-verdicts.js). Never backed up."
+      },
+      __atlas_localstorage__: {
+        default: {},
+        note: "Backing store of the localStorage shim (atlas-localstorage-shim.js)."
+      },
+      nsfwDebugLog: {
+        default: null,
+        backup: false,
+        note: "Content Shield troubleshooting mode (atlas-nsfw-log.js). Set nsfwDebugLog to the string verbose to enable detailed console and disk logging; false, unset, and legacy true are quiet. Quiet mode saves only brief stronger-model retry failure summaries. Setting false deletes saved diagnostics."
+      },
+      nsfwDebugEvents: {
+        default: null,
+        backup: false,
+        note: "Content Shield diagnostics (04-bridge-messages.js). Quiet mode keeps only the last 20 stronger-model retry failure summaries, without page host, image URL, or request ID. Verbose mode keeps the last 500 detailed events. Deleted when nsfwDebugLog is set false."
+      },
+      "pastekit.settings": {
+        default: null,
+        archived: true,
+        note: "PasteKit settings (archived feature). Left in place; no code reads it now."
+      },
+      savedTabGroups: {
+        default: null,
+        note: "Tab saver (service worker)."
+      },
+      atlas_scroll_telemetry: {
+        default: {},
+        archived: true,
+        note: "The first scroll logs (replaced by atlas_usage, 2026-10-15). Left in place; nothing writes or reads it now."
+      }
     },
     session: {
-      rheTabStates: { default: null, archived: true, note: "Element Remover per-tab state (archived feature). Left in place; no code reads it now." }
+      rheTabStates: {
+        default: null,
+        archived: true,
+        note: "Element Remover per-tab state (archived feature). Left in place; no code reads it now."
+      }
     },
     localStorage: {
       _themeCache: "Theme preference for the first paint (themePreinit.js).",

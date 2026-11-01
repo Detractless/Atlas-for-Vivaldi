@@ -31,9 +31,9 @@
       on: 'Every profile uses the same engines and pills.',
       off: 'Each profile has its own engines and pills.' },
     { id: 'focus', label: 'Focus', keys: ['tabLimit', 'managementMethod', 'searchDelaySeconds',
-      'showQueryOnDelay', 'saturation'],
-      on: 'Every profile uses the same tab limit, search delay and color level.',
-      off: 'Each profile has its own tab limit, search delay and color level.' }
+      'showQueryOnDelay', 'saturation', 'nsfwAction', 'socialFilter'],
+      on: 'Every profile uses the same tab limit, search delay, color level and content shield.',
+      off: 'Each profile has its own tab limit, search delay, color level and content shield.' }
   ];
   var DEFAULTS = { active: 'personal', list: [
     { id: 'personal', name: 'Christian Darby-Ward', label: 'Personal', color: 0 },
@@ -191,16 +191,17 @@
   }
 
   /* The Focus locks (focusLocks) aren't per profile, and a locked setting keeps its live value on a switch unless the
-     other profile's is stricter: utils/focusLock.js's rule in this file's words (it can't import). Keep them the same. */
-  var LOCK_DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100 };
-  var STRICT = { tabLimit: function (v) { return +v === 0 ? -Infinity : -v; }, searchDelaySeconds: function (v) { return +v; }, saturation: function (v) { return -v; } };
+     other profile's is stricter: utils/focusLock.js's rule in this file's words (it can't import). Keep them the same. LOOSER: whether a value of a setting that is more than one number is looser (the social media filter, { mode, parts }: utils/socialFilter.js looser()). */
+  var LOCK_DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: 'off', socialFilter: { mode: 'off', parts: [] } };
+  var STRICT = { tabLimit: function (v) { return +v === 0 ? -Infinity : -v; }, searchDelaySeconds: function (v) { return +v; }, saturation: function (v) { return -v; }, nsfwAction: function (v) { return ({ off: 0, blur: 1, blackout: 2 })[String(v)] || 0; } },
+    LOOSER = { socialFilter: function (a, b) { var r = { off: 0, parts: 1, all: 2 }, ra = r[(a || {}).mode] | 0, rb = r[(b || {}).mode] | 0; return ra !== rb ? rb < ra : ra === 1 && (a.parts || []).some(function (id) { return (b.parts || []).indexOf(id) < 0; }); } };
   function lockedLooser(snap, live, keys) {
     var now = Date.now(), locks = live.focusLocks && typeof live.focusLocks === 'object' ? live.focusLocks : {};
     return keys.filter(function (k) {
-      var l = STRICT[k] && locks[k], at = l && Number(l.unlockAt);
+      var l = (STRICT[k] || LOOSER[k]) && locks[k], at = l && Number(l.unlockAt);
       if (!l || typeof l !== 'object' || (l.unlockAt != null && isFinite(at) && at <= now)) return false;   // not locked
       var val = function (o) { return o[k] !== undefined ? o[k] : LOCK_DEFAULTS[k]; };
-      return STRICT[k](val(snap)) < STRICT[k](val(live));
+      return LOOSER[k] ? LOOSER[k](val(live), val(snap)) : STRICT[k](val(snap)) < STRICT[k](val(live));
     });
   }
 
@@ -210,7 +211,7 @@
       if (!to || s.owner === id) { if (to) s.active = id; return; }
       var cs = unsharedCats(s), keys = keysOf(cs);
       return captureOwner(s).then(function () {
-        return sget('sync', ['focusLocks'].concat(Object.keys(STRICT)));
+        return sget('sync', ['focusLocks'].concat(Object.keys(STRICT), Object.keys(LOOSER)));
       }).then(function (live) {
         var snap = to.settings || {}, held = lockedLooser(snap, live, keys);
         return applyLive(snap, keys.filter(function (k) { return held.indexOf(k) < 0; }));

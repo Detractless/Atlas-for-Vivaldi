@@ -86,6 +86,8 @@ async function openWindow(opts = {}) {
       })],
     },
     beforeParse(window) {
+      if (opts.platform) Object.defineProperty(window.navigator, "platform", { value: opts.platform });
+      if (Number.isInteger(opts.windowId)) window.vivaldiWindowId = opts.windowId;
       window.matchMedia = (q) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
       window.indexedDB = new IDBFactory();
       window.IDBKeyRange = IDBKeyRange;

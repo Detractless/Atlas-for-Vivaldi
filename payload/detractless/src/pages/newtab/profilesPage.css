@@ -2,7 +2,7 @@
 #sp-root .pf-row { position: relative; display: flex; align-items: center; gap: 14px; padding: 12px 16px; }
 #sp-root .pf-row + .pf-row::before { content: ""; position: absolute; top: 0; left: 16px; right: 16px; height: 1px; background: var(--sp-border); }
 #sp-root .pf-av { width: 52px; height: 52px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; flex: none; }
-#sp-root .pf-av:hover .pf-avatar, #sp-root .pf-av:focus-visible .pf-avatar { box-shadow: 0 0 0 2px var(--sp-card), 0 0 0 4px var(--sp-text-3); }
+#sp-root .pf-av:focus-visible .pf-avatar { box-shadow: 0 0 0 2px var(--sp-card), 0 0 0 4px var(--sp-text-3); }
 #sp-root .pf-av:focus-visible { outline: none; }
 #sp-root .pf-avatar { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font: 600 17px/1 var(--sp-font); transition: box-shadow .12s ease; }
 #sp-root .pf-row.is-active .pf-avatar { box-shadow: 0 0 0 2px var(--sp-card), 0 0 0 4px var(--sp-accent); }

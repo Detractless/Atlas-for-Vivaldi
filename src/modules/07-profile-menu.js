@@ -1,23 +1,28 @@
 /* ── 07-profile-menu.js: Profile menu dropdown and "D" account button interceptor ── */
 
+/* The pointer under a dropdown. 45-degree sides and a rounded tip, the same shape as the tab card and the
+   toolbar popups: the tip stands about 7px above the panel and the pointer is 16px wide where it meets the edge.
+   It is kept clear of the panel's rounded corners so its feet never land on the curve. */
 function addDropTail(panel, anchorRect) {
-  var TW = 16, TH = 9;
+  var TH = 9, TW = TH * 2, R = 1.7, MID = TW / 2;
   var pr = panel.getBoundingClientRect();
   var cs = window.getComputedStyle(panel);
   var bg = cs.backgroundColor, border = cs.borderTopColor;
+  var edge = (parseFloat(cs.borderTopLeftRadius) || 12) + MID;
   var ax = anchorRect.left + anchorRect.width / 2;
-  var tx = Math.max(pr.left + 12, Math.min(ax, pr.right - 12));
+  var tx = Math.max(pr.left + edge, Math.min(ax, pr.right - edge));
+  var side = 'M0,' + TH + ' L' + (MID - R) + ',' + R + ' Q' + MID + ',0 ' + (MID + R) + ',' + R + ' L' + TW + ',' + TH;
   var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('class', 'atlas-drop-tail');
   svg.setAttribute('width', TW);
   svg.setAttribute('height', TH + 2);
   svg.setAttribute('viewBox', '0 0 ' + TW + ' ' + (TH + 2));
   svg.innerHTML =
-    '<path d="M' + (TW / 2) + ',0 L' + TW + ',' + TH + ' L0,' + TH + ' Z" style="fill:' + bg + '"/>' +
-    '<path d="M0,' + TH + ' L' + (TW / 2) + ',0 L' + TW + ',' + TH + '" style="fill:none;stroke:' + border + ';stroke-width:1"/>';
+    '<path d="' + side + ' Z" style="fill:' + bg + '"/>' +
+    '<path d="' + side + '" style="fill:none;stroke:' + border + ';stroke-width:1"/>';
   svg.style.position = 'fixed';
-  svg.style.left = (tx - TW / 2) + 'px';
-  svg.style.top = (pr.top - TH + 2) + 'px';
+  svg.style.left = (tx - MID) + 'px';
+  svg.style.top = (pr.top - TH + 1) + 'px';
   svg.style.zIndex = '10001';
   svg.style.pointerEvents = 'none';
   panel.appendChild(svg);
@@ -110,7 +115,7 @@ var PACTS = {
   'add-bookmark': function () { Atlas.openAdd('bookmark'); },
   'add-group': function () { Atlas.openAdd('group'); },
   'add-page': function () { Atlas.openAdd('page'); },
-  history: function () { chrome.tabs.create({ url: 'vivaldi://history' }); },
+  history: function () { if (Atlas.openHistory) Atlas.openHistory(); else chrome.tabs.create({ url: 'chrome://history/' }); },
   downloads: function () { chrome.tabs.create({ url: 'vivaldi://downloads' }); },
   ext: function () { openNewTabSettings(); },
   browser: function () { chrome.tabs.create({ url: 'vivaldi://settings' }); }

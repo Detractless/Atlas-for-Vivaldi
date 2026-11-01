@@ -1,0 +1,127 @@
+/* ── 17. Toolbar popups and dropdown lists ─────────────────────────────────
+   Vivaldi paints these from its own theme colors (--colorBg and friends), so
+   inside them those colors are pointed at the Atlas tokens: headers, footers,
+   rows and the pointer all follow, and only the shapes are restated below.
+   The Atlas look is the profile menu's: 12px panel, quiet bold headers, rows
+   that take a wash on hover. Dropdown lists follow the Add flow's: a pill
+   trigger, 8px list, 26px rows. Nothing here uses Vivaldi's blue highlight. */
+
+#browser .button-popup,
+#browser .addressfield-popup-container,
+#browser .WorkspacePopup,
+#browser .VivaldiSelector__menu {
+  --colorBg: var(--atlas-menu);
+  --colorBgLight: var(--atlas-menu);
+  --colorBgIntense: var(--atlas-menu);
+  --colorBgLightIntense: var(--atlas-menu);
+  --colorBgDark: var(--atlas-hover-2);
+  --colorBgDarker: var(--atlas-hover-3);
+  --colorBorder: var(--atlas-border);
+  --colorBorderSubtle: var(--atlas-border);
+  --colorFg: var(--atlas-text-1);
+  --colorFgFaded: var(--atlas-text-2);
+  --colorFgFadedMore: var(--atlas-text-2);
+  --colorFgFadedMost: var(--atlas-text-2);
+}
+
+/* Toolbar button popups (Workspaces, tab button, clock, status and the rest). */
+#browser .button-popup {
+  background-color: var(--atlas-menu);
+  color: var(--atlas-text-1);
+  border: 1px solid var(--atlas-border);
+  border-radius: 12px;
+  box-shadow: var(--atlas-shadow);
+}
+/* The pointer. Measured in the running browser: Vivaldi's pointer here is a CSS triangle
+   (a zero-size box with 6px transparent borders), so a box with no size cannot take a border.
+   It is redrawn as a small rotated square drawn in front of the popup, with only its two outer
+   edges bordered, so its base covers the popup's border line and popup and pointer read as one
+   shape. Vivaldi's own anchors (centered, left or right under the button) are kept. */
+#browser .button-popup:before {
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  rotate: 45deg;
+  scale: .94;                              /* 12px box, about 11.3px square: 16px wide, 7px proud, as the profile flyout's */
+  z-index: 1;
+  border: 0;
+  border-top: 1px solid var(--atlas-border);
+  border-left: 1px solid var(--atlas-border);
+  border-top-left-radius: 2px;
+  background-color: var(--atlas-menu);
+  filter: none;
+}
+#browser .button-popup.button-popup-pos-below:before { top: -6px; }
+#browser .button-popup.button-popup-pos-above:before { top: auto; bottom: -6px; rotate: 225deg; }
+#browser .button-popup.button-popup-pos-left:before { left: auto; right: -6px; rotate: 135deg; }
+#browser .button-popup.button-popup-pos-right:before { right: auto; left: -6px; rotate: 315deg; }
+#browser .button-popup.ToolbarButtonPopup-DefaultStyles h2 {
+  background-color: transparent;
+  border-bottom: 0;
+  padding: 10px 14px 4px;
+  color: var(--atlas-text-2);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+#browser .button-popup.ToolbarButtonPopup-DefaultStyles h2:not(:nth-of-type(1)) { border-top: 1px solid var(--atlas-border); margin-top: 4px; }
+#browser .button-popup.ToolbarButtonPopup-DefaultStyles footer {
+  background-color: transparent;
+  border-top: 1px solid var(--atlas-border);
+}
+/* Workspaces: flat rows with the menu's hover wash; the chosen one shows Vivaldi's own tick. */
+#browser .WorkspacePopup { background-color: transparent; }
+#browser .WorkspacePopup-Items .workspace-item-wrapper,
+#browser .WorkspacePopup-Items .this-window {
+  background-color: transparent;
+  border-radius: 7px;
+  transition: background-color 120ms ease;
+}
+#browser .WorkspacePopup-Items .workspace-item-wrapper:hover,
+#browser .WorkspacePopup-Items .this-window:hover { background-color: var(--atlas-hover-2); }
+#browser .WorkspacePopup-Items .workspace-item-wrapper .checkmark,
+#browser .WorkspacePopup-Items .this-window .checkmark { fill: var(--atlas-text-1); }   /* Vivaldi draws it in its highlight blue */
+
+/* Dropdown lists: a pill trigger and an 8px list with a wash on the row you are on. */
+#browser .VivaldiSelector__control {
+  min-height: 28px;
+  border: 0;
+  border-radius: 9999px;
+  background-color: var(--atlas-hover-2);
+  background-image: none;
+  color: var(--atlas-text-1);
+}
+#browser .VivaldiSelector__control:hover { background-color: var(--atlas-hover-3); }
+#browser .VivaldiSelector__control:focus-within { outline: 1px solid var(--atlas-text-2); outline-offset: -1px; }
+#browser .VivaldiSelector__menu {
+  margin-top: 4px;
+  padding: 4px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  background-color: var(--atlas-menu);
+  box-shadow: var(--atlas-shadow);
+}
+#browser .VivaldiSelector__option {
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--atlas-text-1);
+}
+#browser .VivaldiSelector__option--is-focused,
+#browser .VivaldiSelector__option:active {
+  background-color: var(--atlas-hover-2);
+  color: var(--atlas-text-1);
+}
+/* The chosen row shows the settings menu's tick, nothing else. */
+#browser .VivaldiSelector__option--is-selected { background-color: transparent; }
+#browser .VivaldiSelector__option--is-selected::after {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-left: auto;
+  background-color: currentColor;
+  mask: var(--atlas-icon-check) center / 14px no-repeat;
+}

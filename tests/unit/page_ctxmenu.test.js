@@ -16,7 +16,7 @@ const plain = (v) => JSON.parse(JSON.stringify(v));
 let open = [];
 test.afterEach(() => { for (const p of open) p.window.close(); open = []; });
 
-function openPage(body) {
+function openPage(body, platform = "MacIntel") {
   const errors = [];
   const virtualConsole = new VirtualConsole();
   virtualConsole.on("jsdomError", (e) => { if (e.type !== "not-implemented") errors.push(String(e.cause || e.message)); });
@@ -24,6 +24,7 @@ function openPage(body) {
   const dom = new JSDOM(`<!DOCTYPE html><body>${body}</body>`, {
     url: "https://site.test/page", runScripts: "outside-only", pretendToBeVisual: true, virtualConsole,
     beforeParse(window) {
+      Object.defineProperty(window.navigator, "platform", { value: platform });
       window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
       // The menu lives in a CLOSED shadow root; open it so the test can read it.
       const attach = window.Element.prototype.attachShadow;
@@ -130,4 +131,138 @@ test("the browser can close the page menu", () => {
   assert.ok(host(p));
   p.control.deliver({ atlas: "closeContextMenu" });
   assert.equal(host(p), null);
+});
+
+function pressKey(p, key, code) {
+  const ev = new p.window.KeyboardEvent("keydown", { key, code: code || key, bubbles: true, cancelable: true });
+  p.window.dispatchEvent(ev);
+  return ev;
+}
+
+test("page Command double taps leave focus to the native browser listener", () => {
+  const p = openPage("<p>Hello</p>");
+  pressKey(p, "Meta");
+  pressKey(p, "Meta");
+  assert.equal(p.control.sentMessages.length, 0);
+});
+
+test("Command -> Comma -> Comma navigates back and prevents default on comma", () => {
+  const p = openPage("<p>Hello</p>");
+  pressKey(p, "Meta");
+  const comma1 = pressKey(p, ",", "Comma");
+  assert.equal(comma1.defaultPrevented, true, "first comma is suppressed from reaching the website");
+  const comma2 = pressKey(p, ",", "Comma");
+  assert.equal(comma2.defaultPrevented, true, "second comma is suppressed from reaching the website");
+  assert.deepEqual(plain(p.control.sentMessages.at(-1)), { atlas: { act: "navigate-back" } });
+});
+
+test("Command -> Period -> Period navigates forward and prevents default on period", () => {
+  const p = openPage("<p>Hello</p>");
+  pressKey(p, "Meta");
+  const dot1 = pressKey(p, ".", "Period");
+  assert.equal(dot1.defaultPrevented, true, "first period is suppressed from reaching the website");
+  const dot2 = pressKey(p, ".", "Period");
+  assert.equal(dot2.defaultPrevented, true, "second period is suppressed from reaching the website");
+  assert.deepEqual(plain(p.control.sentMessages.at(-1)), { atlas: { act: "navigate-forward" } });
+});
+
+test("Command -> Comma -> switching to Period -> Period navigates forward", () => {
+  const p = openPage("<p>Hello</p>");
+  pressKey(p, "Meta");
+  pressKey(p, ",", "Comma");
+  pressKey(p, ".", "Period"); // switched direction
+  pressKey(p, ".", "Period"); // confirm forward
+  assert.deepEqual(plain(p.control.sentMessages.at(-1)), { atlas: { act: "navigate-forward" } });
+});
+
+
+
+test("normal comma typing without Command is not prevented", () => {
+  const p = openPage("<p>Hello</p>");
+  const ev = pressKey(p, ",", "Comma");
+  assert.equal(ev.defaultPrevented, false);
+});
+
+function releaseKey(p, key, code) {
+  const ev = new p.window.KeyboardEvent("keyup", { key, code: code || key, bubbles: true, cancelable: true });
+  p.window.dispatchEvent(ev);
+  return ev;
+}
+
+test("Command -> Space -> Space (double-tap) opens a new tab", async () => {
+  const p = openPage("<p>Hello</p>");
+  pressKey(p, "Meta");
+  const s1 = pressKey(p, " ", "Space");
+  assert.equal(s1.defaultPrevented, true, "first space is suppressed from scrolling");
+  releaseKey(p, " ", "Space");
+  const s2 = pressKey(p, " ", "Space");
+  assert.equal(s2.defaultPrevented, true, "second space is suppressed");
+  releaseKey(p, " ", "Space");
+  assert.deepEqual(plain(p.control.sentMessages.at(-1)), { atlas: { act: "tab-new" } });
+});
+
+test("Command -> Delete -> Delete closes current tab and prevents default on delete", () => {
+  const p = openPage("<p>Hello</p>");
+  pressKey(p, "Meta");
+  const d1 = pressKey(p, "Backspace", "Backspace");
+  assert.equal(d1.defaultPrevented, true, "first delete is suppressed");
+  releaseKey(p, "Backspace", "Backspace");
+  const d2 = pressKey(p, "Backspace", "Backspace");
+  assert.equal(d2.defaultPrevented, true, "second delete is suppressed");
+  releaseKey(p, "Backspace", "Backspace");
+  assert.deepEqual(plain(p.control.sentMessages.at(-1)), { atlas: { act: "tab-close" } });
+});
+
+test("Command -> ArrowLeft -> ArrowLeft moves to previous tab and prevents default", () => {
+  const p = openPage("<p>Hello</p>");
+  pressKey(p, "Meta");
+  const a1 = pressKey(p, "ArrowLeft", "ArrowLeft");
+  assert.equal(a1.defaultPrevented, true, "first arrow left is suppressed");
+  releaseKey(p, "ArrowLeft", "ArrowLeft");
+  const a2 = pressKey(p, "ArrowLeft", "ArrowLeft");
+  assert.equal(a2.defaultPrevented, true, "second arrow left is suppressed");
+  releaseKey(p, "ArrowLeft", "ArrowLeft");
+  assert.deepEqual(plain(p.control.sentMessages.at(-1)), { atlas: { act: "tab-prev" } });
+});
+
+test("Command -> ArrowRight -> ArrowRight moves to next tab and prevents default", () => {
+  const p = openPage("<p>Hello</p>");
+  pressKey(p, "Meta");
+  const a1 = pressKey(p, "ArrowRight", "ArrowRight");
+  assert.equal(a1.defaultPrevented, true, "first arrow right is suppressed");
+  releaseKey(p, "ArrowRight", "ArrowRight");
+  const a2 = pressKey(p, "ArrowRight", "ArrowRight");
+  assert.equal(a2.defaultPrevented, true, "second arrow right is suppressed");
+  releaseKey(p, "ArrowRight", "ArrowRight");
+  assert.deepEqual(plain(p.control.sentMessages.at(-1)), { atlas: { act: "tab-next" } });
+});
+
+test("normal space typing without Command is not prevented", () => {
+  const p = openPage("<p>Hello</p>");
+  const ev = pressKey(p, " ", "Space");
+  assert.equal(ev.defaultPrevented, false);
+});
+
+
+test("Control+Space on macOS neither focuses the address bar nor opens a tab", () => {
+  const p = openPage("<p>Hello</p>");
+  pressKey(p, "Control"); pressKey(p, " ", "Space"); releaseKey(p, " ", "Space");
+  pressKey(p, "Control"); pressKey(p, " ", "Space"); releaseKey(p, " ", "Space");
+  assert.equal(p.control.sentMessages.length, 0);
+});
+
+test("Windows retains the legacy Control double tap", () => {
+  const p = openPage("<p>Hello</p>", "Win32");
+  pressKey(p, "Control"); pressKey(p, "Control");
+  assert.deepEqual(plain(p.control.sentMessages.at(-1)), { atlas: { act: "focus-addressbar" } });
+});
+
+
+test("leaving the page clears a navigation leader after native address focus", () => {
+  const p = openPage("<p>Hello</p>");
+  pressKey(p, "Meta"); pressKey(p, "Meta");
+  p.window.dispatchEvent(new p.window.Event("blur"));
+  assert.equal(pressKey(p, " ", "Space").defaultPrevented, false);
+  pressKey(p, " ", "Space");
+  assert.equal(p.control.sentMessages.length, 0);
 });

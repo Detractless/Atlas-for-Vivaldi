@@ -244,7 +244,13 @@
       pastekit: "pastekit"
     },
     sync: {
-      activeTabs: { default: null, backup: true, importWhen: "truthy", profile: "bookmarks", note: "Pages list: {id, label, type, sub}; sub is the subtitle under the name (services/pageSubtitle.js). Export takes it from memory, not storage." },
+      activeTabs: {
+        default: null,
+        backup: true,
+        importWhen: "truthy",
+        profile: "bookmarks",
+        note: "Pages list: {id, label, type, sub}; sub is the subtitle under the name (services/pageSubtitle.js). Export takes it from memory, not storage."
+      },
       Theme: {
         default: {
           _comment: "Theme settings: 'system' <- Follows System settings (Light/Dark). 'dark' <- Forces standard Dark mode. 'light' <- Forces standard Light mode. 'custom' <- Uses the CustomColors mapped below. Note: To apply changes, reload the page.",
@@ -263,48 +269,243 @@
         importWhen: "truthy",
         profile: "theme"
       },
-      uiScale: { default: 1, backup: false, note: "Legacy: the UI scale, removed from Settings. Nothing reads it; a saved value is ignored, so every new tab is at 100%." },
-      fadeInEnabled: { default: true, backup: true, importWhen: "defined", profile: "appearance" },
-      spotlightVisible: { default: true, backup: true, importWhen: "defined", profile: "search" },
-      searchEngineBehavior: { default: "remember", backup: true, importWhen: "defined", profile: "search" },
-      bookmarkPillBehavior: { default: "always", backup: true, importWhen: "defined", profile: "search" },
-      customSearchEngines: { default: {}, backup: true, importWhen: "truthy", profile: "search" },
-      defaultEngineKey: { default: "default", backup: true, importWhen: "truthy", profile: "search" },
-      selectedSearchEngine: { default: null, backup: true, importWhen: "truthy", profile: "search" },
-      tabLimit: { default: 0, backup: true, importWhen: "defined", profile: "focus" },
-      managementMethod: { default: "block", backup: true, importWhen: "truthy", profile: "focus" },
-      pendingIncrease: { default: null, backup: false, note: "Legacy: a tab-limit increase queued for 30 minutes by the version before the Focus locks. Still finished on time (background/pendingChanges.js); no longer written." },
-      searchDelaySeconds: { default: 0, backup: true, importWhen: "defined", profile: "focus" },
-      pendingDelayDecrease: { default: null, backup: false, note: "Legacy: a search-delay decrease queued for 30 minutes by the version before the Focus locks. Still finished on time (background/pendingChanges.js); no longer written." },
-      showQueryOnDelay: { default: true, backup: true, importWhen: "defined", profile: "focus" },
-      grayscale: { default: null, backup: false, note: "Legacy: the old on/off switch. Read once and folded into saturation (utils/saturationLock.js legacySaturation), then removed." },
-      saturation: { default: 100, backup: true, importWhen: "defined", profile: "focus", note: "Color level for web pages, 0 to 100. 100 is full color." },
-      saturationLock: { default: null, backup: false, note: "Legacy: the color lock before the Focus locks, { ceiling, until, manual }. Moved into focusLocks once at startup (background/saturationMigration.js), then removed." },
-      focusLocks: { default: null, backup: false, note: "The locks on Settings > Focus (utils/focusLock.js): { tabLimit | searchDelaySeconds | saturation: { unlockAt } }, unlockAt null while locked or the time its 30-minute unlock ends. Not per profile and not in backups, so a switch or an import can't undo a lock." },
-      "bookmarks-migrated": { default: null, backup: false, note: "Legacy: set once bookmarks moved from sync storage to IndexedDB." },
-      "bookmarks-page-1": { default: null, backup: false, note: "Legacy bookmark storage, read once by migrateFromChromeStorage." },
-      "bookmarks-page-2": { default: null, backup: false, note: "Legacy, as bookmarks-page-1." },
-      "bookmarks-page-3": { default: null, backup: false, note: "Legacy, as bookmarks-page-1." }
+      uiScale: {
+        default: 1,
+        backup: false,
+        note: "Legacy: the UI scale, removed from Settings. Nothing reads it; a saved value is ignored, so every new tab is at 100%."
+      },
+      fadeInEnabled: {
+        default: true,
+        backup: true,
+        importWhen: "defined",
+        profile: "appearance"
+      },
+      spotlightVisible: {
+        default: true,
+        backup: true,
+        importWhen: "defined",
+        profile: "search"
+      },
+      searchEngineBehavior: {
+        default: "remember",
+        backup: true,
+        importWhen: "defined",
+        profile: "search"
+      },
+      bookmarkPillBehavior: {
+        default: "always",
+        backup: true,
+        importWhen: "defined",
+        profile: "search"
+      },
+      customSearchEngines: {
+        default: {},
+        backup: true,
+        importWhen: "truthy",
+        profile: "search"
+      },
+      defaultEngineKey: {
+        default: "default",
+        backup: true,
+        importWhen: "truthy",
+        profile: "search"
+      },
+      selectedSearchEngine: {
+        default: null,
+        backup: true,
+        importWhen: "truthy",
+        profile: "search"
+      },
+      tabLimit: {
+        default: 0,
+        backup: true,
+        importWhen: "defined",
+        profile: "focus"
+      },
+      managementMethod: {
+        default: "block",
+        backup: true,
+        importWhen: "truthy",
+        profile: "focus"
+      },
+      pendingIncrease: {
+        default: null,
+        backup: false,
+        note: "Legacy: a tab-limit increase queued for 30 minutes by the version before the Focus locks. Still finished on time (background/pendingChanges.js); no longer written."
+      },
+      searchDelaySeconds: {
+        default: 0,
+        backup: true,
+        importWhen: "defined",
+        profile: "focus"
+      },
+      pendingDelayDecrease: {
+        default: null,
+        backup: false,
+        note: "Legacy: a search-delay decrease queued for 30 minutes by the version before the Focus locks. Still finished on time (background/pendingChanges.js); no longer written."
+      },
+      showQueryOnDelay: {
+        default: true,
+        backup: true,
+        importWhen: "defined",
+        profile: "focus"
+      },
+      grayscale: {
+        default: null,
+        backup: false,
+        note: "Legacy: the old on/off switch. Read once and folded into saturation (utils/saturationLock.js legacySaturation), then removed."
+      },
+      saturation: {
+        default: 100,
+        backup: true,
+        importWhen: "defined",
+        profile: "focus",
+        note: "Color level for web pages, 0 to 100. 100 is full color."
+      },
+      saturationLock: {
+        default: null,
+        backup: false,
+        note: "Legacy: the color lock before the Focus locks, { ceiling, until, manual }. Moved into focusLocks once at startup (background/saturationMigration.js), then removed."
+      },
+      focusLocks: {
+        default: null,
+        backup: false,
+        note: "The locks on Settings > Focus (utils/focusLock.js): { tabLimit | searchDelaySeconds | saturation | nsfwAction | socialFilter: { unlockAt } }, unlockAt null while locked or the time its 30-minute unlock ends. Not per profile and not in backups, so a switch or an import can't undo a lock."
+      },
+      "bookmarks-migrated": {
+        default: null,
+        backup: false,
+        note: "Legacy: set once bookmarks moved from sync storage to IndexedDB."
+      },
+      "bookmarks-page-1": {
+        default: null,
+        backup: false,
+        note: "Legacy bookmark storage, read once by migrateFromChromeStorage."
+      },
+      "bookmarks-page-2": {
+        default: null,
+        backup: false,
+        note: "Legacy, as bookmarks-page-1."
+      },
+      "bookmarks-page-3": {
+        default: null,
+        backup: false,
+        note: "Legacy, as bookmarks-page-1."
+      },
+      nsfwAction: {
+        default: "off",
+        backup: true,
+        importWhen: "truthy",
+        profile: "focus",
+        note: "What the shield does when explicit content is detected: off, blur, black (blackout)."
+      },
+      socialFilter: {
+        default: { mode: "off", parts: [] },
+        backup: true,
+        importWhen: "truthy",
+        profile: "focus",
+        note: "The social media filter (utils/socialFilter.js): { mode: off | parts | all, parts: [ids of the parts to hide] }. Only the choices are saved so far: nothing is blocked yet."
+      },
+      nsfwStrictness: {
+        default: 65,
+        backup: false,
+        archived: true,
+        note: "Legacy: adjustable sensitivity removed. The detector now uses one locally evaluated fixed threshold; saved values are ignored."
+      },
+      nsfwThreshold: {
+        default: 75,
+        archived: true,
+        note: "Legacy page-level blocking threshold. The image shield uses its fixed detector threshold instead; no code reads this key."
+      },
+      nsfwCountLimit: {
+        default: 3,
+        archived: true,
+        note: "Number of flagged images before blocking a page or redirecting, retired with the block_page and redirect actions (2026-10-19); the shield only blurs or blacks out in place now. Left in place; no code reads it."
+      },
+      nsfwRedirectUrl: {
+        default: "http://home",
+        archived: true,
+        note: "URL the redirect action went to, retired with it (2026-10-19). Left in place; no code reads it."
+      }
     },
     syncPatterns: {
       "page<id>": "Legacy per-page bookmark key, removed when a page is deleted (tabs.js)."
     },
     local: {
-      hasSeededDefaults: { default: false, note: "Starter pages were added once." },
-      hasRepairedOrphanPages: { default: false, note: "Orphan-page repair ran once." },
-      _themeCache: { default: null, note: "Theme preference copy for first paint in other pages." },
-      rhe_rules: { default: null, backup: true, note: "Element Remover rules (archived feature); still carried by backups." },
-      activeDelays: { default: {}, note: "Service worker: search delays in progress." },
-      atlas_usage: { default: null, backup: false, note: "Usage totals per site and hour (utils/usageLog.js), written by the service worker, shown in Settings > Usage. Never backed up." },
-      atlasProfilesV2: { default: null, note: "Profiles state (profilesCore.js)." },
-      atlasGoogleAccounts: { default: null, note: "Google accounts signed into Vivaldi, read by the browser window (src/modules/16-google-accounts.js). Never backed up." },
-      __atlas_localstorage__: { default: {}, note: "Backing store of the localStorage shim (atlas-localstorage-shim.js)." },
-      "pastekit.settings": { default: null, archived: true, note: "PasteKit settings (archived feature). Left in place; no code reads it now." },
-      savedTabGroups: { default: null, note: "Tab saver (service worker)." },
-      atlas_scroll_telemetry: { default: {}, archived: true, note: "The first scroll logs (replaced by atlas_usage, 2026-10-15). Left in place; nothing writes or reads it now." }
+      hasSeededDefaults: {
+        default: false,
+        note: "Starter pages were added once."
+      },
+      hasRepairedOrphanPages: {
+        default: false,
+        note: "Orphan-page repair ran once."
+      },
+      _themeCache: {
+        default: null,
+        note: "Theme preference copy for first paint in other pages."
+      },
+      rhe_rules: {
+        default: null,
+        backup: true,
+        note: "Element Remover rules (archived feature); still carried by backups."
+      },
+      activeDelays: {
+        default: {},
+        note: "Service worker: search delays in progress."
+      },
+      atlas_usage: {
+        default: null,
+        backup: false,
+        note: "Usage totals per site and hour (utils/usageLog.js), written by the service worker, shown in Settings > Usage. Never backed up."
+      },
+      atlasProfilesV2: {
+        default: null,
+        note: "Profiles state (profilesCore.js)."
+      },
+      atlasGoogleAccounts: {
+        default: null,
+        note: "Google accounts signed into Vivaldi, read by the browser window (src/modules/16-google-accounts.js). Never backed up."
+      },
+      atlasNsfwScores: {
+        default: null,
+        backup: false,
+        note: "Content Shield scores by URL digest so images are not classified again after a restart: {16-char digest: [score, time]}. Capped at 5000 entries / 1 MB, 7-day expiry (src/modules/27-nsfw-verdicts.js). Never backed up."
+      },
+      __atlas_localstorage__: {
+        default: {},
+        note: "Backing store of the localStorage shim (atlas-localstorage-shim.js)."
+      },
+      nsfwDebugLog: {
+        default: null,
+        backup: false,
+        note: "Content Shield troubleshooting mode (atlas-nsfw-log.js). Set nsfwDebugLog to the string verbose to enable detailed console and disk logging; false, unset, and legacy true are quiet. Quiet mode saves only brief stronger-model retry failure summaries. Setting false deletes saved diagnostics."
+      },
+      nsfwDebugEvents: {
+        default: null,
+        backup: false,
+        note: "Content Shield diagnostics (04-bridge-messages.js). Quiet mode keeps only the last 20 stronger-model retry failure summaries, without page host, image URL, or request ID. Verbose mode keeps the last 500 detailed events. Deleted when nsfwDebugLog is set false."
+      },
+      "pastekit.settings": {
+        default: null,
+        archived: true,
+        note: "PasteKit settings (archived feature). Left in place; no code reads it now."
+      },
+      savedTabGroups: {
+        default: null,
+        note: "Tab saver (service worker)."
+      },
+      atlas_scroll_telemetry: {
+        default: {},
+        archived: true,
+        note: "The first scroll logs (replaced by atlas_usage, 2026-10-15). Left in place; nothing writes or reads it now."
+      }
     },
     session: {
-      rheTabStates: { default: null, archived: true, note: "Element Remover per-tab state (archived feature). Left in place; no code reads it now." }
+      rheTabStates: {
+        default: null,
+        archived: true,
+        note: "Element Remover per-tab state (archived feature). Left in place; no code reads it now."
+      }
     },
     localStorage: {
       _themeCache: "Theme preference for the first paint (themePreinit.js).",
@@ -1920,7 +2121,7 @@
     const last2 = parts.slice(-2).join(".");
     return TWO_PART_SUFFIXES.has(last2) ? parts.slice(-3).join(".") : last2;
   }
-  var cap = (s) => s ? s[0].toUpperCase() + s.slice(1) : s;
+  var cap = (s2) => s2 ? s2[0].toUpperCase() + s2.slice(1) : s2;
   function nameFor(domain) {
     const parts = String(domain || "").split(".");
     if (parts.length < 2) return cap(parts[0] || "");
@@ -1973,15 +2174,15 @@
   }
   function matchSites(sites, typed, limit = 8, skip = /* @__PURE__ */ new Set()) {
     const q = (hostOf(typed) || String(typed || "").trim().toLowerCase()).replace(/^www\./, "");
-    const pool = sites.filter((s) => !skip.has(s.domain));
+    const pool = sites.filter((s2) => !skip.has(s2.domain));
     if (!q) return pool.slice(0, limit);
-    const starts = pool.filter((s) => s.domain.startsWith(q));
-    const has = pool.filter((s) => !s.domain.startsWith(q) && s.domain.includes(q));
+    const starts = pool.filter((s2) => s2.domain.startsWith(q));
+    const has = pool.filter((s2) => !s2.domain.startsWith(q) && s2.domain.includes(q));
     return [...starts, ...has].slice(0, limit);
   }
 
   // src/components/addPopup/addPopupMarkup.js
-  var esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  var esc = (s2) => String(s2 ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   var CHEV = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>';
   var TICK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7"/></svg>';
   var SEARCH = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12"/></svg>';
@@ -2092,12 +2293,12 @@
     if (slot) slot.textContent = message || "";
   }
   function clearErrors(popup) {
-    popup.overlay.querySelectorAll("[data-error-for]").forEach((s) => {
-      s.textContent = "";
+    popup.overlay.querySelectorAll("[data-error-for]").forEach((s2) => {
+      s2.textContent = "";
     });
   }
   function sitePills(popup) {
-    return matchSites(popup.sites, popup.urlText, 8, savedDomains()).map((s) => ({ label: s.domain, value: s.domain }));
+    return matchSites(popup.sites, popup.urlText, 8, savedDomains()).map((s2) => ({ label: s2.domain, value: s2.domain }));
   }
   function pageItems() {
     return bookmarkPages().map((t) => ({ value: String(t.id), label: t.label }));
@@ -3254,18 +3455,75 @@
     }
   }
 
+  // src/utils/socialFilter.js
+  var BLOCKING_LIVE = false;
+  var MODES = { off: "Off", parts: "Block selected parts", all: "Block social sites entirely" };
+  var RANK = { off: 0, parts: 1, all: 2 };
+  var GROUPS = [
+    { id: "feeds", label: "Feeds", parts: [
+      { id: "homeFeed", label: "Home feed", desc: "Endless scrolling feeds", sites: ["Reddit", "TikTok", "Facebook"] },
+      { id: "suggested", label: "Suggested content", desc: "\u201CUp next\u201D, \u201CFor you\u201D and related videos", sites: ["YouTube", "Reddit"] },
+      { id: "trending", label: "Trending and Explore", desc: "Trending topics, Explore pages, Popular and All", sites: ["X", "Reddit"] },
+      { id: "whoToFollow", label: "Who to follow", desc: "Account suggestions", sites: ["X", "Instagram"] },
+      { id: "stories", label: "Stories", desc: "The round tray of short-lived posts", sites: ["Instagram", "Facebook"] }
+    ] },
+    { id: "video", label: "Video", parts: [
+      { id: "shortVideos", label: "Short videos", desc: "Shorts, Reels and TikTok-style clips", sites: ["YouTube", "TikTok", "Instagram", "Snapchat"] },
+      { id: "autoplay", label: "Autoplay", desc: "The next video, and previews that play on their own", sites: ["YouTube"] },
+      { id: "liveStreams", label: "Live streams", desc: "Live videos and their chat", sites: ["Twitch", "YouTube"] },
+      { id: "upNext", label: "Up-next cards", desc: "The cards and countdown that come after a video", sites: ["YouTube"] },
+      { id: "hoverPreviews", label: "Hover previews", desc: "Thumbnails that play when you point at them", sites: ["YouTube"] }
+    ] },
+    { id: "interaction", label: "Interaction", parts: [
+      { id: "likes", label: "Likes and dislikes", desc: "The buttons and reactions", sites: ["YouTube", "Reddit", "TikTok", "Instagram"] },
+      { id: "follow", label: "Subscribe and follow", desc: "The buttons that ask you to follow", sites: ["X", "YouTube", "Instagram", "TikTok"] },
+      { id: "comments", label: "Comments", desc: "Reading and writing them", sites: ["YouTube", "Reddit"] },
+      { id: "share", label: "Share and repost", desc: "The share and repost buttons", sites: ["YouTube", "Reddit", "TikTok"] },
+      { id: "messages", label: "Direct messages", desc: "Inboxes and chat pop-ups", sites: ["Instagram"] },
+      { id: "posting", label: "Posting", desc: "The boxes and buttons for making a post", sites: ["Facebook", "TikTok"] }
+    ] },
+    { id: "numbers", label: "Numbers and alerts", parts: [
+      { id: "counts", label: "Like and view counts", desc: "Likes, views and comments, shown as numbers", sites: ["YouTube", "TikTok", "Instagram", "Reddit"] },
+      { id: "followers", label: "Follower counts", desc: "Followers and subscribers, shown as numbers", sites: ["YouTube", "X", "Instagram"] },
+      { id: "badges", label: "Notification badges", desc: "Red dots, the bell, and the \u201C(3)\u201D in tab titles", sites: ["Twitch", "Facebook"] },
+      { id: "newPosts", label: "New-posts banners", desc: "The \u201Csee new posts\u201D bars", sites: ["X"] }
+    ] }
+  ];
+  var PARTS = GROUPS.flatMap((g) => g.parts);
+  var PART_IDS = PARTS.map((p2) => p2.id);
+  var partOf = (id) => PARTS.find((p2) => p2.id === id) || null;
+  function normalize(value) {
+    const v = value && typeof value === "object" ? value : {};
+    const chosen = new Set(Array.isArray(v.parts) ? v.parts : []);
+    return { mode: Object.prototype.hasOwnProperty.call(RANK, v.mode) ? v.mode : "off", parts: PART_IDS.filter((id) => chosen.has(id)) };
+  }
+  var withMode = (value, mode) => ({ ...normalize(value), mode });
+  function togglePart(value, id) {
+    const f = normalize(value);
+    if (!PART_IDS.includes(id)) return f;
+    return { ...f, parts: PART_IDS.filter((p2) => p2 === id ? !f.parts.includes(id) : f.parts.includes(p2)) };
+  }
+  function looser(from, to) {
+    const a = normalize(from), b = normalize(to);
+    if (RANK[b.mode] !== RANK[a.mode]) return RANK[b.mode] < RANK[a.mode];
+    return a.mode === "parts" && a.parts.some((id) => !b.parts.includes(id));
+  }
+
   // src/utils/focusLock.js
   var UNLOCK_MS = 30 * 60 * 1e3;
-  var LOCKABLE = ["tabLimit", "searchDelaySeconds", "saturation"];
-  var DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100 };
+  var LOCKABLE = ["tabLimit", "searchDelaySeconds", "saturation", "nsfwAction", "socialFilter"];
+  var DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: "off", socialFilter: { mode: "off", parts: [] } };
   var STRICTNESS = {
     tabLimit: (v) => Number(v) === 0 ? -Infinity : -Number(v),
     // fewer tabs is stricter; Off is no limit at all
     searchDelaySeconds: (v) => Number(v),
     // a longer pause is stricter
-    saturation: (v) => -Number(v)
+    saturation: (v) => -Number(v),
     // grayer is stricter
+    nsfwAction: (v) => ({ off: 0, blur: 1, blackout: 2 })[String(v)] || 0
+    // stricter actions cannot return to Off
   };
+  var LOOSER = { socialFilter: looser };
   var entry = (locks, key) => locks && typeof locks === "object" && locks[key] && typeof locks[key] === "object" ? locks[key] : null;
   function lockState(locks, key, now = Date.now()) {
     const l = entry(locks, key);
@@ -3284,8 +3542,9 @@
     return at === null ? 0 : Math.max(0, Math.ceil((at - now) / 1e3));
   }
   function changeAllowed(locks, key, from, to, now = Date.now()) {
-    if (!isLocked(locks, key, now) || !STRICTNESS[key]) return true;
+    if (!isLocked(locks, key, now) || !(STRICTNESS[key] || LOOSER[key])) return true;
     const was = from === void 0 || from === null ? DEFAULTS[key] : from;
+    if (LOOSER[key]) return !LOOSER[key](was, to);
     return STRICTNESS[key](to) >= STRICTNESS[key](was);
   }
   function tidyLocks(locks, now = Date.now()) {
@@ -3990,10 +4249,10 @@
   var x;
   var i;
   var hMap = (function(cd, mb, r) {
-    var s = cd.length;
+    var s2 = cd.length;
     var i2 = 0;
     var l = new u16(mb);
-    for (; i2 < s; ++i2) {
+    for (; i2 < s2; ++i2) {
       if (cd[i2])
         ++l[cd[i2] - 1];
     }
@@ -4005,7 +4264,7 @@
     if (r) {
       co = new u16(1 << mb);
       var rvb = 15 - mb;
-      for (i2 = 0; i2 < s; ++i2) {
+      for (i2 = 0; i2 < s2; ++i2) {
         if (cd[i2]) {
           var sv = i2 << 4 | cd[i2];
           var r_1 = mb - cd[i2];
@@ -4016,8 +4275,8 @@
         }
       }
     } else {
-      co = new u16(s);
-      for (i2 = 0; i2 < s; ++i2) {
+      co = new u16(s2);
+      for (i2 = 0; i2 < s2; ++i2) {
         if (cd[i2]) {
           co[i2] = rev[le[cd[i2] - 1]++] >> 15 - cd[i2];
         }
@@ -4065,12 +4324,12 @@
   var shft = function(p2) {
     return (p2 + 7) / 8 | 0;
   };
-  var slc = function(v, s, e) {
-    if (s == null || s < 0)
-      s = 0;
+  var slc = function(v, s2, e) {
+    if (s2 == null || s2 < 0)
+      s2 = 0;
     if (e == null || e > v.length)
       e = v.length;
-    return new u8(v.subarray(s, e));
+    return new u8(v.subarray(s2, e));
   };
   var ec = [
     "unexpected EOF",
@@ -4124,7 +4383,7 @@
         var type = bits(dat, pos + 1, 3);
         pos += 3;
         if (!type) {
-          var s = shft(pos) + 4, l = dat[s - 4] | dat[s - 3] << 8, t = s + l;
+          var s2 = shft(pos) + 4, l = dat[s2 - 4] | dat[s2 - 3] << 8, t = s2 + l;
           if (t > sl) {
             if (noSt)
               err(0);
@@ -4132,7 +4391,7 @@
           }
           if (resize)
             cbuf(bt + l);
-          buf.set(dat.subarray(s, t), bt);
+          buf.set(dat.subarray(s2, t), bt);
           st.b = bt += l, st.p = pos = t * 8, st.f = final;
           continue;
         } else if (type == 1)
@@ -4152,16 +4411,16 @@
           for (var i2 = 0; i2 < tl; ) {
             var r = clm[bits(dat, pos, clbmsk)];
             pos += r & 15;
-            var s = r >> 4;
-            if (s < 16) {
-              ldt[i2++] = s;
+            var s2 = r >> 4;
+            if (s2 < 16) {
+              ldt[i2++] = s2;
             } else {
               var c = 0, n = 0;
-              if (s == 16)
+              if (s2 == 16)
                 n = 3 + bits(dat, pos, 3), pos += 2, c = ldt[i2 - 1];
-              else if (s == 17)
+              else if (s2 == 17)
                 n = 3 + bits(dat, pos, 7), pos += 3;
-              else if (s == 18)
+              else if (s2 == 18)
                 n = 11 + bits(dat, pos, 127), pos += 7;
               while (n--)
                 ldt[i2++] = c;
@@ -4259,11 +4518,11 @@
       if (d[i2])
         t.push({ s: i2, f: d[i2] });
     }
-    var s = t.length;
+    var s2 = t.length;
     var t2 = t.slice();
-    if (!s)
+    if (!s2)
       return { t: et, l: 0 };
-    if (s == 1) {
+    if (s2 == 1) {
       var v = new u8(t[0].s + 1);
       v[t[0].s] = 1;
       return { t: v, l: 1 };
@@ -4274,13 +4533,13 @@
     t.push({ s: -1, f: 25001 });
     var l = t[0], r = t[1], i0 = 0, i1 = 1, i22 = 2;
     t[0] = { s: -1, f: l.f + r.f, l, r };
-    while (i1 != s - 1) {
+    while (i1 != s2 - 1) {
       l = t[t[i0].f < t[i22].f ? i0++ : i22++];
       r = t[i0 != i1 && t[i0].f < t[i22].f ? i0++ : i22++];
       t[i1++] = { s: -1, f: l.f + r.f, l, r };
     }
     var maxSym = t2[0].s;
-    for (var i2 = 1; i2 < s; ++i2) {
+    for (var i2 = 1; i2 < s2; ++i2) {
       if (t2[i2].s > maxSym)
         maxSym = t2[i2].s;
     }
@@ -4292,7 +4551,7 @@
       t2.sort(function(a, b) {
         return tr[b.s] - tr[a.s] || a.f - b.f;
       });
-      for (; i2 < s; ++i2) {
+      for (; i2 < s2; ++i2) {
         var i2_1 = t2[i2].s;
         if (tr[i2_1] > mb) {
           dt += cst - (1 << mbt - tr[i2_1]);
@@ -4323,16 +4582,16 @@
     return n.s == -1 ? Math.max(ln(n.l, l, d + 1), ln(n.r, l, d + 1)) : l[n.s] = d;
   };
   var lc = function(c) {
-    var s = c.length;
-    while (s && !c[--s])
+    var s2 = c.length;
+    while (s2 && !c[--s2])
       ;
-    var cl = new u16(++s);
+    var cl = new u16(++s2);
     var cli = 0, cln = c[0], cls = 1;
     var w = function(v) {
       cl[cli++] = v;
     };
-    for (var i2 = 1; i2 <= s; ++i2) {
-      if (c[i2] == cln && i2 != s)
+    for (var i2 = 1; i2 <= s2; ++i2) {
+      if (c[i2] == cln && i2 != s2)
         ++cls;
       else {
         if (!cln && cls > 2) {
@@ -4355,7 +4614,7 @@
         cln = c[i2];
       }
     }
-    return { c: cl.subarray(0, cli), n: s };
+    return { c: cl.subarray(0, cli), n: s2 };
   };
   var clen = function(cf, cl) {
     var l = 0;
@@ -4364,15 +4623,15 @@
     return l;
   };
   var wfblk = function(out, pos, dat) {
-    var s = dat.length;
+    var s2 = dat.length;
     var o = shft(pos + 2);
-    out[o] = s & 255;
-    out[o + 1] = s >> 8;
+    out[o] = s2 & 255;
+    out[o + 1] = s2 >> 8;
     out[o + 2] = out[o] ^ 255;
     out[o + 3] = out[o + 1] ^ 255;
-    for (var i2 = 0; i2 < s; ++i2)
+    for (var i2 = 0; i2 < s2; ++i2)
       out[o + i2 + 4] = dat[i2];
-    return (o + 4 + s) * 8;
+    return (o + 4 + s2) * 8;
   };
   var wblk = function(dat, out, final, syms, lf, df, eb, li, bs, bl, p2) {
     wbits(out, p2++, final);
@@ -4441,8 +4700,8 @@
   var deo = /* @__PURE__ */ new i32([65540, 131080, 131088, 131104, 262176, 1048704, 1048832, 2114560, 2117632]);
   var et = /* @__PURE__ */ new u8(0);
   var dflt = function(dat, lvl, plvl, pre, post, st) {
-    var s = st.z || dat.length;
-    var o = new u8(pre + s + 5 * (1 + Math.ceil(s / 7e3)) + post);
+    var s2 = st.z || dat.length;
+    var o = new u8(pre + s2 + 5 * (1 + Math.ceil(s2 / 7e3)) + post);
     var w = o.subarray(pre, o.length - post);
     var lst = st.l;
     var pos = (st.r || 0) & 7;
@@ -4460,13 +4719,13 @@
       var syms = new i32(25e3);
       var lf = new u16(288), df = new u16(32);
       var lc_1 = 0, eb = 0, i2 = st.i || 0, li = 0, wi = st.w || 0, bs = 0;
-      for (; i2 + 2 < s; ++i2) {
+      for (; i2 + 2 < s2; ++i2) {
         var hv = hsh(i2);
         var imod = i2 & 32767, pimod = head[hv];
         prev[imod] = pimod;
         head[hv] = imod;
         if (wi <= i2) {
-          var rem = s - i2;
+          var rem = s2 - i2;
           if ((lc_1 > 7e3 || li > 24576) && (rem > 423 || !lst)) {
             pos = wblk(dat, w, 0, syms, lf, df, eb, li, bs, i2 - bs, pos);
             li = lc_1 = eb = 0, bs = i2;
@@ -4518,7 +4777,7 @@
           }
         }
       }
-      for (i2 = Math.max(i2, wi); i2 < s; ++i2) {
+      for (i2 = Math.max(i2, wi); i2 < s2; ++i2) {
         syms[li++] = dat[i2];
         ++lf[dat[i2]];
       }
@@ -4529,15 +4788,15 @@
         st.h = head, st.p = prev, st.i = i2, st.w = wi;
       }
     } else {
-      for (var i2 = st.w || 0; i2 < s + lst; i2 += 65535) {
+      for (var i2 = st.w || 0; i2 < s2 + lst; i2 += 65535) {
         var e = i2 + 65535;
-        if (e >= s) {
+        if (e >= s2) {
           w[pos / 8 | 0] = lst;
-          e = s;
+          e = s2;
         }
         pos = wfblk(w, pos + 1, dat.subarray(i2, e));
       }
-      st.i = s;
+      st.i = s2;
     }
     return slc(o, 0, pre + shft(pos) + post);
   };
@@ -4685,10 +4944,10 @@
     } else if (td) {
       return td.decode(dat);
     } else {
-      var _a2 = dutf8(dat), s = _a2.s, r = _a2.r;
+      var _a2 = dutf8(dat), s2 = _a2.s, r = _a2.r;
       if (r.length)
         err(8);
-      return s;
+      return s2;
     }
   }
   var slzh = function(d, b) {
@@ -4787,10 +5046,10 @@
     for (var fn in r) {
       var _a2 = r[fn], file = _a2[0], p2 = _a2[1];
       var compression = p2.level == 0 ? 0 : 8;
-      var f = strToU8(fn), s = f.length;
+      var f = strToU8(fn), s2 = f.length;
       var com = p2.comment, m = com && strToU8(com), ms = m && m.length;
       var exl = exfl(p2.extra);
-      if (s > 65535)
+      if (s2 > 65535)
         err(11);
       var d = compression ? deflateSync(file, p2) : file, l = d.length;
       var c = crc();
@@ -4801,12 +5060,12 @@
         c: d,
         f,
         m,
-        u: s != fn.length || m && com.length != ms,
+        u: s2 != fn.length || m && com.length != ms,
         o,
         compression
       }));
-      o += 30 + s + exl + l;
-      tot += 76 + 2 * (s + exl) + (ms || 0) + l;
+      o += 30 + s2 + exl + l;
+      tot += 76 + 2 * (s2 + exl) + (ms || 0) + l;
     }
     var out = new u8(tot + 22), oe = o, cdl = tot - o;
     for (var i2 = 0; i2 < files.length; ++i2) {
@@ -4823,10 +5082,10 @@
   // src/services/snippetCsv.js
   var CSV_COLS = ["name", "description", "contentText", "contentHtml", "tags", "folderXid", "createdAt", "updatedAt"];
   function csvEscape(val) {
-    const s = String(val == null ? "" : val);
-    if (s.includes('"') || s.includes(",") || s.includes("\n") || s.includes("\r"))
-      return '"' + s.replace(/"/g, '""') + '"';
-    return s;
+    const s2 = String(val == null ? "" : val);
+    if (s2.includes('"') || s2.includes(",") || s2.includes("\n") || s2.includes("\r"))
+      return '"' + s2.replace(/"/g, '""') + '"';
+    return s2;
   }
   function toCsv(rows) {
     const lines = [CSV_COLS.map(csvEscape).join(",")];
@@ -4993,15 +5252,15 @@
       exportedAt: now,
       folders: pkFolders
     };
-    const csvRows = (pastekitExport.snippets || []).map((s) => ({
-      name: s.name || "",
-      description: s.description || "",
-      contentText: s.contentText || "",
-      contentHtml: s.contentHtml || "",
-      tags: (s.tags || []).join(";"),
-      folderXid: s.folderXid || "",
-      createdAt: s.createdAt || "",
-      updatedAt: s.updatedAt || ""
+    const csvRows = (pastekitExport.snippets || []).map((s2) => ({
+      name: s2.name || "",
+      description: s2.description || "",
+      contentText: s2.contentText || "",
+      contentHtml: s2.contentHtml || "",
+      tags: (s2.tags || []).join(";"),
+      folderXid: s2.folderXid || "",
+      createdAt: s2.createdAt || "",
+      updatedAt: s2.updatedAt || ""
     }));
     const entries2 = {};
     if (passthrough) {
@@ -5047,7 +5306,7 @@
         folderXid: col(row2, "folderxid") || null,
         createdAt: col(row2, "createdat") || null,
         updatedAt: col(row2, "updatedat") || null
-      })).filter((s) => s.name);
+      })).filter((s2) => s2.name);
     }
     return { folders, snippets };
   }
@@ -5131,9 +5390,9 @@
         if (!db.objectStoreNames.contains("settings"))
           db.createObjectStore("settings", { keyPath: "key" });
         if (event.oldVersion >= 1 && event.oldVersion < 2) {
-          const s = req.transaction.objectStore("snippets");
+          const s2 = req.transaction.objectStore("snippets");
           for (const name of ["name", "folderId", "tags", "updatedAt"]) {
-            if (s.indexNames.contains(name)) s.deleteIndex(name);
+            if (s2.indexNames.contains(name)) s2.deleteIndex(name);
           }
         }
       };
@@ -5165,10 +5424,10 @@
   }
   async function closeDB() {
     if (!_dbPromise) return;
-    const pending = _dbPromise;
+    const pending2 = _dbPromise;
     _dbPromise = null;
     try {
-      (await pending).close();
+      (await pending2).close();
     } catch (_) {
     }
   }
@@ -5214,15 +5473,15 @@
         name: f.name,
         parentXid: f.parentId && folderXid.get(f.parentId) ? folderXid.get(f.parentId) : null
       })),
-      snippets: snippets.map((s) => ({
-        name: s.name,
-        description: s.description || "",
-        contentText: s.contentText || "",
-        contentHtml: s.contentHtml || "",
-        folderXid: s.folderId && folderXid.get(s.folderId) ? folderXid.get(s.folderId) : null,
-        tags: s.tags || [],
-        createdAt: new Date(s.createdAt || Date.now()).toISOString(),
-        updatedAt: new Date(s.updatedAt || Date.now()).toISOString()
+      snippets: snippets.map((s2) => ({
+        name: s2.name,
+        description: s2.description || "",
+        contentText: s2.contentText || "",
+        contentHtml: s2.contentHtml || "",
+        folderXid: s2.folderId && folderXid.get(s2.folderId) ? folderXid.get(s2.folderId) : null,
+        tags: s2.tags || [],
+        createdAt: new Date(s2.createdAt || Date.now()).toISOString(),
+        updatedAt: new Date(s2.updatedAt || Date.now()).toISOString()
       }))
     };
   }
@@ -5234,7 +5493,7 @@
     if (v > CURRENT_VERSION) throw new Error("File is from a newer Pastekit version (" + v + ")");
     const report = { foldersAdded: 0, snippetsAdded: 0, skipped: 0, replaced: 0, renamed: 0 };
     const existingSnippets = await readAllSnippets();
-    const snippetByName = new Map(existingSnippets.map((s) => [s.name, s]));
+    const snippetByName = new Map(existingSnippets.map((s2) => [s2.name, s2]));
     const inputFolders = Array.isArray(data.folders) ? data.folders : [];
     const { tx: fTx, os: fOs } = await store("folders", "readwrite");
     const existingFolders = await p(fOs.getAll());
@@ -5254,8 +5513,8 @@
   function planSnippetImport(inputSnippets, xidToId, snippetByName, mode, report) {
     const now = Date.now();
     const out = [];
-    for (const s of inputSnippets) {
-      const base = buildSnippetRecord(s, xidToId, now);
+    for (const s2 of inputSnippets) {
+      const base = buildSnippetRecord(s2, xidToId, now);
       if (!base.name) continue;
       const clash = snippetByName.get(base.name);
       if (clash && mode === "skip") {
@@ -5311,17 +5570,17 @@
       }
     }
   }
-  function buildSnippetRecord(s, xidToId, now) {
-    const folderXid = s.folderXid;
+  function buildSnippetRecord(s2, xidToId, now) {
+    const folderXid = s2.folderXid;
     const folderId = folderXid && xidToId.get(folderXid) != null ? xidToId.get(folderXid) : 0;
     return {
-      name: String(s.name || "").trim(),
-      description: s.description || "",
-      contentText: s.contentText || "",
-      contentHtml: s.contentHtml || "",
+      name: String(s2.name || "").trim(),
+      description: s2.description || "",
+      contentText: s2.contentText || "",
+      contentHtml: s2.contentHtml || "",
       folderId,
-      tags: Array.isArray(s.tags) ? s.tags.filter(Boolean) : [],
-      createdAt: s.createdAt ? Date.parse(s.createdAt) || now : now,
+      tags: Array.isArray(s2.tags) ? s2.tags.filter(Boolean) : [],
+      createdAt: s2.createdAt ? Date.parse(s2.createdAt) || now : now,
       updatedAt: now
     };
   }
@@ -5741,11 +6000,11 @@
     await clearPendingDecrease();
     await sendToBackground({ action: "updateSearchDelay", delaySeconds: newDelay });
   }
-  function pendingDecreaseText(pending, now = Date.now()) {
-    if (!pending || !pending.startTime) return "";
-    const remaining = Math.max(0, QUEUE_MS - (now - pending.startTime));
+  function pendingDecreaseText(pending2, now = Date.now()) {
+    if (!pending2 || !pending2.startTime) return "";
+    const remaining = Math.max(0, QUEUE_MS - (now - pending2.startTime));
     if (remaining <= 0) return "";
-    return `Queued: ${pending.targetDelay}s in ${formatTimeRemaining(remaining)}`;
+    return `Queued: ${pending2.targetDelay}s in ${formatTimeRemaining(remaining)}`;
   }
 
   // src/settings/definitions.js
@@ -5787,6 +6046,8 @@
     defineSetting({ key: "showQueryOnDelay" });
     defineSetting({ key: "saturation", write: requestSaturation });
     defineSetting({ key: "focusLocks" });
+    defineSetting({ key: "nsfwAction" });
+    defineSetting({ key: "socialFilter" });
   }
 
   // src/settings/controls.js
@@ -5818,7 +6079,7 @@
       lockKey: key,
       lockState: () => lockState(getSetting("focusLocks"), key),
       clickLock: click,
-      allows: (v) => changeAllowed(getSetting("focusLocks"), key, Number(getSetting(key)), Number(v))
+      allows: (v) => changeAllowed(getSetting("focusLocks"), key, getSetting(key), v)
     });
   }
   var saturation = {
@@ -5831,7 +6092,30 @@
     set: (v) => setSetting("saturation", parseInt(v, 10)),
     flush: flushSaturation
   };
+  var NSFW_ACTIONS = {
+    off: "Off",
+    blur: "Blur image",
+    blackout: "Make image black"
+  };
+  var socialFilter = lockable({
+    options: options(MODES),
+    get: () => normalize(getSetting("socialFilter")).mode,
+    set: (mode) => setSetting("socialFilter", withMode(getSetting("socialFilter"), mode))
+  }, "socialFilter");
+  socialFilter.allows = (mode) => changeAllowed(getSetting("focusLocks"), "socialFilter", getSetting("socialFilter"), withMode(getSetting("socialFilter"), mode));
+  function toggleSocialPart(id) {
+    const now = getSetting("socialFilter"), next2 = togglePart(now, id);
+    if (!changeAllowed(getSetting("focusLocks"), "socialFilter", now, next2)) return false;
+    setSetting("socialFilter", next2);
+    return true;
+  }
+  function socialPartState(id) {
+    const f = normalize(getSetting("socialFilter")), on = f.parts.includes(id);
+    return { on, held: on && f.mode === "parts" && lockState(getSetting("focusLocks"), "socialFilter") !== "open" };
+  }
   var CONTROLS = {
+    nsfwAction: lockable(choice("nsfwAction", NSFW_ACTIONS), "nsfwAction"),
+    socialFilter,
     saturation: lockable(saturation, "saturation", clickSaturationLock),
     showQuery: flag("showQueryOnDelay"),
     engine: choice("searchEngineBehavior", { "remember": "Remember last selected", "always-default": "Always reset to default" }),
@@ -5850,6 +6134,7 @@
   }
 
   // src/settings/markup.js
+  var esc2 = (s2) => String(s2 == null ? "" : s2).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   var I = {
     search: '<circle cx="9" cy="9" r="5.5"/><path d="m13.5 13.5 3 3"/>',
     sun: '<circle cx="10" cy="10" r="3.2"/><path d="M10 2.5v1.5M10 16v1.5M2.5 10H4M16 10h1.5M4.7 4.7l1 1M14.3 14.3l1 1M4.7 15.3l1-1M14.3 5.7l1-1"/>',
@@ -5869,7 +6154,7 @@
   var section = (title, cards) => `<div class="sp-section">${title ? `<h2 class="sp-section-title">${title}</h2>` : ""}${cards.join("")}</div>`;
   var select = (key, label, sm = false) => `<button class="sp-pill${sm ? " sm" : ""}" data-select="${key}"><span>${label}</span>${CHEV2}</button>`;
   var toggle = (key, on) => `<button class="sp-toggle" role="switch" data-toggle="${key}" aria-checked="${on}"></button>`;
-  var slider = (key, val, min = 0, max2 = 100) => `<div class="sp-slider-wrap"><input type="range" class="sp-slider" data-slider="${key}" min="${min}" max="${max2}" value="${val}"><span class="sp-slider-val">${val}%</span></div>`;
+  var slider = (key, val, min = 0, max2 = 100, unit = "%") => `<div class="sp-slider-wrap"><input type="range" class="sp-slider" data-slider="${key}" min="${min}" max="${max2}" value="${val}" data-unit="${esc2(unit)}"><span class="sp-slider-val">${val}${esc2(unit)}</span></div>`;
   var LOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
   var UNLOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.8-1"/></svg>';
   var LOCK_LABEL = {
@@ -5889,6 +6174,16 @@
       btn.innerHTML = shape === "open" ? UNLOCK_ICON : LOCK_ICON;
       btn.dataset.icon = shape;
     }
+  }
+  var chip = (id, label, on, held) => `<button type="button" class="sp-chip${on ? " on" : ""}" data-chip="${id}" aria-pressed="${on}"${held ? ' aria-disabled="true"' : ""}>${label}${held ? LOCK_ICON : ""}</button>`;
+  function paintChip(btn, on, held) {
+    btn.classList.toggle("on", on);
+    btn.setAttribute("aria-pressed", String(on));
+    if (held) btn.setAttribute("aria-disabled", "true");
+    else btn.removeAttribute("aria-disabled");
+    const lock = btn.querySelector("svg");
+    if (held && !lock) btn.insertAdjacentHTML("beforeend", LOCK_ICON);
+    else if (!held && lock) lock.remove();
   }
   function modeThumb(id, checked, bg, panel, line) {
     return `
@@ -5943,7 +6238,7 @@
     }
     const list = Object.entries(sites).map(([host, t]) => ({ host, ...t })).sort((a, b) => b.visibleMs - a.visibleMs);
     const total = blank();
-    for (const s of list) for (const f of Object.keys(FIELDS)) total[f] += s[f];
+    for (const s2 of list) for (const f of Object.keys(FIELDS)) total[f] += s2[f];
     return { sites: list, total, days };
   }
   function derived(t) {
@@ -5958,15 +6253,15 @@
     };
   }
   function clock(ms) {
-    const s = Math.round(ms / 1e3);
-    if (s >= 3600) return `${Math.floor(s / 3600)}h ${Math.floor(s % 3600 / 60)}m`;
-    if (s >= 60) return `${Math.floor(s / 60)}m`;
-    return `${s}s`;
+    const s2 = Math.round(ms / 1e3);
+    if (s2 >= 3600) return `${Math.floor(s2 / 3600)}h ${Math.floor(s2 % 3600 / 60)}m`;
+    if (s2 >= 60) return `${Math.floor(s2 / 60)}m`;
+    return `${s2}s`;
   }
 
   // src/settings/usagePage.js
   var RANGES = [{ days: 1, label: "Today" }, { days: 7, label: "7 days" }, { days: 30, label: "30 days" }];
-  var esc2 = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  var esc3 = (s2) => String(s2 ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   var SITES_SHOWN = 15;
   var state = { store: null, loadedAt: 0, loading: false, range: 7, armed: false, watching: false };
   function redrawIfShowing() {
@@ -6002,13 +6297,13 @@
   }
   function siteRows(sum) {
     const top = sum.sites.slice(0, SITES_SHOWN);
-    const most = Math.max(1, ...top.map((s) => s.visibleMs));
-    return top.map((s) => {
-      const d = derived(s);
-      const bits2 = [`hands on ${pct(d.handsOnShare)}`, `${s.pageViews} page view${s.pageViews === 1 ? "" : "s"}`, `${one(d.imagesPerMin)} images a minute`];
+    const most = Math.max(1, ...top.map((s2) => s2.visibleMs));
+    return top.map((s2) => {
+      const d = derived(s2);
+      const bits2 = [`hands on ${pct(d.handsOnShare)}`, `${s2.pageViews} page view${s2.pageViews === 1 ? "" : "s"}`, `${one(d.imagesPerMin)} images a minute`];
       if (d.mediaMs > 0) bits2.push(`${clock(d.mediaMs)} of video or audio`);
-      const bar = `<span class="sp-usage-bar" aria-hidden="true"><i style="width:${Math.max(3, Math.round(s.visibleMs / most * 100))}%"></i></span>`;
-      return `<div class="sp-row sp-usage-site" tabindex="0"><div class="sp-row-text"><div class="sp-row-title">${esc2(s.host)}</div><div class="sp-row-desc">${bits2.join(" \xB7 ")}</div></div><div class="sp-row-ctrl">${bar}<span class="sp-usage-time">${clock(s.visibleMs)}</span></div></div>`;
+      const bar = `<span class="sp-usage-bar" aria-hidden="true"><i style="width:${Math.max(3, Math.round(s2.visibleMs / most * 100))}%"></i></span>`;
+      return `<div class="sp-row sp-usage-site" tabindex="0"><div class="sp-row-text"><div class="sp-row-title">${esc3(s2.host)}</div><div class="sp-row-desc">${bits2.join(" \xB7 ")}</div></div><div class="sp-row-ctrl">${bar}<span class="sp-usage-time">${clock(s2.visibleMs)}</span></div></div>`;
     });
   }
   function clearRow() {
@@ -6044,6 +6339,109 @@
     }
   }
 
+  // src/constants/socialSlides.js
+  var SLIDE_DIR = "src/assets/social/";
+  var s = (img, site) => ({ img, site });
+  var SLIDES = {
+    homeFeed: [s("homeFeed-reddit", "Reddit"), s("homeFeed-tiktok-for-you", "TikTok For You"), s("homeFeed-facebook", "Facebook")],
+    suggested: [s("suggested-youtube", "YouTube"), s("suggested-reddit", "Reddit")],
+    trending: [s("trending-x", "X"), s("trending-reddit", "Reddit")],
+    whoToFollow: [s("whoToFollow-x", "X"), s("whoToFollow-instagram", "Instagram")],
+    stories: [s("stories-instagram", "Instagram"), s("stories-facebook", "Facebook")],
+    shortVideos: [s("shortVideos-youtube-shorts", "YouTube Shorts"), s("shortVideos-tiktok-for-you", "TikTok For You"), s("shortVideos-instagram-reels", "Instagram Reels"), s("shortVideos-snapchat-spotlight", "Snapchat Spotlight")],
+    autoplay: [s("autoplay-youtube", "YouTube"), s("autoplay-youtube-controls", "YouTube controls")],
+    liveStreams: [s("liveStreams-twitch", "Twitch"), s("liveStreams-youtube-live", "YouTube Live")],
+    upNext: [s("upNext-youtube", "YouTube")],
+    hoverPreviews: [s("hoverPreviews-youtube", "YouTube")],
+    likes: [s("likes-youtube", "YouTube"), s("likes-reddit", "Reddit"), s("likes-tiktok", "TikTok"), s("likes-instagram", "Instagram")],
+    follow: [s("follow-x", "X"), s("follow-youtube", "YouTube"), s("follow-instagram", "Instagram"), s("follow-tiktok", "TikTok")],
+    comments: [s("comments-youtube", "YouTube"), s("comments-reddit", "Reddit")],
+    share: [s("share-youtube", "YouTube"), s("share-reddit", "Reddit"), s("share-tiktok", "TikTok")],
+    messages: [s("messages-instagram", "Instagram")],
+    posting: [s("posting-facebook", "Facebook"), s("posting-tiktok", "TikTok")],
+    counts: [s("counts-youtube", "YouTube"), s("counts-instagram", "Instagram"), s("counts-tiktok", "TikTok"), s("counts-reddit", "Reddit")],
+    followers: [s("followers-youtube", "YouTube"), s("followers-x", "X"), s("followers-instagram", "Instagram")],
+    badges: [s("badges-twitch", "Twitch"), s("badges-facebook", "Facebook")]
+  };
+  var slidesOf = (id) => SLIDES[id] || [];
+
+  // src/settings/chipPane.js
+  var SLIDE_MS = 2400;
+  var HOVER_MS = 350;
+  var SWITCH_MS = 150;
+  var PICTURE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10.5" r="1.6"/><path d="M4 17l5-4.5 4 3.2 3-2.7 4 3.5"/></svg>';
+  var content = null;
+  var owner = null;
+  var timer2 = 0;
+  var pending = 0;
+  var esc4 = (s2) => String(s2 ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  var andList = (xs) => xs.length > 1 ? xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1] : xs.join("");
+  var paneEl = () => content ? content.querySelector(".sp-chip-pane") : null;
+  var restingPane = () => `<div class="sp-chip-pane-in sp-chip-rest"><div class="sp-chip-ghost">${PICTURE}</div><div class="sp-chip-pane-title">Point at a part</div><div class="sp-chip-pane-desc">Move over any pill, or Tab to it, to see where it shows up on each site.</div></div>`;
+  function slideshow(slides) {
+    const shots = slides.map((s2, i2) => `<div class="sp-chip-slide${i2 === 0 ? " on" : ""}"><img src="${SLIDE_DIR}${s2.img}.jpg" alt=""><span class="sp-chip-site">${esc4(s2.site)}</span></div>`).join("");
+    const dots = slides.length > 1 ? `<div class="sp-chip-dots">${slides.map((s2, i2) => `<i${i2 === 0 ? ' class="on"' : ""}></i>`).join("")}</div>` : "";
+    return `<div class="sp-chip-shot">${shots}</div>${dots}`;
+  }
+  function advance() {
+    const pane = paneEl();
+    if (!pane) {
+      clearInterval(timer2);
+      return;
+    }
+    const slides = pane.querySelectorAll(".sp-chip-slide"), dots = pane.querySelectorAll(".sp-chip-dots i");
+    const next2 = ([...slides].findIndex((s2) => s2.classList.contains("on")) + 1) % slides.length;
+    slides.forEach((s2, i2) => s2.classList.toggle("on", i2 === next2));
+    dots.forEach((d, i2) => d.classList.toggle("on", i2 === next2));
+  }
+  function resetChipPane() {
+    clearInterval(timer2);
+    clearTimeout(pending);
+    if (!owner) return;
+    owner.removeAttribute("aria-describedby");
+    owner = null;
+    const pane = paneEl();
+    if (pane) pane.innerHTML = restingPane();
+  }
+  function showPart(chip2) {
+    const part = partOf(chip2.dataset.chip), pane = paneEl();
+    if (!part || !pane) return;
+    clearInterval(timer2);
+    clearTimeout(pending);
+    if (owner && owner !== chip2) owner.removeAttribute("aria-describedby");
+    const slides = slidesOf(part.id);
+    pane.innerHTML = `<div class="sp-chip-pane-in"><div class="sp-chip-pane-title">${esc4(part.label)}</div><div class="sp-chip-pane-desc">${esc4(part.desc)}</div>` + (slides.length ? slideshow(slides) : "") + `<div class="sp-chip-pane-sites">Planned for ${esc4(andList(part.sites))}</div></div>`;
+    chip2.setAttribute("aria-describedby", pane.id);
+    owner = chip2;
+    if (slides.length > 1) timer2 = setInterval(advance, SLIDE_MS);
+  }
+  function initChipPane(contentEl) {
+    content = contentEl;
+    const chipOf = (e) => e.target.closest ? e.target.closest("[data-chip]") : null;
+    const leaves = (e) => {
+      const to = e.relatedTarget, area = e.target.closest(".sp-chip-area");
+      return !(to && area && area.contains(to));
+    };
+    content.addEventListener("mouseover", (e) => {
+      const c = chipOf(e);
+      if (!c) return;
+      clearTimeout(pending);
+      if (c !== owner) pending = setTimeout(() => showPart(c), owner ? SWITCH_MS : HOVER_MS);
+    });
+    content.addEventListener("mouseout", (e) => {
+      if (!e.target.closest(".sp-chip-area")) return;
+      if (chipOf(e)) clearTimeout(pending);
+      if (leaves(e)) resetChipPane();
+    });
+    content.addEventListener("focusin", (e) => {
+      const c = chipOf(e);
+      if (c && c !== owner) showPart(c);
+    });
+    content.addEventListener("focusout", (e) => {
+      if (chipOf(e) && leaves(e)) resetChipPane();
+    });
+  }
+
   // src/settings/pages.js
   var REVIEW_URL = "https://chromewebstore.google.com/detail/ipgmbcinekdcmhhnbanlahedgpehffab";
   var resetState = { confirming: false };
@@ -6065,12 +6463,20 @@
   var LOCK_TEXT = {
     tabLimit: { open: "Lock it to stop it going higher.", held: "Locked. It can go lower, but not higher." },
     searchDelaySeconds: { open: "A pause before results. Lock it to stop it getting shorter.", held: "Locked. It can get longer, but not shorter." },
-    saturation: { open: "Lock it to stop going back to color.", held: "Locked. It can go grayer, but not back to color." }
+    saturation: { open: "Lock it to stop going back to color.", held: "Locked. It can go grayer, but not back to color." },
+    nsfwAction: { open: "Lock it to prevent turning the shield off.", held: "Locked. You can make it more protective, but not turn it off." },
+    // Until the blocking is built (utils/socialFilter.js BLOCKING_LIVE) the page says so: a lock on a filter that blocks nothing would mislead.
+    socialFilter: {
+      open: BLOCKING_LIVE ? "Hide the parts of social sites that pull you in. Lock it to prevent turning it off." : "Not blocking yet. Lock it to prevent turning it off.",
+      held: "Locked. You can block more, but not less." + (BLOCKING_LIVE ? "" : " Not blocking yet.")
+    }
   };
   var QUEUED = {
     tabLimit: () => pendingIncreaseText(getSetting("pendingIncrease")),
     searchDelaySeconds: () => pendingDecreaseText(getSetting("pendingDelayDecrease")),
-    saturation: () => ""
+    saturation: () => "",
+    nsfwAction: () => "",
+    socialFilter: () => ""
   };
   var clockTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   function lockNote(key) {
@@ -6083,7 +6489,22 @@
     const state2 = lockState(getSetting("focusLocks"), key);
     return lockButton(key, state2, lockCountdown(key));
   };
+  function socialChips() {
+    if (normalize(getSetting("socialFilter")).mode !== "parts") return "";
+    const groups = GROUPS.map(
+      (g) => `<div class="sp-chip-label">${g.label}</div><div class="sp-chips">` + g.parts.map((p2) => {
+        const s2 = socialPartState(p2.id);
+        return chip(p2.id, p2.label, s2.on, s2.held);
+      }).join("") + `</div>`
+    ).join("");
+    return `<div class="sp-chip-box"><div class="sp-chip-split"><div class="sp-chip-area">${groups}</div><aside class="sp-chip-pane" id="sp-chip-pane" aria-live="polite">${restingPane()}</aside></div></div>`;
+  }
   function focusPage() {
+    const nsfwRows = [
+      row("NSFW image detection", lockNote("nsfwAction"), selectFor("nsfwAction") + lockFor("nsfwAction")),
+      row("Social media filter", lockNote("socialFilter"), selectFor("socialFilter") + lockFor("socialFilter")),
+      socialChips()
+    ];
     return section("Tab limiter", [card([
       row("Tab limit", lockNote("tabLimit"), selectFor("limit") + lockFor("tabLimit")),
       row("When the limit is hit", "", selectFor("method"))
@@ -6092,7 +6513,7 @@
       row("Show the search query", "While you wait", toggleFor("showQuery"))
     ])]) + section("Display", [card([
       row("Color saturation", lockNote("saturation"), slider("saturation", CONTROLS.saturation.get(), 0, 100) + lockFor("saturation")) + saturationPreview(CONTROLS.saturation.get())
-    ])]);
+    ])]) + section("Content shield", [card(nsfwRows)]);
   }
   function backupPage() {
     return section("", [card([
@@ -6131,7 +6552,7 @@
 
   // src/settings/menu.js
   var menu = null;
-  var owner = null;
+  var owner2 = null;
   function initMenu(menuEl, scrollHost) {
     menu = menuEl;
     menu.addEventListener("mousemove", (e) => {
@@ -6139,7 +6560,7 @@
       if (li && document.activeElement !== li) li.focus();
     });
     menu.addEventListener("mouseleave", () => {
-      if (owner) menu.focus();
+      if (owner2) menu.focus();
     });
     menu.addEventListener("click", (e) => {
       const li = e.target.closest(".sp-menu-item");
@@ -6147,14 +6568,14 @@
     });
     menu.addEventListener("keydown", onMenuKey2, true);
     document.addEventListener("mousedown", (e) => {
-      if (owner && !menu.contains(e.target) && !owner.contains(e.target)) closeMenu();
+      if (owner2 && !menu.contains(e.target) && !owner2.contains(e.target)) closeMenu();
     });
     window.addEventListener("resize", closeMenu);
     scrollHost.addEventListener("scroll", closeMenu);
   }
   function openMenu(btn) {
-    if (owner === btn) return closeMenu();
-    owner = btn;
+    if (owner2 === btn) return closeMenu();
+    owner2 = btn;
     const c = CONTROLS[btn.dataset.select], cur = String(c.get());
     const off = (o) => !!c.allows && !c.allows(o.value);
     menu.innerHTML = c.options.map(
@@ -6173,12 +6594,12 @@
   function closeMenu() {
     if (!menu) return;
     menu.classList.remove("open");
-    owner = null;
+    owner2 = null;
   }
-  var menuIsOpen = () => !!owner;
+  var menuIsOpen = () => !!owner2;
   function pick(li) {
     if (li.getAttribute("aria-disabled") === "true") return;
-    const btn = owner;
+    const btn = owner2;
     btn.querySelector("span").textContent = li.textContent;
     closeMenu();
     btn.focus();
@@ -6198,7 +6619,7 @@
     }
     if (e.key === "Escape") {
       e.stopPropagation();
-      const b = owner;
+      const b = owner2;
       closeMenu();
       if (b) b.focus();
     }
@@ -6234,23 +6655,25 @@
   // src/settings/shell.js
   var root = null;
   var navEl = null;
-  var content = null;
+  var content2 = null;
   var current = null;
   var currentArg = null;
   var $2 = (id) => document.getElementById(id);
-  var esc3 = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  var esc5 = (s2) => String(s2 ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   var HIDDEN = {};
   function installSettingsPage() {
     if (root) return;
     root = buildRoot();
     navEl = $2("sp-nav");
-    content = $2("sp-content");
+    content2 = $2("sp-content");
     initMenu($2("sp-menu"), root.querySelector(".sp-main"));
+    initChipPane(content2);
     wireShell();
     wireContent();
     onSettingChange((key, value) => {
       if (typeof value === "number" && showSlider(key, value)) return;
       if (key === "focusLocks" && showLocks()) return;
+      if (key === "socialFilter" && showChips()) return;
       rerenderSoon();
     });
     setInterval(showLocks, 1e3);
@@ -6275,6 +6698,7 @@
     if (!root || root.hidden) return;
     root.hidden = true;
     closeMenu();
+    resetChipPane();
     forgetSettingsUrl();
   }
   function buildRoot() {
@@ -6312,20 +6736,21 @@
   var navItem = (id) => NAV.flatMap((g) => g.items).find((i2) => i2.id === id);
   function renderPage() {
     closeMenu();
+    resetChipPane();
     const hidden = HIDDEN[current];
     const title = hidden ? hidden.title(currentArg) : navItem(current).label;
-    const back2 = hidden ? `<button class="sp-back-link" data-back="${hidden.parent}">${svg('<path d="M16 10H4m5-5-5 5 5 5"/>')}${esc3(navItem(hidden.parent).label)}</button>` : "";
+    const back2 = hidden ? `<button class="sp-back-link" data-back="${hidden.parent}">${svg('<path d="M16 10H4m5-5-5 5 5 5"/>')}${esc5(navItem(hidden.parent).label)}</button>` : "";
     const focusKey = focusedControl();
-    content.innerHTML = back2 + `<h1 class="sp-page-title">${esc3(title)}</h1>` + PAGES[current](currentArg);
+    content2.innerHTML = back2 + `<h1 class="sp-page-title">${esc5(title)}</h1>` + PAGES[current](currentArg);
     if (focusKey) {
-      const again = content.querySelector(`[${focusKey.attr}="${focusKey.value}"]`);
+      const again = content2.querySelector(`[${focusKey.attr}="${focusKey.value}"]`);
       if (again) again.focus();
     }
   }
   function focusedControl() {
     const a = document.activeElement;
-    if (!a || !content.contains(a)) return null;
-    for (const attr of ["data-select", "data-toggle", "data-mode", "data-action"]) {
+    if (!a || !content2.contains(a)) return null;
+    for (const attr of ["data-select", "data-toggle", "data-mode", "data-action", "data-input", "data-chip"]) {
       if (a.hasAttribute(attr)) return { attr, value: a.getAttribute(attr) };
     }
     return null;
@@ -6377,19 +6802,33 @@
     });
   }
   function showSlider(key, v) {
-    const sl = content.querySelector('[data-slider="' + key + '"]');
+    const sl = content2.querySelector('[data-slider="' + key + '"]');
     if (!sl) return false;
     if (document.activeElement !== sl) sl.value = String(v);
     const valDisp = sl.closest(".sp-slider-wrap").querySelector(".sp-slider-val");
-    if (valDisp) valDisp.textContent = v + "%";
+    if (valDisp) valDisp.textContent = String(v) + (sl.dataset.unit || "");
     if (key === "saturation") {
-      const sample = content.querySelector("#sp-sat-sample");
+      const sample = content2.querySelector("#sp-sat-sample");
       if (sample) sample.style.filter = "saturate(" + v + "%)";
     }
     return true;
   }
+  function showChips() {
+    const area = content2.querySelector(".sp-chip-area");
+    if (!!area !== (normalize(getSetting("socialFilter")).mode === "parts")) return false;
+    const pill = content2.querySelector('[data-select="socialFilter"] span');
+    if (pill) pill.textContent = labelOf("socialFilter");
+    paintChips();
+    return true;
+  }
+  function paintChips() {
+    content2.querySelectorAll("[data-chip]").forEach((b) => {
+      const s2 = socialPartState(b.dataset.chip);
+      paintChip(b, s2.on, s2.held);
+    });
+  }
   function showLocks() {
-    const btns = content ? content.querySelectorAll("[data-lock]") : [];
+    const btns = content2 ? content2.querySelectorAll("[data-lock]") : [];
     if (!btns.length) return false;
     btns.forEach((btn) => {
       const key = btn.dataset.lock, state2 = lockState(getSetting("focusLocks"), key);
@@ -6397,18 +6836,27 @@
       const note = lockNote(key);
       if (desc && desc.textContent !== note) desc.textContent = note;
       paintLockButton(btn, state2);
-      const count = content.querySelector(`[data-lockcount="${key}"]`);
+      const ctl = lockControl(key);
+      const sl = ctl && content2.querySelector(`[data-slider="${key}"]`);
+      if (sl && ctl.min) sl.min = String(ctl.min());
+      const count = content2.querySelector(`[data-lockcount="${key}"]`);
       if (count) count.textContent = state2 === "unlocking" ? lockCountdown(key) : "";
     });
+    paintChips();
     return true;
   }
   function wireContent() {
-    content.addEventListener("input", (e) => {
+    content2.addEventListener("input", (e) => {
       const sl = e.target.closest("[data-slider]");
       if (sl) {
         const ctl = CONTROLS[sl.dataset.slider];
         let v = parseInt(sl.value, 10);
+        const min = ctl.min ? ctl.min() : parseInt(sl.min || "0", 10);
         const max2 = ctl.max ? ctl.max() : 100;
+        if (v < min) {
+          v = min;
+          sl.value = String(min);
+        }
         if (v > max2) {
           v = max2;
           sl.value = String(max2);
@@ -6417,11 +6865,16 @@
         showSlider(sl.dataset.slider, v);
       }
     });
-    content.addEventListener("change", (e) => {
+    content2.addEventListener("change", (e) => {
       const sl = e.target.closest("[data-slider]");
-      if (sl && CONTROLS[sl.dataset.slider].flush) CONTROLS[sl.dataset.slider].flush();
+      if (sl) {
+        if (CONTROLS[sl.dataset.slider].flush) CONTROLS[sl.dataset.slider].flush();
+        return;
+      }
+      const inp = e.target.closest("[data-input]");
+      if (inp) CONTROLS[inp.dataset.input].set(inp.value);
     });
-    content.addEventListener("click", (e) => {
+    content2.addEventListener("click", (e) => {
       const back2 = e.target.closest("[data-back]");
       if (back2) {
         go(back2.dataset.back);
@@ -6436,13 +6889,18 @@
       }
       const m = e.target.closest("[data-mode]");
       if (m) {
-        content.querySelectorAll("[data-mode]").forEach((b) => b.setAttribute("aria-checked", String(b === m)));
+        content2.querySelectorAll("[data-mode]").forEach((b) => b.setAttribute("aria-checked", String(b === m)));
         CONTROLS.theme.set(m.dataset.mode);
         return;
       }
-      const s = e.target.closest("[data-select]");
-      if (s) {
-        openMenu(s);
+      const ch = e.target.closest("[data-chip]");
+      if (ch) {
+        toggleSocialPart(ch.dataset.chip);
+        return;
+      }
+      const s2 = e.target.closest("[data-select]");
+      if (s2) {
+        openMenu(s2);
         return;
       }
       const a = e.target.closest("[data-action]");
@@ -6472,7 +6930,7 @@
         if (isSettingsOpen()) renderPage();
       },
       go,
-      content,
+      content: content2,
       svg,
       row,
       card,

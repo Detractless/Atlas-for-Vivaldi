@@ -3,11 +3,19 @@ import { saveClosingTabs } from '../services/tabSaver.js';
 import { storageGet } from '../services/storage.js';
 import { warn } from '../services/log.js';
 
-function isTabLimitExcluded(tab) {
+/* A sidebar web panel is not a tab you opened, but Vivaldi lists its page as one. It carries
+   a panelId in vivExtData, which no ordinary tab has, so that is how every panel is found
+   (the Downloads panel, ChatGPT, whatever is added later). The addresses below are the
+   older Tools sidebars, kept as a second way to recognise them. */
+export function isTabLimitExcluded(tab) {
+  const data = (typeof tab?.vivExtData === "string") ? tab.vivExtData : "";
+  if (/"panelId"\s*:/.test(data)) return true;
   const url = (typeof tab?.url === "string") ? tab.url : "";
   return /^chrome-extension:\/\/mpognobbkildjkofajifpdfhcoklimli\/sidepanel\.html(?:\?.*)?$/.test(url)
     || /^chrome-extension:\/\/fcoeoabgfenejglbffodgkkbkcdhcgfn\/sidepanel\.html(?:\?.*)?$/.test(url)
-    || /^chrome-extension:\/\/hehggadaopoacecdllhhajmbjkdcmajg\/codex-sidepanel\/index\.html(?:\?.*)?$/.test(url);
+    || /^chrome-extension:\/\/hehggadaopoacecdllhhajmbjkdcmajg\/codex-sidepanel\/index\.html(?:\?.*)?$/.test(url)
+    // The Downloads panel, by address too: a new panel's page has no panelId yet when onCreated fires.
+    || /^chrome-extension:\/\/[a-p]{32}\/components\/atlas\/downloads-panel\.html(?:\?.*)?$/.test(url);
 }
 
 async function getAllTabs() {

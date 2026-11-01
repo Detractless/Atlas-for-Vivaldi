@@ -12,12 +12,13 @@ from .util import say
 
 
 class MacOSStagingContext:
-    def __init__(self, res: Path):
+    def __init__(self, res: Path, allow_live: bool = True):
         self.orig_res = res
         self.is_staged = False
         self.orig_bundle = None
         self.staging_bundle = None
         self.old_bundle = None
+        self.allow_live = allow_live
 
         if sys.platform == "darwin":
             for parent in [res, *res.parents]:
@@ -44,6 +45,15 @@ class MacOSStagingContext:
 
         if can_write:
             return self.orig_res
+
+        from .process import vivaldi_running
+        if not self.allow_live and not vivaldi_running():
+            pass  # a close request may have just freed the bundle
+        elif vivaldi_running():
+            # Swapping the .app bundle out from under a running Vivaldi is too
+            # risky; ask for a quit instead.
+            util.fail("Vivaldi's app bundle is locked (macOS App Management) while Vivaldi runs.\n"
+                      "  Quit Vivaldi, or pass --close to let the installer quit it first.")
 
         say("macOS App Management detected: staging bundle to bypass lock...")
         caches_dir = Path.home() / "Library" / "Caches"

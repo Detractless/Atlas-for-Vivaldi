@@ -22,7 +22,13 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
     /* Usage totals: how long a site is in front of you and what you do there (Settings > Usage). */
     { id: 'atlas-usage', matches: ['http://*/*', 'https://*/*'],
       excludeMatches: ['https://chromewebstore.google.com/*'],
-      js: ['components/atlas/atlas-usage.js'], runAt: 'document_idle' }
+      js: ['components/atlas/atlas-usage.js'], runAt: 'document_idle' },
+    /* NSFW image guard: document_start and all_frames so no explicit image flashes;
+       the drag script stops a drag from exposing a flagged image's original. */
+    { id: 'atlas-nsfw-guard', matches: ['http://*/*', 'https://*/*'],
+      excludeMatches: ['https://chromewebstore.google.com/*'],
+      allFrames: true,
+      js: ['components/atlas/atlas-nsfw-log.js', 'components/atlas/atlas-nsfw-work.js', 'components/atlas/atlas-nsfw-image-work.js', 'components/atlas/atlas-nsfw-image-layout.js', 'components/atlas/atlas-nsfw-image-observer.js', 'components/atlas/atlas-nsfw-image-ui.js', 'components/atlas/atlas-nsfw-image-sources.js', 'components/atlas/atlas-nsfw-image-shield.js', 'components/atlas/atlas-nsfw-guard-watch.js', 'components/atlas/atlas-nsfw-guard.js', 'components/atlas/atlas-nsfw-drag.js'], runAt: 'document_start' }
   ];
   /* Registrations persist in the profile, and a plain register throws
      "Duplicate" for an existing id. UPDATE existing ones in place (so a params
@@ -31,7 +37,7 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
      restoring tab loads with no context-menu script. Only ids we no longer
      want (the archived Remover and PasteKit scripts, atlas-remover-rules from an
      earlier build) are swept. */
-  var OUR_CS_IDS = ['atlas-ctxmenu', 'atlas-google-account', 'atlas-usage', 'detractless-rules', 'detractless-pastekit', 'atlas-remover-rules'];
+  var OUR_CS_IDS = ['atlas-ctxmenu', 'atlas-google-account', 'atlas-usage', 'atlas-nsfw-guard', 'detractless-rules', 'detractless-pastekit', 'atlas-remover-rules'];
   var WANTED_IDS = DESIRED_CS.map(function (c) { return c.id; });
   chrome.scripting.getRegisteredContentScripts(function (existing) {
     void chrome.runtime.lastError;
@@ -55,7 +61,7 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
    on the messages its items send. Protected pages (Web Store, PDFs) are
    refused by Chromium and keep the pruned native menu. */
 var CTX_SCRIPTS = ['components/atlas/atlas-spelling.js', 'components/atlas/atlas-menu.js', 'components/atlas/atlas-ctxmenu.js'];
-var INJECTABLE = /^(https?|vivaldi|chrome|chrome-extension):/;
+var INJECTABLE = /^(https?|file|vivaldi|chrome|chrome-extension):/;
 /* The Web Store is unscriptable by Chromium. Our own history and downloads
    pages deliberately have no context menu at all, so skip them too. */
 var NO_INJECT = /^(chrome:\/\/webstore|https:\/\/chromewebstore\.google\.com)|\/components\/atlas\//;

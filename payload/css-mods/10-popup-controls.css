@@ -1,0 +1,145 @@
+/* ── 18. Controls inside popups: switch, buttons, rows, ticks ───────────────
+   The Site info popup (click the lock or shield) and the permission popups
+   draw their own switch, grey buttons, blue "on" rows and black triangles.
+   Here they take the Atlas vocabulary: the settings page's ink switch, soft
+   pill buttons (as the Add flow's Cancel), a wash under the pointer, a thin
+   chevron for rows that open something, and a tick for the one chosen, as in
+   the settings menu. Vivaldi's blue highlight is not used. Sizes are the profile
+   flyout's: a 6px frame, 32px rows with 7px corners, 13px text. */
+
+/* The switch is Vivaldi's own everywhere; same look as the Atlas settings page:
+   grey track and ink knob when off, ink track and light knob when on. */
+#browser .Switch { zoom: 1.25; }   /* 28x16 becomes 35x20, the settings toggle's size; Vivaldi moves the knob itself, so the whole switch is scaled */
+#browser .Switch .Switch-Input {
+  background-color: var(--atlas-toggle-off) !important;
+  box-shadow: none;
+}
+#browser .Switch .Switch-Input:checked { background-color: var(--atlas-text-1) !important; }
+#browser .Switch .Switch-Button { background-color: var(--atlas-text-1); box-shadow: none; }
+#browser .Switch:has(.Switch-Input:checked) .Switch-Button { background-color: var(--atlas-bar); }
+
+/* Soft pill buttons: "Reset Permissions" and "Privacy Statistics" are plain
+   <input type=button> inside the Site info popup, and the permission prompts use buttons. */
+#browser :is(.SiteInfo, .SiteInfo-Footer, .SiteInfo-Field-Permissions, .addressfield-popup-container)
+  :is(input[type="button"], button:not(.SiteInfo-Close, .SiteInfo-Back, .SiteInfo-Label, .LinkArrow, .LinkExternal, .Switch-Button, .close)) {
+  height: auto;
+  min-height: 0;
+  padding: 4px 14px;
+  border: 0;
+  border-radius: 9999px;
+  background-color: var(--atlas-hover-2);
+  background-image: none;
+  box-shadow: none;
+  color: var(--atlas-text-1);
+  font-size: 12.5px;
+  line-height: 18px;
+}
+#browser :is(.SiteInfo, .SiteInfo-Footer, .SiteInfo-Field-Permissions, .addressfield-popup-container)
+  :is(input[type="button"], button:not(.SiteInfo-Close, .SiteInfo-Back, .SiteInfo-Label, .LinkArrow, .LinkExternal, .Switch-Button, .close)):hover { background-color: var(--atlas-hover-3); }
+#browser .SiteInfo-Footer { padding: 6px 12px 12px; }
+
+/* Rows that open something: a wash under the pointer, and a thin chevron in place of the triangle. */
+#browser .SiteInfo-Field .LinkArrow { border-radius: 7px; }
+#browser .SiteInfo-Field .LinkArrow:hover { background-color: var(--atlas-hover-2); }
+#browser .SiteInfo-Field .LinkArrow:after {
+  rotate: none;
+  opacity: .6;
+  mask-image: var(--atlas-icon-chevron);
+}
+
+/* Tracker blocking choice: the chosen row shows a tick, as in the settings menu,
+   and nothing else changes: no fill, no blue. */
+#browser .SiteInfo-Label { border-radius: 7px; }
+#browser .SiteInfo-Label:hover { background-color: var(--atlas-hover-2); }
+#browser .SiteInfo-Label--Active { background-color: transparent; color: var(--atlas-text-1); }
+#browser .SiteInfo-Label--Active svg { color: var(--atlas-text-1); }
+#browser .SiteInfo-Label--Active svg .outline { stroke: var(--atlas-text-1); }
+#browser .SiteInfo-Label--Active::after {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-left: auto;
+  background-color: currentColor;
+  mask: var(--atlas-icon-check) center / 14px no-repeat;
+}
+
+/* Dividers between the popup's sections stop short of the edges, like the menus'. */
+#browser .SiteInfo-Counter + .SiteInfo-Field,
+#browser .SiteInfo-Blocked + .SiteInfo-Field,
+#browser .SiteInfo-Field + .SiteInfo-Field { border-top: 0; }
+#browser .SiteInfo-Counter + .SiteInfo-Field::before,
+#browser .SiteInfo-Blocked + .SiteInfo-Field::before,
+#browser .SiteInfo-Field + .SiteInfo-Field::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+  background-color: var(--atlas-border);
+}
+
+/* Counters and links that Vivaldi turns blue on hover. */
+#browser .SiteInfo-Counter--Block:hover div { background-color: var(--atlas-text-2); }
+#browser .addressfield-popup .blocked-content div.clickable { color: var(--atlas-text-1); }
+
+/* Sizing, the profile flyout's measure: Vivaldi's rows are 24px with 9px padding, which
+   makes this popup look small next to the menus. */
+#browser .SiteInfo-Header {
+  padding: 10px 16px 0;
+  border-bottom: 0;
+  font-size: 14px;
+}
+#browser .SiteInfo-Header::after {
+  content: "";
+  flex: 0 0 100%;
+  height: 1px;
+  margin: 8px -6px 4px;
+  background-color: var(--atlas-border);
+}
+/* On a second page ("Security") the title sits in the header too. The line is moved ahead of it
+   so it falls right under the site name, as on the main page, and the title becomes the small
+   bold heading the menus use. */
+#browser .SiteInfo-Header::after { order: 1; }
+#browser .SiteInfo-Header-Title {
+  order: 2;
+  margin: 0;
+  padding: 2px 0 0;
+  color: var(--atlas-text-2);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+#browser .SiteInfo-Header:has(.SiteInfo-Header-Title) { padding-bottom: 2px; }
+#browser .SiteInfo-Content { padding: 0 6px 4px; }
+#browser .SiteInfo-Field { padding: 0; }
+#browser .SiteInfo-Label,
+#browser .SiteInfo-Field-Permissions li {
+  min-height: 32px;
+  padding: 0 10px;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+/* A row whose own button already pads (Site Settings) must not be padded twice; the Reset
+   Permissions row holds only the pill; and Vivaldi's 3px label padding goes so icons line up. */
+#browser .SiteInfo-Field-Permissions li:has(> .SiteInfo-Label) { padding: 0; }
+#browser .SiteInfo-Field-Permissions li:has(> input[type="button"]) { min-height: 0; padding: 4px 10px 6px; }
+#browser .SiteInfo-Field-Permissions.SiteInfo-Field-Permissions label { padding: 0; }
+#browser .SiteInfo-Field-Permissions label { gap: 8px; }   /* the icon-to-text gap the other rows use */
+#browser .SiteInfo-Field-Permissions li > input[type="button"] { margin: 0; }   /* Vivaldi adds 6px above and below the pill */
+/* The security page's text block and Back button start at the same 16px as the rows, and its link is ink, not blue. */
+#browser .SiteInfo-Status { padding: 0 10px 6px; }
+#browser .SiteInfo-Back { margin: 8px 10px 6px; }
+#browser .SiteInfo :is(a, .InlineText) { color: var(--atlas-text-1); text-decoration: underline; }   /* "Learn more." is a span */
+#browser .SiteInfo-Counter { margin-top: 8px; padding: 0 10px 8px; font-size: 12.5px; line-height: 1.15; }
+#browser .SiteInfo-Counter--Number {
+  align-items: center;
+  height: 32px;
+  min-width: 36px;
+  padding: 0 8px;
+  border-radius: 8px;
+}
+#browser .SiteInfo-Footer { padding: 4px 10px 10px; }

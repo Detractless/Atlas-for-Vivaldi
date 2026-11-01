@@ -1,6 +1,8 @@
 // src/settings/markup.js — icons and HTML builders for the Settings page.
 // Also exposed to profilesPage.js through window.AtlasSettingsUI.
 
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
 export const I = {
   search: '<circle cx="9" cy="9" r="5.5"/><path d="m13.5 13.5 3 3"/>',
   sun: '<circle cx="10" cy="10" r="3.2"/><path d="M10 2.5v1.5M10 16v1.5M2.5 10H4M16 10h1.5M4.7 4.7l1 1M14.3 14.3l1 1M4.7 15.3l1-1M14.3 5.7l1-1"/>',
@@ -31,8 +33,11 @@ export const select = (key, label, sm = false) =>
   `<button class="sp-pill${sm ? " sm" : ""}" data-select="${key}"><span>${label}</span>${CHEV}</button>`;
 export const toggle = (key, on) =>
   `<button class="sp-toggle" role="switch" data-toggle="${key}" aria-checked="${on}"></button>`;
-export const slider = (key, val, min = 0, max = 100) =>
-  `<div class="sp-slider-wrap"><input type="range" class="sp-slider" data-slider="${key}" min="${min}" max="${max}" value="${val}"><span class="sp-slider-val">${val}%</span></div>`;
+export const slider = (key, val, min = 0, max = 100, unit = "%") =>
+  `<div class="sp-slider-wrap"><input type="range" class="sp-slider" data-slider="${key}" min="${min}" max="${max}" value="${val}" data-unit="${esc(unit)}"><span class="sp-slider-val">${val}${esc(unit)}</span></div>`;
+/** A one-line text field; saves on change (blur or Enter), wired in shell.js. */
+export const textInput = (key, value, placeholder = "") =>
+  `<input class="sp-input" type="text" data-input="${key}" value="${esc(value)}" placeholder="${esc(placeholder)}" spellcheck="false" autocomplete="off">`;
 
 export const LOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
 export const UNLOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.8-1"/></svg>';
@@ -42,7 +47,7 @@ const LOCK_LABEL = {
   held: "Locked. Click to start unlocking, which takes 30 minutes",
   unlocking: "Unlocking. Click to keep it locked",
 };
-/** The lock at the right end of a Focus row (`key`: tabLimit, searchDelaySeconds or saturation): open, locked
+/** The lock at the right end of a Focus row (`key`: tabLimit, searchDelaySeconds, saturation or nsfwAction): open, locked
     (dark), or unlocking, with the time left beside it. Every state can be clicked. */
 export const lockButton = (key, state, countdown) =>
   `<span class="sp-lockcount" data-lockcount="${key}">${state === "unlocking" ? countdown : ""}</span>` +
@@ -57,6 +62,18 @@ export function paintLockButton(btn, state) {
   btn.title = LOCK_LABEL[state];
   const shape = state === "open" ? "open" : "shut";
   if (btn.dataset.icon !== shape) { btn.innerHTML = shape === "open" ? UNLOCK_ICON : LOCK_ICON; btn.dataset.icon = shape; }
+}
+/** One part of the social media filter: a pill you switch on and off. `held` (switched on, and the lock keeps it on) shows a small lock. */
+export const chip = (id, label, on, held) =>
+  `<button type="button" class="sp-chip${on ? " on" : ""}" data-chip="${id}" aria-pressed="${on}"${held ? ' aria-disabled="true"' : ""}>${label}${held ? LOCK_ICON : ""}</button>`;
+/** A chip brought up to date in place, so a keyboard focus on it survives. */
+export function paintChip(btn, on, held) {
+  btn.classList.toggle("on", on);
+  btn.setAttribute("aria-pressed", String(on));
+  if (held) btn.setAttribute("aria-disabled", "true"); else btn.removeAttribute("aria-disabled");
+  const lock = btn.querySelector("svg");
+  if (held && !lock) btn.insertAdjacentHTML("beforeend", LOCK_ICON);
+  else if (!held && lock) lock.remove();
 }
 /** A small picture of the page in one theme, used as a radio button. */
 export function modeThumb(id, checked, bg, panel, line) {

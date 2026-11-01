@@ -232,3 +232,47 @@ test("the lock button's rules beat '#sp-root button { color: inherit }', or a lo
   assert.match(rule(".sp-lockbtn {"), /^#sp-root \.sp-lockbtn/);
   assert.match(rule(".sp-seg-btn {"), /^#sp-root \.sp-seg-btn/, "and so are the Usage time-span buttons");
 });
+
+test("Content shield: fixed detector setting, lock beside the action dropdown", async () => {
+  const t = await openNewTab();
+  const content = await openSettingsAt(t, "focus");
+
+  assert.ok(content.querySelector('[data-select="nsfwAction"]'), "the action dropdown is there");
+  assert.equal(text(content.querySelector('[data-select="nsfwAction"] span')), "Off", "Off by default");
+  assert.equal(content.querySelector('[data-select="nsfwStrictness"]'), null, "sensitivity is not a UI setting");
+  assert.equal(content.querySelector('[data-slider="nsfwStrictness"]'), null, "there is no sensitivity slider");
+  const row = content.querySelector('[data-select="nsfwAction"]').closest(".sp-row");
+  assert.ok(row.querySelector('[data-lock="nsfwAction"]'), "the shield lock is beside the mode dropdown");
+  assert.match(text(row.querySelector(".sp-row-desc")), /Lock it to prevent turning the shield off/);
+  assert.equal(await stored(t, "nsfwAction"), undefined, "nothing is written while off: the default stays implicit");
+
+  click(t.window, content.querySelector('[data-select="nsfwAction"]'));
+  assert.deepEqual([...t.document.querySelectorAll("#sp-menu .sp-menu-item")].map(text),
+    ["Off", "Blur image", "Make image black"], "three actions, no page blocking or redirect");
+  click(t.window, [...t.document.querySelectorAll("#sp-menu .sp-menu-item")].find((li) => text(li) === "Blur image"));
+  await settle(t.window, 50);
+  assert.equal(await stored(t, "nsfwAction"), "blur", "the action saves at once");
+
+  const selectedRow = content.querySelector('[data-select="nsfwAction"]').closest(".sp-row");
+  click(t.window, selectedRow.querySelector('[data-lock="nsfwAction"]'));
+  await settle(t.window, 100);
+  assert.deepEqual(await stored(t, "focusLocks"), { nsfwAction: { unlockAt: null } }, "the lock is saved against the shield action");
+  click(t.window, content.querySelector('[data-select="nsfwAction"]'));
+  assert.deepEqual(Object.fromEntries([...t.document.querySelectorAll("#sp-menu .sp-menu-item")]
+    .map((li) => [text(li), li.getAttribute("aria-disabled") !== "true"])),
+  { "Off": false, "Blur image": true, "Make image black": true }, "locked at Blur, Off is the only disallowed choice");
+  click(t.window, [...t.document.querySelectorAll("#sp-menu .sp-menu-item")].find((li) => text(li) === "Off"));
+  await settle(t.window, 50);
+  assert.equal(await stored(t, "nsfwAction"), "blur", "the shield cannot be turned off while locked");
+  click(t.window, content.querySelector('[data-select="nsfwAction"]'));
+  await pick(t, "nsfwAction", "Make image black");
+  assert.equal(await stored(t, "nsfwAction"), "blackout", "a stricter action remains selectable while locked");
+  click(t.window, content.querySelector('[data-select="nsfwAction"]'));
+  assert.deepEqual(Object.fromEntries([...t.document.querySelectorAll("#sp-menu .sp-menu-item")]
+    .map((li) => [text(li), li.getAttribute("aria-disabled") !== "true"])),
+  { "Off": false, "Blur image": false, "Make image black": true },
+    "locked at Blackout, only the current strongest choice stays enabled");
+  click(t.window, content.querySelector('[data-select="nsfwAction"]'));
+  assert.equal(await stored(t, "nsfwAction"), "blackout", "the selected strict mode is unchanged");
+  assert.deepEqual(t.errors, []);
+});
