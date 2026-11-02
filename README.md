@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
-    <img src="assets/banner-light.svg" alt="Atlas for Vivaldi: the gateway to the internet, made less addictive" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-light.svg">
+    <img src="assets/banner-dark.svg" alt="Atlas for Vivaldi: the gateway to the internet, made less addictive" width="100%">
   </picture>
 </p>
 
