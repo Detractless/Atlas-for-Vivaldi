@@ -47,6 +47,10 @@ Atlas restyles Vivaldi and replaces its new tab with the **Detractless** dashboa
   <td>Every page gets darker the longer or farther you scroll, on all sites together, so hopping to another site doesn't start you over. Once it is fully dark it stays that way for a wait you can't shorten by scrolling or by stopping (10 minutes by default). It is drawn by Vivaldi's own window, so it dims every page, even ones no script can run on.</td>
 </tr>
 <tr>
+  <td><b>Doomscroll detection</b><br><sub><code>coming soon</code></sub></td>
+  <td>Spot the moment you slip into endless scrolling and step in. Today, Scroll fade covers this by dimming every page the longer or farther you scroll; detection is the smarter version planned on top of it.</td>
+</tr>
+<tr>
   <td><b>Social media filter</b><br><sub><code>available now</code></sub></td>
   <td>Hide the parts of YouTube, Reddit, Instagram, X, TikTok, Facebook, Snapchat and Twitch that pull you in, or block a whole site.</td>
 </tr>
@@ -61,6 +65,10 @@ Atlas restyles Vivaldi and replaces its new tab with the **Detractless** dashboa
 <tr>
   <td><b>Tab limiter and search delay</b><br><sub><code>available now</code></sub></td>
   <td>Cap how many tabs can be open, and put a pause in front of searches.</td>
+</tr>
+<tr>
+  <td><b>Tab cleanup</b><br><sub><code>coming soon</code></sub></td>
+  <td>Tidy your tabs for you. Today, the tab limiter caps how many tabs can be open, by blocking the new tab or closing a random one.</td>
 </tr>
 <tr>
   <td><b>Focus locks</b><br><sub><code>available now</code></sub></td>
@@ -177,6 +185,8 @@ Atlas is a set of parts that run in different places. The installer copies them 
 - [x] Usage page
 - [x] macOS installer
 - [ ] Content shield model files for fresh copies
+- [ ] Doomscroll detection, beyond Scroll fade
+- [ ] Tab cleanup, beyond the tab limit
 - [ ] A richer Usage page
 - [ ] Pattern control
 - [ ] Regular Windows testing
