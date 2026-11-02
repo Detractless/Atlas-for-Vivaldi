@@ -185,6 +185,18 @@ function initializeDelayPage() {
 document.addEventListener("DOMContentLoaded", () => {
   // Load theme first
   loadTheme()
+
+  // "Block social sites entirely": a plain block page, no timer and no way through (background/socialBlock.js)
+  if (urlParams.get("why") === "social") {
+    document.getElementById("timer-container").style.display = "none"
+    document.getElementById("reveal-container").style.display = "none"
+    document.getElementById("social-container").style.display = "block"
+    const site = urlParams.get("site") || "This site"
+    document.getElementById("social-title").textContent = site + " is blocked"
+    document.getElementById("social-text").textContent = "Block social sites entirely is on. Turn it off in Settings > Focus."
+    document.title = "Blocked - " + site
+    return
+  }
   
   // Display search query if enabled
   displaySearchQuery()

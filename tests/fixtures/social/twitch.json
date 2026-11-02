@@ -1,0 +1,22 @@
+{
+ "home": {
+  "url": "https://www.twitch.tv/",
+  "matches": {
+   "liveStreams": 15,
+   "badges": 1
+  }
+ },
+ "channel": {
+  "url": "https://www.twitch.tv/theburntpeanut",
+  "matches": {
+   "liveStreams": 15,
+   "badges": 1
+  }
+ },
+ "directory": {
+  "url": "https://www.twitch.tv/directory/all",
+  "matches": {
+   "liveStreams": 11
+  }
+ }
+}

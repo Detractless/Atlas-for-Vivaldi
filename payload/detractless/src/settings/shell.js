@@ -11,6 +11,8 @@ import { importBookmarks, exportBookmarks } from '../pages/newtab/importExport.j
 import { resetAllData } from '../services/resetService.js';
 import { usageAction } from './usagePage.js';
 import { initChipPane, resetChipPane } from './chipPane.js';
+import { showFade, paintFadePreview, paintFadeSites, paintFadeSlider } from './scrollFadePage.js';
+import { removeFadeSite } from './fadeControls.js';
 import { normalize } from '../utils/socialFilter.js';
 
 /* `current` is null until Settings first opens, which then shows the first page in the list (Profiles). */
@@ -38,6 +40,8 @@ export function installSettingsPage() {
     if (key === "focusLocks" && showLocks()) return;
     // A chip switches in place, so the panel beside it stays as it is; only a change of mode redraws.
     if (key === "socialFilter" && showChips()) return;
+    // Scroll fade: the slider, pictures and pills change in place; only rows coming or going draw the page again.
+    if (key === "scrollFade" && showFade(content, value)) return;
     rerenderSoon();
   });
   // The time left on an unlock counts down, and the lock opens when it ends.
@@ -183,6 +187,7 @@ function showSlider(key, v) {
     const sample = content.querySelector("#sp-sat-sample");
     if (sample) sample.style.filter = "saturate(" + v + "%)";
   }
+  if (key === "fadeDarkest") paintFadePreview(content, v);
   return true;
 }
 
@@ -219,6 +224,8 @@ function showLocks() {
     if (count) count.textContent = state === "unlocking" ? lockCountdown(key) : "";
   });
   paintChips();   // a chip the lock holds on shows a small lock
+  paintFadeSites(content);   // and a site on the scroll fade's list
+  paintFadeSlider(content);
   return true;
 }
 
@@ -263,6 +270,8 @@ function wireContent() {
     }
     const ch = e.target.closest("[data-chip]");
     if (ch) { toggleSocialPart(ch.dataset.chip); return; }
+    const site = e.target.closest("[data-site]");
+    if (site) { removeFadeSite(site.dataset.site); return; }
     const s = e.target.closest("[data-select]");
     if (s) { openMenu(s); return; }
     const a = e.target.closest("[data-action]");

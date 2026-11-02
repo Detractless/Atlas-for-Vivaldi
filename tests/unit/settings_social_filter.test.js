@@ -42,7 +42,7 @@ test("the shield row is named NSFW image detection, and the Social media filter 
   assert.equal(text(row.querySelector(".sp-row-title")), "Social media filter");
   assert.equal(text(row.querySelector("[data-select] span")), "Off");
   assert.ok(row.querySelector('[data-lock="socialFilter"]'), "its own lock, beside the menu");
-  assert.equal(note(content), "Not blocking yet. Lock it to prevent turning it off.", "it says nothing is blocked yet");
+  assert.equal(note(content), "Hide the parts of social sites that pull you in. Lock it to prevent turning it off.", "the parts work on every site, so the note describes the filter");
   assert.equal(content.querySelectorAll("[data-chip]").length, 0, "no chips while it is Off");
   assert.equal(await stored(t, "socialFilter"), undefined, "nothing is written while off");
   assert.deepEqual(t.errors, []);
@@ -84,7 +84,7 @@ test("locked, a chip that is on stays on (and shows a lock); the others can stil
   click(t.window, filterRow(content).querySelector('[data-lock="socialFilter"]'));
   await settle(t.window, 120);
   assert.deepEqual(await stored(t, "focusLocks"), { socialFilter: { unlockAt: null } });
-  assert.equal(note(content), "Locked. You can block more, but not less. Not blocking yet.");
+  assert.equal(note(content), "Locked. You can block more, but not less.");
   assert.ok(chip(content, "likes").querySelector("svg"), "the chip the lock holds shows a small lock");
   assert.equal(chip(content, "likes").getAttribute("aria-disabled"), "true");
   assert.equal(chip(content, "comments").querySelector("svg"), null, "a chip that is off has none");

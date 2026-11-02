@@ -223,6 +223,16 @@
   }
   document.addEventListener("DOMContentLoaded", () => {
     loadTheme();
+    if (urlParams.get("why") === "social") {
+      document.getElementById("timer-container").style.display = "none";
+      document.getElementById("reveal-container").style.display = "none";
+      document.getElementById("social-container").style.display = "block";
+      const site = urlParams.get("site") || "This site";
+      document.getElementById("social-title").textContent = site + " is blocked";
+      document.getElementById("social-text").textContent = "Block social sites entirely is on. Turn it off in Settings > Focus.";
+      document.title = "Blocked - " + site;
+      return;
+    }
     displaySearchQuery();
     storageGet("sync", ["searchDelaySeconds"]).then((result) => {
       searchDelayMs = (result.searchDelaySeconds || 0) * 1e3;

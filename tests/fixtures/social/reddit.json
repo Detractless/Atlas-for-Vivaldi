@@ -1,0 +1,10 @@
+{
+ "home": {
+  "url": "https://www.reddit.com/",
+  "matches": {
+   "homeFeed": 2,
+   "suggested": 2,
+   "trending": 3
+  }
+ }
+}

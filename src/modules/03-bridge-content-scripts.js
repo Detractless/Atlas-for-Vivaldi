@@ -23,6 +23,11 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
     { id: 'atlas-usage', matches: ['http://*/*', 'https://*/*'],
       excludeMatches: ['https://chromewebstore.google.com/*'],
       js: ['components/atlas/atlas-usage.js'], runAt: 'document_idle' },
+    /* Scroll fade (Settings > Focus): the page dims the longer or farther you scroll. Top frame, and it does nothing
+       until the setting is on and the site is one it is set for. */
+    { id: 'atlas-scroll-fade', matches: ['http://*/*', 'https://*/*'],
+      excludeMatches: ['https://chromewebstore.google.com/*'],
+      js: ['components/atlas/atlas-scroll-fade.js'], runAt: 'document_idle' },
     /* NSFW image guard: document_start and all_frames so no explicit image flashes;
        the drag script stops a drag from exposing a flagged image's original. */
     { id: 'atlas-nsfw-guard', matches: ['http://*/*', 'https://*/*'],
@@ -30,6 +35,23 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
       allFrames: true,
       js: ['components/atlas/atlas-nsfw-log.js', 'components/atlas/atlas-nsfw-work.js', 'components/atlas/atlas-nsfw-image-work.js', 'components/atlas/atlas-nsfw-image-layout.js', 'components/atlas/atlas-nsfw-image-observer.js', 'components/atlas/atlas-nsfw-image-ui.js', 'components/atlas/atlas-nsfw-image-sources.js', 'components/atlas/atlas-nsfw-image-shield.js', 'components/atlas/atlas-nsfw-guard-watch.js', 'components/atlas/atlas-nsfw-guard.js', 'components/atlas/atlas-nsfw-drag.js'], runAt: 'document_start' }
   ];
+  /* Social media filter (spec 006): one registration per site, so one site can be switched off alone. Each runs
+     the shared engine, then that site's table, at document_start in the top frame. The hosts are the ones in
+     SITES (payload/detractless/src/utils/socialFilter.js); tests/unit/social_sites.test.js checks they agree. */
+  var SOCIAL_ENGINE = ['components/atlas/atlas-social-behaviors.js', 'components/atlas/atlas-social-guard.js', 'components/atlas/atlas-social-core.js'];
+  var SOCIAL_SITES = [
+    { key: 'youtube', matches: ['*://*.youtube.com/*'], js: 'components/atlas/atlas-social-youtube.js' },
+    { key: 'reddit', matches: ['*://*.reddit.com/*'], js: 'components/atlas/atlas-social-reddit.js' },
+    { key: 'twitch', matches: ['*://*.twitch.tv/*'], js: 'components/atlas/atlas-social-twitch.js' },
+    { key: 'x', matches: ['*://*.x.com/*', '*://*.twitter.com/*'], js: 'components/atlas/atlas-social-x.js' },
+    { key: 'instagram', matches: ['*://*.instagram.com/*'], js: 'components/atlas/atlas-social-instagram.js' },
+    { key: 'tiktok', matches: ['*://*.tiktok.com/*'], js: 'components/atlas/atlas-social-tiktok.js' },
+    { key: 'facebook', matches: ['*://*.facebook.com/*'], js: 'components/atlas/atlas-social-facebook.js' },
+    { key: 'snapchat', matches: ['*://*.snapchat.com/*'], js: 'components/atlas/atlas-social-snapchat.js' }
+  ];
+  SOCIAL_SITES.forEach(function (site) {
+    DESIRED_CS.push({ id: 'atlas-social-' + site.key, matches: site.matches, js: SOCIAL_ENGINE.concat([site.js]), runAt: 'document_start' });
+  });
   /* Registrations persist in the profile, and a plain register throws
      "Duplicate" for an existing id. UPDATE existing ones in place (so a params
      change like adding allFrames applies) and REGISTER absent ones — never
@@ -37,7 +59,8 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
      restoring tab loads with no context-menu script. Only ids we no longer
      want (the archived Remover and PasteKit scripts, atlas-remover-rules from an
      earlier build) are swept. */
-  var OUR_CS_IDS = ['atlas-ctxmenu', 'atlas-google-account', 'atlas-usage', 'atlas-nsfw-guard', 'detractless-rules', 'detractless-pastekit', 'atlas-remover-rules'];
+  var OUR_CS_IDS = ['atlas-ctxmenu', 'atlas-google-account', 'atlas-usage', 'atlas-scroll-fade', 'atlas-nsfw-guard', 'detractless-rules', 'detractless-pastekit', 'atlas-remover-rules']
+    .concat(SOCIAL_SITES.map(function (site) { return 'atlas-social-' + site.key; }));
   var WANTED_IDS = DESIRED_CS.map(function (c) { return c.id; });
   chrome.scripting.getRegisteredContentScripts(function (existing) {
     void chrome.runtime.lastError;

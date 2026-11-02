@@ -1,0 +1,40 @@
+{
+ "home": {
+  "url": "https://www.tiktok.com/",
+  "matches": {
+   "homeFeed": 3,
+   "shortVideos": 2,
+   "likes": 1,
+   "follow": 2,
+   "share": 1,
+   "counts": 4,
+   "posting": 2
+  }
+ },
+ "video": {
+  "url": "https://www.tiktok.com/@tiktok/video/7702947070604332319",
+  "matches": {
+   "likes": 2,
+   "follow": 2,
+   "share": 2,
+   "counts": 8
+  }
+ },
+ "explore": {
+  "url": "https://www.tiktok.com/explore",
+  "matches": {
+   "counts": 26,
+   "homeFeed": 1,
+   "shortVideos": 1
+  }
+ },
+ "profile": {
+  "url": "https://www.tiktok.com/@tiktok",
+  "matches": {
+   "counts": 34,
+   "shortVideos": 6,
+   "follow": 42,
+   "share": 2
+  }
+ }
+}

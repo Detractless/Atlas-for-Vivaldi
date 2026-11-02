@@ -7,9 +7,35 @@
 // can't be unchosen (looser(), used by utils/focusLock.js). pages/newtab/profilesCore.js repeats looser() in its
 // own words (it can't import); keep the two the same.
 //
-// Nothing is blocked yet: the choices are saved, and Settings says so while BLOCKING_LIVE is false.
+// Spec 006 (docs/specs/006-social-filter-blocking) is how the choices work on the sites. 'all' blocks a site
+// entirely (background/socialBlock.js); 'parts' hides parts of a site (components/atlas/atlas-social-<site>.js).
 
-export const BLOCKING_LIVE = false;
+/** The sites whose parts really block: a site is added when its page script is `live: true`, after its live
+    review passed. tests/unit/social_sites.test.js keeps this list and the scripts in step. 'all' works on every site. */
+export const LIVE_SITES = ['YouTube', 'Reddit', 'Twitch', 'X', 'Instagram', 'TikTok', 'Facebook', 'Snapchat'];
+export const partsLive = () => (LIVE_SITES.length === 0 ? 'none' : LIVE_SITES.length === SITES.length ? 'all' : 'some');
+
+/* The sites, and where each lives. The page scripts (components/atlas/atlas-social-<key>.js), their registration
+   (src/modules/03-bridge-content-scripts.js) and the block-sites-entirely guard (background/socialBlock.js) all
+   use these hosts; tests/unit/social_sites.test.js checks they agree. A host covers its subdomains. */
+export const SITES = [
+  { name: 'YouTube', key: 'youtube', hosts: ['youtube.com'], aliases: ['youtu.be'] },
+  { name: 'Reddit', key: 'reddit', hosts: ['reddit.com'], aliases: ['redd.it'] },
+  { name: 'Twitch', key: 'twitch', hosts: ['twitch.tv'], aliases: [] },
+  { name: 'X', key: 'x', hosts: ['x.com', 'twitter.com'], aliases: [] },
+  { name: 'Instagram', key: 'instagram', hosts: ['instagram.com'], aliases: ['instagr.am'] },
+  { name: 'TikTok', key: 'tiktok', hosts: ['tiktok.com'], aliases: [] },
+  { name: 'Facebook', key: 'facebook', hosts: ['facebook.com'], aliases: ['fb.com', 'fb.me', 'fb.watch', 'messenger.com'] },
+  { name: 'Snapchat', key: 'snapchat', hosts: ['snapchat.com'], aliases: [] },
+];
+
+/** The site `url` belongs to, or null. Only the page's own host counts, so a link to a site is not the site.
+    `aliases` are the site's short-link and sister hosts (youtu.be, fb.me): hosts for blocking, but no page scripts. */
+export function siteOf(url) {
+  let host;
+  try { host = new URL(url).hostname.toLowerCase().replace(/\.$/, ''); } catch (e) { return null; }
+  return SITES.find((s) => s.hosts.concat(s.aliases).some((h) => host === h || host.endsWith('.' + h))) || null;
+}
 
 export const MODES = { off: 'Off', parts: 'Block selected parts', all: 'Block social sites entirely' };
 const RANK = { off: 0, parts: 1, all: 2 };

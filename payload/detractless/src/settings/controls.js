@@ -2,7 +2,8 @@
 // one setting through the registry, which saves it at once.
 import { getSetting, setSetting } from './registry.js';
 import { lockState, changeAllowed } from '../utils/focusLock.js';
-import { clickFocusLock } from '../services/focusLocks.js';
+import { lockable } from './lockable.js';
+import { FADE_CONTROLS } from './fadeControls.js';
 import { flushSaturation, clickSaturationLock } from '../components/colorLock/colorLock.js';
 import { MODES, normalize, withMode, togglePart } from '../utils/socialFilter.js';
 
@@ -37,17 +38,6 @@ const theme = {
   get: () => (getSetting("Theme") && getSetting("Theme").Theme) || "dark",
   set: (mode) => setSetting("Theme", Object.assign({}, getSetting("Theme"), { Theme: mode })),
 };
-
-/* A control with a lock beside it (utils/focusLock.js): its lock's state, what clicking the lock does, and
-   which values it may take now (menu.js greys out the rest). */
-function lockable(control, key, click = () => clickFocusLock(key)) {
-  return Object.assign(control, {
-    lockKey: key,
-    lockState: () => lockState(getSetting("focusLocks"), key),
-    clickLock: click,
-    allows: (v) => changeAllowed(getSetting("focusLocks"), key, getSetting(key), v),
-  });
-}
 
 const saturation = {
   get: () => {
@@ -99,9 +89,10 @@ export const CONTROLS = {
   limit: lockable(numberChoice("tabLimit", LIMITS, (v) => parseInt(v, 10)), "tabLimit"),
   method: choice("managementMethod", { "random": "Close a random tab", "block": "Block the new tab" }),
   delay: lockable(numberChoice("searchDelaySeconds", DELAYS, (v) => parseInt(v, 10)), "searchDelaySeconds"),
+  ...FADE_CONTROLS,
 };
 
-/** The control whose lock is `key` (tabLimit, searchDelaySeconds, saturation, nsfwAction or socialFilter). */
+/** The control whose lock is `key` (tabLimit, searchDelaySeconds, saturation, nsfwAction, socialFilter or scrollFade). */
 export const lockControl = (key) => Object.values(CONTROLS).find((c) => c.lockKey === key);
 
 /** The label of a control's current value, or "-". */

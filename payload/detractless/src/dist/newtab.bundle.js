@@ -404,7 +404,14 @@
         backup: true,
         importWhen: "truthy",
         profile: "focus",
-        note: "The social media filter (utils/socialFilter.js): { mode: off | parts | all, parts: [ids of the parts to hide] }. Only the choices are saved so far: nothing is blocked yet."
+        note: "The social media filter (utils/socialFilter.js): { mode: off | parts | all, parts: [ids of the parts to hide] }. Spec 006 makes the choices work: components/atlas/atlas-social-<site>.js hides parts, background/socialBlock.js blocks whole sites."
+      },
+      scrollFade: {
+        default: { on: false, by: "either", minutes: 5, screens: 150, darkest: 70, restSeconds: 60, waitMinutes: 10, except: [] },
+        backup: true,
+        importWhen: "truthy",
+        profile: "focus",
+        note: "Scroll fade (utils/scrollFade.js): every page dims the longer or farther you scroll, on all sites together, then stays fully dim for a wait. { on, by: either | time | distance, minutes, screens, darkest (percent), restSeconds (clears a page that is not fully dim), waitMinutes (how long it stays fully dim), except: [host names left alone] }. Off until switched on. components/atlas/atlas-scroll-fade.js counts the scrolling; src/modules/36-scroll-fade-layer.js draws the dimming and keeps the wait; the Focus lock keeps it from getting weaker."
       },
       nsfwStrictness: {
         default: 65,
@@ -457,6 +464,16 @@
         default: null,
         backup: false,
         note: "Usage totals per site and hour (utils/usageLog.js), written by the service worker, shown in Settings > Usage. Never backed up."
+      },
+      atlas_social_health: {
+        default: null,
+        backup: false,
+        note: "Social media filter health (components/atlas/atlas-social-core.js): per site and part, how many elements its selectors matched, and how often the safety guard switched it off. No page addresses. Read from the profile to see selector rot. Never backed up."
+      },
+      atlas_scroll_fade: {
+        default: null,
+        backup: false,
+        note: "Scroll fade total (components/atlas/atlas-scroll-fade.js adds to it, src/modules/36-scroll-fade-layer.js clears it): { ms of scrolling, screens scrolled, last: when you last scrolled, until: when the wait ends or 0 }. One total for every site and tab. Only numbers, never a page address. Never backed up."
       },
       atlasProfilesV2: {
         default: null,
@@ -1549,16 +1566,16 @@
   }
   function rowMetrics(host) {
     const cs = getComputedStyle(host);
-    const num = (name, fallback) => {
+    const num2 = (name, fallback) => {
       const v = parseFloat(cs.getPropertyValue(name));
       return Number.isFinite(v) ? v : fallback;
     };
     return {
-      pitch: num("--bm-row-pitch", 36),
-      gap: num("--bm-row-gap", 0),
-      pad: num("--bm-well-padding", 0),
-      chrome: num("--bm-title-height", 24) + num("--bm-title-gap", 8),
-      groupGap: num("--bm-group-gap", 32)
+      pitch: num2("--bm-row-pitch", 36),
+      gap: num2("--bm-row-gap", 0),
+      pad: num2("--bm-well-padding", 0),
+      chrome: num2("--bm-title-height", 24) + num2("--bm-title-gap", 8),
+      groupGap: num2("--bm-group-gap", 32)
     };
   }
   function wellHeight(rows, m) {
@@ -3456,7 +3473,18 @@
   }
 
   // src/utils/socialFilter.js
-  var BLOCKING_LIVE = false;
+  var LIVE_SITES = ["YouTube", "Reddit", "Twitch", "X", "Instagram", "TikTok", "Facebook", "Snapchat"];
+  var partsLive = () => LIVE_SITES.length === 0 ? "none" : LIVE_SITES.length === SITES.length ? "all" : "some";
+  var SITES = [
+    { name: "YouTube", key: "youtube", hosts: ["youtube.com"], aliases: ["youtu.be"] },
+    { name: "Reddit", key: "reddit", hosts: ["reddit.com"], aliases: ["redd.it"] },
+    { name: "Twitch", key: "twitch", hosts: ["twitch.tv"], aliases: [] },
+    { name: "X", key: "x", hosts: ["x.com", "twitter.com"], aliases: [] },
+    { name: "Instagram", key: "instagram", hosts: ["instagram.com"], aliases: ["instagr.am"] },
+    { name: "TikTok", key: "tiktok", hosts: ["tiktok.com"], aliases: [] },
+    { name: "Facebook", key: "facebook", hosts: ["facebook.com"], aliases: ["fb.com", "fb.me", "fb.watch", "messenger.com"] },
+    { name: "Snapchat", key: "snapchat", hosts: ["snapchat.com"], aliases: [] }
+  ];
   var MODES = { off: "Off", parts: "Block selected parts", all: "Block social sites entirely" };
   var RANK = { off: 0, parts: 1, all: 2 };
   var GROUPS = [
@@ -3509,10 +3537,62 @@
     return a.mode === "parts" && a.parts.some((id) => !b.parts.includes(id));
   }
 
+  // src/utils/scrollFade.js
+  var DEFAULTS = {
+    on: false,
+    by: "either",
+    minutes: 5,
+    screens: 150,
+    darkest: 70,
+    restSeconds: 60,
+    waitMinutes: 10,
+    except: []
+  };
+  var BY = { either: "Whichever comes first", time: "Time", distance: "Distance" };
+  var MINUTES = [1, 2, 3, 5, 10, 15, 20, 30, 45, 60];
+  var SCREENS = [25, 50, 100, 150, 250, 500, 1e3];
+  var REST_SECONDS = [30, 60, 120, 300, 600];
+  var WAIT_MINUTES = [1, 2, 5, 10, 15, 30, 60];
+  var DARKEST_MIN = 10;
+  var DARKEST_MAX = 90;
+  var SITE_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
+  var num = (v, lo, hi, fallback) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fallback;
+  };
+  function cleanSite(text) {
+    const host = String(text == null ? "" : text).trim().toLowerCase().replace(/^[a-z][a-z0-9+.-]*:\/\//, "").replace(/^www\./, "").replace(/[/?#:].*$/, "").replace(/\.$/, "");
+    return SITE_RE.test(host) ? host : null;
+  }
+  function normalize2(value) {
+    const v = value && typeof value === "object" ? value : {};
+    const except = Array.isArray(v.except) ? [...new Set(v.except.map(cleanSite).filter(Boolean))].slice(0, 60) : [];
+    return {
+      on: v.on === true,
+      by: Object.prototype.hasOwnProperty.call(BY, v.by) ? v.by : DEFAULTS.by,
+      minutes: num(v.minutes, 1, 240, DEFAULTS.minutes),
+      screens: num(v.screens, 5, 5e3, DEFAULTS.screens),
+      darkest: num(v.darkest, DARKEST_MIN, DARKEST_MAX, DEFAULTS.darkest),
+      restSeconds: num(v.restSeconds, 10, 3600, DEFAULTS.restSeconds),
+      waitMinutes: num(v.waitMinutes, 1, 240, DEFAULTS.waitMinutes),
+      except
+    };
+  }
+  var withField = (value, field2, to) => normalize2({ ...normalize2(value), [field2]: to });
+  function looser2(from, to) {
+    const a = normalize2(from), b = normalize2(to);
+    if (!a.on) return false;
+    if (!b.on) return true;
+    const time = (c) => c.by === "distance" ? Infinity : c.minutes;
+    const dist = (c) => c.by === "time" ? Infinity : c.screens;
+    const more = b.except.some((s2) => !a.except.includes(s2));
+    return time(b) > time(a) || dist(b) > dist(a) || b.darkest < a.darkest || b.restSeconds < a.restSeconds || b.waitMinutes < a.waitMinutes || more;
+  }
+
   // src/utils/focusLock.js
   var UNLOCK_MS = 30 * 60 * 1e3;
-  var LOCKABLE = ["tabLimit", "searchDelaySeconds", "saturation", "nsfwAction", "socialFilter"];
-  var DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: "off", socialFilter: { mode: "off", parts: [] } };
+  var LOCKABLE = ["tabLimit", "searchDelaySeconds", "saturation", "nsfwAction", "socialFilter", "scrollFade"];
+  var DEFAULTS2 = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: "off", socialFilter: { mode: "off", parts: [] }, scrollFade: DEFAULTS };
   var STRICTNESS = {
     tabLimit: (v) => Number(v) === 0 ? -Infinity : -Number(v),
     // fewer tabs is stricter; Off is no limit at all
@@ -3523,49 +3603,49 @@
     nsfwAction: (v) => ({ off: 0, blur: 1, blackout: 2 })[String(v)] || 0
     // stricter actions cannot return to Off
   };
-  var LOOSER = { socialFilter: looser };
-  var entry = (locks, key) => locks && typeof locks === "object" && locks[key] && typeof locks[key] === "object" ? locks[key] : null;
-  function lockState(locks, key, now = Date.now()) {
-    const l = entry(locks, key);
+  var LOOSER = { socialFilter: looser, scrollFade: looser2 };
+  var entry = (locks2, key) => locks2 && typeof locks2 === "object" && locks2[key] && typeof locks2[key] === "object" ? locks2[key] : null;
+  function lockState(locks2, key, now = Date.now()) {
+    const l = entry(locks2, key);
     if (!l) return "open";
     if (l.unlockAt === null || l.unlockAt === void 0) return "held";
     const at = Number(l.unlockAt);
     if (!Number.isFinite(at)) return "held";
     return at > now ? "unlocking" : "open";
   }
-  var isLocked = (locks, key, now = Date.now()) => lockState(locks, key, now) !== "open";
-  function unlockTime(locks, key, now = Date.now()) {
-    return lockState(locks, key, now) === "unlocking" ? Number(entry(locks, key).unlockAt) : null;
+  var isLocked = (locks2, key, now = Date.now()) => lockState(locks2, key, now) !== "open";
+  function unlockTime(locks2, key, now = Date.now()) {
+    return lockState(locks2, key, now) === "unlocking" ? Number(entry(locks2, key).unlockAt) : null;
   }
-  function unlockSecondsLeft(locks, key, now = Date.now()) {
-    const at = unlockTime(locks, key, now);
+  function unlockSecondsLeft(locks2, key, now = Date.now()) {
+    const at = unlockTime(locks2, key, now);
     return at === null ? 0 : Math.max(0, Math.ceil((at - now) / 1e3));
   }
-  function changeAllowed(locks, key, from, to, now = Date.now()) {
-    if (!isLocked(locks, key, now) || !(STRICTNESS[key] || LOOSER[key])) return true;
-    const was = from === void 0 || from === null ? DEFAULTS[key] : from;
+  function changeAllowed(locks2, key, from, to, now = Date.now()) {
+    if (!isLocked(locks2, key, now) || !(STRICTNESS[key] || LOOSER[key])) return true;
+    const was = from === void 0 || from === null ? DEFAULTS2[key] : from;
     if (LOOSER[key]) return !LOOSER[key](was, to);
     return STRICTNESS[key](to) >= STRICTNESS[key](was);
   }
-  function tidyLocks(locks, now = Date.now()) {
+  function tidyLocks(locks2, now = Date.now()) {
     const out = {};
     for (const key of LOCKABLE) {
-      const state2 = lockState(locks, key, now);
+      const state2 = lockState(locks2, key, now);
       if (state2 === "held") out[key] = { unlockAt: null };
-      else if (state2 === "unlocking") out[key] = { unlockAt: unlockTime(locks, key, now) };
+      else if (state2 === "unlocking") out[key] = { unlockAt: unlockTime(locks2, key, now) };
     }
     return out;
   }
-  function clickLock(locks, key, now = Date.now()) {
-    const state2 = lockState(locks, key, now);
-    const next2 = tidyLocks(locks, now);
+  function clickLock(locks2, key, now = Date.now()) {
+    const state2 = lockState(locks2, key, now);
+    const next2 = tidyLocks(locks2, now);
     next2[key] = { unlockAt: state2 === "held" ? now + UNLOCK_MS : null };
     return next2;
   }
-  function withoutLoosening(incoming, current2, locks, now = Date.now()) {
+  function withoutLoosening(incoming, current2, locks2, now = Date.now()) {
     const out = { ...incoming };
     for (const key of LOCKABLE) {
-      if (out[key] !== void 0 && !changeAllowed(locks, key, (current2 || {})[key], out[key], now)) delete out[key];
+      if (out[key] !== void 0 && !changeAllowed(locks2, key, (current2 || {})[key], out[key], now)) delete out[key];
     }
     return out;
   }
@@ -4050,10 +4130,10 @@
     const n = Math.round(Number(v));
     return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 100;
   };
-  function planChange({ current: current2, locks, target, now = Date.now() }) {
+  function planChange({ current: current2, locks: locks2, target, now = Date.now() }) {
     const cur = clampSaturation(current2);
     const want2 = clampSaturation(target);
-    if (!changeAllowed(locks, "saturation", cur, want2, now)) return { saturation: cur, changed: false };
+    if (!changeAllowed(locks2, "saturation", cur, want2, now)) return { saturation: cur, changed: false };
     return { saturation: want2, changed: want2 !== cur };
   }
   function legacySaturation(grayscale, saturation2) {
@@ -6048,7 +6128,88 @@
     defineSetting({ key: "focusLocks" });
     defineSetting({ key: "nsfwAction" });
     defineSetting({ key: "socialFilter" });
+    defineSetting({ key: "scrollFade" });
   }
+
+  // src/settings/lockable.js
+  function lockable(control, key, click = () => clickFocusLock(key)) {
+    return Object.assign(control, {
+      lockKey: key,
+      lockState: () => lockState(getSetting("focusLocks"), key),
+      clickLock: click,
+      allows: (v) => changeAllowed(getSetting("focusLocks"), key, getSetting(key), v)
+    });
+  }
+
+  // src/settings/fadeControls.js
+  var fade = () => normalize2(getSetting("scrollFade"));
+  var locks = () => getSetting("focusLocks");
+  var plural = (n, one2, many) => `${n} ${n === 1 ? one2 : many}`;
+  var minutesLabel = (m) => plural(m, "minute", "minutes");
+  var screensLabel = (n) => plural(n, "screen", "screens");
+  var restLabel = (s2) => s2 < 60 ? plural(s2, "second", "seconds") : minutesLabel(s2 / 60);
+  function pick(name, list, parse, read = String) {
+    const next2 = (v) => withField(getSetting("scrollFade"), name, parse(v));
+    const control = lockable({
+      get options() {
+        return list();
+      },
+      get: () => read(fade()[name]),
+      set: (v) => setSetting("scrollFade", next2(v))
+    }, "scrollFade");
+    control.allows = (v) => changeAllowed(locks(), "scrollFade", getSetting("scrollFade"), next2(v));
+    return control;
+  }
+  var fixed = (labels) => () => Object.entries(labels).map(([value, label]) => ({ value, label }));
+  var numbers = (name, usual, labelOf2) => () => {
+    const now = fade()[name];
+    return (usual.includes(now) ? usual : [...usual, now].sort((a, b) => a - b)).map((v) => ({ value: String(v), label: labelOf2(v) }));
+  };
+  var STEP_MS2 = 250;
+  var wantDarkest = null;
+  var darkestTimer = 0;
+  function saveDarkest() {
+    clearTimeout(darkestTimer);
+    if (wantDarkest === null) return Promise.resolve();
+    const to = wantDarkest;
+    wantDarkest = null;
+    return setSetting("scrollFade", withField(getSetting("scrollFade"), "darkest", to));
+  }
+  var darkest = lockable({
+    get: () => fade().darkest,
+    set: (v) => {
+      wantDarkest = Number(v);
+      clearTimeout(darkestTimer);
+      darkestTimer = setTimeout(saveDarkest, STEP_MS2);
+    },
+    flush: saveDarkest,
+    /* The lightest the slider may go now: the lowest, or where it is while locked (it can only go darker). */
+    min: () => lockState(locks(), "scrollFade") === "open" ? DARKEST_MIN : fade().darkest,
+    max: () => DARKEST_MAX
+  }, "scrollFade");
+  var addSite = {
+    get: () => "",
+    set: (text) => {
+      const host = cleanSite(text), f = fade(), to = { ...f, except: [...f.except, host] };
+      if (host && !f.except.includes(host) && changeAllowed(locks(), "scrollFade", getSetting("scrollFade"), to)) setSetting("scrollFade", to);
+    }
+  };
+  function removeFadeSite(host) {
+    const f = fade(), to = { ...f, except: f.except.filter((s2) => s2 !== host) };
+    if (!changeAllowed(locks(), "scrollFade", getSetting("scrollFade"), to)) return false;
+    setSetting("scrollFade", to);
+    return true;
+  }
+  var FADE_CONTROLS = {
+    fade: pick("on", fixed({ on: "On", off: "Off" }), (v) => v === "on", (on) => on ? "on" : "off"),
+    fadeBy: pick("by", fixed(BY), String),
+    fadeMinutes: pick("minutes", numbers("minutes", MINUTES, minutesLabel), Number),
+    fadeScreens: pick("screens", numbers("screens", SCREENS, screensLabel), Number),
+    fadeRest: pick("restSeconds", numbers("restSeconds", REST_SECONDS, restLabel), Number),
+    fadeWait: pick("waitMinutes", numbers("waitMinutes", WAIT_MINUTES, minutesLabel), Number),
+    fadeDarkest: darkest,
+    fadeAddSite: addSite
+  };
 
   // src/settings/controls.js
   var options = (labels) => Object.entries(labels).map(([value, label]) => ({ value, label }));
@@ -6074,14 +6235,6 @@
     get: () => getSetting("Theme") && getSetting("Theme").Theme || "dark",
     set: (mode) => setSetting("Theme", Object.assign({}, getSetting("Theme"), { Theme: mode }))
   };
-  function lockable(control, key, click = () => clickFocusLock(key)) {
-    return Object.assign(control, {
-      lockKey: key,
-      lockState: () => lockState(getSetting("focusLocks"), key),
-      clickLock: click,
-      allows: (v) => changeAllowed(getSetting("focusLocks"), key, getSetting(key), v)
-    });
-  }
   var saturation = {
     get: () => {
       const v = getSetting("saturation");
@@ -6123,7 +6276,8 @@
     theme,
     limit: lockable(numberChoice("tabLimit", LIMITS, (v) => parseInt(v, 10)), "tabLimit"),
     method: choice("managementMethod", { "random": "Close a random tab", "block": "Block the new tab" }),
-    delay: lockable(numberChoice("searchDelaySeconds", DELAYS, (v) => parseInt(v, 10)), "searchDelaySeconds")
+    delay: lockable(numberChoice("searchDelaySeconds", DELAYS, (v) => parseInt(v, 10)), "searchDelaySeconds"),
+    ...FADE_CONTROLS
   };
   var lockControl = (key) => Object.values(CONTROLS).find((c) => c.lockKey === key);
   function labelOf(key) {
@@ -6442,6 +6596,78 @@
     });
   }
 
+  // src/settings/scrollFadePage.js
+  var X_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m4.5 4.5 7 7M11.5 4.5l-7 7"/></svg>';
+  var STEPS2 = [["Start", 0], ["A quarter", 0.25], ["Halfway", 0.5], ["Three quarters", 0.75], ["Fully dim", 1]];
+  var esc5 = (s2) => String(s2).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  var shade = (darkest2, at) => Math.round(darkest2 * at * 10) / 1e3;
+  var shapeOf = (f) => [f.on, f.by, f.except.join(",")].join("|");
+  var sitesHeld = () => lockState(getSetting("focusLocks"), "scrollFade") !== "open";
+  var siteChip = (host) => `<button type="button" class="sp-chip site" data-site="${esc5(host)}" aria-label="Stop leaving ${esc5(host)} alone">${esc5(host)}${X_ICON}</button>`;
+  var ADD_HINT = "Add a site, like docs.google.com";
+  var HELD_HINT = "Locked: no more sites can be left alone";
+  var addInput = (held) => `<input class="sp-input sp-site-add" type="text" data-input="fadeAddSite" placeholder="${held ? HELD_HINT : ADD_HINT}" spellcheck="false" autocomplete="off"${held ? " disabled" : ""}>`;
+  function sitesRow(f) {
+    const none = f.except.length ? "" : `<span class="sp-sites-none">None: every site dims</span>`;
+    return `<div class="sp-sites">${f.except.map(siteChip).join("")}${none}${addInput(sitesHeld())}</div>`;
+  }
+  function previews(darkest2) {
+    return `<div class="sp-fade-prev" aria-hidden="true">${STEPS2.map(
+      ([name, at]) => `<figure><div class="sp-fade-shot"><img src="src/assets/saturation-preview.jpg" alt=""><i data-at="${at}" style="opacity:${shade(darkest2, at)}"></i></div><figcaption>${name}</figcaption></figure>`
+    ).join("")}</div>`;
+  }
+  function scrollFadeSection(note, lock) {
+    const f = fade();
+    const rows = [
+      row("Fade", note, select("fade", labelOf("fade")) + lock),
+      row("Dim by", "What counts toward the dimming", select("fadeBy", labelOf("fadeBy")))
+    ];
+    if (f.by !== "distance") rows.push(row("Fully dim after", "Of scrolling, on all sites together", select("fadeMinutes", labelOf("fadeMinutes"))));
+    if (f.by !== "time") rows.push(row(f.by === "distance" ? "Fully dim after scrolling" : "Or after scrolling", "One screen is one window height. Endless feeds count the same", select("fadeScreens", labelOf("fadeScreens"))));
+    rows.push(
+      row("Darkest it gets", "How dim the page is at the end", slider("fadeDarkest", f.darkest, DARKEST_MIN, DARKEST_MAX)),
+      row("Rest to clear", "Stop scrolling this long and a page that is not fully dim comes back", select("fadeRest", labelOf("fadeRest"))),
+      row("Wait once fully dim", "It stays fully dim this long, whether you keep scrolling or stop", select("fadeWait", labelOf("fadeWait"))),
+      row("Leave these sites alone", "Never counted, never dimmed. Every other site works together", ""),
+      sitesRow(f),
+      previews(f.darkest)
+    );
+    return section("Scroll fade", [card(rows).replace('class="sp-card"', `class="sp-card" data-fadeshape="${esc5(shapeOf(f))}"`)]);
+  }
+  function paintFadePreview(content3, darkest2) {
+    content3.querySelectorAll(".sp-fade-shot i").forEach((layer) => {
+      layer.style.opacity = String(shade(darkest2, Number(layer.dataset.at)));
+    });
+  }
+  function paintFadeSites(content3) {
+    const held = sitesHeld(), input = content3.querySelector('[data-input="fadeAddSite"]');
+    if (!input || input.disabled === held) return;
+    input.disabled = held;
+    input.placeholder = held ? HELD_HINT : ADD_HINT;
+  }
+  function showFade(content3, value) {
+    const card2 = content3.querySelector("[data-fadeshape]");
+    const f = normalize2(value);
+    if (!card2 || card2.dataset.fadeshape !== shapeOf(f)) return false;
+    const sl = content3.querySelector('[data-slider="fadeDarkest"]');
+    if (sl && document.activeElement !== sl) {
+      sl.value = String(f.darkest);
+      const out = sl.closest(".sp-slider-wrap").querySelector(".sp-slider-val");
+      if (out) out.textContent = f.darkest + "%";
+    }
+    paintFadePreview(content3, sl && document.activeElement === sl ? Number(sl.value) : f.darkest);
+    paintFadeSlider(content3);
+    for (const key of ["fade", "fadeBy", "fadeMinutes", "fadeScreens", "fadeRest", "fadeWait"]) {
+      const label = content3.querySelector(`[data-select="${key}"] span`);
+      if (label) label.textContent = labelOf(key);
+    }
+    return true;
+  }
+  function paintFadeSlider(content3) {
+    const sl = content3.querySelector('[data-slider="fadeDarkest"]');
+    if (sl) sl.min = String(CONTROLS.fadeDarkest.min());
+  }
+
   // src/settings/pages.js
   var REVIEW_URL = "https://chromewebstore.google.com/detail/ipgmbcinekdcmhhnbanlahedgpehffab";
   var resetState = { confirming: false };
@@ -6460,28 +6686,31 @@
       card([row("Theme", "", `<div class="sp-modes" role="radiogroup">${thumbs}</div>`)])
     ]);
   }
+  var partsNote = () => partsLive() === "none" ? "Blocks whole sites; parts are not blocking yet." : `Parts block on ${LIVE_SITES.join(", ")}.`;
   var LOCK_TEXT = {
     tabLimit: { open: "Lock it to stop it going higher.", held: "Locked. It can go lower, but not higher." },
     searchDelaySeconds: { open: "A pause before results. Lock it to stop it getting shorter.", held: "Locked. It can get longer, but not shorter." },
     saturation: { open: "Lock it to stop going back to color.", held: "Locked. It can go grayer, but not back to color." },
     nsfwAction: { open: "Lock it to prevent turning the shield off.", held: "Locked. You can make it more protective, but not turn it off." },
-    // Until the blocking is built (utils/socialFilter.js BLOCKING_LIVE) the page says so: a lock on a filter that blocks nothing would mislead.
+    // Whole sites can always be blocked; the parts work on the sites in LIVE_SITES (utils/socialFilter.js), and the page says which.
     socialFilter: {
-      open: BLOCKING_LIVE ? "Hide the parts of social sites that pull you in. Lock it to prevent turning it off." : "Not blocking yet. Lock it to prevent turning it off.",
-      held: "Locked. You can block more, but not less." + (BLOCKING_LIVE ? "" : " Not blocking yet.")
-    }
+      open: partsLive() === "all" ? "Hide the parts of social sites that pull you in. Lock it to prevent turning it off." : `${partsNote()} Lock it to prevent turning it off.`,
+      held: "Locked. You can block more, but not less." + (partsLive() === "all" ? "" : ` ${partsNote()}`)
+    },
+    scrollFade: { open: "Dims every page as you keep scrolling. Lock it to stop it getting weaker.", held: "Locked. It can get stronger, but not weaker." }
   };
   var QUEUED = {
     tabLimit: () => pendingIncreaseText(getSetting("pendingIncrease")),
     searchDelaySeconds: () => pendingDecreaseText(getSetting("pendingDelayDecrease")),
     saturation: () => "",
     nsfwAction: () => "",
-    socialFilter: () => ""
+    socialFilter: () => "",
+    scrollFade: () => ""
   };
   var clockTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   function lockNote(key) {
-    const locks = getSetting("focusLocks"), state2 = lockState(locks, key);
-    if (state2 === "unlocking") return `Unlocks at ${clockTime(unlockTime(locks, key))}. Click the lock to keep it locked.`;
+    const locks2 = getSetting("focusLocks"), state2 = lockState(locks2, key);
+    if (state2 === "unlocking") return `Unlocks at ${clockTime(unlockTime(locks2, key))}. Click the lock to keep it locked.`;
     return QUEUED[key]() || LOCK_TEXT[key][state2];
   }
   var lockCountdown = (key) => formatTimeCompact(unlockSecondsLeft(getSetting("focusLocks"), key));
@@ -6513,7 +6742,7 @@
       row("Show the search query", "While you wait", toggleFor("showQuery"))
     ])]) + section("Display", [card([
       row("Color saturation", lockNote("saturation"), slider("saturation", CONTROLS.saturation.get(), 0, 100) + lockFor("saturation")) + saturationPreview(CONTROLS.saturation.get())
-    ])]) + section("Content shield", [card(nsfwRows)]);
+    ])]) + scrollFadeSection(lockNote("scrollFade"), lockFor("scrollFade")) + section("Content shield", [card(nsfwRows)]);
   }
   function backupPage() {
     return section("", [card([
@@ -6564,7 +6793,7 @@
     });
     menu.addEventListener("click", (e) => {
       const li = e.target.closest(".sp-menu-item");
-      if (li) pick(li);
+      if (li) pick2(li);
     });
     menu.addEventListener("keydown", onMenuKey2, true);
     document.addEventListener("mousedown", (e) => {
@@ -6597,7 +6826,7 @@
     owner2 = null;
   }
   var menuIsOpen = () => !!owner2;
-  function pick(li) {
+  function pick2(li) {
     if (li.getAttribute("aria-disabled") === "true") return;
     const btn = owner2;
     btn.querySelector("span").textContent = li.textContent;
@@ -6615,7 +6844,7 @@
     }
     if ((e.key === "Enter" || e.key === " ") && i2 !== -1) {
       e.preventDefault();
-      pick(items[i2]);
+      pick2(items[i2]);
     }
     if (e.key === "Escape") {
       e.stopPropagation();
@@ -6659,7 +6888,7 @@
   var current = null;
   var currentArg = null;
   var $2 = (id) => document.getElementById(id);
-  var esc5 = (s2) => String(s2 ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  var esc6 = (s2) => String(s2 ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   var HIDDEN = {};
   function installSettingsPage() {
     if (root) return;
@@ -6674,6 +6903,7 @@
       if (typeof value === "number" && showSlider(key, value)) return;
       if (key === "focusLocks" && showLocks()) return;
       if (key === "socialFilter" && showChips()) return;
+      if (key === "scrollFade" && showFade(content2, value)) return;
       rerenderSoon();
     });
     setInterval(showLocks, 1e3);
@@ -6739,9 +6969,9 @@
     resetChipPane();
     const hidden = HIDDEN[current];
     const title = hidden ? hidden.title(currentArg) : navItem(current).label;
-    const back2 = hidden ? `<button class="sp-back-link" data-back="${hidden.parent}">${svg('<path d="M16 10H4m5-5-5 5 5 5"/>')}${esc5(navItem(hidden.parent).label)}</button>` : "";
+    const back2 = hidden ? `<button class="sp-back-link" data-back="${hidden.parent}">${svg('<path d="M16 10H4m5-5-5 5 5 5"/>')}${esc6(navItem(hidden.parent).label)}</button>` : "";
     const focusKey = focusedControl();
-    content2.innerHTML = back2 + `<h1 class="sp-page-title">${esc5(title)}</h1>` + PAGES[current](currentArg);
+    content2.innerHTML = back2 + `<h1 class="sp-page-title">${esc6(title)}</h1>` + PAGES[current](currentArg);
     if (focusKey) {
       const again = content2.querySelector(`[${focusKey.attr}="${focusKey.value}"]`);
       if (again) again.focus();
@@ -6811,6 +7041,7 @@
       const sample = content2.querySelector("#sp-sat-sample");
       if (sample) sample.style.filter = "saturate(" + v + "%)";
     }
+    if (key === "fadeDarkest") paintFadePreview(content2, v);
     return true;
   }
   function showChips() {
@@ -6843,6 +7074,8 @@
       if (count) count.textContent = state2 === "unlocking" ? lockCountdown(key) : "";
     });
     paintChips();
+    paintFadeSites(content2);
+    paintFadeSlider(content2);
     return true;
   }
   function wireContent() {
@@ -6896,6 +7129,11 @@
       const ch = e.target.closest("[data-chip]");
       if (ch) {
         toggleSocialPart(ch.dataset.chip);
+        return;
+      }
+      const site = e.target.closest("[data-site]");
+      if (site) {
+        removeFadeSite(site.dataset.site);
         return;
       }
       const s2 = e.target.closest("[data-select]");

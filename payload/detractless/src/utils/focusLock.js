@@ -1,5 +1,5 @@
-// The locks on Settings > Focus: the tab limit, search delay, color level, content-shield mode and social media
-// filter can each be locked.
+// The locks on Settings > Focus: the tab limit, search delay, color level, content-shield mode, social media
+// filter and scroll fade can each be locked.
 // You lock it. While it is locked it can only get stricter. Clicking the lock again starts a 30-minute unlock,
 // and clicking it during those 30 minutes keeps it locked. When the time is up it is unlocked. Nothing locks or
 // unlocks by itself. No page or storage in here, so the rules can be tested alone; services/focusLocks.js saves them.
@@ -9,11 +9,12 @@
 // pages/newtab/profilesCore.js repeats changeAllowed() in its own words (it can't import); keep the two the same.
 
 import { looser as filterLooser } from './socialFilter.js';
+import { looser as fadeLooser, DEFAULTS as FADE_DEFAULTS } from './scrollFade.js';
 
 export const UNLOCK_MS = 30 * 60 * 1000;
-export const LOCKABLE = ['tabLimit', 'searchDelaySeconds', 'saturation', 'nsfwAction', 'socialFilter'];
+export const LOCKABLE = ['tabLimit', 'searchDelaySeconds', 'saturation', 'nsfwAction', 'socialFilter', 'scrollFade'];
 /* What each setting is when nothing was saved (constants/atlasKeys.json). */
-const DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: 'off', socialFilter: { mode: 'off', parts: [] } };
+const DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: 'off', socialFilter: { mode: 'off', parts: [] }, scrollFade: FADE_DEFAULTS };
 
 /* How strict a value is: higher is stricter. Off (0) is the loosest tab limit and the loosest delay. */
 const STRICTNESS = {
@@ -24,7 +25,7 @@ const STRICTNESS = {
 };
 
 /* A setting that is more than one number says for itself whether a change loosens it: (from, to) => true when it does. */
-const LOOSER = { socialFilter: filterLooser };
+const LOOSER = { socialFilter: filterLooser, scrollFade: fadeLooser };
 
 const entry = (locks, key) => (locks && typeof locks === 'object' && locks[key] && typeof locks[key] === 'object' ? locks[key] : null);
 

@@ -1,0 +1,74 @@
+{
+ "watch": {
+  "url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+  "matches": {
+   "followers": 1,
+   "share": 2,
+   "suggested": 3,
+   "follow": 2,
+   "comments": 3
+  }
+ },
+ "watch-end": {
+  "url": "https://www.youtube.com/watch?v=jNQXAC9IVRw&t=17s",
+  "matches": {
+   "upNext": 6
+  }
+ },
+ "search-channel": {
+  "url": "https://www.youtube.com/results?search_query=mrbeast",
+  "matches": {
+   "follow": 2,
+   "followers": 3,
+   "counts": 25
+  }
+ },
+ "search-live": {
+  "url": "https://www.youtube.com/results?search_query=live+news&sp=EgJAAQ%253D%253D",
+  "matches": {
+   "liveStreams": 21
+  }
+ },
+ "channel": {
+  "url": "https://www.youtube.com/@YouTube",
+  "matches": {
+   "follow": 1,
+   "followers": 4,
+   "shortVideos": 9,
+   "liveStreams": 1,
+   "counts": 94
+  }
+ },
+ "live": {
+  "url": "https://www.youtube.com/watch?v=GotlA1KKWoo",
+  "matches": {
+   "liveStreams": 4,
+   "likes": 9,
+   "share": 2,
+   "follow": 2,
+   "followers": 1,
+   "counts": 61,
+   "suggested": 3
+  }
+ },
+ "shorts": {
+  "url": "https://www.youtube.com/shorts/rPj14ToaZSA",
+  "matches": {
+   "comments": 4,
+   "share": 5,
+   "follow": 1,
+   "counts": 3,
+   "likes": 2
+  }
+ },
+ "home": {
+  "url": "https://www.youtube.com/",
+  "matches": {
+   "shortVideos": 15,
+   "liveStreams": 1,
+   "counts": 70,
+   "hoverPreviews": 3,
+   "suggested": 1
+  }
+ }
+}

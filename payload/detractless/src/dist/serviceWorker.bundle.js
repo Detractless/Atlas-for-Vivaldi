@@ -160,19 +160,19 @@
       closedAt
     };
   }
-  function addTabsToGroups(groups, entries, mode, now = Date.now()) {
+  function addTabsToGroups(groups, entries, mode2, now = Date.now()) {
     const list = Array.isArray(groups) ? groups.map((g) => ({ ...g, tabs: [...g.tabs || []] })) : [];
     const fresh = (entries || []).filter((e) => e && e.url);
     if (fresh.length === 0) return list;
     let target = null;
-    if (mode === "auto") {
+    if (mode2 === "auto") {
       const key = dayKey(now);
       target = list.find((g) => g.kind === "auto" && g.dayKey === key) || null;
     }
     if (!target) {
       target = {
         id: `grp-${now}-${Math.random().toString(16).slice(2, 8)}`,
-        kind: mode === "auto" ? "auto" : "manual",
+        kind: mode2 === "auto" ? "auto" : "manual",
         dayKey: dayKey(now),
         savedAt: now,
         /* A STABLE number, assigned once and stored, never a position in the list.
@@ -340,6 +340,25 @@
   });
 
   // src/utils/socialFilter.js
+  var SITES = [
+    { name: "YouTube", key: "youtube", hosts: ["youtube.com"], aliases: ["youtu.be"] },
+    { name: "Reddit", key: "reddit", hosts: ["reddit.com"], aliases: ["redd.it"] },
+    { name: "Twitch", key: "twitch", hosts: ["twitch.tv"], aliases: [] },
+    { name: "X", key: "x", hosts: ["x.com", "twitter.com"], aliases: [] },
+    { name: "Instagram", key: "instagram", hosts: ["instagram.com"], aliases: ["instagr.am"] },
+    { name: "TikTok", key: "tiktok", hosts: ["tiktok.com"], aliases: [] },
+    { name: "Facebook", key: "facebook", hosts: ["facebook.com"], aliases: ["fb.com", "fb.me", "fb.watch", "messenger.com"] },
+    { name: "Snapchat", key: "snapchat", hosts: ["snapchat.com"], aliases: [] }
+  ];
+  function siteOf(url) {
+    let host;
+    try {
+      host = new URL(url).hostname.toLowerCase().replace(/\.$/, "");
+    } catch (e) {
+      return null;
+    }
+    return SITES.find((s) => s.hosts.concat(s.aliases).some((h) => host === h || host.endsWith("." + h))) || null;
+  }
   var RANK = { off: 0, parts: 1, all: 2 };
   var GROUPS = [
     { id: "feeds", label: "Feeds", parts: [
@@ -384,10 +403,90 @@
     return a.mode === "parts" && a.parts.some((id) => !b.parts.includes(id));
   }
 
+  // src/background/socialBlock.js
+  var mode = "off";
+  var ready = storageGet("sync", ["socialFilter"]).then((r) => {
+    mode = normalize(r.socialFilter).mode;
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "sync" || !changes.socialFilter) return;
+    const was = mode;
+    mode = normalize(changes.socialFilter.newValue).mode;
+    if (mode === "all" && was !== "all") blockOpenTabs();
+  });
+  function blockOpenTabs() {
+    chrome.tabs.query({}, (tabs) => {
+      for (const tab of tabs || []) {
+        const site = tab.url && siteOf(tab.url);
+        if (site) chrome.tabs.update(tab.id, { url: blockPageUrl(site) });
+      }
+    });
+  }
+  var blockPageUrl = (site) => chrome.runtime.getURL("gate.html") + "?why=social&site=" + encodeURIComponent(site.name);
+  async function handleSocialBlock(tabId, url) {
+    await ready;
+    if (mode !== "all") return;
+    const site = siteOf(url);
+    if (site) chrome.tabs.update(tabId, { url: blockPageUrl(site) });
+  }
+  var onNavigate = (details) => {
+    if (details.frameId === 0) handleSocialBlock(details.tabId, details.url);
+  };
+  chrome.webNavigation.onBeforeNavigate.addListener(onNavigate);
+  chrome.webNavigation.onCommitted.addListener(onNavigate);
+  chrome.webNavigation.onHistoryStateUpdated.addListener(onNavigate);
+
+  // src/utils/scrollFade.js
+  var DEFAULTS = {
+    on: false,
+    by: "either",
+    minutes: 5,
+    screens: 150,
+    darkest: 70,
+    restSeconds: 60,
+    waitMinutes: 10,
+    except: []
+  };
+  var BY = { either: "Whichever comes first", time: "Time", distance: "Distance" };
+  var DARKEST_MIN = 10;
+  var DARKEST_MAX = 90;
+  var SITE_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
+  var num = (v, lo, hi, fallback) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fallback;
+  };
+  function cleanSite(text) {
+    const host = String(text == null ? "" : text).trim().toLowerCase().replace(/^[a-z][a-z0-9+.-]*:\/\//, "").replace(/^www\./, "").replace(/[/?#:].*$/, "").replace(/\.$/, "");
+    return SITE_RE.test(host) ? host : null;
+  }
+  function normalize2(value) {
+    const v = value && typeof value === "object" ? value : {};
+    const except = Array.isArray(v.except) ? [...new Set(v.except.map(cleanSite).filter(Boolean))].slice(0, 60) : [];
+    return {
+      on: v.on === true,
+      by: Object.prototype.hasOwnProperty.call(BY, v.by) ? v.by : DEFAULTS.by,
+      minutes: num(v.minutes, 1, 240, DEFAULTS.minutes),
+      screens: num(v.screens, 5, 5e3, DEFAULTS.screens),
+      darkest: num(v.darkest, DARKEST_MIN, DARKEST_MAX, DEFAULTS.darkest),
+      restSeconds: num(v.restSeconds, 10, 3600, DEFAULTS.restSeconds),
+      waitMinutes: num(v.waitMinutes, 1, 240, DEFAULTS.waitMinutes),
+      except
+    };
+  }
+  function looser2(from, to) {
+    const a = normalize2(from), b = normalize2(to);
+    if (!a.on) return false;
+    if (!b.on) return true;
+    const time = (c) => c.by === "distance" ? Infinity : c.minutes;
+    const dist = (c) => c.by === "time" ? Infinity : c.screens;
+    const more = b.except.some((s) => !a.except.includes(s));
+    return time(b) > time(a) || dist(b) > dist(a) || b.darkest < a.darkest || b.restSeconds < a.restSeconds || b.waitMinutes < a.waitMinutes || more;
+  }
+
   // src/utils/focusLock.js
   var UNLOCK_MS = 30 * 60 * 1e3;
-  var LOCKABLE = ["tabLimit", "searchDelaySeconds", "saturation", "nsfwAction", "socialFilter"];
-  var DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: "off", socialFilter: { mode: "off", parts: [] } };
+  var LOCKABLE = ["tabLimit", "searchDelaySeconds", "saturation", "nsfwAction", "socialFilter", "scrollFade"];
+  var DEFAULTS2 = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: "off", socialFilter: { mode: "off", parts: [] }, scrollFade: DEFAULTS };
   var STRICTNESS = {
     tabLimit: (v) => Number(v) === 0 ? -Infinity : -Number(v),
     // fewer tabs is stricter; Off is no limit at all
@@ -398,7 +497,7 @@
     nsfwAction: (v) => ({ off: 0, blur: 1, blackout: 2 })[String(v)] || 0
     // stricter actions cannot return to Off
   };
-  var LOOSER = { socialFilter: looser };
+  var LOOSER = { socialFilter: looser, scrollFade: looser2 };
   var entry = (locks, key) => locks && typeof locks === "object" && locks[key] && typeof locks[key] === "object" ? locks[key] : null;
   function lockState(locks, key, now = Date.now()) {
     const l = entry(locks, key);
@@ -414,7 +513,7 @@
   }
   function changeAllowed(locks, key, from, to, now = Date.now()) {
     if (!isLocked(locks, key, now) || !(STRICTNESS[key] || LOOSER[key])) return true;
-    const was = from === void 0 || from === null ? DEFAULTS[key] : from;
+    const was = from === void 0 || from === null ? DEFAULTS2[key] : from;
     if (LOOSER[key]) return !LOOSER[key](was, to);
     return STRICTNESS[key](to) >= STRICTNESS[key](was);
   }
@@ -775,7 +874,14 @@
         backup: true,
         importWhen: "truthy",
         profile: "focus",
-        note: "The social media filter (utils/socialFilter.js): { mode: off | parts | all, parts: [ids of the parts to hide] }. Only the choices are saved so far: nothing is blocked yet."
+        note: "The social media filter (utils/socialFilter.js): { mode: off | parts | all, parts: [ids of the parts to hide] }. Spec 006 makes the choices work: components/atlas/atlas-social-<site>.js hides parts, background/socialBlock.js blocks whole sites."
+      },
+      scrollFade: {
+        default: { on: false, by: "either", minutes: 5, screens: 150, darkest: 70, restSeconds: 60, waitMinutes: 10, except: [] },
+        backup: true,
+        importWhen: "truthy",
+        profile: "focus",
+        note: "Scroll fade (utils/scrollFade.js): every page dims the longer or farther you scroll, on all sites together, then stays fully dim for a wait. { on, by: either | time | distance, minutes, screens, darkest (percent), restSeconds (clears a page that is not fully dim), waitMinutes (how long it stays fully dim), except: [host names left alone] }. Off until switched on. components/atlas/atlas-scroll-fade.js counts the scrolling; src/modules/36-scroll-fade-layer.js draws the dimming and keeps the wait; the Focus lock keeps it from getting weaker."
       },
       nsfwStrictness: {
         default: 65,
@@ -828,6 +934,16 @@
         default: null,
         backup: false,
         note: "Usage totals per site and hour (utils/usageLog.js), written by the service worker, shown in Settings > Usage. Never backed up."
+      },
+      atlas_social_health: {
+        default: null,
+        backup: false,
+        note: "Social media filter health (components/atlas/atlas-social-core.js): per site and part, how many elements its selectors matched, and how often the safety guard switched it off. No page addresses. Read from the profile to see selector rot. Never backed up."
+      },
+      atlas_scroll_fade: {
+        default: null,
+        backup: false,
+        note: "Scroll fade total (components/atlas/atlas-scroll-fade.js adds to it, src/modules/36-scroll-fade-layer.js clears it): { ms of scrolling, screens scrolled, last: when you last scrolled, until: when the wait ends or 0 }. One total for every site and tab. Only numbers, never a page address. Never backed up."
       },
       atlasProfilesV2: {
         default: null,

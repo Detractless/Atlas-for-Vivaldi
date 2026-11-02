@@ -15,6 +15,7 @@ import './workerState.js';
 import './searchUrl.js';
 import './tabLimiter.js';
 import './searchInterception.js';
+import './socialBlock.js';
 import './pendingChanges.js';
 import './messaging.js';
 import './stateSync.js';

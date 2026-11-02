@@ -31,9 +31,9 @@
       on: 'Every profile uses the same engines and pills.',
       off: 'Each profile has its own engines and pills.' },
     { id: 'focus', label: 'Focus', keys: ['tabLimit', 'managementMethod', 'searchDelaySeconds',
-      'showQueryOnDelay', 'saturation', 'nsfwAction', 'socialFilter'],
-      on: 'Every profile uses the same tab limit, search delay, color level and content shield.',
-      off: 'Each profile has its own tab limit, search delay, color level and content shield.' }
+      'showQueryOnDelay', 'saturation', 'nsfwAction', 'socialFilter', 'scrollFade'],
+      on: 'Every profile uses the same tab limit, search delay, color level, scroll fade and content shield.',
+      off: 'Each profile has its own tab limit, search delay, color level, scroll fade and content shield.' }
   ];
   var DEFAULTS = { active: 'personal', list: [
     { id: 'personal', name: 'Christian Darby-Ward', label: 'Personal', color: 0 },
@@ -52,7 +52,6 @@
   var uid = function () { return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); };
   var esc = function (t) { return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var cat = function (id) { return CATS.filter(function (c) { return c.id === id; })[0]; };
-
   var sget = function (area, keys) { return new Promise(function (r) { chrome.storage[area].get(keys, function (v) { r(v || {}); }); }); };
   var sset = function (area, obj) { return new Promise(function (r) { chrome.storage[area].set(obj, function () { r(); }); }); };
   var sdel = function (area, keys) { return new Promise(function (r) { chrome.storage[area].remove(keys, function () { r(); }); }); };
@@ -191,10 +190,11 @@
   }
 
   /* The Focus locks (focusLocks) aren't per profile, and a locked setting keeps its live value on a switch unless the
-     other profile's is stricter: utils/focusLock.js's rule in this file's words (it can't import). Keep them the same. LOOSER: whether a value of a setting that is more than one number is looser (the social media filter, { mode, parts }: utils/socialFilter.js looser()). */
-  var LOCK_DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: 'off', socialFilter: { mode: 'off', parts: [] } };
+     other profile's is stricter: utils/focusLock.js's rule in this file's words (it can't import). Keep them the same. LOOSER: whether a value of a setting that is more than one number is looser (the social media filter, { mode, parts }: utils/socialFilter.js looser(); the scroll fade: utils/scrollFade.js looser()). */
+  var LOCK_DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: 'off', socialFilter: { mode: 'off', parts: [] }, scrollFade: { on: false, by: 'either', minutes: 5, screens: 150, darkest: 70, restSeconds: 60, waitMinutes: 10, except: [] } };
   var STRICT = { tabLimit: function (v) { return +v === 0 ? -Infinity : -v; }, searchDelaySeconds: function (v) { return +v; }, saturation: function (v) { return -v; }, nsfwAction: function (v) { return ({ off: 0, blur: 1, blackout: 2 })[String(v)] || 0; } },
-    LOOSER = { socialFilter: function (a, b) { var r = { off: 0, parts: 1, all: 2 }, ra = r[(a || {}).mode] | 0, rb = r[(b || {}).mode] | 0; return ra !== rb ? rb < ra : ra === 1 && (a.parts || []).some(function (id) { return (b.parts || []).indexOf(id) < 0; }); } };
+    FADE = function (x) { x = Object.assign({}, LOCK_DEFAULTS.scrollFade, x); return { on: x.on === true, time: x.by === 'distance' ? Infinity : +x.minutes || 5, dist: x.by === 'time' ? Infinity : +x.screens || 150, dark: +x.darkest || 70, rest: +x.restSeconds || 60, wait: +x.waitMinutes || 10, except: Array.isArray(x.except) ? x.except : [] }; },
+    LOOSER = { scrollFade: function (a, b) { var p = FADE(a), q = FADE(b); return p.on && (!q.on || q.time > p.time || q.dist > p.dist || q.dark < p.dark || q.rest < p.rest || q.wait < p.wait || q.except.some(function (s) { return p.except.indexOf(s) < 0; })); }, socialFilter: function (a, b) { var r = { off: 0, parts: 1, all: 2 }, ra = r[(a || {}).mode] | 0, rb = r[(b || {}).mode] | 0, ps = function (x) { return Array.isArray((x || {}).parts) ? x.parts : []; }; return ra !== rb ? rb < ra : ra === 1 && ps(a).some(function (id) { return ps(b).indexOf(id) < 0; }); } };
   function lockedLooser(snap, live, keys) {
     var now = Date.now(), locks = live.focusLocks && typeof live.focusLocks === 'object' ? live.focusLocks : {};
     return keys.filter(function (k) {

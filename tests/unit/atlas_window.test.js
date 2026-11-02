@@ -40,7 +40,8 @@ test("the context-menu content script is registered", async () => {
   await new Promise((r) => setTimeout(r, 20));
   const registered = w.calls.filter((c) => c.name === "chrome.scripting.registerContentScripts").map((c) => plain(c.args[0])[0].id);
   // Called twice: the stand-in answers once by itself ("none registered") and once here.
-  assert.deepEqual([...new Set(registered)], ["atlas-ctxmenu", "atlas-google-account", "atlas-usage", "atlas-nsfw-guard"], "the page menu, the Google account check (spec 002), usage totals, and nsfw guard");
+  const social = ["youtube", "reddit", "twitch", "x", "instagram", "tiktok", "facebook", "snapchat"].map((k) => "atlas-social-" + k);
+  assert.deepEqual([...new Set(registered)], ["atlas-ctxmenu", "atlas-google-account", "atlas-usage", "atlas-scroll-fade", "atlas-nsfw-guard", ...social], "the page menu, the Google account check (spec 002), usage totals, scroll fade, the nsfw guard, and one social media filter script per site (spec 006)");
   const swept = w.calls.find((c) => c.name === "chrome.scripting.unregisterContentScripts");
   assert.deepEqual(plain(swept.args[0]), { ids: ["detractless-rules"] }, "an archived script registration is removed");
 });

@@ -8,8 +8,9 @@ import { formatTimeCompact } from '../utils/formatDuration.js';
 import { pendingIncreaseText } from '../components/tabLimiter/tabLimiterUI.js';
 import { pendingDecreaseText } from '../components/searchDelay/searchDelay.js';
 import { usagePage } from './usagePage.js';
-import { BLOCKING_LIVE, GROUPS, normalize } from '../utils/socialFilter.js';
+import { LIVE_SITES, partsLive, GROUPS, normalize } from '../utils/socialFilter.js';
 import { restingPane } from './chipPane.js';
+import { scrollFadeSection } from './scrollFadePage.js';
 
 export const REVIEW_URL = "https://chromewebstore.google.com/detail/ipgmbcinekdcmhhnbanlahedgpehffab";
 
@@ -36,17 +37,19 @@ function appearancePage() {
   ]);
 }
 
+const partsNote = () => (partsLive() === "none" ? "Blocks whole sites; parts are not blocking yet." : `Parts block on ${LIVE_SITES.join(", ")}.`);
 /* Under each locked setting on Focus: what the lock does (open), or that it is locked (held). */
 const LOCK_TEXT = {
   tabLimit: { open: "Lock it to stop it going higher.", held: "Locked. It can go lower, but not higher." },
   searchDelaySeconds: { open: "A pause before results. Lock it to stop it getting shorter.", held: "Locked. It can get longer, but not shorter." },
   saturation: { open: "Lock it to stop going back to color.", held: "Locked. It can go grayer, but not back to color." },
   nsfwAction: { open: "Lock it to prevent turning the shield off.", held: "Locked. You can make it more protective, but not turn it off." },
-  // Until the blocking is built (utils/socialFilter.js BLOCKING_LIVE) the page says so: a lock on a filter that blocks nothing would mislead.
+  // Whole sites can always be blocked; the parts work on the sites in LIVE_SITES (utils/socialFilter.js), and the page says which.
   socialFilter: {
-    open: BLOCKING_LIVE ? "Hide the parts of social sites that pull you in. Lock it to prevent turning it off." : "Not blocking yet. Lock it to prevent turning it off.",
-    held: "Locked. You can block more, but not less." + (BLOCKING_LIVE ? "" : " Not blocking yet."),
+    open: partsLive() === "all" ? "Hide the parts of social sites that pull you in. Lock it to prevent turning it off." : `${partsNote()} Lock it to prevent turning it off.`,
+    held: "Locked. You can block more, but not less." + (partsLive() === "all" ? "" : ` ${partsNote()}`),
   },
+  scrollFade: { open: "Dims every page as you keep scrolling. Lock it to stop it getting weaker.", held: "Locked. It can get stronger, but not weaker." },
 };
 /* A change queued by the version before the locks, shown until it finishes (tabLimiterUI.js, searchDelay.js). */
 const QUEUED = {
@@ -55,9 +58,10 @@ const QUEUED = {
   saturation: () => "",
   nsfwAction: () => "",
   socialFilter: () => "",
+  scrollFade: () => "",
 };
 export const clockTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-/** The note under a locked setting (`key`: tabLimit, searchDelaySeconds, saturation, nsfwAction or socialFilter). */
+/** The note under a locked setting (`key`: tabLimit, searchDelaySeconds, saturation, nsfwAction, socialFilter or scrollFade). */
 export function lockNote(key) {
   const locks = getSetting("focusLocks"), state = lockState(locks, key);
   if (state === "unlocking") return `Unlocks at ${clockTime(unlockTime(locks, key))}. Click the lock to keep it locked.`;
@@ -99,6 +103,7 @@ function focusPage() {
     row("Color saturation", lockNote("saturation"), slider("saturation", CONTROLS.saturation.get(), 0, 100) + lockFor("saturation")) +
       saturationPreview(CONTROLS.saturation.get())
   ])]) +
+  scrollFadeSection(lockNote("scrollFade"), lockFor("scrollFade")) +
   section("Content shield", [card(nsfwRows)]);
 }
 

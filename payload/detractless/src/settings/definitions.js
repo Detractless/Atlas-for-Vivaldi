@@ -54,10 +54,13 @@ export function defineAllSettings() {
   defineSetting({ key: 'pendingDelayDecrease' });
   defineSetting({ key: 'showQueryOnDelay' });
   defineSetting({ key: 'saturation', write: requestSaturation });
-  // The locks beside the tab limit, delay, color slider, content-shield mode and social media filter (utils/focusLock.js).
+  // The locks beside the tab limit, delay, color slider, content-shield mode, social media filter and scroll fade (utils/focusLock.js).
   defineSetting({ key: 'focusLocks' });
 
   // ── Content shield ──
   defineSetting({ key: 'nsfwAction' });
   defineSetting({ key: 'socialFilter' });
+
+  // ── Scroll fade ── (utils/scrollFade.js; components/atlas/atlas-scroll-fade.js counts the scrolling on pages; src/modules/36-scroll-fade-layer.js draws the dimming)
+  defineSetting({ key: 'scrollFade' });
 }
