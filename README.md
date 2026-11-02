@@ -108,8 +108,8 @@ Each feature has its plan in [`docs/specs/`](docs/specs/).
 ### Install
 
 ```bash
-git clone https://github.com/Detractless/atlas-for-vivaldi.git
-cd atlas-for-vivaldi
+git clone https://github.com/Detractless/Atlas-for-Vivaldi.git
+cd Atlas-for-Vivaldi
 
 python3 install.py --dry-run   # print every change, touch nothing
 python3 install.py             # the real install
