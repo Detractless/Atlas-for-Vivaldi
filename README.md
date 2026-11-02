@@ -1,8 +1,9 @@
 <p align="center">
-  <img src="assets/icon.png" alt="Atlas for Vivaldi" width="140">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+    <img src="assets/banner-light.svg" alt="Atlas for Vivaldi: the gateway to the internet, made less addictive" width="100%">
+  </picture>
 </p>
-
-<h1 align="center">Atlas for Vivaldi</h1>
 
 <p align="center">
   <b>A calmer <a href="https://vivaldi.com/">Vivaldi</a>: restyled from the tab bar to the new tab, with Focus tools that make the web less addictive.</b>
