@@ -1,27 +1,4 @@
-/* ── 05-contextmenu.js: UI context menu manager, tab active state, address bar menu & spelling ── */
-
-var uiMenu = null;
-var activeContextTab = null;
-
-function closeUiMenu() {
-  atlasMark('atlas-menu-open', false);
-  if (activeContextTab) {
-    activeContextTab.classList.remove('atlas-tab-context-active');
-    var p = activeContextTab.closest ? activeContextTab.closest('.tab-position') : null;
-    if (p) p.classList.remove('atlas-tab-context-active');
-    activeContextTab = null;
-  }
-  document.querySelectorAll('.atlas-tab-context-active').forEach(function (el) { el.classList.remove('atlas-tab-context-active'); });
-  if (!uiMenu) return;
-  uiMenu.remove();
-  uiMenu = null;
-  document.removeEventListener('mousedown', uiMenuAway, true);
-  document.removeEventListener('keydown', uiMenuKey, true);
-  if (typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('blur', closeUiMenu);
-}
-
-function uiMenuAway(e) { if (uiMenu && !uiMenu.contains(e.target)) closeUiMenu(); }
-function uiMenuKey(e) { if (e.key === 'Escape') { closeUiMenu(); e.stopPropagation(); } }
+/* ── 05-contextmenu.js: right-click handlers for the tab, the address field and the web page, with spelling help in the field menus. The menu itself is drawn by 37-ui-menu.js. ── */
 
 function dismissPageMenu() {
   try {
@@ -31,104 +8,6 @@ function dismissPageMenu() {
       });
     }
   } catch (err) { /* no tabs API in this context: there is no page menu to close */ }
-}
-
-function showUiMenu(x, y, items, tabNode) {
-  closeUiMenu();
-  dismissPageMenu();
-  if (typeof Atlas.closeMenu === 'function') Atlas.closeMenu();
-  else if (typeof closeMenu === 'function') closeMenu();
-
-  if (tabNode) {
-    tabNode.classList.add('atlas-tab-context-active');
-    var pNode = tabNode.closest ? tabNode.closest('.tab-position') : null;
-    if (pNode) pNode.classList.add('atlas-tab-context-active');
-    activeContextTab = tabNode;
-  }
-  var host = document.getElementById('browser') || document.body;
-  atlasMark('atlas-menu-open', true);
-  uiMenu = document.createElement('div');
-  uiMenu.className = 'atlas-profile-menu';
-  items.forEach(function (it) { uiMenu.appendChild(uiMenuEntry(it)); });
-  uiMenu.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
-  host.appendChild(uiMenu);
-  placeUiMenu(x, y);
-
-  document.addEventListener('mousedown', uiMenuAway, true);
-  document.addEventListener('keydown', uiMenuKey, true);
-  if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('blur', closeUiMenu);
-}
-
-/* One row of the menu: a separator, or a button running it.run(). */
-function uiMenuEntry(it) {
-  if (it.sep) {
-    var s = document.createElement('div'); s.className = 'apm-sep'; return s;
-  }
-  var b = document.createElement('button');
-  b.className = 'apm-item' + (it.dis ? ' dis' : '');
-  b.type = 'button';
-  if (it.dis) b.disabled = true;
-  var l = document.createElement('span');
-  l.textContent = it.label;
-  b.appendChild(l);
-  if (it.key) {
-    var k = document.createElement('span');
-    k.className = 'apm-key';
-    k.textContent = it.key;
-    b.appendChild(k);
-  }
-  b.addEventListener('click', function (ev) {
-    if (it.dis) return;
-    ev.preventDefault(); ev.stopPropagation();
-    closeUiMenu();
-    try { it.run(); } catch (err) { atlasWarn('menu item  + it.label +  failed', err); }
-  });
-  return b;
-}
-
-var UI_TAIL_SIZE = 34, UI_TAIL_GAP = 13;
-
-/* Where the menu goes along one axis: past the click on the preferred side
-   unless that overflows the viewport, then on the other side. */
-function placeAxis(coord, size, viewport, preferHigh) {
-  var pad = 6;
-  var hi = coord + 2 + UI_TAIL_GAP - 1;
-  var lo = coord - 2 - UI_TAIL_GAP + 1 - size;
-  var high = preferHigh;
-  if (high && hi + size > viewport - pad) high = false;
-  else if (!high && lo < pad) high = true;
-  var pos = high ? hi : lo;
-  pos = Math.max(pad, Math.min(pos, viewport - size - pad));
-  return { pos: pos, high: high };
-}
-
-/* Sharp-corner bubble: tail grows out of menu corner pointing diagonally at click point */
-function placeUiMenu(x, y) {
-  var TS = UI_TAIL_SIZE;
-  var r = uiMenu.getBoundingClientRect();
-  var vw = window.innerWidth, vh = window.innerHeight;
-  var H = placeAxis(x, r.width, vw, x >= vw / 2);
-  var V = placeAxis(y, r.height, vh, y < vh / 2);
-  var right = H.high, down = V.high;
-  uiMenu.style.left = H.pos + 'px';
-  uiMenu.style.top = V.pos + 'px';
-  uiMenu.style.right = 'auto';
-
-  var tail = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  tail.setAttribute('class', 'atlas-ui-tail');
-  tail.setAttribute('width', TS);
-  tail.setAttribute('height', TS);
-  tail.setAttribute('viewBox', '0 0 ' + TS + ' ' + TS);
-  tail.innerHTML =
-    '<path d="M0,0 L27,13 L13,27 Z" style="fill: var(--atlas-menu)"/>' +
-    '<path d="M27,13 L0,0 L13,27" style="fill: none; stroke: var(--atlas-border); stroke-width: 1"/>';
-  tail.style.position = 'fixed';
-  tail.style.left = (right ? x + 2 : x - 2 - TS) + 'px';
-  tail.style.top = (down ? y + 2 : y - 2 - TS) + 'px';
-  tail.style.zIndex = '10001';
-  tail.style.transform = 'scale(' + (right ? 1 : -1) + ',' + (down ? 1 : -1) + ')';
-  tail.style.transformOrigin = '50% 50%';
-  uiMenu.appendChild(tail);
 }
 
 function pasteAndGo(text) {
@@ -330,6 +209,3 @@ document.addEventListener('mousedown', function (e) {
   if (e.target && e.target.closest && !e.target.closest('.webpageview, #webpage-stack')) dismissPageMenu();
 }, true);
 if (chrome.tabs && chrome.tabs.onActivated) chrome.tabs.onActivated.addListener(dismissPageMenu);
-
-Atlas.showUiMenu = showUiMenu;
-Atlas.closeUiMenu = closeUiMenu;

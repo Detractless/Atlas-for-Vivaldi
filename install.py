@@ -27,6 +27,7 @@ from installer.menus import step5_context_menus
 from installer.native_shortcuts import preflight_native_shortcuts, install_native_shortcuts
 from installer.paths import find_vivaldi_res, payload_root
 from installer.preferences import step6_preferences
+from installer.profile_facts import step6_profile_facts
 from installer.process import close_vivaldi, vivaldi_running
 from installer.staging import MacOSStagingContext
 from installer.system import step8_disable_autoupdates, step9_macos_codesign
@@ -76,6 +77,7 @@ def main():
         css_dst = step4_css_mods(payload)
         step5_context_menus(target_res)
         step6_preferences(payload, css_dst)
+        step6_profile_facts(target_res, payload, css_dst)
         step7_harper_extension(payload)
         step8_disable_autoupdates(app_root)
         step9_macos_codesign(target_res)

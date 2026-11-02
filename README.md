@@ -119,6 +119,8 @@ A running Vivaldi is left alone: it keeps its old files until you quit and relau
 
 Vivaldi replaces its program folder on every update, so re-run the installer after one. The CSS mods and the `Preferences` edits survive updates.
 
+Other Vivaldi profiles, including ones you make later, set themselves up with the same settings the first time they open, then reopen their window once to show the look. History, bookmarks and logins stay separate per profile.
+
 <details>
 <summary><b>What the installer does</b></summary>
 

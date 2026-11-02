@@ -40,7 +40,7 @@ function closeExtPop() {
 function extPopAway(e) {
   if (extPop && !extPop.contains(e.target) &&
       !(e.target.closest && e.target.closest('.toolbar-extensions')) &&
-      !(e.target.closest && e.target.closest('.atlas-profile-menu'))) {
+      !(e.target.closest && e.target.closest('.atlas-profile-menu, .atlas-ui-menu'))) {
     closeExtPop();
   }
 }

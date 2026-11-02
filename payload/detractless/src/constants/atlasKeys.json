@@ -238,6 +238,11 @@
       "backup": false,
       "note": "Scroll fade total (components/atlas/atlas-scroll-fade.js adds to it, src/modules/36-scroll-fade-layer.js clears it): { ms of scrolling, screens scrolled, last: when you last scrolled, until: when the wait ends or 0 }. One total for every site and tab. Only numbers, never a page address. Never backed up."
     },
+    "atlas_profile_setup": {
+      "default": null,
+      "backup": false,
+      "note": "This Vivaldi profile has been given Atlas's settings: { v: recipe version, applied: false when the installer had already set it up, at: when }. Written by src/modules/39-profile-setup.js before it changes anything, so it can never run twice for one version. Belongs to the Vivaldi profile it is in; never backed up."
+    },
     "atlasProfilesV2": {
       "default": null,
       "note": "Profiles state (profilesCore.js)."

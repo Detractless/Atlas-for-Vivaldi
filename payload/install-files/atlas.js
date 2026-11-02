@@ -924,30 +924,7 @@ if (chrome.tabs && chrome.tabs.onUpdated) {
 }
 
   /* ═══ Module: 05-contextmenu.js ═══ */
-/* ── 05-contextmenu.js: UI context menu manager, tab active state, address bar menu & spelling ── */
-
-var uiMenu = null;
-var activeContextTab = null;
-
-function closeUiMenu() {
-  atlasMark('atlas-menu-open', false);
-  if (activeContextTab) {
-    activeContextTab.classList.remove('atlas-tab-context-active');
-    var p = activeContextTab.closest ? activeContextTab.closest('.tab-position') : null;
-    if (p) p.classList.remove('atlas-tab-context-active');
-    activeContextTab = null;
-  }
-  document.querySelectorAll('.atlas-tab-context-active').forEach(function (el) { el.classList.remove('atlas-tab-context-active'); });
-  if (!uiMenu) return;
-  uiMenu.remove();
-  uiMenu = null;
-  document.removeEventListener('mousedown', uiMenuAway, true);
-  document.removeEventListener('keydown', uiMenuKey, true);
-  if (typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('blur', closeUiMenu);
-}
-
-function uiMenuAway(e) { if (uiMenu && !uiMenu.contains(e.target)) closeUiMenu(); }
-function uiMenuKey(e) { if (e.key === 'Escape') { closeUiMenu(); e.stopPropagation(); } }
+/* ── 05-contextmenu.js: right-click handlers for the tab, the address field and the web page, with spelling help in the field menus. The menu itself is drawn by 37-ui-menu.js. ── */
 
 function dismissPageMenu() {
   try {
@@ -957,104 +934,6 @@ function dismissPageMenu() {
       });
     }
   } catch (err) { /* no tabs API in this context: there is no page menu to close */ }
-}
-
-function showUiMenu(x, y, items, tabNode) {
-  closeUiMenu();
-  dismissPageMenu();
-  if (typeof Atlas.closeMenu === 'function') Atlas.closeMenu();
-  else if (typeof closeMenu === 'function') closeMenu();
-
-  if (tabNode) {
-    tabNode.classList.add('atlas-tab-context-active');
-    var pNode = tabNode.closest ? tabNode.closest('.tab-position') : null;
-    if (pNode) pNode.classList.add('atlas-tab-context-active');
-    activeContextTab = tabNode;
-  }
-  var host = document.getElementById('browser') || document.body;
-  atlasMark('atlas-menu-open', true);
-  uiMenu = document.createElement('div');
-  uiMenu.className = 'atlas-profile-menu';
-  items.forEach(function (it) { uiMenu.appendChild(uiMenuEntry(it)); });
-  uiMenu.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
-  host.appendChild(uiMenu);
-  placeUiMenu(x, y);
-
-  document.addEventListener('mousedown', uiMenuAway, true);
-  document.addEventListener('keydown', uiMenuKey, true);
-  if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('blur', closeUiMenu);
-}
-
-/* One row of the menu: a separator, or a button running it.run(). */
-function uiMenuEntry(it) {
-  if (it.sep) {
-    var s = document.createElement('div'); s.className = 'apm-sep'; return s;
-  }
-  var b = document.createElement('button');
-  b.className = 'apm-item' + (it.dis ? ' dis' : '');
-  b.type = 'button';
-  if (it.dis) b.disabled = true;
-  var l = document.createElement('span');
-  l.textContent = it.label;
-  b.appendChild(l);
-  if (it.key) {
-    var k = document.createElement('span');
-    k.className = 'apm-key';
-    k.textContent = it.key;
-    b.appendChild(k);
-  }
-  b.addEventListener('click', function (ev) {
-    if (it.dis) return;
-    ev.preventDefault(); ev.stopPropagation();
-    closeUiMenu();
-    try { it.run(); } catch (err) { atlasWarn('menu item  + it.label +  failed', err); }
-  });
-  return b;
-}
-
-var UI_TAIL_SIZE = 34, UI_TAIL_GAP = 13;
-
-/* Where the menu goes along one axis: past the click on the preferred side
-   unless that overflows the viewport, then on the other side. */
-function placeAxis(coord, size, viewport, preferHigh) {
-  var pad = 6;
-  var hi = coord + 2 + UI_TAIL_GAP - 1;
-  var lo = coord - 2 - UI_TAIL_GAP + 1 - size;
-  var high = preferHigh;
-  if (high && hi + size > viewport - pad) high = false;
-  else if (!high && lo < pad) high = true;
-  var pos = high ? hi : lo;
-  pos = Math.max(pad, Math.min(pos, viewport - size - pad));
-  return { pos: pos, high: high };
-}
-
-/* Sharp-corner bubble: tail grows out of menu corner pointing diagonally at click point */
-function placeUiMenu(x, y) {
-  var TS = UI_TAIL_SIZE;
-  var r = uiMenu.getBoundingClientRect();
-  var vw = window.innerWidth, vh = window.innerHeight;
-  var H = placeAxis(x, r.width, vw, x >= vw / 2);
-  var V = placeAxis(y, r.height, vh, y < vh / 2);
-  var right = H.high, down = V.high;
-  uiMenu.style.left = H.pos + 'px';
-  uiMenu.style.top = V.pos + 'px';
-  uiMenu.style.right = 'auto';
-
-  var tail = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  tail.setAttribute('class', 'atlas-ui-tail');
-  tail.setAttribute('width', TS);
-  tail.setAttribute('height', TS);
-  tail.setAttribute('viewBox', '0 0 ' + TS + ' ' + TS);
-  tail.innerHTML =
-    '<path d="M0,0 L27,13 L13,27 Z" style="fill: var(--atlas-menu)"/>' +
-    '<path d="M27,13 L0,0 L13,27" style="fill: none; stroke: var(--atlas-border); stroke-width: 1"/>';
-  tail.style.position = 'fixed';
-  tail.style.left = (right ? x + 2 : x - 2 - TS) + 'px';
-  tail.style.top = (down ? y + 2 : y - 2 - TS) + 'px';
-  tail.style.zIndex = '10001';
-  tail.style.transform = 'scale(' + (right ? 1 : -1) + ',' + (down ? 1 : -1) + ')';
-  tail.style.transformOrigin = '50% 50%';
-  uiMenu.appendChild(tail);
 }
 
 function pasteAndGo(text) {
@@ -1256,9 +1135,6 @@ document.addEventListener('mousedown', function (e) {
   if (e.target && e.target.closest && !e.target.closest('.webpageview, #webpage-stack')) dismissPageMenu();
 }, true);
 if (chrome.tabs && chrome.tabs.onActivated) chrome.tabs.onActivated.addListener(dismissPageMenu);
-
-Atlas.showUiMenu = showUiMenu;
-Atlas.closeUiMenu = closeUiMenu;
 
   /* ═══ Module: 06-toolbar.js ═══ */
 /* ── 06-toolbar.js: React fiber toolbar instance helper and toolbar button context menu ── */
@@ -1967,7 +1843,7 @@ function closeExtPop() {
 function extPopAway(e) {
   if (extPop && !extPop.contains(e.target) &&
       !(e.target.closest && e.target.closest('.toolbar-extensions')) &&
-      !(e.target.closest && e.target.closest('.atlas-profile-menu'))) {
+      !(e.target.closest && e.target.closest('.atlas-profile-menu, .atlas-ui-menu'))) {
     closeExtPop();
   }
 }
@@ -5953,5 +5829,458 @@ function atlasTrackHandle() {
 
   Atlas.scrollFade = { normalize: normalize, progress: progress, settle: settle, clean: clean };
 })();
+
+  /* ═══ Module: 37-ui-menu.js ═══ */
+/* ── 37-ui-menu.js: the right-click menu Atlas draws in the browser window ──
+   One menu for the tab, the address field, the toolbar and the extension buttons: 05, 06 and 10 ask for it
+   through showUiMenu. Like the page menu (atlas-menu.js) it is drawn in a shadow root with its own style
+   sheet instead of being styled by the CSS mods. The CSS mods load per profile (the installer writes that
+   setting only to the profile it was run for), and in every other profile an unstyled menu was a transparent
+   strip along the bottom edge of the window with only its arrow at the click.
+   So: every colour lives in UI_MENU_CSS below, and nothing here may rely on a --atlas-* variable. ── */
+
+var uiMenu = null;
+var activeContextTab = null;
+
+var UI_TAIL_SIZE = 34, UI_TAIL_GAP = 13;
+
+/* The page menu's two palettes, so a tab menu and a page menu look the same. */
+var UI_MENU_HOST_STYLE = 'all: initial; position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 2147483647;';
+var UI_MENU_CSS = [
+  '.wrap { --m-bg: #f6f6f6; --m-border: rgba(0,0,0,.10); --m-text: rgba(0,0,0,.9); --m-dim: rgba(0,0,0,.3); --m-key: rgba(0,0,0,.35); --m-keydim: rgba(0,0,0,.22); --m-hover: rgba(0,0,0,.06); --m-press: rgba(0,0,0,.08); --m-sep: rgba(0,0,0,.08); --m-shadow: 0 8px 24px rgba(0,0,0,.10), 0 1px 3px rgba(0,0,0,.05); }',
+  '.wrap.dark { --m-bg: #262622; --m-border: rgba(255,255,255,.12); --m-text: rgba(255,255,255,.92); --m-dim: rgba(255,255,255,.32); --m-key: rgba(255,255,255,.4); --m-keydim: rgba(255,255,255,.25); --m-hover: rgba(255,255,255,.07); --m-press: rgba(255,255,255,.12); --m-sep: rgba(255,255,255,.09); --m-shadow: 0 8px 24px rgba(0,0,0,.30), 0 1px 3px rgba(0,0,0,.30); }',
+  '.menu { position: fixed; min-width: 206px; box-sizing: border-box; background: var(--m-bg); border: 1px solid var(--m-border); border-radius: 12px; padding: 6px; box-shadow: var(--m-shadow); font-family: system-ui, "Segoe UI", sans-serif; }',
+  '.apm-item { display: flex; justify-content: space-between; align-items: center; gap: 18px; width: 100%; height: 30px; box-sizing: border-box; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; color: var(--m-text); font: inherit; font-size: 13px; text-align: left; white-space: nowrap; cursor: default; }',
+  '.apm-item:hover { background: var(--m-hover); } .apm-item:active { background: var(--m-press); }',
+  '.apm-item.dis { color: var(--m-dim); pointer-events: none; }',
+  '.apm-key { font-size: 11.5px; color: var(--m-key); font-variant-numeric: tabular-nums; } .dis .apm-key { color: var(--m-keydim); }',
+  '.apm-sep { height: 1px; margin: 5px 4px; background: var(--m-sep); }',
+  '.tail { position: fixed; overflow: visible; pointer-events: none; } .tail .f { fill: var(--m-bg); } .tail .s { fill: none; stroke: var(--m-border); stroke-width: 1; }'
+].join('\n');
+
+function closeUiMenu() {
+  atlasMark('atlas-menu-open', false);
+  if (activeContextTab) {
+    activeContextTab.classList.remove('atlas-tab-context-active');
+    var p = activeContextTab.closest ? activeContextTab.closest('.tab-position') : null;
+    if (p) p.classList.remove('atlas-tab-context-active');
+    activeContextTab = null;
+  }
+  document.querySelectorAll('.atlas-tab-context-active').forEach(function (el) { el.classList.remove('atlas-tab-context-active'); });
+  if (!uiMenu) return;
+  uiMenu.remove();
+  uiMenu = null;
+  document.removeEventListener('mousedown', uiMenuAway, true);
+  document.removeEventListener('keydown', uiMenuKey, true);
+  if (typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('blur', closeUiMenu);
+}
+
+function uiMenuAway(e) { if (uiMenu && !uiMenu.contains(e.target)) closeUiMenu(); }
+function uiMenuKey(e) { if (e.key === 'Escape') { closeUiMenu(); e.stopPropagation(); } }
+
+function showUiMenu(x, y, items, tabNode) {
+  closeUiMenu();
+  dismissPageMenu();
+  if (typeof Atlas.closeMenu === 'function') Atlas.closeMenu();
+  else if (typeof closeMenu === 'function') closeMenu();
+
+  if (tabNode) {
+    tabNode.classList.add('atlas-tab-context-active');
+    var pNode = tabNode.closest ? tabNode.closest('.tab-position') : null;
+    if (pNode) pNode.classList.add('atlas-tab-context-active');
+    activeContextTab = tabNode;
+  }
+  var browser = document.getElementById('browser');
+  atlasMark('atlas-menu-open', true);
+  uiMenu = document.createElement('div');
+  uiMenu.className = 'atlas-ui-menu';
+  uiMenu.setAttribute('style', UI_MENU_HOST_STYLE);
+  var root = uiMenu.attachShadow({ mode: 'open' });
+  var style = document.createElement('style');
+  style.textContent = UI_MENU_CSS;
+  root.appendChild(style);
+  var wrap = document.createElement('div');
+  wrap.className = 'wrap' + (browser && browser.classList.contains('theme-dark') ? ' dark' : '');
+  var menuEl = document.createElement('div');
+  menuEl.className = 'menu';
+  items.forEach(function (it) { menuEl.appendChild(uiMenuEntry(it)); });
+  wrap.appendChild(menuEl);
+  root.appendChild(wrap);
+  uiMenu.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+  (browser || document.body).appendChild(uiMenu);
+  placeUiMenu(x, y, menuEl, wrap);
+
+  document.addEventListener('mousedown', uiMenuAway, true);
+  document.addEventListener('keydown', uiMenuKey, true);
+  if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('blur', closeUiMenu);
+}
+
+/* One row of the menu: a separator, or a button running it.run(). */
+function uiMenuEntry(it) {
+  if (it.sep) {
+    var s = document.createElement('div'); s.className = 'apm-sep'; return s;
+  }
+  var b = document.createElement('button');
+  b.className = 'apm-item' + (it.dis ? ' dis' : '');
+  b.type = 'button';
+  if (it.dis) b.disabled = true;
+  var l = document.createElement('span');
+  l.textContent = it.label;
+  b.appendChild(l);
+  if (it.key) {
+    var k = document.createElement('span');
+    k.className = 'apm-key';
+    k.textContent = it.key;
+    b.appendChild(k);
+  }
+  b.addEventListener('click', function (ev) {
+    if (it.dis) return;
+    ev.preventDefault(); ev.stopPropagation();
+    closeUiMenu();
+    try { it.run(); } catch (err) { atlasWarn('menu item ' + it.label + ' failed', err); }
+  });
+  return b;
+}
+
+/* Where the menu goes along one axis: past the click on the preferred side
+   unless that overflows the viewport, then on the other side. */
+function placeAxis(coord, size, viewport, preferHigh) {
+  var pad = 6;
+  var hi = coord + 2 + UI_TAIL_GAP - 1;
+  var lo = coord - 2 - UI_TAIL_GAP + 1 - size;
+  var high = preferHigh;
+  if (high && hi + size > viewport - pad) high = false;
+  else if (!high && lo < pad) high = true;
+  var pos = high ? hi : lo;
+  pos = Math.max(pad, Math.min(pos, viewport - size - pad));
+  return { pos: pos, high: high };
+}
+
+/* Sharp-corner bubble: tail grows out of menu corner pointing diagonally at click point */
+function placeUiMenu(x, y, menuEl, wrap) {
+  var TS = UI_TAIL_SIZE;
+  var r = menuEl.getBoundingClientRect();
+  var vw = window.innerWidth, vh = window.innerHeight;
+  var H = placeAxis(x, r.width, vw, x >= vw / 2);
+  var V = placeAxis(y, r.height, vh, y < vh / 2);
+  var right = H.high, down = V.high;
+  menuEl.style.left = H.pos + 'px';
+  menuEl.style.top = V.pos + 'px';
+
+  var tail = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  tail.setAttribute('class', 'tail atlas-ui-tail');
+  tail.setAttribute('width', TS);
+  tail.setAttribute('height', TS);
+  tail.setAttribute('viewBox', '0 0 ' + TS + ' ' + TS);
+  tail.innerHTML =
+    '<path class="f" d="M0,0 L27,13 L13,27 Z"/>' +
+    '<path class="s" d="M27,13 L0,0 L13,27"/>';
+  tail.style.left = (right ? x + 2 : x - 2 - TS) + 'px';
+  tail.style.top = (down ? y + 2 : y - 2 - TS) + 'px';
+  tail.style.transform = 'scale(' + (right ? 1 : -1) + ',' + (down ? 1 : -1) + ')';
+  tail.style.transformOrigin = '50% 50%';
+  wrap.appendChild(tail);
+}
+
+Atlas.showUiMenu = showUiMenu;
+Atlas.closeUiMenu = closeUiMenu;
+
+  /* ═══ Module: 38-profile-recipe.js ═══ */
+/* ── 38-profile-recipe.js: the Vivaldi settings Atlas needs in a profile, as one pure function ──
+   The installer (installer/preferences.py) writes these settings into the profile it is run for. Every other
+   profile gets them from 39-profile-setup.js the first time it opens, by the rules here.
+
+     profileRecipe(snap, facts)  snap: the profile's current values, { 'vivaldi.toolbars.navigation': [...], ... }
+                                 facts: what the installer wrote to atlas-profile.json (look folder, new-tab
+                                 address, themes, Downloads panel)
+                                 returns only what must change: { path: newValue }
+     profilePaths()              every path the recipe reads, i.e. what to put in snap
+
+   Merging, not replacing: buttons and themes a profile already has stay. tests/unit/profile_recipe_parity.test.js
+   makes preferences.py and this file give the same answer, so change them together. ── */
+
+var PR_TOOLS_PANEL_ID = 'WEBPANEL_atlas_sidebar';
+var PR_OMNIBOX_KEYS = ['enabled', 'bookmarks', 'bookmarks_boosted', 'show_bookmarks', 'show_nicknames',
+  'show_typed_history', 'show_browser_history', 'show_search_history', 'search_history_enable', 'show_vivaldi_calculator'];
+var PR_SEARCH_KEYS = ['direct_match_enabled', 'direct_match_boosted', 'suggest_enabled'];
+var PR_INLINE_KEYS = ['suggest_enabled', 'suggest_on_nickname'];
+/* Buttons taken off the tab bar's own toolbars: Back/Forward move to the mainbar, WorkspaceButton and TabButton
+   (Vivaldi's tab-list button) are not wanted. */
+var PR_TABBAR_OUT = ['Back', 'Forward', 'WorkspaceButton', 'TabButton'];
+
+/* The paths holding a list, which the recipe edits in place: a profile whose list could not be read
+   must be left alone, not given a list built from nothing. */
+var PR_LIST_PATHS = ['vivaldi.toolbars.navigation', 'vivaldi.toolbars.tabbar_before', 'vivaldi.toolbars.tabbar_after',
+  'vivaldi.toolbars.panel', 'vivaldi.panels.web.elements', 'vivaldi.themes.user'];
+
+function profilePaths() {
+  var paths = ['vivaldi.appearance.css_ui_mods_directory', 'vivaldi.theme.schedule.enabled', 'vivaldi.downloads.open_panel_on_new',
+    'vivaldi.address_bar.visible', 'vivaldi.address_bar.extensions.show_all_toggle',
+    'vivaldi.address_bar.autocomplete.enabled', 'vivaldi.address_bar.autocomplete.suffix_expansion.enabled',
+    'search.suggest_enabled', 'vivaldi.homepage', 'vivaldi.tabs.focus_webview', 'vivaldi.tabs.new_page.link',
+    'vivaldi.tabs.new_page.custom_url', 'vivaldi.themes.current', 'extensions.ui.developer_mode'].concat(PR_LIST_PATHS);
+  PR_OMNIBOX_KEYS.forEach(function (k) { paths.push('vivaldi.address_bar.omnibox.' + k); });
+  PR_SEARCH_KEYS.forEach(function (k) { paths.push('vivaldi.address_bar.search.' + k); });
+  PR_INLINE_KEYS.forEach(function (k) { paths.push('vivaldi.address_bar.inline_search.' + k); });
+  return paths;
+}
+
+function prList(v) { return Array.isArray(v) ? v.slice() : []; }
+
+/* Put btn right after the first anchor found (or before it), else at the end. */
+function prInsertAfter(list, btn, anchors, before) {
+  list = list.filter(function (x) { return x !== btn; });
+  for (var i = 0; i < anchors.length; i++) {
+    var at = list.indexOf(anchors[i]);
+    if (at >= 0) { list.splice(at + (before ? 0 : 1), 0, btn); return list; }
+  }
+  list.push(btn);
+  return list;
+}
+
+/* Back and Forward live on the mainbar, Extensions after the address field, Home after Reload. The tab bar
+   keeps neither Back/Forward nor the stock Workspaces and tab-list buttons: Atlas has no use for them there. */
+function prNavigation(snap, put) {
+  ['vivaldi.toolbars.tabbar_before', 'vivaldi.toolbars.tabbar_after'].forEach(function (p) {
+    var arr = snap[p];
+    if (Array.isArray(arr) && arr.some(function (x) { return PR_TABBAR_OUT.indexOf(x) >= 0; })) {
+      put(p, arr.filter(function (x) { return PR_TABBAR_OUT.indexOf(x) < 0; }));
+    }
+  });
+  var nav = prList(snap['vivaldi.toolbars.navigation']);
+  if (!nav.length) nav = ['Reload', 'AddressField'];
+  var at = 0;
+  ['Back', 'Forward'].forEach(function (b) { if (nav.indexOf(b) < 0) { nav.splice(at, 0, b); at++; } });
+  ['Spacer', 'AccountButton'].forEach(function (b) { if (nav.indexOf(b) < 0) nav.push(b); });
+  nav = prInsertAfter(nav, 'Extensions', ['AddressField'], false);
+  nav = nav.indexOf('Reload') >= 0
+    ? prInsertAfter(nav, 'Home', ['Reload'], false)
+    : prInsertAfter(nav, 'Home', ['AddressField'], true);
+  put('vivaldi.toolbars.navigation', nav);
+}
+
+/* The old Tools panel goes; the Downloads panel and its button on the panel bar come. */
+function prPanels(snap, facts, put) {
+  var dl = facts.downloadsPanel || {};
+  var elements = prList(snap['vivaldi.panels.web.elements']).filter(function (e) {
+    return !(e && typeof e === 'object' && (e.id === PR_TOOLS_PANEL_ID || String(e.url || '').indexOf('/sidepanel.html') >= 0));
+  });
+  var ours = elements.filter(function (e) { return e && e.id === dl.id; })[0];
+  if (ours) ours.url = dl.url;
+  else if (dl.id) {
+    elements.push({ id: dl.id, url: dl.url, title: 'Downloads', faviconUrl: '', faviconUrlValid: false, mobileMode: false,
+      origin: 'user', resizable: false, width: -1, zoom: 1 });
+  }
+  put('vivaldi.panels.web.elements', elements);
+  var bar = prList(snap['vivaldi.toolbars.panel']).filter(function (x) { return String(x) !== PR_TOOLS_PANEL_ID && x !== 'Extensions'; });
+  if (dl.id && bar.indexOf(dl.id) < 0) bar.push(dl.id);
+  put('vivaldi.toolbars.panel', bar);
+  put('vivaldi.downloads.open_panel_on_new', false);
+}
+
+/* Atlas's themes are added by id; a theme the profile already has is kept, and the current one is
+   changed only when it is not already an Atlas theme. */
+function prThemes(snap, facts, put) {
+  var user = prList(snap['vivaldi.themes.user']);
+  var have = {};
+  user.forEach(function (t) { if (t && typeof t === 'object') have[String(t.id)] = true; });
+  (facts.themes || []).forEach(function (t) {
+    if (t && !have[String(t.id)]) { user.push(t); have[String(t.id)] = true; }
+  });
+  put('vivaldi.themes.user', user);
+  var cur = String(snap['vivaldi.themes.current']);
+  if (cur !== 'AtlasLight' && cur !== 'AtlasDark') put('vivaldi.themes.current', 'AtlasLight');
+}
+
+function profileRecipe(snap, facts) {
+  var out = {};
+  function put(path, value) {
+    if (JSON.stringify(snap[path]) !== JSON.stringify(value)) out[path] = value;
+  }
+  put('vivaldi.appearance.css_ui_mods_directory', facts.cssDir);
+  put('vivaldi.theme.schedule.enabled', 'off');
+  prPanels(snap, facts, put);
+  put('vivaldi.address_bar.visible', true);
+  put('vivaldi.address_bar.extensions.show_all_toggle', true);
+  put('vivaldi.address_bar.autocomplete.enabled', false);
+  put('vivaldi.address_bar.autocomplete.suffix_expansion.enabled', false);
+  PR_OMNIBOX_KEYS.forEach(function (k) { put('vivaldi.address_bar.omnibox.' + k, false); });
+  PR_SEARCH_KEYS.forEach(function (k) { put('vivaldi.address_bar.search.' + k, false); });
+  PR_INLINE_KEYS.forEach(function (k) { put('vivaldi.address_bar.inline_search.' + k, false); });
+  put('search.suggest_enabled', false);
+  prNavigation(snap, put);
+  put('vivaldi.homepage', facts.newTabUrl);
+  put('vivaldi.tabs.focus_webview', true);
+  put('vivaldi.tabs.new_page.link', 4);
+  put('vivaldi.tabs.new_page.custom_url', facts.newTabUrl);
+  prThemes(snap, facts, put);
+  put('extensions.ui.developer_mode', true);
+  return out;
+}
+
+Atlas.profileRecipe = profileRecipe;
+Atlas.profilePaths = profilePaths;
+Atlas.profileListPaths = PR_LIST_PATHS;
+
+  /* ═══ Module: 39-profile-setup.js ═══ */
+/* ── 39-profile-setup.js: every Vivaldi profile gets Atlas's settings the first time it opens ──
+   The installer sets up the profile it was run for. This window code runs in every profile, so on a profile's
+   first open it applies the same settings (38-profile-recipe.js), writes a mark in the profile's own storage so
+   it never runs again for that recipe version, and then swaps the window for a new one: the look (CSS mods) is
+   read when a window opens, so only a new window shows it. The new window gets the old one's tabs and size.
+
+   Careful by design:
+   - a profile that already matches the recipe (the one the installer set up) is only marked, never changed; one
+     that matches all but a newer rule gets that rule, without a new window (the look folder did not change);
+   - nothing is changed unless every list it edits (toolbars, panels, themes) could be read;
+   - the mark is written before anything else, so a failure can't make it run in a loop;
+   - the swap waits until the window's tabs have stopped changing (a session still restoring would lose
+     tabs), and keeps the old window if any tab fails to move.
+   atlas-profile.json (written by the installer next to atlas.js) holds the facts; without it nothing happens. ── */
+
+var PS_FACTS_FILE = 'atlas-profile.json';
+var PS_LOOK_PATH = 'vivaldi.appearance.css_ui_mods_directory';
+/* start: wait before the first look; settle: for the new setting to be saved before a window reads it;
+   poll/polls: the tab count must hold still for this many checks in a row; tries: give up after this many. */
+var PS_TIMING = (typeof window !== 'undefined' && window.__atlasProfileSetupTiming) ||
+  { start: 1500, settle: 800, poll: 700, polls: 3, tries: 20 };
+
+function psValue(x) { return x && typeof x === 'object' && 'value' in x ? x.value : x; }
+
+function psFacts() {
+  return fetch(PS_FACTS_FILE).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+}
+
+function psReadMark() {
+  return new Promise(function (resolve) {
+    chrome.storage.local.get('atlas_profile_setup', function (r) { void chrome.runtime.lastError; resolve(r && r.atlas_profile_setup); });
+  });
+}
+
+function psWriteMark(facts, applied) {
+  return new Promise(function (resolve) {
+    chrome.storage.local.set({ atlas_profile_setup: { v: facts.version, applied: applied, at: Date.now() } },
+      function () { void chrome.runtime.lastError; resolve(); });
+  });
+}
+
+/* The current value of every path, or null when any answer is late (5 s). */
+function psSnapshot(paths) {
+  return new Promise(function (resolve) {
+    var snap = {}, left = paths.length, done = false;
+    var timer = setTimeout(function () { if (!done) { done = true; resolve(null); } }, 5000);
+    paths.forEach(function (p) {
+      function got(r) {
+        snap[p] = psValue(r);
+        if (--left === 0 && !done) { done = true; clearTimeout(timer); resolve(snap); }
+      }
+      try { vivaldi.prefs.get(p, got); } catch (e) { got(undefined); }
+    });
+  });
+}
+
+function psApply(changes) {
+  Object.keys(changes).forEach(function (p) {
+    try { vivaldi.prefs.set({ path: p, value: changes[p] }); } catch (e) { atlasWarn('profile setup: could not set ' + p, e); }
+  });
+}
+
+/* True once the window's tab count has held still for PS_TIMING.polls checks in a row. */
+function psTabsStable(windowId) {
+  return new Promise(function (resolve) {
+    var last = -1, same = 0, tries = 0;
+    (function check() {
+      chrome.tabs.query({ windowId: windowId }, function (tabs) {
+        void chrome.runtime.lastError;
+        var n = tabs ? tabs.length : -1;
+        same = n === last ? same + 1 : 1;
+        last = n;
+        if (same >= PS_TIMING.polls) return resolve(true);
+        if (++tries >= PS_TIMING.tries) return resolve(false);
+        setTimeout(check, PS_TIMING.poll);
+      });
+    })();
+  });
+}
+
+/* A new window with this window's tabs (same order, same one active) and size; the old window closes by itself
+   when its last tab leaves. The active tab is adopted by the new window as it is created, so it never opens a start
+   page of its own; the tabs before it go in at the front, the tabs after it at the end.
+   Resolves true when every tab moved, false when the swap was skipped or stopped. (The last move ends this window's
+   own script, so on the usual path nothing after it runs: it must be the last step.) */
+function psReopen() {
+  var w = chrome.windows;
+  if (!(w && w.getCurrent && w.create && w.remove && chrome.tabs && chrome.tabs.move)) return Promise.resolve(false);
+  return new Promise(function (resolve) {
+    setTimeout(function () {
+      w.getCurrent({}, function (probe) {
+        if (!probe || probe.type !== 'normal' || probe.incognito) return resolve(false);
+        psTabsStable(probe.id).then(function (stable) {
+          if (!stable) return resolve(false);
+          w.getCurrent({ populate: true }, function (old) {
+            var tabs = old && old.tabs ? old.tabs.slice().sort(function (a, b) { return a.index - b.index; }) : [];
+            if (!tabs.length) return resolve(false);
+            var active = tabs.filter(function (t) { return t.active; })[0] || tabs[0];
+            var ids = function (list) { return list.map(function (t) { return t.id; }); };
+            var lower = ids(tabs.filter(function (t) { return t.index < active.index; }));
+            var upper = ids(tabs.filter(function (t) { return t.index > active.index; }));
+            var spec = old.state && old.state !== 'normal'
+              ? { tabId: active.id, state: old.state }
+              : { tabId: active.id, left: old.left, top: old.top, width: old.width, height: old.height };
+            w.create(spec, function (fresh) {
+              void chrome.runtime.lastError;
+              if (!fresh || fresh.id === undefined) return resolve(false);
+              var into = function (list, index, next) {
+                if (!list.length) return next();
+                chrome.tabs.move(list, { windowId: fresh.id, index: index }, function (moved) {
+                  void chrome.runtime.lastError;
+                  var n = Array.isArray(moved) ? moved.length : (moved ? 1 : 0);
+                  if (n !== list.length) { atlasWarn('profile setup: tabs did not all move; the old window was kept', n + '/' + list.length); return resolve(false); }
+                  next();
+                });
+              };
+              into(lower, 0, function () {
+                into(upper, -1, function () { w.remove(old.id, function () { void chrome.runtime.lastError; resolve(true); }); });
+              });
+            });
+          });
+        });
+      });
+    }, PS_TIMING.settle);
+  });
+}
+
+function psRun() {
+  if (!(window.vivaldi && vivaldi.prefs && chrome.storage && chrome.storage.local)) return Promise.resolve('no api');
+  return psFacts().then(function (facts) {
+    if (!facts || !facts.cssDir) return 'no facts';
+    return psReadMark().then(function (mark) {
+      if (mark && mark.v >= facts.version) return 'done before';
+      return psSnapshot(profilePaths()).then(function (snap) {
+        var readable = snap && PR_LIST_PATHS.every(function (p) { return Array.isArray(snap[p]); });
+        if (!readable) { atlasWarn('profile setup: could not read this profile, left alone', null); return 'unreadable'; }
+        var changes = profileRecipe(snap, facts);
+        var changed = Object.keys(changes).length > 0;
+        return psWriteMark(facts, changed).then(function () {
+          if (!changed) return 'already set up';
+          psApply(changes);
+          if (!(PS_LOOK_PATH in changes)) return 'set up';
+          return psReopen().then(function (swapped) { return swapped ? 'set up, window reopened' : 'set up'; });
+        });
+      });
+    });
+  }).catch(function (err) { atlasWarn('profile setup', err); return 'failed'; });
+}
+
+/* One window at a time per profile: the second window to open finds the mark the first one wrote. */
+function psRunLocked() {
+  if (typeof navigator !== 'undefined' && navigator.locks && navigator.locks.request) {
+    return navigator.locks.request('atlas-profile-setup', psRun);
+  }
+  return psRun();
+}
+
+setTimeout(psRunLocked, PS_TIMING.start);
+Atlas.profileSetup = { run: psRunLocked };
 
 })();

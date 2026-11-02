@@ -19,6 +19,9 @@ PANEL_ID = "WEBPANEL_atlas_sidebar"
 DOWNLOADS_PANEL_ID = "WEBPANEL_atlas_downloads"
 DOWNLOADS_PANEL_PATH = "components/atlas/downloads-panel.html"
 
+# Buttons the tab bar's own toolbars do not keep (src/modules/38-profile-recipe.js has the same list).
+TABBAR_OUT = ("Back", "Forward", "WorkspaceButton", "TabButton")
+
 
 def _ensure(d: dict, key: str) -> dict:
     if not isinstance(d.get(key), dict):
@@ -159,11 +162,12 @@ def _insert_after(nav: list, btn: str, anchors: tuple, before: bool = False):
 def _prefs_navigation_toolbar(v: dict):
     toolbars = _ensure(v, "toolbars")
     # atlas.js only restyles Back/Forward when they live on the mainbar, so
-    # pull them off the tab-bar sub-toolbars and onto navigation.
+    # pull them off the tab-bar sub-toolbars and onto navigation. Vivaldi's
+    # stock Workspaces and tab-list buttons come off the tab bar too.
     for tb in ("tabbar_before", "tabbar_after"):
         arr = toolbars.get(tb)
-        if isinstance(arr, list) and ("Back" in arr or "Forward" in arr):
-            toolbars[tb] = [x for x in arr if x not in ("Back", "Forward")]
+        if isinstance(arr, list) and any(x in TABBAR_OUT for x in arr):
+            toolbars[tb] = [x for x in arr if x not in TABBAR_OUT]
 
     nav = toolbars.get("navigation")
     nav = list(nav) if isinstance(nav, list) else []

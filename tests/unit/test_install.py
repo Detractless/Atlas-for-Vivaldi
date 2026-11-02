@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PAYLOAD = ROOT / "payload"
 sys.path.insert(0, str(ROOT))
 
-from installer import util, files, preferences, system  # noqa: E402
+from installer import util, files, preferences, profile_facts, system  # noqa: E402
 
 
 def old_installer():
@@ -127,6 +127,29 @@ class InstallerTest(unittest.TestCase):
             self.run_step6(preferences, b / "Preferences")
             self.assertEqual(json.loads((b / "Preferences").read_text()),
                              json.loads((a / "Preferences").read_text()), f"case {i}")
+
+    def test_profile_facts_hold_what_other_profiles_need(self):
+        css = self.tmp / "css-mods"
+        facts = profile_facts.profile_facts(PAYLOAD, css)
+        self.assertEqual(facts["cssDir"], str(css))
+        self.assertTrue(facts["newTabUrl"].startswith("chrome-extension://"))
+        self.assertEqual({t["id"] for t in facts["themes"]}, {"AtlasLight", "AtlasDark"})
+        self.assertEqual(facts["downloadsPanel"]["id"], preferences.DOWNLOADS_PANEL_ID)
+        self.assertIsInstance(facts["version"], int)
+
+    def test_the_facts_file_is_written_next_to_atlas_js(self):
+        res = self.tmp / "res"
+        res.mkdir()
+        profile_facts.step6_profile_facts(res, PAYLOAD, self.tmp / "css-mods")
+        written = json.loads((res / "atlas-profile.json").read_text())
+        self.assertEqual(written["cssDir"], str(self.tmp / "css-mods"))
+
+    def test_a_dry_run_writes_no_facts_file(self):
+        res = self.tmp / "res"
+        res.mkdir()
+        util.DRY = True
+        profile_facts.step6_profile_facts(res, PAYLOAD, self.tmp / "css-mods")
+        self.assertFalse((res / "atlas-profile.json").exists())
 
     def test_failed_codesign_stops_the_install(self):
         app = self.tmp / "Vivaldi.app" / "Contents" / "res"

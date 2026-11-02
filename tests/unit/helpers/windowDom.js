@@ -43,7 +43,7 @@ function recorder(name, calls, listeners) {
 }
 
 /** chrome.* for the window: real-ish storage/runtime, everything else recorded. */
-function windowChrome(window, seed, calls, listeners) {
+function windowChrome(window, seed, calls, listeners, apis) {
   const { chrome: base, control } = makeFakeChrome(window, seed);
   const known = {
     storage: base.storage,
@@ -52,6 +52,12 @@ function windowChrome(window, seed, calls, listeners) {
     tabs: new Proxy({ query: (q, cb) => { calls.push({ name: "chrome.tabs.query", args: [q, cb] }); const r = window.JSON.parse("[]"); if (cb) Promise.resolve().then(() => cb(r)); return Promise.resolve(r); } },
       { get: (t, p) => (p in t ? t[p] : recorder(`chrome.tabs.${String(p)}`, calls, listeners)) }),
   };
+  // opts.chromeApis: chrome.x namespaces a test answers itself (windows, tabs.move); what it leaves out still falls
+  // back to the harness's own answer for that namespace, or to a recorded call.
+  for (const [name, api] of Object.entries(apis || {})) {
+    const before = known[name];
+    known[name] = new Proxy(api, { get: (t, p) => (p in t ? t[p] : before ? before[p] : recorder(`chrome.${name}.${String(p)}`, calls, listeners)) });
+  }
   const chrome = new Proxy({}, {
     get: (t, p) => (p in t ? t[p] : p in known ? known[p] : recorder(`chrome.${String(p)}`, calls, listeners)),
     set: (t, p, v) => { t[p] = v; return true; },
@@ -93,13 +99,14 @@ async function openWindow(opts = {}) {
       window.IDBKeyRange = IDBKeyRange;
       // opts.fetch answers network requests (Google's account list); by default the network is off.
       window.fetch = opts.fetch || (() => Promise.reject(new Error("offline in tests")));
-      fake = windowChrome(window, { sync: opts.sync, local: opts.local }, calls, listeners);
+      if (opts.windowProps) Object.assign(window, opts.windowProps); // e.g. timings a module reads from window
+      fake = windowChrome(window, { sync: opts.sync, local: opts.local }, calls, listeners, opts.chromeApis);
       window.chrome = fake.chrome;
       const rec = recorder("vivaldi", calls, listeners);
-      // opts.searchEngines stands in for vivaldi.searchEngines; the rest is recorded.
-      window.vivaldi = opts.searchEngines
-        ? new Proxy({ searchEngines: opts.searchEngines }, { get: (t, p) => (p in t ? t[p] : rec[p]) })
-        : rec;
+      // opts.searchEngines stands in for vivaldi.searchEngines and opts.vivaldi for any other members (prefs, say);
+      // the rest is recorded.
+      const own = Object.assign({}, opts.searchEngines ? { searchEngines: opts.searchEngines } : {}, opts.vivaldi || {});
+      window.vivaldi = Object.keys(own).length ? new Proxy(own, { get: (t, p) => (p in t ? t[p] : rec[p]) }) : rec;
     },
   });
   await new Promise((resolve) => dom.window.addEventListener("load", resolve));

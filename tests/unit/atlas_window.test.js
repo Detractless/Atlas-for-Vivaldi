@@ -5,6 +5,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { openWindow } = require("./helpers/windowDom");
+const { rightClick, menuLabels, answer } = require("./helpers/windowMenus");
 
 const plain = (v) => JSON.parse(JSON.stringify(v === undefined ? null : v));
 let open = [];
@@ -63,67 +64,6 @@ test("http://home opens the Atlas new tab", async () => {
   const upd = w.calls.find((c) => c.name === "chrome.tabs.update" && c.args[0] === 7);
   assert.ok(upd, "tab 7 is redirected");
   assert.match(plain(upd.args[1]).url, /^chrome-extension:\/\/[a-p]{32}\/index\.html$/);
-});
-
-/* ── Right-click menus in the browser window (05-contextmenu.js) ── */
-
-function rightClick(w, el) {
-  el.dispatchEvent(new w.window.MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 50, clientY: 40 }));
-}
-const menuLabels = (w) => [...w.window.document.querySelectorAll(".atlas-profile-menu .apm-item > span:first-child")].map((s) => s.textContent);
-
-function answer(w, name, value) {
-  const call = [...w.calls].reverse().find((c) => c.name === name);
-  assert.ok(call, `${name} was called`);
-  call.args.find((a) => typeof a === "function")(w.window.JSON.parse(JSON.stringify(value)));
-}
-
-test("right-clicking a tab shows the tab menu", async () => {
-  const w = await start();
-  const doc = w.window.document;
-  doc.getElementById("browser").insertAdjacentHTML("beforeend", '<div class="tab-position"><div class="tab" id="tab-12">Page</div></div>');
-  let hoverCardDismissed = false;
-  doc.querySelector(".tab-position").addEventListener("mouseleave", () => { hoverCardDismissed = true; });
-  rightClick(w, doc.getElementById("tab-12"));
-  assert.ok(hoverCardDismissed, "the tab's hover card is dismissed");
-  answer(w, "chrome.tabs.get", { id: 12, pinned: false, url: "https://a.test/", mutedInfo: { muted: false } });
-  assert.deepEqual(menuLabels(w), ["Reload", "Duplicate", "Pin", "Mute", "Copy address", "Close"]);
-  assert.ok(doc.querySelector(".tab.atlas-tab-context-active"), "the tab is marked while its menu is open");
-  doc.querySelector(".atlas-profile-menu .apm-item").dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
-  assert.ok(w.calls.some((c) => c.name === "chrome.tabs.reload" && c.args[0] === 12), "Reload reloads tab 12");
-  assert.equal(doc.querySelector(".atlas-profile-menu"), null, "the menu closes");
-});
-
-test("right-clicking the address field shows the edit menu", async () => {
-  const w = await start();
-  const doc = w.window.document;
-  doc.getElementById("browser").insertAdjacentHTML("beforeend", '<div class="UrlBar-AddressField"><input value=""></div>');
-  rightClick(w, doc.querySelector(".UrlBar-AddressField input"));
-  assert.deepEqual(menuLabels(w), ["Cut", "Copy", "Paste", "Paste and go", "Select all"]);
-  assert.ok(doc.querySelector(".atlas-profile-menu .apm-item.dis"), "Cut and Copy are off with no selection");
-});
-
-test("a misspelled word in the address field gets suggestions first", async () => {
-  const w = await start();
-  const doc = w.window.document;
-  doc.getElementById("browser").insertAdjacentHTML("beforeend", '<div class="UrlBar-AddressField"><input value="helo"></div>');
-  const input = doc.querySelector(".UrlBar-AddressField input");
-  input.setSelectionRange(4, 4);
-  rightClick(w, input);
-  const labels = menuLabels(w);
-  assert.deepEqual(labels.slice(-5), ["Cut", "Copy", "Paste", "Paste and go", "Select all"]);
-  assert.ok(labels.length > 5, `suggestions offered: ${labels.join(", ")}`);
-  doc.querySelector(".atlas-profile-menu .apm-item").dispatchEvent(new w.window.MouseEvent("click", { bubbles: true }));
-  assert.equal(input.value, labels[0], "picking a suggestion replaces the word");
-});
-
-test("right-clicking a web page shows back, forward and reload", async () => {
-  const w = await start();
-  const doc = w.window.document;
-  doc.getElementById("browser").insertAdjacentHTML("beforeend", '<div class="webpageview"><div id="pg">page</div></div>');
-  rightClick(w, doc.getElementById("pg"));
-  answer(w, "chrome.tabs.query", [{ id: 3, url: "https://b.test/" }]);
-  assert.deepEqual(menuLabels(w), ["Back", "Forward", "Reload", "Copy address"]);
 });
 
 /* ── Extensions popover (09-extensions-native.js, 10-extensions-popover.js) ── */
@@ -263,28 +203,6 @@ test("the avatar button opens the profile menu: profiles, then shortcuts", async
   answer(w, "chrome.tabs.query", [{ id: 3, url: "https://b.test/" }]);
   assert.ok(w.calls.some((c) => c.name === "chrome.tabs.create" && plain(c.args[0]).url === "chrome://history/"), "History opens Chromium's own page");
   assert.equal(w.window.document.querySelector(".atlas-nosurf-menu"), null, "the menu closes");
-});
-
-test("a web-page menu opening closes the browser's own menus", async () => {
-  const w = await start();
-  const doc = w.window.document;
-  doc.getElementById("browser").insertAdjacentHTML("beforeend", '<div class="tab-position"><div class="tab" id="tab-5">T</div></div>');
-  rightClick(w, doc.getElementById("tab-5"));
-  answer(w, "chrome.tabs.get", { id: 5, url: "https://a.test/" });
-  assert.ok(doc.querySelector(".atlas-profile-menu"), "tab menu open");
-  w.control.deliver({ atlas: { act: "ctxmenu-open" } });
-  assert.equal(doc.querySelector(".atlas-profile-menu"), null, "closed when the page menu opens");
-});
-
-test("opening a browser menu tells the page to close its menu", async () => {
-  const w = await start();
-  const doc = w.window.document;
-  doc.getElementById("browser").insertAdjacentHTML("beforeend", '<div class="UrlBar-AddressField"><input value=""></div>');
-  rightClick(w, doc.querySelector(".UrlBar-AddressField input"));
-  answer(w, "chrome.tabs.query", [{ id: 9, url: "https://b.test/" }]);
-  const sent = w.calls.find((c) => c.name === "chrome.tabs.sendMessage" && c.args[0] === 9);
-  assert.ok(sent, "a message went to the active tab");
-  assert.deepEqual(plain(sent.args[1]), { atlas: "closeContextMenu" });
 });
 
 test("the page menu script is registered together with the spelling engine", async () => {
