@@ -97,7 +97,7 @@ Each feature has its plan in [`docs/specs/`](docs/specs/).
 > **Status:** Atlas installs from source. There is no prebuilt installer to download yet.
 
 > [!NOTE]
-> The content shield's model files (about 265 MB) are not in this repository yet, so the shield won't work from a fresh copy. Everything else does.
+> The content shield's model files (about 265 MB) are too big for the repository. Download `atlas-content-shield-models.zip` from the [content-shield-models-1 release](https://github.com/Detractless/Atlas-for-Vivaldi/releases/tag/content-shield-models-1) and unzip it into `payload/install-files/components/atlas/` before you install ([steps](docs/content-shield-models.md)). Without them the shield won't work; everything else does.
 
 ### Prerequisites
 
@@ -186,7 +186,8 @@ Atlas is a set of parts that run in different places. The installer copies them 
 - [x] Focus locks with a 30 minute unlock
 - [x] Usage page
 - [x] macOS installer
-- [ ] Content shield model files for fresh copies
+- [x] Content shield model files, as a release download
+- [ ] Content shield model files bundled so a fresh copy needs no extra step
 - [ ] Doomscroll detection, beyond Scroll fade
 - [ ] Tab cleanup, beyond the tab limit
 - [ ] A richer Usage page

@@ -11,3 +11,5 @@ __pycache__/
 /dist/
 node_modules/
 .scratch/
+# Model files for the content shield are a release download (docs/content-shield-models.md)
+payload/install-files/components/atlas/nsfw/
