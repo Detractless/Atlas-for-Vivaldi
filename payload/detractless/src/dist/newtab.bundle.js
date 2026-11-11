@@ -984,6 +984,17 @@
         field2.select();
       });
     };
+    const root2 = buildRootPane(spec, panes, showPane, close2);
+    panes.forEach((p2) => card2.appendChild(p2));
+    card2.appendChild(hiddenCloseButton(close2));
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close2();
+    });
+    overlay.appendChild(card2);
+    document.body.appendChild(overlay);
+    showPane(root2);
+  }
+  function buildRootPane(spec, panes, showPane, close2) {
     const root2 = el("div", "picker-pane picker-pane--on");
     panes.push(root2);
     root2.appendChild(Object.assign(el("div", "picker-title"), { textContent: spec.title }));
@@ -1007,18 +1018,14 @@
     });
     rootHost.appendChild(rootWell);
     root2.appendChild(rootHost);
-    panes.forEach((p2) => card2.appendChild(p2));
+    return root2;
+  }
+  function hiddenCloseButton(close2) {
     const hiddenClose = el("button", "close-btn picker-hidden-close");
     hiddenClose.type = "button";
     hiddenClose.hidden = true;
     hiddenClose.addEventListener("click", close2);
-    card2.appendChild(hiddenClose);
-    overlay.addEventListener("click", (event) => {
-      if (event.target === overlay) close2();
-    });
-    overlay.appendChild(card2);
-    document.body.appendChild(overlay);
-    showPane(root2);
+    return hiddenClose;
   }
   function iconSpan(svg2) {
     const span = el("span", "picker-row-icon");
@@ -2493,6 +2500,11 @@
     closeMenus(popup);
   }
   function wire(popup) {
+    wireClick(popup);
+    wireInput(popup);
+    wireKeys(popup);
+  }
+  function wireClick(popup) {
     const { overlay } = popup;
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) return close(popup);
@@ -2521,6 +2533,9 @@
       if (item) return choose(popup, item.dataset.ddItem, item.dataset.value);
       if (popup.menu) closeMenus(popup);
     });
+  }
+  function wireInput(popup) {
+    const { overlay } = popup;
     overlay.addEventListener("input", (e) => {
       const name = e.target.dataset && e.target.dataset.field;
       if (!name) return;
@@ -2539,6 +2554,9 @@
         updateCount(popup);
       }
     });
+  }
+  function wireKeys(popup) {
+    const { overlay } = popup;
     overlay.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         e.preventDefault();

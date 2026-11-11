@@ -249,6 +249,12 @@ function choose(popup, key, value) {
 /* ── Events ───────────────────────────────────────────────────────── */
 
 function wire(popup) {
+  wireClick(popup);
+  wireInput(popup);
+  wireKeys(popup);
+}
+
+function wireClick(popup) {
   const { overlay } = popup;
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) return close(popup);
@@ -274,7 +280,10 @@ function wire(popup) {
     if (item) return choose(popup, item.dataset.ddItem, item.dataset.value);
     if (popup.menu) closeMenus(popup);
   });
+}
 
+function wireInput(popup) {
+  const { overlay } = popup;
   overlay.addEventListener('input', (e) => {
     const name = e.target.dataset && e.target.dataset.field;
     if (!name) return;
@@ -285,7 +294,10 @@ function wire(popup) {
     else if (name === 'pageName') popup.pageName = e.target.value;
     else if (name === 'sub') { popup.sub = e.target.value; updateCount(popup); }
   });
+}
 
+function wireKeys(popup) {
+  const { overlay } = popup;
   overlay.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       e.preventDefault();

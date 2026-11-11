@@ -57,6 +57,18 @@ export function buildDialog(spec) {
     if (field) requestAnimationFrame(() => { field.focus(); field.select(); });
   };
 
+  const root = buildRootPane(spec, panes, showPane, close);
+  panes.forEach(p => card.appendChild(p));
+  card.appendChild(hiddenCloseButton(close));
+
+  overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+  showPane(root);
+}
+
+/* The root pane: what was clicked, then every action as a row, in an inset well. */
+function buildRootPane(spec, panes, showPane, close) {
   // ── root pane: the action list ──────────────────────────────────────
   const root = el('div', 'picker-pane picker-pane--on');
   panes.push(root);
@@ -87,11 +99,12 @@ export function buildDialog(spec) {
   });
   rootHost.appendChild(rootWell);
   root.appendChild(rootHost);
+  return root;
+}
 
-  panes.forEach(p => card.appendChild(p));
-
-  // The global Escape path clicks a modal's .close-btn, so a dialog built at
-  // runtime needs one or Escape would strand it on screen. Hidden, not absent.
+/* A dialog built at runtime needs a .close-btn, because the global Escape path
+   clicks one; hidden, not absent, so Escape cannot strand the dialog. */
+function hiddenCloseButton(close) {
   const hiddenClose = el('button', 'close-btn picker-hidden-close');
   hiddenClose.type = 'button';
   /* HIDDEN AS AN ATTRIBUTE, not only as a class. This element carries two
@@ -106,12 +119,7 @@ export function buildDialog(spec) {
      path relies on. */
   hiddenClose.hidden = true;
   hiddenClose.addEventListener('click', close);
-  card.appendChild(hiddenClose);
-
-  overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
-  overlay.appendChild(card);
-  document.body.appendChild(overlay);
-  showPane(root);
+  return hiddenClose;
 }
 
 function iconSpan(svg) {
