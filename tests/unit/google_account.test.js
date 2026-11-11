@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("path");
 const esbuild = require("esbuild");
-const { openNewTab, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
+const { openNewTab, openEssentials, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
 const { menuLabels, pickMenu } = require("./helpers/atlasMenu");
 
 test.afterEach(closeAll);
@@ -41,14 +41,6 @@ function type(win, input, value) {
 }
 function key(win, el, k) {
   el.dispatchEvent(new win.KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
-}
-async function openEssentials(t) {
-  const { window: win, document: doc } = t;
-  click(win, doc.querySelector(".switcher-btn"));
-  click(win, [...doc.querySelectorAll(".switcher-item")].find((li) => li.textContent.includes("Essentials")));
-  const page = doc.getElementById("bookmarks-page");
-  await waitFor(() => page.classList.contains("active") && text(page).includes("Gmail"), 3000, "Essentials");
-  return page;
 }
 const link = (page, name) => [...page.querySelectorAll("a")].find((a) => text(a) === name);
 

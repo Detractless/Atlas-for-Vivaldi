@@ -5,7 +5,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { openNewTab, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
+const { openNewTab, openEssentials: openSharedEssentials, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
 
 test.afterEach(closeAll);
 
@@ -21,17 +21,7 @@ async function openAnswered() {
   t.sent = sent;
   return t;
 }
-async function openEssentials(t) {
-  const { window: win, document: doc } = t;
-  click(win, doc.querySelector(".switcher-btn"));
-  click(win, [...doc.querySelectorAll(".switcher-item")].find((li) => li.textContent.includes("Essentials")));
-  const page = doc.getElementById("bookmarks-page");
-  await waitFor(() => page.classList.contains("active") && text(page).includes("Gmail"), 3000, "Essentials");
-  await settle(win, 50);
-  const { activeTabs } = await t.chrome.storage.sync.get(["activeTabs"]);
-  t.essentials = activeTabs.find((p) => p.label === "Essentials");
-  return page;
-}
+const openEssentials = (tab) => openSharedEssentials(tab, { rememberPage: true });
 
 test("right-click on a bookmark asks the window to open the bar for it, and no pop-up opens", async () => {
   const t = await openAnswered();

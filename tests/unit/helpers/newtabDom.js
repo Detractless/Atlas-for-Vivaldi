@@ -115,6 +115,20 @@ async function waitFor(check, timeout = 3000, what = "condition") {
   }
 }
 
+async function openEssentials(tab, { rememberPage = false } = {}) {
+  const { window, document } = tab;
+  click(window, document.querySelector(".switcher-btn"));
+  click(window, [...document.querySelectorAll(".switcher-item")].find((item) => item.textContent.includes("Essentials")));
+  const page = document.getElementById("bookmarks-page");
+  await waitFor(() => page.classList.contains("active") && page.textContent.replace(/\s+/g, " ").includes("Gmail"), 3000, "Essentials");
+  if (rememberPage) {
+    await settle(window, 50);
+    const { activeTabs } = await tab.chrome.storage.sync.get(["activeTabs"]);
+    tab.essentials = activeTabs.find((item) => item.label === "Essentials");
+  }
+  return page;
+}
+
 function click(window, el) {
   el.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
 }
@@ -123,4 +137,4 @@ function pressEnter(window, el) {
   el.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
 }
 
-module.exports = { openNewTab, closeAll, waitFor, settle, click, pressEnter, PAGE_ROOT, ROOT };
+module.exports = { openNewTab, openEssentials, closeAll, waitFor, settle, click, pressEnter, PAGE_ROOT, ROOT };
