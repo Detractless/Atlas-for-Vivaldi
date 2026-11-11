@@ -243,8 +243,9 @@ test("offscreen image loading reads bytes instead of a CORS-restricted img", () 
 
 test("offscreen loads the on-demand Freepik retry runtime and bounds its snapshots", () => {
   const html = fs.readFileSync(OFFSCREEN_HTML_PATH, "utf8");
-  const code = fs.readFileSync(OFFSCREEN_PATH, "utf8");
+  const code = fs.readFileSync(path.join(path.dirname(OFFSCREEN_PATH), "offscreen-strong-retry.js"), "utf8") + fs.readFileSync(OFFSCREEN_PATH, "utf8");
   assert.ok(html.indexOf('src="ort.min.js"') < html.indexOf('src="offscreen.js"'), "ORT is available before retry code runs");
+  assert.ok(html.indexOf('src="offscreen-strong-retry.js"') < html.indexOf('src="offscreen.js"'), "retry support is loaded before the offscreen entry point");
   assert.ok(code.includes("freepik-eva02-448-fp16.onnx"), "uses the evaluated FP16 retry model");
   assert.ok(code.includes("msg.type === 'RETRY_STRONG'"), "strong-model inference is a separate message stage");
   assert.ok(code.includes("makeStrongSnapshot(bitmap)"), "the retry is bound to the first-stage decoded image");
