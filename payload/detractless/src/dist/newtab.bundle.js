@@ -1282,7 +1282,7 @@
     searchDropdownIndex = v;
   }
 
-  // src/components/shared/scrollAffordance.js
+  // src/components/scroll-affordance/scroll-affordance.js
   function make(tag, className) {
     const el3 = document.createElement(tag);
     el3.className = className;
@@ -1377,7 +1377,7 @@
     }
   }
 
-  // src/components/shared/editInBar.js
+  // src/components/edit-in-bar/edit-in-bar.js
   function editInBar(edit, fallback) {
     const handled = (reply) => {
       const lastError = chrome.runtime && chrome.runtime.lastError;
@@ -2835,7 +2835,7 @@
     }
   }
 
-  // src/components/shared/acronymBadge.js
+  // src/components/acronym-badge/acronym-badge.js
   function generateAcronymSvg(text, color) {
     const acronym = text.trim().toUpperCase().substring(0, 2);
     const textColor = color || "#3b82f6";
@@ -2853,7 +2853,7 @@
     });
   }
 
-  // src/components/shared/subpageNav.js
+  // src/components/subpage-nav/subpage-nav.js
   var BACK_GLYPH = "\u2039";
   var CLOSE_GLYPH = "\xD7";
   function makeSetChrome(title, closeBtn) {

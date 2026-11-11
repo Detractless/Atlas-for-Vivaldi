@@ -3,7 +3,7 @@ import { allCachedBookmarks, searchDropdownIndex, currentEngine, searchEngines, 
 import { renderBookmarkSearchResults, updateSearchDropdownSelection, hideBookmarkSearchResults, sortByUsage } from '../bookmarks/bookmarks-search.js';
 import { resolveEnterAction, searchTextFor } from '../../utils/pillSelection.js';
 import { updateCurrentEngine } from '../engines/engines.js';
-import { attachScrollAffordance } from '../shared/scrollAffordance.js';
+import { attachScrollAffordance } from '../scroll-affordance/scroll-affordance.js';
 import { forActiveAccount } from '../../services/googleAccount.js';
 
 export function initializeSearch() {

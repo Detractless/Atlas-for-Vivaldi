@@ -12,8 +12,8 @@ import {
 } from '../../pages/newtab/newtabState.js';
 /* addBookmark takes resolved values from whatever collected them (today the
    add popup), so the writer never depends on the widget. */
-import { attachScrollAffordance } from '../shared/scrollAffordance.js';
-import { editInBar } from '../shared/editInBar.js';
+import { attachScrollAffordance } from '../scroll-affordance/scroll-affordance.js';
+import { editInBar } from '../edit-in-bar/edit-in-bar.js';
 import { refreshBookmarkCache } from './bookmarks-cache.js';
 import { forActiveAccount } from '../../services/googleAccount.js';
 import { readFailedFor, clearReadFailure, readPageBookmarks, writePageBookmarks, insertBookmark } from './bookmarks-store.js';
@@ -162,7 +162,7 @@ function onGroupContextMenu(e, groupName, rowBookmarks) {
      to parse or bounds-check. */
   const row = e.target.closest?.('.bookmark-link');
   const bookmark = row && rowBookmarks.get(row);
-  /* The address bar opens for it (editInBar.js); the pop-up below is what runs when nothing answers. */
+  /* The address bar opens for it (edit-in-bar.js); the pop-up below is what runs when nothing answers. */
   if (bookmark) {
     editInBar({ kind: 'bookmark', page: currentBookmarkPage, group: groupName, name: bookmark.name, url: bookmark.url },
       () => openBookmarkMenu(groupName, bookmark));

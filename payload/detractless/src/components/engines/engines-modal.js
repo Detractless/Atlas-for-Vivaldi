@@ -1,9 +1,9 @@
 import { BookmarkDB } from '../../services/bookmarksDB.js';
 import { saveEngines } from '../../services/engineStorage.js';
-import { generateAcronymSvg } from '../shared/acronymBadge.js';
+import { generateAcronymSvg } from '../acronym-badge/acronym-badge.js';
 import { readFileAsDataURL } from '../../utils/file.js';
-import { attachScrollAffordance } from '../shared/scrollAffordance.js';
-import { createSubpageNav } from '../shared/subpageNav.js';
+import { attachScrollAffordance } from '../scroll-affordance/scroll-affordance.js';
+import { createSubpageNav } from '../subpage-nav/subpage-nav.js';
 import { ContextMenu } from '../context-menu/context-menu.js';
 import { buildDialog } from '../bookmarks/bookmarks-dialog.js';
 import { Icons } from '../../constants/icons.js';
@@ -30,7 +30,7 @@ import { storageSet } from '../../services/storage.js';
    buildDialog (R-012) as an overlay; see openEngineItemDialog.
 
    Subpage navigation itself is NOT implemented here. It is the shared
-   openSubpage/closeSubpage in components/shared/subpageNav.js (R-015), because
+   openSubpage/closeSubpage in components/subpage-nav/subpage-nav.js (R-015), because
    the add flow is adopting the same pattern and one copy each would drift.
 
    Icon selection opens as a floating picker-card overlay, the same pattern
@@ -45,7 +45,7 @@ import { storageSet } from '../../services/storage.js';
 
 /* ── Subpage navigation ───────────────────────────────────────────── */
 
-/* The four coupled writes now live in subpageNav.js (R-015). What stays here
+/* The four coupled writes now live in subpage-nav.js (R-015). What stays here
    is only what is specific to THIS card: which selectors it drives. The add
    form's own state is reset by resetAddForm on the way IN, not on the way out,
    so returning home has nothing left to clear. */
@@ -211,7 +211,7 @@ export function initEngineModal() {
   const closeBtn = document.getElementById('close-engine-modal');
   if (closeBtn) closeBtn.addEventListener('click', () => {
     // Asks the nav, not the button: which dataset key records "on a subpage"
-    // is subpageNav's private detail now, and this used to read it directly.
+    // is subpage-nav's private detail now, and this used to read it directly.
     if (nav.isSubpage()) closeEngineSubpage();
     else document.getElementById('engine-modal').classList.remove('show');
   });

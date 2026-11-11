@@ -36,7 +36,7 @@
  * rulings removed.
  *
  * THE SEAM: this file owns the fade, the pill and the chevron. The fade's
- * CORNERS are not authored here or by the adopter: scrollAffordance.js copies
+ * CORNERS are not authored here or by the adopter: scroll-affordance.js copies
  * them off the scroller at runtime, because a fade whose radius disagrees with
  * its scroller either notches itself and leaks un-faded content at the corners
  * or overhangs and paints past them. This used to be a --scroll-fade-radius

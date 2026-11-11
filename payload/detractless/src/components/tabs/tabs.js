@@ -15,11 +15,11 @@ import './tabs.css';
 import { DEFAULT_TABS } from '../../constants/defaults.js';
 import { ContextMenu } from '../context-menu/context-menu.js';
 import { openTabDialog } from '../bookmarks/bookmarks-dialog.js';
-import { editInBar } from '../shared/editInBar.js';
+import { editInBar } from '../edit-in-bar/edit-in-bar.js';
 import { BookmarkDB } from '../../services/bookmarksDB.js';
 // Unused here since the switcher replaced the filtered page list; kept so the
 // bundle's module order (and so its start-up order) stays the same.
-import '../shared/scrollAffordance.js';
+import '../scroll-affordance/scroll-affordance.js';
 import { storageGet, storageRemove, storageSet } from '../../services/storage.js';
 import { cleanSubtitle, fillMissingSubtitles, starterSubtitle, subtitleProblem } from '../../services/pageSubtitle.js';
 import {
@@ -195,7 +195,7 @@ function switcherItem(tab) {
     e.preventDefault();
     if (ContextMenu.disabled) return;
     setOpen(false);
-    // The address bar opens for it (editInBar.js); the pop-up is what runs when nothing answers.
+    // The address bar opens for it (edit-in-bar.js); the pop-up is what runs when nothing answers.
     editInBar({ kind: 'page', id: tab.id, label: tab.label, name: displayName(tab), sub: cleanSubtitle(tab.sub) || starterSubtitle(tab), type: tab.type },
       () => openPageDialog(tab));
   });

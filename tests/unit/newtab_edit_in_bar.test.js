@@ -1,5 +1,5 @@
 // Right-click on the new tab asks the browser window to open the address bar for what was clicked
-// (components/shared/editInBar.js). If the window answers, no pop-up opens; if nothing answers, the pop-up does.
+// (components/edit-in-bar/edit-in-bar.js). If the window answers, no pop-up opens; if nothing answers, the pop-up does.
 // The window's side is in addbar_edit_flow.test.js. Deleting the page on screen from the bar is handled here too.
 "use strict";
 

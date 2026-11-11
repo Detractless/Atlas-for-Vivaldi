@@ -82,7 +82,7 @@ test("right-click with no window to answer: a link opens its bookmark pop-up, th
   const page = await openEssentials(t);
   const { window: win, document: doc } = t;
   const dialogTitle = () => text(doc.querySelector(".bookmark-dialog .picker-title"));
-  // Nothing answers the message to the window here, so the pop-up opens (editInBar.js); the answered case is in newtab_edit_in_bar.test.js.
+  // Nothing answers the message to the window here, so the pop-up opens (edit-in-bar.js); the answered case is in newtab_edit_in_bar.test.js.
   contextMenu(win, page.querySelector(".bookmark-link"));
   await settle(win, 80);
   assert.equal(dialogTitle(), "Notion", "the bookmark's own dialog");
