@@ -51,7 +51,7 @@
                         <!-- The fade and hidden-pill count are injected around this
                              list by the shared scroll affordance (R-010). There used
                              to be a hand-rolled #bookmark-fade-overlay here. -->
-                        <div id="bookmark-search-results" class="bookmark-search-results is-hidden"></div>
+                        <div id="bookmark-search-results" class="bookmark-search-results" style="display: none;"></div>
                     </div>
                 </div>
 
@@ -94,7 +94,7 @@
 
                 <!-- Home: engine list -->
                 <div id="engine-home">
-                    <div class="settings-section-header settings-section-header--compact">Add</div>
+                    <div class="settings-section-header" style="margin-top: 4px;">Add</div>
                     <div class="settings-group">
                         <button class="settings-row" type="button" id="add-engine-btn">
                             <span class="settings-row-text">
@@ -110,13 +110,13 @@
                 <!-- Sub-page: Add Engine -->
                 <!-- Sub-page: Add Engine -->
                 <div class="engine-subpage" data-engine-panel="add" data-engine-title="Add Engine" hidden>
-                    <div class="settings-section-header settings-section-header--compact">Name</div>
+                    <div class="settings-section-header" style="margin-top: 4px;">Name</div>
                     <input type="text" class="form-input engine-field" id="engine-add-name" placeholder="e.g. Google" autocomplete="off">
                     <div class="settings-section-header">Search URL</div>
                     <input type="url" class="form-input engine-field" id="engine-add-url" placeholder="https://example.com/search?q=%s" autocomplete="off">
                     <div class="settings-section-header">Icon</div>
                     <div class="settings-group">
-                        <button class="settings-row" type="button" id="engine-add-icon-row">
+                        <button class="settings-row" style="border-radius: 16px;" type="button" id="engine-add-icon-row">
                             <span class="settings-row-text">
                                 <span class="settings-row-title">Icon type</span>
                                 <span class="settings-row-value" id="engine-add-icon-label">Upload SVG</span>
@@ -124,9 +124,9 @@
                             <span class="settings-row-chevron" aria-hidden="true"></span>
                         </button>
                     </div>
-                    <p class="picker-error" id="engine-add-error"></p>
-                    <div id="engine-add-submit-wrap">
-                        <button class="save-btn" id="engine-add-submit" type="button">Add Engine</button>
+                    <p class="picker-error" id="engine-add-error" style="padding: 6px 0 0; font-size: 13px;"></p>
+                    <div style="margin-top: 20px;">
+                        <button class="save-btn" id="engine-add-submit" style="width: 100%;" type="button">Add Engine</button>
                     </div>
                 </div>
 
@@ -135,7 +135,7 @@
 
             </div>
             <div class="settings-footer">
-                <div class="footer-buttons engine-footer-buttons">
+                <div class="footer-buttons" style="margin-left: auto;">
                     <button class="save-btn" id="save-engines">Close</button>
                 </div>
             </div>
