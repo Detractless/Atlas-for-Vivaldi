@@ -5,7 +5,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { openNewTab, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
+const { openNewTab, openFocusSettings: openFocus, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
 
 test.afterEach(closeAll);
 
@@ -13,13 +13,6 @@ const text = (el) => (el ? el.textContent.replace(/\s+/g, " ").trim() : "");
 const plain = (v) => JSON.parse(JSON.stringify(v));
 const stored = async (t, key) => plain(await t.chrome.storage.sync.get([key]))[key];
 
-async function openFocus(t) {
-  const { window: win, document: doc } = t;
-  click(win, doc.getElementById("global-settings-btn"));
-  click(win, await waitFor(() => doc.querySelector('#sp-nav [data-page="focus"]'), 2000, "Focus in the menu"));
-  await waitFor(() => doc.querySelector("#sp-content [data-lock]"), 2000, "the Focus page");
-  return doc.getElementById("sp-content");
-}
 const chip = (content, id) => content.querySelector(`[data-chip="${id}"]`);
 const filterRow = (content) => content.querySelector('[data-select="socialFilter"]').closest(".sp-row");
 const note = (content) => text(filterRow(content).querySelector(".sp-row-desc"));

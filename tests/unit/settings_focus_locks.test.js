@@ -6,7 +6,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { openNewTab, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
+const { openNewTab, openFocusSettings: openFocus, settingsMenuChoices: menuOf, closeSettingsMenu: closeMenu, pickSettingsChoice: pick, dragSettingsSlider: drag, closeAll, settle, click } = require("./helpers/newtabDom");
 
 test.afterEach(closeAll);
 
@@ -14,36 +14,10 @@ const text = (el) => (el ? el.textContent.replace(/\s+/g, " ").trim() : "");
 const plain = (v) => JSON.parse(JSON.stringify(v));
 const MIN = 60 * 1000;
 
-async function openFocus(t) {
-  const { window: win, document: doc } = t;
-  click(win, doc.getElementById("global-settings-btn"));
-  click(win, await waitFor(() => doc.querySelector('#sp-nav [data-page="focus"]'), 2000, "Focus in the menu"));
-  await waitFor(() => doc.querySelector("#sp-content [data-lock]"), 2000, "the Focus page");
-  return doc.getElementById("sp-content");
-}
 const stored = async (t, key) => plain(await t.chrome.storage.sync.get([key]))[key];
 const lockBtn = (content, key) => content.querySelector(`[data-lock="${key}"]`);
 const note = (content, key) => text(lockBtn(content, key).closest(".sp-row").querySelector(".sp-row-desc"));
 const lockClick = async (t, content, key) => { click(t.window, lockBtn(content, key)); await settle(t.window, 120); };
-
-/** Open `key`'s menu and say which choices can be picked: { label: true | false }. */
-function menuOf(t, key) {
-  click(t.window, t.document.querySelector(`#sp-content [data-select="${key}"]`));
-  return Object.fromEntries([...t.document.querySelectorAll("#sp-menu .sp-menu-item")].map((li) => [text(li), li.getAttribute("aria-disabled") !== "true"]));
-}
-const closeMenu = (t, key) => { if (t.document.querySelector("#sp-menu.open")) click(t.window, t.document.querySelector(`#sp-content [data-select="${key}"]`)); };
-async function pick(t, key, label) {
-  menuOf(t, key);
-  click(t.window, [...t.document.querySelectorAll("#sp-menu .sp-menu-item")].find((li) => text(li) === label));
-  await settle(t.window, 80);
-  closeMenu(t, key);   // a greyed-out choice leaves the menu open
-}
-const drag = async (t, slider, v) => {
-  slider.value = String(v);
-  slider.dispatchEvent(new t.window.Event("input", { bubbles: true }));
-  slider.dispatchEvent(new t.window.Event("change", { bubbles: true }));
-  await settle(t.window, 100);
-};
 
 test("unlocked, the tab limit and the delay change at once both ways, and nothing is queued", async () => {
   const t = await openNewTab({ sync: { tabLimit: 6 } });

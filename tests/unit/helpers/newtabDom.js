@@ -126,6 +126,39 @@ async function openEssentials(tab, { rememberPage = false } = {}) {
   return page;
 }
 
+async function openFocusSettings(tab) {
+  const { window, document } = tab;
+  click(window, document.getElementById("global-settings-btn"));
+  click(window, await waitFor(() => document.querySelector('#sp-nav [data-page="focus"]'), 2000, "Focus in the menu"));
+  await waitFor(() => document.querySelector("#sp-content [data-lock]"), 2000, "the Focus page");
+  return document.getElementById("sp-content");
+}
+
+const settingsText = (element) => (element ? element.textContent.replace(/\s+/g, " ").trim() : "");
+
+function settingsMenuChoices(tab, key) {
+  click(tab.window, tab.document.querySelector(`#sp-content [data-select="${key}"]`));
+  return Object.fromEntries([...tab.document.querySelectorAll("#sp-menu .sp-menu-item")].map((item) => [settingsText(item), item.getAttribute("aria-disabled") !== "true"]));
+}
+
+function closeSettingsMenu(tab, key) {
+  if (tab.document.querySelector("#sp-menu.open")) click(tab.window, tab.document.querySelector(`#sp-content [data-select="${key}"]`));
+}
+
+async function pickSettingsChoice(tab, key, label) {
+  settingsMenuChoices(tab, key);
+  click(tab.window, [...tab.document.querySelectorAll("#sp-menu .sp-menu-item")].find((item) => settingsText(item) === label));
+  await settle(tab.window, 80);
+  closeSettingsMenu(tab, key);
+}
+
+async function dragSettingsSlider(tab, slider, value) {
+  slider.value = String(value);
+  slider.dispatchEvent(new tab.window.Event("input", { bubbles: true }));
+  slider.dispatchEvent(new tab.window.Event("change", { bubbles: true }));
+  await settle(tab.window, 100);
+}
+
 function click(window, el) {
   el.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
 }
@@ -134,4 +167,4 @@ function pressEnter(window, el) {
   el.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
 }
 
-module.exports = { openNewTab, openEssentials, closeAll, waitFor, settle, click, pressEnter, PAGE_ROOT, ROOT };
+module.exports = { openNewTab, openEssentials, openFocusSettings, settingsMenuChoices, closeSettingsMenu, pickSettingsChoice, dragSettingsSlider, closeAll, waitFor, settle, click, pressEnter, PAGE_ROOT, ROOT };
