@@ -15,13 +15,7 @@ function loadRecipe() {
 }
 const { profileRecipe, profilePaths } = loadRecipe();
 
-const FACTS = {
-  version: 2,
-  cssDir: "/Users/x/Library/Application Support/Vivaldi/Atlas/css-mods",
-  newTabUrl: "chrome-extension://abc/index.html",
-  downloadsPanel: { id: "WEBPANEL_atlas_downloads", url: "chrome-extension://abc/components/atlas/downloads-panel.html" },
-  themes: [{ id: "AtlasLight", name: "Atlas Light" }, { id: "AtlasDark", name: "Atlas Dark" }],
-};
+const FACTS = require("../fixtures/profile-facts.json");
 
 /* A profile as Vivaldi makes it: every list present, nothing of Atlas's in it. */
 function bareProfile() {

@@ -16,13 +16,7 @@ const plain = (v) => JSON.parse(JSON.stringify(v === undefined ? null : v));
 let open = [];
 test.afterEach(() => { for (const w of open) w.window.close(); open = []; });
 
-const FACTS = {
-  version: 2,
-  cssDir: "/Users/x/Library/Application Support/Vivaldi/Atlas/css-mods",
-  newTabUrl: "chrome-extension://abc/index.html",
-  downloadsPanel: { id: "WEBPANEL_atlas_downloads", url: "chrome-extension://abc/components/atlas/downloads-panel.html" },
-  themes: [{ id: "AtlasLight", name: "Atlas Light" }, { id: "AtlasDark", name: "Atlas Dark" }],
-};
+const FACTS = require("../fixtures/profile-facts.json");
 const FAST = { start: 20, settle: 20, poll: 15, polls: 2, tries: 6 };
 const LOOK = "vivaldi.appearance.css_ui_mods_directory";
 

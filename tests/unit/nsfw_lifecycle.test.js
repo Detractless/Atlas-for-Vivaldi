@@ -8,6 +8,15 @@ const preparedCalls = (env) => env.requests.filter((r) => r.message.act === "nsf
 const classify = (env, message) => new Promise((resolve) => env.classify(message, resolve));
 const cached = (env, url) => new Promise((resolve) => env.cached({ url }, resolve));
 
+async function moveImageWithoutStartingNewRequest(env) {
+  const wrapper = env.window.document.createElement("div");
+  env.window.document.body.appendChild(wrapper);
+  wrapper.appendChild(env.img);
+  await wait();
+  env.shield.analyze(env.img, "https://img.test/small.jpg");
+  assert.equal(preparedCalls(env).length, 1);
+}
+
 test("a safe cached result restores the image without a checking UI or model request", (t) => {
   const env = setup(undefined, { cachedVerdict: { isNsfw: false, score: 0.1, source: "cache" } });
   t.after(() => env.dom.window.close());
@@ -24,12 +33,7 @@ test("moving a checking image keeps one request alive", async (t) => {
   const env = setup();
   t.after(() => env.dom.window.close());
   env.shield.analyze(env.img, "https://img.test/small.jpg");
-  const wrapper = env.window.document.createElement("div");
-  env.window.document.body.appendChild(wrapper);
-  wrapper.appendChild(env.img);
-  await wait();
-  env.shield.analyze(env.img, "https://img.test/small.jpg");
-  assert.equal(preparedCalls(env).length, 1);
+  await moveImageWithoutStartingNewRequest(env);
   latestRequest(env, "nsfw-prepare-shield").callback({ preparedId: "move", shieldPreview: PREVIEW });
   latestRequest(env, "nsfw-classify").callback({ isNsfw: false });
   assert.equal(env.img.dataset.nsfwFilterStatus, "sfw");
@@ -41,12 +45,7 @@ test("moving a flagged image retains its status and stronger retry snapshot", as
   const env = setup(); classifyFlagged(env);
   t.after(() => env.dom.window.close());
   const host = env.window.document.querySelector("[data-atlas-nsfw-overlay]");
-  const wrapper = env.window.document.createElement("div");
-  env.window.document.body.appendChild(wrapper);
-  wrapper.appendChild(env.img);
-  await wait();
-  env.shield.analyze(env.img, "https://img.test/small.jpg");
-  assert.equal(preparedCalls(env).length, 1);
+  await moveImageWithoutStartingNewRequest(env);
   assert.equal(env.window.document.querySelector("[data-atlas-nsfw-overlay]"), host);
   assert.equal(env.img.dataset.nsfwFlagged, "1");
   assert.equal(env.requests.some((r) => r.message.act === "nsfw-release-snapshot"), false);
