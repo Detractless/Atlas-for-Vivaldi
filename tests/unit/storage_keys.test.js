@@ -68,6 +68,7 @@ function loadProfilesCore() {
   const area = { get: (k, cb) => cb({}), set: (o, cb) => cb && cb(), remove: (k, cb) => cb && cb() };
   ctx.chrome = { storage: { sync: area, local: area, onChanged: { addListener() {} } } };
   vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(SRC, "pages", "newtab", "profiles-schema.js"), "utf8"), ctx);
   vm.runInContext(fs.readFileSync(path.join(SRC, "pages", "newtab", "profilesCore.js"), "utf8"), ctx);
   return ctx.AtlasProfiles;
 }

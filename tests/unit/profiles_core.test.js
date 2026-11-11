@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 const path = require("node:path");
 
 const SRC = path.join(__dirname, "..", "..", "payload", "detractless", "src", "pages", "newtab", "profilesCore.js");
+const SCHEMA = path.join(__dirname, "..", "..", "payload", "detractless", "src", "pages", "newtab", "profiles-schema.js");
 const clone = (o) => (o === undefined ? undefined : JSON.parse(JSON.stringify(o)));
 
 /* Fresh module + fresh storage per test. */
@@ -33,8 +34,11 @@ function boot(seed) {
   Object.assign(areas.local, clone((seed || {}).local));
   global.window = global;
   delete global.AtlasProfiles;
+  delete global.AtlasProfileSchema;
   global.location = { pathname: "/window.html" };
   global.chrome = { storage: { sync: area("sync"), local: area("local"), onChanged: { addListener: (fn) => listeners.push(fn) } } };
+  delete require.cache[SCHEMA];
+  require(SCHEMA);
   delete require.cache[SRC];
   require(SRC);
   return { AP: global.AtlasProfiles, areas };

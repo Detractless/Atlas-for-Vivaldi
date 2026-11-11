@@ -77,6 +77,7 @@ async function openWindow(opts = {}) {
   let fake;
   const html = `<!DOCTYPE html><html><head></head><body>
     <div id="browser" class="theme-light"><div id="main"><div class="mainbar"></div></div></div>
+    <script src="src/pages/newtab/profiles-schema.js"></script>
     <script src="src/pages/newtab/profilesCore.js"></script>
     <script src="atlas.js"></script></body></html>`;
   const dom = new JSDOM(html, {

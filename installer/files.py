@@ -33,6 +33,7 @@ DETRACTLESS_FILES = (
     "src/styles/fonts.css",
     "src/pages/shared/themePreinit.js",
     "src/pages/newtab/preinit.js",
+    "src/pages/newtab/profiles-schema.js",
     "src/pages/newtab/profilesCore.js",
     "src/pages/newtab/profilesPage.js",
     "src/pages/newtab/profileEditPage.js",
@@ -62,6 +63,7 @@ def step1_atlas_files(masters: Path, res: Path):
     say("Atlas files          installed")
 
 
+PROFILES_SCHEMA_TAG = '  <script src="src/pages/newtab/profiles-schema.js"></script>\n'
 PROFILES_TAG = '  <script src="src/pages/newtab/profilesCore.js"></script>\n'
 
 
@@ -74,7 +76,11 @@ def step2_window_html(res: Path):
         changed = True
     # The profile list/switcher is shared with the new tab; it must load before atlas.js.
     if "profilesCore.js" not in html:
-        html = html.replace('  <script src="atlas.js"></script>', PROFILES_TAG + '  <script src="atlas.js"></script>', 1)
+        schema_tag = "" if "profiles-schema.js" in html else PROFILES_SCHEMA_TAG
+        html = html.replace('  <script src="atlas.js"></script>', schema_tag + PROFILES_TAG + '  <script src="atlas.js"></script>', 1)
+        changed = True
+    elif "profiles-schema.js" not in html:
+        html = html.replace(PROFILES_TAG, PROFILES_SCHEMA_TAG + PROFILES_TAG, 1)
         changed = True
     if changed:
         write_text(win, html, label="window.html")

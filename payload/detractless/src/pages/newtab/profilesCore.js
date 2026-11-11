@@ -14,66 +14,17 @@
   'use strict';
   if (window.AtlasProfiles) return;
 
-  var SKEY = 'atlasProfilesV2', LKEY = '__atlas_localstorage__', OLD = 'atlasProfiles';
-  var MAIN_DB = 'DetractlessBookmarks';
-  var COLORS = [['#f5c518', '#6b4e00'], ['#7db4ff', '#0b2a52'], ['#7fd6a0', '#0d3a22'],
-    ['#f59ac0', '#5a1233'], ['#c3a6ff', '#2e1566'], ['#ffa970', '#5a2a00']];
-  var CATS = [
-    { id: 'bookmarks', label: 'Bookmarks & pages', keys: ['activeTabs'],
-      on: 'Every profile sees the same bookmarks and pages.',
-      off: 'Each profile has its own bookmarks and pages. Profiles other than the current one start empty.' },
-    { id: 'theme', label: 'Theme', keys: ['Theme'],
-      on: 'Every profile uses the same theme.', off: 'Each profile has its own theme.' },
-    { id: 'appearance', label: 'Appearance', keys: ['fadeInEnabled'],
-      on: 'Every profile uses the same page animations.', off: 'Each profile has its own page animations.' },
-    { id: 'search', label: 'Search', keys: ['spotlightVisible', 'searchEngineBehavior', 'bookmarkPillBehavior',
-      'customSearchEngines', 'defaultEngineKey', 'selectedSearchEngine'],
-      on: 'Every profile uses the same engines and pills.',
-      off: 'Each profile has its own engines and pills.' },
-    { id: 'focus', label: 'Focus', keys: ['tabLimit', 'managementMethod', 'searchDelaySeconds',
-      'showQueryOnDelay', 'saturation', 'nsfwAction', 'socialFilter', 'scrollFade'],
-      on: 'Every profile uses the same tab limit, search delay, color level, scroll fade and content shield.',
-      off: 'Each profile has its own tab limit, search delay, color level, scroll fade and content shield.' }
-  ];
-  var DEFAULTS = { active: 'personal', list: [
-    { id: 'personal', name: 'Christian Darby-Ward', label: 'Personal', color: 0 },
-    { id: 'school', name: 'Christian (School)', label: 'School', color: 1 }] };
-
-  /* Icons are our own resized data URLs. Anything else (a hand-edited backup)
-     is dropped, because the value ends up inside a style attribute. */
-  var ICON_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/=]+$/;
-  /* A linked Google account is kept only as a plain email address: no spaces,
-     quotes or angle brackets, since it is shown in Settings and put in links. */
-  var EMAIL_RE = /^[^\s@"'<>]+@[^\s@"'<>]+\.[^\s@"'<>]+$/;
-  function googleOf(g) {
-    var e = g && typeof g.email === 'string' ? g.email.trim() : '';
-    return EMAIL_RE.test(e) ? { email: e } : null;
-  }
+  var schema = window.AtlasProfileSchema;
+  if (!schema) throw new Error('profiles-schema.js must load before profilesCore.js');
+  var SKEY = schema.SKEY, LKEY = schema.LKEY, OLD = schema.OLD, MAIN_DB = schema.MAIN_DB;
+  var COLORS = schema.COLORS, CATS = schema.CATS, DEFAULTS = schema.DEFAULTS;
+  var ICON_RE = schema.ICON_RE, normalize = schema.normalize, googleOf = schema.googleOf;
   var uid = function () { return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); };
   var esc = function (t) { return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var cat = function (id) { return CATS.filter(function (c) { return c.id === id; })[0]; };
   var sget = function (area, keys) { return new Promise(function (r) { chrome.storage[area].get(keys, function (v) { r(v || {}); }); }); };
   var sset = function (area, obj) { return new Promise(function (r) { chrome.storage[area].set(obj, function () { r(); }); }); };
   var sdel = function (area, keys) { return new Promise(function (r) { chrome.storage[area].remove(keys, function () { r(); }); }); };
-
-  function normalize(s) {
-    if (!s || !Array.isArray(s.list)) return null;
-    var out = { v: 2, active: s.active, owner: s.owner, share: {}, list: [] };
-    CATS.forEach(function (c) { out.share[c.id] = !(s.share && s.share[c.id] === false); });
-    s.list.forEach(function (p) {
-      if (!p || !p.id || typeof p.name !== 'string') return;
-      out.list.push({
-        id: String(p.id), name: p.name, label: typeof p.label === 'string' ? p.label : (p.plan || ''),
-        color: p.color | 0, icon: ICON_RE.test(p.icon) ? p.icon : '', google: googleOf(p.google),
-        db: typeof p.db === 'string' ? p.db : '',
-        settings: p.settings && typeof p.settings === 'object' ? p.settings : {}
-      });
-    });
-    if (!out.list.length) return null;
-    if (!out.list.some(function (p) { return p.id === out.active; })) out.active = out.list[0].id;
-    if (!out.list.some(function (p) { return p.id === out.owner; })) out.owner = out.active;
-    return out;
-  }
 
   /* Current state from storage. First run migrates the old localStorage-shim
      list (atlasProfiles) and otherwise starts from the defaults. */
