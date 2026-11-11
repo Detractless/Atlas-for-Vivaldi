@@ -1,10 +1,10 @@
 // The data behind "Add bookmark", "Add group" and "Add page" in the address bar (src/modules/23-addbar-core.js,
 // 24-addbar-screens.js and 25-addbar-place.js in the browser window). The window asks; this answers and writes, using the same
 // bookmark database and page list as the new tab, so what is added shows there at once.
-import { BookmarkDB } from '../services/bookmarksDB.js';
-import { storageGet, storageSet } from '../services/storage.js';
-import { loadSites, matchSites, hostOf, mainDomain, nameChoices } from '../services/siteSuggestions.js';
-import { cleanSubtitle, subtitleProblem } from '../services/pageSubtitle.js';
+import { BookmarkDB } from '../../services/bookmarksDB.js';
+import { storageGet, storageSet } from '../../services/storage.js';
+import { loadSites, matchSites, hostOf, mainDomain, nameChoices } from '../../services/siteSuggestions.js';
+import { cleanSubtitle, subtitleProblem } from '../../services/pageSubtitle.js';
 
 const DB_NAME = /^[A-Za-z0-9_.-]{1,80}$/;
 const SITES_FRESH_MS = 60 * 1000;

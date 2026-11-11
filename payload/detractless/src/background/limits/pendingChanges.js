@@ -1,7 +1,7 @@
-import { activeDelays, setTabLimit, setSearchDelayMs } from './workerState.js';
+import { activeDelays, setTabLimit, setSearchDelayMs } from '../state/workerState.js';
 import { enforceTabLimit } from './tabLimiter.js';
-import { storageGet, storageRemove, storageSet } from '../services/storage.js';
-import { changeAllowed } from '../utils/focusLock.js';
+import { storageGet, storageRemove, storageSet } from '../../services/storage.js';
+import { changeAllowed } from '../../utils/focusLock.js';
 
 const DELAY_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 

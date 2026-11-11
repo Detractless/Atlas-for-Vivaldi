@@ -1,7 +1,7 @@
-import { tabLimit, setTabLimit, managementMethod, setManagementMethod } from './workerState.js';
-import { saveClosingTabs } from '../services/tab-saver/index.js';
-import { storageGet } from '../services/storage.js';
-import { warn } from '../services/log.js';
+import { tabLimit, setTabLimit, managementMethod, setManagementMethod } from '../state/workerState.js';
+import { saveClosingTabs } from '../../services/tab-saver/index.js';
+import { storageGet } from '../../services/storage.js';
+import { warn } from '../../services/log.js';
 
 /* A sidebar web panel is not a tab you opened, but Vivaldi lists its page as one. It carries
    a panelId in vivExtData, which no ordinary tab has, so that is how every panel is found

@@ -1,11 +1,11 @@
-import { searchDelayMs, activeDelays, managedEngines, setSearchDelayMs } from './workerState.js';
-import { enforceTabLimit } from './tabLimiter.js';
-import { standardiseUrl } from './searchUrl.js';
-import { checkPendingIncrease, checkPendingDelayDecrease, pruneActiveDelays } from './pendingChanges.js';
+import { searchDelayMs, activeDelays, managedEngines, setSearchDelayMs } from './state/workerState.js';
+import { enforceTabLimit } from './limits/tabLimiter.js';
+import { standardiseUrl } from './search/searchUrl.js';
+import { checkPendingIncrease, checkPendingDelayDecrease, pruneActiveDelays } from './limits/pendingChanges.js';
 import { storageSet } from '../services/storage.js';
-import { recordUsage, clearUsage } from './usageLog.js';
-import { addInfo, addGroups, addSuggest, addBookmarkTo, addGroupTo, addPageTo } from './addFlow.js';
-import { editBookmark, editGroup, editPage } from './editFlow.js';
+import { recordUsage, clearUsage } from './usage/usageLog.js';
+import { addInfo, addGroups, addSuggest, addBookmarkTo, addGroupTo, addPageTo } from './flows/addFlow.js';
+import { editBookmark, editGroup, editPage } from './flows/editFlow.js';
 
 const ok = (sendResponse) => sendResponse({ success: true });
 

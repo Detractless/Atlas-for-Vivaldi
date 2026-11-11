@@ -2,8 +2,8 @@
 // the address of, move or delete a bookmark, a group or a page. The window asks; this answers and writes, in the
 // same bookmark database and page list as the new tab. Every answer is { ok: true } or { error: 'text to show' }.
 // The checks and their words are the ones the new tab's own pop-ups used (components/bookmarks/bookmarks.js).
-import { storageGet, storageSet, storageRemove } from '../services/storage.js';
-import { cleanSubtitle, subtitleProblem } from '../services/pageSubtitle.js';
+import { storageGet, storageSet, storageRemove } from '../../services/storage.js';
+import { cleanSubtitle, subtitleProblem } from '../../services/pageSubtitle.js';
 import { withDb } from './addFlow.js';
 
 const MISSING = { error: 'Something is missing' };

@@ -1,6 +1,6 @@
-import { searchDelayMs, activeDelays, managedEngines } from './workerState.js';
+import { searchDelayMs, activeDelays, managedEngines } from '../state/workerState.js';
 import { isSearchEngine, standardiseUrl } from './searchUrl.js';
-import { storageSet } from '../services/storage.js';
+import { storageSet } from '../../services/storage.js';
 
 export function handleSearchInterception(tabId, url) {
   // Skip if delay is disabled

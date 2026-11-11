@@ -1,9 +1,9 @@
 import { setTabLimit, setManagementMethod, setSearchDelayMs, setManagedEngines, setActiveDelays } from './workerState.js';
-import { enforceTabLimit } from './tabLimiter.js';
-import { pruneActiveDelays, checkPendingIncrease, checkPendingDelayDecrease } from './pendingChanges.js';
+import { enforceTabLimit } from '../limits/tabLimiter.js';
+import { pruneActiveDelays, checkPendingIncrease, checkPendingDelayDecrease } from '../limits/pendingChanges.js';
 import { migrateGrayscale, migrateSaturationLock } from './saturationMigration.js';
-import { syncDefault } from '../constants/storageKeys.js';
-import { storageGet, storageSet } from '../services/storage.js';
+import { syncDefault } from '../../constants/storageKeys.js';
+import { storageGet, storageSet } from '../../services/storage.js';
 
 const SEEDED_KEYS = ['tabLimit', 'managementMethod', 'searchDelaySeconds', 'showQueryOnDelay', 'customSearchEngines'];
 

@@ -35,7 +35,7 @@
     return `https://${urlObj.hostname}${p.path}?${p.param}=${encodeURIComponent(value)}`;
   }
 
-  // src/background/workerState.js
+  // src/background/state/workerState.js
   var tabLimit = 0;
   function setTabLimit(v) {
     tabLimit = v;
@@ -57,7 +57,7 @@
     managedEngines = v;
   }
 
-  // src/background/searchUrl.js
+  // src/background/search/searchUrl.js
   function standardiseUrl(inputUrl, managedEngines2) {
     try {
       const urlObj = new URL(inputUrl);
@@ -215,7 +215,7 @@
     return entries;
   }
 
-  // src/background/tabLimiter.js
+  // src/background/limits/tabLimiter.js
   function isTabLimitExcluded(tab) {
     const data = typeof tab?.vivExtData === "string" ? tab.vivExtData : "";
     if (/"panelId"\s*:/.test(data)) return true;
@@ -296,7 +296,7 @@
     });
   }
 
-  // src/background/searchInterception.js
+  // src/background/search/searchInterception.js
   function handleSearchInterception(tabId, url) {
     if (searchDelayMs === 0) return;
     if (url.startsWith("chrome://") || url.startsWith("chrome-extension://")) return;
@@ -405,7 +405,7 @@
     return a.mode === "parts" && a.parts.some((id) => !b.parts.includes(id));
   }
 
-  // src/background/socialBlock.js
+  // src/background/social/socialBlock.js
   var mode = "off";
   var ready = storageGet("sync", ["socialFilter"]).then((r) => {
     mode = normalize(r.socialFilter).mode;
@@ -534,7 +534,7 @@
     return Number.isFinite(until) && until > now ? { unlockAt: until } : null;
   }
 
-  // src/background/pendingChanges.js
+  // src/background/limits/pendingChanges.js
   var DELAY_TTL_MS = 24 * 60 * 60 * 1e3;
   function pruneActiveDelays() {
     const now = Date.now();
@@ -646,7 +646,7 @@
     return next;
   }
 
-  // src/background/usageLog.js
+  // src/background/usage/usageLog.js
   var chain = Promise.resolve();
   function recordUsage(message) {
     const host = cleanHost(message && message.host);
@@ -1495,7 +1495,7 @@
     return null;
   }
 
-  // src/background/addFlow.js
+  // src/background/flows/addFlow.js
   var DB_NAME = /^[A-Za-z0-9_.-]{1,80}$/;
   var SITES_FRESH_MS = 60 * 1e3;
   var sites = { at: 0, list: [] };
@@ -1582,7 +1582,7 @@
     return { ok: true, id: page.id };
   }
 
-  // src/background/editFlow.js
+  // src/background/flows/editFlow.js
   var MISSING = { error: "Something is missing" };
   var same = (a, b) => String(a) === String(b);
   async function editBookmark(m) {
@@ -1789,7 +1789,7 @@
     return 100;
   }
 
-  // src/background/saturationMigration.js
+  // src/background/state/saturationMigration.js
   async function migrateGrayscale() {
     const stored = await storageGet("sync", ["grayscale", "saturation"]);
     const level = legacySaturation(stored.grayscale, stored.saturation);
@@ -1807,7 +1807,7 @@
     await storageRemove("sync", "saturationLock");
   }
 
-  // src/background/stateSync.js
+  // src/background/state/stateSync.js
   var SEEDED_KEYS = ["tabLimit", "managementMethod", "searchDelaySeconds", "showQueryOnDelay", "customSearchEngines"];
   var initializeState = async () => {
     try {

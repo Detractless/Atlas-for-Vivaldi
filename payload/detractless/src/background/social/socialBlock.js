@@ -6,8 +6,8 @@
 // not a button. Turning the mode on also takes the tabs that are already on those sites.
 //
 // Three events, because a redirect (youtu.be/<id> to youtube.com) only shows up once the page commits.
-import { storageGet } from '../services/storage.js';
-import { normalize, siteOf } from '../utils/socialFilter.js';
+import { storageGet } from '../../services/storage.js';
+import { normalize, siteOf } from '../../utils/socialFilter.js';
 
 let mode = 'off';
 // The worker can be woken by a navigation before its first storage read is back: wait for it.

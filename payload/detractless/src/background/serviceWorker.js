@@ -11,14 +11,14 @@ import '../constants/engines.js';
 import '../utils/searchParsers.js';
 
 // Background modules — order: state → url helpers → features → event listeners → lifecycle.
-import './workerState.js';
-import './searchUrl.js';
-import './tabLimiter.js';
-import './searchInterception.js';
-import './socialBlock.js';
-import './pendingChanges.js';
+import './state/workerState.js';
+import './search/searchUrl.js';
+import './limits/tabLimiter.js';
+import './search/searchInterception.js';
+import './social/socialBlock.js';
+import './limits/pendingChanges.js';
 import './messaging.js';
-import './stateSync.js';
+import './state/stateSync.js';
 // PasteKit and the Element Remover were archived with the Tools sidebar
 // (_old/archive/tools-runtime/RESTORE.md); this tidies what they left behind.
 import './archivedCleanup.js';

@@ -58,7 +58,7 @@ test("settings from before the slider: the level that was showing is kept", () =
 test("the service worker folds the old Grayscale switch into the slider once, then drops it", async () => {
   const data = { grayscale: true, saturation: 30 };
   fakeSync(data);
-  const { migrateGrayscale } = loadSourceModule("background/saturationMigration.js");
+  const { migrateGrayscale } = loadSourceModule("background/state/saturationMigration.js");
   await migrateGrayscale();
   assert.deepEqual(data, { saturation: 30 });
   data.grayscale = false; data.saturation = 0;
@@ -73,7 +73,7 @@ test("a color lock running when you update becomes a Focus lock that unlocks whe
   const until = Date.now() + 10 * 60 * 1000;
   const data = { saturation: 40, saturationLock: { ceiling: 40, until, manual: true }, focusLocks: { searchDelaySeconds: { unlockAt: null } } };
   fakeSync(data);
-  const { migrateSaturationLock } = loadSourceModule("background/saturationMigration.js");
+  const { migrateSaturationLock } = loadSourceModule("background/state/saturationMigration.js");
   await migrateSaturationLock();
   assert.deepEqual(data, { saturation: 40, focusLocks: { searchDelaySeconds: { unlockAt: null }, saturation: { unlockAt: until } } }, "the other locks are kept");
   data.saturationLock = { ceiling: 40, until: Date.now() - 1, manual: true };

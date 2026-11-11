@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 
-const load = () => import(pathToFileURL(path.join(__dirname, "..", "..", "payload", "detractless", "src", "background", "tabLimiter.js")).href);
+const load = () => import(pathToFileURL(path.join(__dirname, "..", "..", "payload", "detractless", "src", "background", "limits", "tabLimiter.js")).href);
 const tab = (o) => Object.assign({ id: 1, url: "https://a.test/" }, o);
 const PANEL = '{"ext_id":"abc","panelId":"EXT_PANEL_hehggadaopoacecdllhhajmbjkdcmajg","restoreStatus":"restored"}';
 

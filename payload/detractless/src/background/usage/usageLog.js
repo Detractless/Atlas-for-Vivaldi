@@ -1,8 +1,8 @@
 // Keeps the usage totals (utils/usageLog.js) in chrome.storage.local under one key. Pages send small
 // deltas; this is the only writer, and it handles them one at a time so two tabs cannot overwrite
 // each other's totals.
-import { storageGet, storageSet, storageRemove } from '../services/storage.js';
-import { addUsage, cleanHost, cleanDelta, hasUsage } from '../utils/usageLog.js';
+import { storageGet, storageSet, storageRemove } from '../../services/storage.js';
+import { addUsage, cleanHost, cleanDelta, hasUsage } from '../../utils/usageLog.js';
 
 let chain = Promise.resolve();
 

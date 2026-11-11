@@ -1,5 +1,5 @@
-import { SEARCH_ENGINE_PARSERS } from '../constants/engines.js';
-import { matchSearchParser, standardiseByParser } from '../utils/searchParsers.js';
+import { SEARCH_ENGINE_PARSERS } from '../../constants/engines.js';
+import { matchSearchParser, standardiseByParser } from '../../utils/searchParsers.js';
 
 export function standardiseUrl(inputUrl, managedEngines) {
   try {

@@ -102,7 +102,7 @@ test("a change queued by the version before finishes on time, unless the setting
     remove: (keys, cb) => { for (const k of [].concat(keys)) delete data[k]; cb(); },
   };
   globalThis.chrome = { storage: { sync: area, local: area }, runtime: {}, tabs: { query: (q, cb) => (cb ? cb([]) : Promise.resolve([])) } };
-  const { checkPendingIncrease, checkPendingDelayDecrease } = loadSourceModule("background/pendingChanges.js");
+  const { checkPendingIncrease, checkPendingDelayDecrease } = loadSourceModule("background/limits/pendingChanges.js");
   await checkPendingIncrease();
   await checkPendingDelayDecrease();
   assert.equal(data.tabLimit, 8, "the tab limit is unlocked: its queued increase finishes");
