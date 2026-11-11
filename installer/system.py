@@ -29,6 +29,13 @@ def _disable_autoupdates_macos():
 def _disable_autoupdates_windows(app_root: Path):
     if sys.platform != "win32":
         return
+    _disable_windows_update_tasks()
+    _disable_windows_update_notifier(app_root)
+    _disable_windows_update_policy()
+    say("Auto-updates         permanently disabled")
+
+
+def _disable_windows_update_tasks():
     # 1. Disable Windows Scheduled Tasks for Vivaldi updates
     try:
         q = subprocess.run(
@@ -50,6 +57,8 @@ def _disable_autoupdates_windows(app_root: Path):
     except Exception as e:
         say(f"Warning: could not disable the Vivaldi update task: {e}", dim=True)
 
+
+def _disable_windows_update_notifier(app_root: Path):
     # 2. Neuter update_notifier.exe
     notifier = app_root / "update_notifier.exe"
     disabled_notifier = app_root / "update_notifier.exe.disabled"
@@ -64,6 +73,8 @@ def _disable_autoupdates_windows(app_root: Path):
             except Exception as e:
                 say(f"Warning: could not rename update_notifier.exe: {e}", dim=True)
 
+
+def _disable_windows_update_policy():
     # 3. Registry policy flags
     if not util.DRY:
         try:
@@ -76,8 +87,6 @@ def _disable_autoupdates_windows(app_root: Path):
                 winreg.SetValueEx(key, "DoNotUpdate", 0, winreg.REG_DWORD, 1)
         except Exception as e:
             say(f"Warning: could not set the update policy in the registry: {e}", dim=True)
-
-    say("Auto-updates         permanently disabled")
 
 
 def step8_disable_autoupdates(app_root: Path):
