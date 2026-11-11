@@ -93,15 +93,10 @@
 }
 
 /* ── No Surf Menu (Option 1: Classic Bubble with Bold Headers) ─────────── */
+/* The surface (min-width, padding, radius, background, border, shadow, color)
+   is .atlas-profile-menu's above; this only adds what No Surf changes. */
 #browser .atlas-profile-menu.atlas-nosurf-menu {
   width: 210px;
-  min-width: 196px;
-  padding: 6px;
-  border-radius: 12px;
-  background-color: var(--atlas-menu);
-  border: 1px solid var(--atlas-border);
-  box-shadow: var(--atlas-shadow);
-  color: var(--atlas-text-1);
   font-family: inherit;
   user-select: none;
   box-sizing: border-box;
@@ -124,22 +119,10 @@
   background-color: var(--atlas-border);
 }
 
+/* The item reset is .atlas-profile-menu .apm-item's above; this only changes the gaps. */
 #browser .atlas-nosurf-menu .apm-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   gap: 12px;
-  box-sizing: border-box;
-  width: 100%;
-  text-align: left;
   min-height: 32px;
-  padding: 6px 10px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  cursor: default;
   transition: background-color 120ms ease;
 }
 #browser .atlas-nosurf-menu .apm-item:hover {
