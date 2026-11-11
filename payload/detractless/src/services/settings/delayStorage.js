@@ -1,4 +1,4 @@
-import { storageGet, storageRemove, storageSet } from './storage.js';
+import { storageGet, storageRemove, storageSet } from '../storage.js';
 export async function loadDelaySettings() {
   return storageGet('sync', ['searchDelaySeconds', 'showQueryOnDelay']);
 }

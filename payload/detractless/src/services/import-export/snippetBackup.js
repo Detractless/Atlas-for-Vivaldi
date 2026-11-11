@@ -1,4 +1,4 @@
-// src/services/snippetBackup.js — snippets in backups.
+// src/services/import-export/snippetBackup.js — snippets in backups.
 //
 // Snippets came from PasteKit, archived with the Tools sidebar
 // (_old/archive/tools-runtime/RESTORE.md). Nothing in Atlas edits them any more,
@@ -10,7 +10,7 @@
 // Rows are stored in the clear. NO INDEXES ON THE SNIPPETS STORE (they were
 // dropped when snippets were briefly encrypted), so reads are full scans; at
 // personal scale that is fine.
-import { PASTEKIT_DB } from '../constants/storageKeys.js';
+import { PASTEKIT_DB } from '../../constants/storageKeys.js';
 const DB_NAME = PASTEKIT_DB, DB_VERSION = 2;
 let _dbPromise = null;
 

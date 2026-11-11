@@ -1,4 +1,4 @@
-import { BookmarkDB } from '../../services/bookmarksDB.js';
+import { BookmarkDB } from '../../services/bookmarks/bookmarksDB.js';
 import { setAllCachedBookmarks, setAllCachedGroups, setUsageScores } from '../../pages/newtab/newtabState.js';
 
 export async function refreshBookmarkCache() {

@@ -122,7 +122,7 @@
     ]);
   }
 
-  /* The Google account this profile opens Google links as (services/googleAccount.js
+  /* The Google account this profile opens Google links as (services/accounts/googleAccount.js
      in the bundle): picked from the found accounts, or typed in when there is no
      list or the user asks to type. */
   function googleRow(p) {

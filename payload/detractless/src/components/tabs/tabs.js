@@ -16,7 +16,7 @@ import { DEFAULT_TABS } from '../../constants/defaults.js';
 import { ContextMenu } from '../context-menu/context-menu.js';
 import { openTabDialog } from '../bookmarks/bookmarks-dialog.js';
 import { editInBar } from '../edit-in-bar/edit-in-bar.js';
-import { BookmarkDB } from '../../services/bookmarksDB.js';
+import { BookmarkDB } from '../../services/bookmarks/bookmarksDB.js';
 // Unused here since the switcher replaced the filtered page list; kept so the
 // bundle's module order (and so its start-up order) stays the same.
 import '../scroll-affordance/scroll-affordance.js';

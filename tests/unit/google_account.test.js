@@ -1,6 +1,6 @@
 // A profile linked to a Google account (spec 001, phase 4): while that profile
 // is active, Google links the new tab opens carry the account
-// (src/services/googleAccount.js). The account is a typed email on the
+// (src/services/accounts/googleAccount.js). The account is a typed email on the
 // profile's edit page; nothing detects accounts yet.
 "use strict";
 
@@ -13,7 +13,7 @@ const { menuLabels, pickMenu } = require("./helpers/atlasMenu");
 
 test.afterEach(closeAll);
 
-const SERVICE = path.join(__dirname, "..", "..", "payload", "detractless", "src", "services", "googleAccount.js");
+const SERVICE = path.join(__dirname, "..", "..", "payload", "detractless", "src", "services", "accounts", "googleAccount.js");
 const text = (el) => (el ? el.textContent.replace(/\s+/g, " ").trim() : "");
 const plain = (v) => JSON.parse(JSON.stringify(v));
 

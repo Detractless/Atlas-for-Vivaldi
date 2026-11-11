@@ -6,11 +6,11 @@
    database except loadGroups, which reads the chosen page's group names.
    ═══════════════════════════════════════════════════════ */
 
-import { BookmarkDB } from '../../services/bookmarksDB.js';
+import { BookmarkDB } from '../../services/bookmarks/bookmarksDB.js';
 import { NEW_GROUP, setValue, validateStep } from '../../utils/addBookmarkFlow.js';
 import { activeTabs, allCachedBookmarks } from '../../pages/newtab/newtabState.js';
 import { cleanSubtitle, MIN_WORDS, MAX_WORDS, MAX_CHARS } from '../../services/pageSubtitle.js';
-import { matchSites, mainDomain, hostOf, nameChoices } from '../../services/siteSuggestions.js';
+import { matchSites, mainDomain, hostOf, nameChoices } from '../../services/bookmarks/siteSuggestions.js';
 import { frameMarkup, button, websiteScreen, siteDrop, placeScreen, dropdown, plainField } from './add-popup-markup.js';
 import { $, field, showError, clearErrors } from './add-popup-dom.js';
 

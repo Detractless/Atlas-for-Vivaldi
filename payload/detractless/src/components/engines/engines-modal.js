@@ -1,5 +1,5 @@
-import { BookmarkDB } from '../../services/bookmarksDB.js';
-import { saveEngines } from '../../services/engineStorage.js';
+import { BookmarkDB } from '../../services/bookmarks/bookmarksDB.js';
+import { saveEngines } from '../../services/settings/engineStorage.js';
 import { generateAcronymSvg } from '../acronym-badge/acronym-badge.js';
 import { readFileAsDataURL } from '../../utils/file.js';
 import { attachScrollAffordance } from '../scroll-affordance/scroll-affordance.js';

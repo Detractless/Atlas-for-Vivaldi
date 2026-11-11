@@ -14,13 +14,13 @@
    are checked with its rules; the subtitle with services/pageSubtitle.js.
    ═══════════════════════════════════════════════════════ */
 import './add-popup.css';
-import { BookmarkDB } from '../../services/bookmarksDB.js';
+import { BookmarkDB } from '../../services/bookmarks/bookmarksDB.js';
 import { addBookmark } from '../bookmarks/bookmarks.js';
 import { createPage, updatePage } from '../tabs/tabs.js';
 import { NEW_GROUP, createFlowState, setValue, validateStep } from '../../utils/addBookmarkFlow.js';
 import { currentBookmarkPage } from '../../pages/newtab/newtabState.js';
 import { cleanSubtitle, subtitleProblem } from '../../services/pageSubtitle.js';
-import { loadSites } from '../../services/siteSuggestions.js';
+import { loadSites } from '../../services/bookmarks/siteSuggestions.js';
 import { close, $, field, showError, clearErrors } from './add-popup-dom.js';
 import {
   bookmarkPages, sitePills, render, paintSites, updateCount,

@@ -1,4 +1,4 @@
-// src/services/zipReader.js — reads a ZIP into {filename: Uint8Array}, one entry
+// src/services/import-export/zipReader.js — reads a ZIP into {filename: Uint8Array}, one entry
 // at a time, yielding to the event loop between entries so a big import does not
 // freeze the page. Uses fflate's internal directory helpers (exported by our
 // vendored copy, see vendor/fflate/README.md).

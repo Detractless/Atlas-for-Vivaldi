@@ -1,4 +1,4 @@
-// src/services/resetService.js — "Reset to Defaults".
+// src/services/settings/resetService.js — "Reset to Defaults".
 //
 // THIS FUNCTION MUST DESTROY EVERY STORE, NOT MOST OF THEM. It used to delete the
 // bookmarks database and clear extension storage, and stop there. Two consequences,
@@ -14,10 +14,10 @@
 // `deleteDatabase` fires `onblocked` and never completes. Because we resolve on
 // `onblocked` (so a reset can never hang), a missed close would look exactly like
 // success and silently leave the data behind.
-import { BookmarkDB } from './bookmarksDB.js';
-import { closeDB as closePastekitDB } from './snippetBackup.js';
-import { PASTEKIT_DB } from '../constants/storageKeys.js';
-import { storageClear } from './storage.js';
+import { BookmarkDB } from '../bookmarks/bookmarksDB.js';
+import { closeDB as closePastekitDB } from '../import-export/snippetBackup.js';
+import { PASTEKIT_DB } from '../../constants/storageKeys.js';
+import { storageClear } from '../storage.js';
 
 /** Delete one database, resolving whatever happens — a reset must not hang. */
 function deleteDatabase(name) {

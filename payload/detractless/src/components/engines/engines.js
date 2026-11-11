@@ -1,5 +1,5 @@
 ﻿import './engines.css';
-import { loadEngines } from '../../services/engineStorage.js';
+import { loadEngines } from '../../services/settings/engineStorage.js';
 import { Icons } from '../../constants/icons.js';
 import {
   searchEngines, setSearchEngines,

@@ -1,6 +1,6 @@
-import { BOOKMARKS_DB } from '../constants/storageKeys.js';
-import { storageGet, storageRemove, storageSet } from './storage.js';
-import { recordStoreMethods } from './bookmarks/record-store.js';
+import { BOOKMARKS_DB } from '../../constants/storageKeys.js';
+import { storageGet, storageRemove, storageSet } from '../storage.js';
+import { recordStoreMethods } from './record-store.js';
 
 /* Every store this database has ever had, created on first upgrade or added
    in place later. Kept out of init's promise so it reads as connect, then use. */

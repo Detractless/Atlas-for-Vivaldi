@@ -15,7 +15,7 @@ function load(rel) {
   new Function("module", "exports", "require", out)(m, m.exports, require);
   return m.exports;
 }
-const { loadSites, matchSites } = load("services/siteSuggestions.js");
+const { loadSites, matchSites } = load("services/bookmarks/siteSuggestions.js");
 
 // A history like Chrome's: one entry per address, newest first, cut off at maxResults.
 function fakeHistory(entries) {

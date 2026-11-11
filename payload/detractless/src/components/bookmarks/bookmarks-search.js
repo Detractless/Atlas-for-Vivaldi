@@ -1,11 +1,11 @@
-import { BookmarkDB } from '../../services/bookmarksDB.js';
+import { BookmarkDB } from '../../services/bookmarks/bookmarksDB.js';
 import {
   usageScores,
   searchDropdownIndex, setSearchDropdownIndex
 } from '../../pages/newtab/newtabState.js';
 import { initialSelectionIndex } from '../../utils/pillSelection.js';
 import { warn } from '../../services/log.js';
-import { forActiveAccount } from '../../services/googleAccount.js';
+import { forActiveAccount } from '../../services/accounts/googleAccount.js';
 
 
 /**

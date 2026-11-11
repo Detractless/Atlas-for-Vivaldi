@@ -4,7 +4,7 @@
 // (utils/focusLock.js), when going grayer still applies and going back toward color is refused.
 import { storageGet, storageSet } from '../../services/storage.js';
 import { planChange } from '../../utils/saturationLock.js';
-import { clickFocusLock } from '../../services/focusLocks.js';
+import { clickFocusLock } from '../../services/settings/focusLocks.js';
 
 const STEP_MS = 250;
 let want = null;

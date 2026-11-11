@@ -986,10 +986,10 @@
   }
   var BACKUP_SYNC_KEYS = Object.keys(atlasKeys_default.sync).filter((k) => atlasKeys_default.sync[k].backup).map((k) => ({ key: k, importWhen: atlasKeys_default.sync[k].importWhen || "defined" }));
 
-  // src/services/mergeSync.js
+  // src/services/bookmarks/mergeSync.js
   var TOMBSTONE_WINDOW_MS = 90 * 24 * 60 * 60 * 1e3;
 
-  // src/services/bookmarkSync.js
+  // src/services/bookmarks/bookmarkSync.js
   function newBookmarkId() {
     return typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID() || `bm-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
@@ -1073,7 +1073,7 @@
     }
   };
 
-  // src/services/bookmarksDB.js
+  // src/services/bookmarks/bookmarksDB.js
   function createStores(db) {
     db.onversionchange = () => {
       try {
@@ -1374,7 +1374,7 @@
     }
   };
 
-  // src/services/siteSuggestions.js
+  // src/services/bookmarks/siteSuggestions.js
   var TWO_PART_SUFFIXES = /* @__PURE__ */ new Set([
     "co.uk",
     "org.uk",

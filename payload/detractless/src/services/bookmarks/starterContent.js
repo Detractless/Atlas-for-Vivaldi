@@ -1,5 +1,5 @@
 import { BookmarkDB } from './bookmarksDB.js';
-import { storageGet, storageSet } from './storage.js';
+import { storageGet, storageSet } from '../storage.js';
 
 const STARTER_PAGES = [
   {

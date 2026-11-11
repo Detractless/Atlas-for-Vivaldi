@@ -1,4 +1,4 @@
-// src/services/detractlessFormat.js — .detractless ZIP archive format (read + write).
+// src/services/import-export/detractlessFormat.js — .detractless ZIP archive format (read + write).
 //
 // v2 layout — namespaced, so one archive can hold data from several devices:
 //   manifest.json                       format, version, exportedAt, producers[]

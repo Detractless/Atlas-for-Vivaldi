@@ -1,4 +1,4 @@
-import { BookmarkDB } from '../../services/bookmarksDB.js';
+import { BookmarkDB } from '../../services/bookmarks/bookmarksDB.js';
 
 export async function setEngineIconSrc(imgElement, engine, engineId) {
   const defaultIcon = 'src/assets/svg/default.api.svg';

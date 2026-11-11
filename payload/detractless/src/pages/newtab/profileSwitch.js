@@ -3,7 +3,7 @@
 // have already been swapped by then, and the registry applies those as they
 // change; what is left is the bookmarks database (when profiles keep separate
 // bookmarks), the page list, the engines and the open view.
-import { BookmarkDB } from '../../services/bookmarksDB.js';
+import { BookmarkDB } from '../../services/bookmarks/bookmarksDB.js';
 import { loadBookmarkData, closeBookmarkData } from './bookmarkData.js';
 import { refreshBookmarkCache, loadBookmarks } from '../../components/bookmarks/bookmarks.js';
 import { loadSettings } from '../../settings/registry.js';

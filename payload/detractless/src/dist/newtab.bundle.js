@@ -544,10 +544,10 @@
   var storageSet = (area, items) => call(area, "set", items);
   var storageRemove = (area, keys) => call(area, "remove", keys);
 
-  // src/services/mergeSync.js
+  // src/services/bookmarks/mergeSync.js
   var TOMBSTONE_WINDOW_MS = 90 * 24 * 60 * 60 * 1e3;
 
-  // src/services/bookmarkSync.js
+  // src/services/bookmarks/bookmarkSync.js
   function newBookmarkId() {
     return typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID() || `bm-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
@@ -631,7 +631,7 @@
     }
   };
 
-  // src/services/bookmarksDB.js
+  // src/services/bookmarks/bookmarksDB.js
   function createStores(db) {
     db.onversionchange = () => {
       try {
@@ -1416,7 +1416,7 @@
     }
   }
 
-  // src/services/googleAccount.js
+  // src/services/accounts/googleAccount.js
   var GOOGLE_HOST = /(^|\.)(google\.com|youtube\.com)$/i;
   var ACCOUNT_IN_PATH = /(^|\/)u\/\d+(\/|$)/;
   function withGoogleAccount(url, who) {
@@ -2124,7 +2124,7 @@
     }
   }
 
-  // src/services/siteSuggestions.js
+  // src/services/bookmarks/siteSuggestions.js
   var TWO_PART_SUFFIXES = /* @__PURE__ */ new Set([
     "co.uk",
     "org.uk",
@@ -2812,7 +2812,7 @@
     mojeek: { name: "Mojeek", url: "https://www.mojeek.com/search?q=", icon: "src/assets/svg/mojeek.com.svg", isDefault: true }
   };
 
-  // src/services/engineStorage.js
+  // src/services/settings/engineStorage.js
   async function loadEngines() {
     return new Promise((resolve) => {
       if (window.chrome && window.chrome.storage) {
@@ -3503,7 +3503,7 @@
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   }
 
-  // src/services/tabService.js
+  // src/services/tab-saver/tabService.js
   async function getTabCount() {
     const tabs = await chrome.tabs.query({});
     return tabs.length;
@@ -4067,7 +4067,7 @@
     document.body.appendChild(overlay);
   }
 
-  // src/services/dataExport.js
+  // src/services/import-export/dataExport.js
   var EXPORTED_SYNC_KEYS = BACKUP_SYNC_KEYS.map((k) => k.key).filter((k) => k !== "activeTabs");
   async function generateExportData(activeTabsList) {
     const data = await generateExportDataCore(activeTabsList);
@@ -4187,7 +4187,7 @@
     return 100;
   }
 
-  // src/services/dataImport.js
+  // src/services/import-export/dataImport.js
   async function persistImportData(importData) {
     const ap = window.AtlasProfiles;
     if (!(ap && importData && importData.atlasProfiles)) return persistImportDataCore(importData);
@@ -5204,7 +5204,7 @@
     return out;
   }
 
-  // src/services/snippetCsv.js
+  // src/services/import-export/snippetCsv.js
   var CSV_COLS = ["name", "description", "contentText", "contentHtml", "tags", "folderXid", "createdAt", "updatedAt"];
   function csvEscape(val) {
     const s2 = String(val == null ? "" : val);
@@ -5274,7 +5274,7 @@
     return rows;
   }
 
-  // src/services/zipReader.js
+  // src/services/import-export/zipReader.js
   function readCentralDirectory(data) {
     let e = data.length - 22;
     for (; b4(data, e) !== 101010256; --e) {
@@ -5334,7 +5334,7 @@
     return entries2;
   }
 
-  // src/services/detractlessFormat.js
+  // src/services/import-export/detractlessFormat.js
   var FORMAT = "detractless";
   var FORMAT_VERSION = 2;
   var CREATOR = "Detractless/3.0.0";
@@ -5511,7 +5511,7 @@
     return isDetractlessArchive(buffer);
   }
 
-  // src/services/snippetBackup.js
+  // src/services/import-export/snippetBackup.js
   var DB_NAME = PASTEKIT_DB;
   var DB_VERSION = 2;
   var _dbPromise = null;
@@ -5874,7 +5874,7 @@
     }, isError ? 6e3 : 3500);
   }
 
-  // src/services/starterContent.js
+  // src/services/bookmarks/starterContent.js
   var STARTER_PAGES = [
     {
       label: "Essentials",
@@ -6051,7 +6051,7 @@
     if (window.AtlasSettingsUI) window.AtlasSettingsUI.rerender();
   }
 
-  // src/services/focusLocks.js
+  // src/services/settings/focusLocks.js
   async function readLocks() {
     const { focusLocks } = await storageGet("sync", ["focusLocks"]);
     return focusLocks && typeof focusLocks === "object" ? focusLocks : {};
@@ -6111,7 +6111,7 @@
     if (plan.changed) await storageSet("sync", { saturation: plan.saturation });
   }
 
-  // src/services/delayStorage.js
+  // src/services/settings/delayStorage.js
   async function getDelaySeconds() {
     const result = await storageGet("sync", "searchDelaySeconds");
     return result.searchDelaySeconds;

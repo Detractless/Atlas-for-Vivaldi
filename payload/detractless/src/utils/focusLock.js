@@ -2,7 +2,7 @@
 // filter and scroll fade can each be locked.
 // You lock it. While it is locked it can only get stricter. Clicking the lock again starts a 30-minute unlock,
 // and clicking it during those 30 minutes keeps it locked. When the time is up it is unlocked. Nothing locks or
-// unlocks by itself. No page or storage in here, so the rules can be tested alone; services/focusLocks.js saves them.
+// unlocks by itself. No page or storage in here, so the rules can be tested alone; services/settings/focusLocks.js saves them.
 //
 // One setting, `focusLocks`: { [key]: { unlockAt } } for each locked key. `unlockAt` is null while the lock holds,
 // or the time the unlock ends. A key that is missing, or whose unlockAt has passed, is unlocked.

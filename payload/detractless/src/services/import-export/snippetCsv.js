@@ -1,4 +1,4 @@
-// src/services/snippetCsv.js — the snippet CSV inside a .detractless archive
+// src/services/import-export/snippetCsv.js — the snippet CSV inside a .detractless archive
 // (shared/pastekit/lists/snippets.csv). Used by detractlessFormat.js only.
 
 export const CSV_COLS = ['name', 'description', 'contentText', 'contentHtml', 'tags', 'folderXid', 'createdAt', 'updatedAt'];

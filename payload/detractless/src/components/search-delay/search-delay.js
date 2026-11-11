@@ -3,9 +3,9 @@
 // Before the lock, a shorter delay waited 30 minutes as pendingDelayDecrease. One saved by that version still
 // finishes on time (background/pendingChanges.js), and its note shows until then.
 import { formatTimeRemaining } from '../../utils/formatDuration.js';
-import { getDelaySeconds, saveDelaySeconds, clearPendingDecrease } from '../../services/delayStorage.js';
+import { getDelaySeconds, saveDelaySeconds, clearPendingDecrease } from '../../services/settings/delayStorage.js';
 import { sendToBackground } from '../../services/backgroundMessenger.js';
-import { readLocks } from '../../services/focusLocks.js';
+import { readLocks } from '../../services/settings/focusLocks.js';
 import { changeAllowed } from '../../utils/focusLock.js';
 import { QUEUE_MS } from '../tab-limiter/tab-limiter.js';
 

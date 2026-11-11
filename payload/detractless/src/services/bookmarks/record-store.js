@@ -1,4 +1,4 @@
-import { dematerialize } from '../bookmarkSync.js';
+import { dematerialize } from './bookmarkSync.js';
 
 /* The nested `bookmarks` store is the old form. These methods read and migrate
    it into merge-owned records while leaving the nested data as a backout copy. */

@@ -1,7 +1,7 @@
-import { BookmarkDB } from './bookmarksDB.js';
-import { DEFAULT_THEME } from '../constants/defaults.js';
-import { BACKUP_SYNC_KEYS } from '../constants/storageKeys.js';
-import { storageGet } from './storage.js';
+import { BookmarkDB } from '../bookmarks/bookmarksDB.js';
+import { DEFAULT_THEME } from '../../constants/defaults.js';
+import { BACKUP_SYNC_KEYS } from '../../constants/storageKeys.js';
+import { storageGet } from '../storage.js';
 
 // Every chrome.storage.sync key a backup carries (atlasKeys.json "backup": true),
 // except activeTabs, which comes from memory so unsaved page edits are included.

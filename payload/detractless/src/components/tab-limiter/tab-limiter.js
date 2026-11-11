@@ -4,7 +4,7 @@
 // Before the lock, a higher limit waited 30 minutes as pendingIncrease. One saved by that version still
 // finishes on time (background/pendingChanges.js), and its note shows until then.
 import { formatTimeRemaining } from '../../utils/formatDuration.js';
-import { getTabCount } from '../../services/tabService.js';
+import { getTabCount } from '../../services/tab-saver/tabService.js';
 import { sendToBackground } from '../../services/backgroundMessenger.js';
 import { storageGet, storageRemove, storageSet } from '../../services/storage.js';
 import { changeAllowed } from '../../utils/focusLock.js';

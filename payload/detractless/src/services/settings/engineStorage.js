@@ -1,5 +1,5 @@
-import { DEFAULT_ENGINES } from '../constants/engines.js';
-import { storageGet, storageSet } from './storage.js';
+import { DEFAULT_ENGINES } from '../../constants/engines.js';
+import { storageGet, storageSet } from '../storage.js';
 
 export async function loadEngines() {
   return new Promise((resolve) => {

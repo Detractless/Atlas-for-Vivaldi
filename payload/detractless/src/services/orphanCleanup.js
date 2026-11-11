@@ -18,7 +18,7 @@
 // like "the user has no pages" and take the bookmarks with it. So an empty or
 // unusable tab list means DELETE NOTHING, always, and every removal is logged.
 
-import { BookmarkDB } from './bookmarksDB.js';
+import { BookmarkDB } from './bookmarks/bookmarksDB.js';
 import { storageGet, storageSet } from './storage.js';
 
 /** Marks the repair as already run, so it never sweeps twice. */

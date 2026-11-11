@@ -1,4 +1,4 @@
-// src/services/mergeSync.js — per-item merge for bookmark records.
+// src/services/bookmarks/mergeSync.js — per-item merge for bookmark records.
 //
 // This file used to serve notes and events as well, and was the JavaScript half
 // of a contract with the Android launcher (`core/data/MergeCodecs.kt`), held

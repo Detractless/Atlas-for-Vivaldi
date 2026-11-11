@@ -1,4 +1,4 @@
-// src/services/bookmarkSync.js — bookmarks as merge-owned records (Phase 12).
+// src/services/bookmarks/bookmarkSync.js — bookmarks as merge-owned records (Phase 12).
 //
 // WHY THIS EXISTS. Bookmarks used to be a nested blob
 // (`pageN -> group -> [{name,url}]`) with no ids and no timestamps, REPLACED

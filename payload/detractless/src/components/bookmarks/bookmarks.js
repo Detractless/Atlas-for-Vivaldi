@@ -1,5 +1,5 @@
 import './bookmarks.css';
-import { BookmarkDB } from '../../services/bookmarksDB.js';
+import { BookmarkDB } from '../../services/bookmarks/bookmarksDB.js';
 // ContextMenu is imported only for its `disabled` flag now (R-012): this screen
 // no longer opens a menu, but the flag still gates whether right-click does
 // anything at all, so the setting behind it keeps meaning something.
@@ -15,7 +15,7 @@ import {
 import { attachScrollAffordance } from '../scroll-affordance/scroll-affordance.js';
 import { editInBar } from '../edit-in-bar/edit-in-bar.js';
 import { refreshBookmarkCache } from './bookmarks-cache.js';
-import { forActiveAccount } from '../../services/googleAccount.js';
+import { forActiveAccount } from '../../services/accounts/googleAccount.js';
 import { readFailedFor, clearReadFailure, readPageBookmarks, writePageBookmarks, insertBookmark } from './bookmarks-store.js';
 import { rowMetrics, wellHeight, rowsThatFit } from './bookmarks-layout.js';
 
