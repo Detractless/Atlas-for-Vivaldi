@@ -45,17 +45,22 @@
   opacity: .88;
 }
 
-/* The context menu base styles (built by atlas.js) */
-#browser .atlas-profile-menu {
-  position: fixed;
-  z-index: 10000;
-  min-width: 196px;
+/* The surface every Atlas menu shares: the profile menu (built by atlas.js) and
+   the extensions popover (07-extensions.css, .atlas-ext-pop). Each sets its own
+   size and text after this. */
+#browser .atlas-profile-menu,
+#browser .atlas-ext-pop {
   padding: 6px;
   border-radius: 12px;
   background-color: var(--atlas-menu);
   border: 1px solid var(--atlas-border);
   box-shadow: var(--atlas-shadow);
   color: var(--atlas-text-1);
+}
+#browser .atlas-profile-menu {
+  position: fixed;
+  z-index: 10000;
+  min-width: 196px;
   font-size: 13px;
 }
 #browser .atlas-profile-menu .apm-sep {

@@ -120,17 +120,13 @@
    240px, 36px rows with 14px text and 20px icons, a divider, then "Manage
    extensions" as a row of its own, holding the page arrows when there are
    pages. */
+/* The surface (padding, radius, background, border, shadow, color) is shared
+   with the profile menu: 05-menus.css. */
 #browser .atlas-ext-pop {
   position: fixed;
   z-index: 10000;
   box-sizing: border-box;
   width: 240px;
-  padding: 6px;
-  border-radius: 12px;
-  background-color: var(--atlas-menu);
-  border: 1px solid var(--atlas-border);
-  box-shadow: var(--atlas-shadow);
-  color: var(--atlas-text-1);
   font-size: 14px;
   user-select: none;
 }
