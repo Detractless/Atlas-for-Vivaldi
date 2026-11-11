@@ -118,8 +118,8 @@
 #browser .atlas-panel-pop::before { top: -7px; width: 14px; height: 7px; background: var(--atlas-border); }
 #browser .atlas-panel-pop::after { top: -6px; left: calc(var(--atlas-pop-arrow, 200px) + 1px); width: 12px; height: 6px; background: var(--atlas-menu); }
 #browser .atlas-panel-pop-head { padding: 8px 10px 10px; margin-bottom: 6px; border-bottom: 1px solid var(--atlas-border); }
-#browser .atlas-panel-pop-head b { display: block; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#browser .atlas-panel-pop-head span { display: block; font-size: 12px; opacity: .6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#browser .atlas-panel-pop-head b { display: block; font-size: var(--font-size-atlas-medium); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#browser .atlas-panel-pop-head span { display: block; font-size: var(--font-size-atlas-small); opacity: .6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #browser .atlas-panel-pop-item {
   display: flex;
   align-items: center;
