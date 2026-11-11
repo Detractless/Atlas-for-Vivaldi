@@ -1466,6 +1466,76 @@
     return withGoogleAccount(url, activeGoogleAccount());
   }
 
+  // src/components/bookmarks/bookmarks-store.js
+  var failedPage = null;
+  var readFailedFor = (page) => failedPage === page;
+  var clearReadFailure = (page) => {
+    if (failedPage === page) failedPage = null;
+  };
+  async function readPageBookmarks(page) {
+    try {
+      const saved = await BookmarkDB.getBookmarks(page);
+      clearReadFailure(page);
+      return saved && Object.keys(saved).length ? saved : {};
+    } catch (error) {
+      failedPage = page;
+      console.error("Detractless: could not read bookmarks for page", page, error);
+      return null;
+    }
+  }
+  async function writePageBookmarks(page, data) {
+    if (readFailedFor(page)) {
+      console.error(
+        "Detractless: refusing to save, the last read of page",
+        page,
+        "failed. Reload before changing anything."
+      );
+      return false;
+    }
+    try {
+      await BookmarkDB.saveBookmarks(page, data);
+      await refreshBookmarkCache();
+      return true;
+    } catch (error) {
+      console.error("Error saving bookmarks:", error);
+      return false;
+    }
+  }
+  async function insertBookmark(form) {
+    if (!form || form.error) return null;
+    const { name, group, page } = form;
+    const url = form.url.match(/^https?:\/\//) ? form.url : `https://${form.url}`;
+    try {
+      const bookmarks2 = await BookmarkDB.getBookmarks(page) || {};
+      if (!bookmarks2[group]) bookmarks2[group] = [];
+      bookmarks2[group].push({ name, url });
+      await BookmarkDB.saveBookmarks(page, bookmarks2);
+      await refreshBookmarkCache();
+      return { page, bookmarks: bookmarks2 };
+    } catch (error) {
+      console.error("[Detractless] could not save the bookmark", error);
+      return null;
+    }
+  }
+
+  // src/components/bookmarks/bookmarks-layout.js
+  function rowMetrics(host) {
+    const cs = getComputedStyle(host);
+    const num2 = (name, fallback) => {
+      const value = parseFloat(cs.getPropertyValue(name));
+      return Number.isFinite(value) ? value : fallback;
+    };
+    return {
+      pitch: num2("--bm-row-pitch", 36),
+      gap: num2("--bm-row-gap", 0),
+      pad: num2("--bm-well-padding", 0),
+      chrome: num2("--bm-title-height", 24) + num2("--bm-title-gap", 8),
+      groupGap: num2("--bm-group-gap", 32)
+    };
+  }
+  var wellHeight = (rows, metrics) => rows * metrics.pitch - metrics.gap + metrics.pad * 2;
+  var rowsThatFit = (px, metrics) => Math.max(1, Math.floor((px - metrics.pad * 2 + metrics.gap) / metrics.pitch));
+
   // src/utils/pillSelection.js
   function initialSelectionIndex(matchCount) {
     return !matchCount || matchCount <= 0 ? -1 : 0;
@@ -1545,57 +1615,17 @@
   }
 
   // src/components/bookmarks/bookmarks.js
-  var _loadFailedPage = null;
-  var loadFailed = () => _loadFailedPage !== null && _loadFailedPage === currentBookmarkPage;
+  var loadFailed = () => readFailedFor(currentBookmarkPage);
   function initializeBookmarks() {
     loadBookmarks();
   }
   async function loadBookmarks() {
-    try {
-      const savedBookmarks = await BookmarkDB.getBookmarks(currentBookmarkPage);
-      if (_loadFailedPage === currentBookmarkPage) _loadFailedPage = null;
-      setBookmarks(savedBookmarks && Object.keys(savedBookmarks).length > 0 ? savedBookmarks : {});
-    } catch (error) {
-      _loadFailedPage = currentBookmarkPage;
-      console.error("Detractless: could not read bookmarks for page", currentBookmarkPage, error);
-    }
+    const saved = await readPageBookmarks(currentBookmarkPage);
+    if (saved !== null) setBookmarks(saved);
     renderBookmarks();
   }
   async function saveBookmarks() {
-    if (loadFailed()) {
-      console.error(
-        "Detractless: refusing to save, the last read of page",
-        currentBookmarkPage,
-        "failed. Reload before changing anything."
-      );
-      return;
-    }
-    try {
-      await BookmarkDB.saveBookmarks(currentBookmarkPage, bookmarks);
-      await refreshBookmarkCache();
-    } catch (error) {
-      console.error("Error saving bookmarks:", error);
-    }
-  }
-  function rowMetrics(host) {
-    const cs = getComputedStyle(host);
-    const num2 = (name, fallback) => {
-      const v = parseFloat(cs.getPropertyValue(name));
-      return Number.isFinite(v) ? v : fallback;
-    };
-    return {
-      pitch: num2("--bm-row-pitch", 36),
-      gap: num2("--bm-row-gap", 0),
-      pad: num2("--bm-well-padding", 0),
-      chrome: num2("--bm-title-height", 24) + num2("--bm-title-gap", 8),
-      groupGap: num2("--bm-group-gap", 32)
-    };
-  }
-  function wellHeight(rows, m) {
-    return rows * m.pitch - m.gap + m.pad * 2;
-  }
-  function rowsThatFit(px, m) {
-    return Math.max(1, Math.floor((px - m.pad * 2 + m.gap) / m.pitch));
+    await writePageBookmarks(currentBookmarkPage, bookmarks);
   }
   function renderBookmarks() {
     const container = document.getElementById("bookmarks-content");
@@ -1792,22 +1822,11 @@
     });
   }
   async function addBookmark(form) {
-    if (!form || form.error) return;
-    const { name, group: targetGroup, page: targetPage } = form;
-    const finalUrl = form.url.match(/^https?:\/\//) ? form.url : "https://" + form.url;
-    try {
-      const targetBookmarks = await BookmarkDB.getBookmarks(targetPage) || {};
-      if (!targetBookmarks[targetGroup]) targetBookmarks[targetGroup] = [];
-      targetBookmarks[targetGroup].push({ name, url: finalUrl });
-      await BookmarkDB.saveBookmarks(targetPage, targetBookmarks);
-      await refreshBookmarkCache();
-      if (targetPage === currentBookmarkPage) {
-        if (_loadFailedPage === currentBookmarkPage) _loadFailedPage = null;
-        setBookmarks(targetBookmarks);
-        renderBookmarks();
-      }
-    } catch (error) {
-      console.error("[Detractless] could not save the bookmark", error);
+    const result = await insertBookmark(form);
+    if (result && result.page === currentBookmarkPage) {
+      clearReadFailure(currentBookmarkPage);
+      setBookmarks(result.bookmarks);
+      renderBookmarks();
     }
   }
   async function moveGroupToPage(groupName, targetPage) {
