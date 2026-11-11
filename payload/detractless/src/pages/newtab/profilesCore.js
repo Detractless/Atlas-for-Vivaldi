@@ -189,19 +189,14 @@
     });
   }
 
-  /* The Focus locks (focusLocks) aren't per profile, and a locked setting keeps its live value on a switch unless the
-     other profile's is stricter: utils/focusLock.js's rule in this file's words (it can't import). Keep them the same. LOOSER: whether a value of a setting that is more than one number is looser (the social media filter, { mode, parts }: utils/socialFilter.js looser(); the scroll fade: utils/scrollFade.js looser()). */
-  var LOCK_DEFAULTS = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: 'off', socialFilter: { mode: 'off', parts: [] }, scrollFade: { on: false, by: 'either', minutes: 5, screens: 150, darkest: 70, restSeconds: 60, waitMinutes: 10, except: [] } };
-  var STRICT = { tabLimit: function (v) { return +v === 0 ? -Infinity : -v; }, searchDelaySeconds: function (v) { return +v; }, saturation: function (v) { return -v; }, nsfwAction: function (v) { return ({ off: 0, blur: 1, blackout: 2 })[String(v)] || 0; } },
-    FADE = function (x) { x = Object.assign({}, LOCK_DEFAULTS.scrollFade, x); return { on: x.on === true, time: x.by === 'distance' ? Infinity : +x.minutes || 5, dist: x.by === 'time' ? Infinity : +x.screens || 150, dark: +x.darkest || 70, rest: +x.restSeconds || 60, wait: +x.waitMinutes || 10, except: Array.isArray(x.except) ? x.except : [] }; },
-    LOOSER = { scrollFade: function (a, b) { var p = FADE(a), q = FADE(b); return p.on && (!q.on || q.time > p.time || q.dist > p.dist || q.dark < p.dark || q.rest < p.rest || q.wait < p.wait || q.except.some(function (s) { return p.except.indexOf(s) < 0; })); }, socialFilter: function (a, b) { var r = { off: 0, parts: 1, all: 2 }, ra = r[(a || {}).mode] | 0, rb = r[(b || {}).mode] | 0, ps = function (x) { return Array.isArray((x || {}).parts) ? x.parts : []; }; return ra !== rb ? rb < ra : ra === 1 && ps(a).some(function (id) { return ps(b).indexOf(id) < 0; }); } };
-  function lockedLooser(snap, live, keys) {
+  /* Focus locks aren't per profile. While locked, the live value always wins on profile switches. */
+  var LOCKABLE = ['tabLimit', 'searchDelaySeconds', 'saturation', 'nsfwAction', 'socialFilter', 'scrollFade'];
+  function lockedKeys(live, keys) {
     var now = Date.now(), locks = live.focusLocks && typeof live.focusLocks === 'object' ? live.focusLocks : {};
     return keys.filter(function (k) {
-      var l = (STRICT[k] || LOOSER[k]) && locks[k], at = l && Number(l.unlockAt);
+      var l = LOCKABLE.indexOf(k) >= 0 && locks[k], at = l && Number(l.unlockAt);
       if (!l || typeof l !== 'object' || (l.unlockAt != null && isFinite(at) && at <= now)) return false;   // not locked
-      var val = function (o) { return o[k] !== undefined ? o[k] : LOCK_DEFAULTS[k]; };
-      return LOOSER[k] ? LOOSER[k](val(live), val(snap)) : STRICT[k](val(snap)) < STRICT[k](val(live));
+      return true;
     });
   }
 
@@ -211,9 +206,9 @@
       if (!to || s.owner === id) { if (to) s.active = id; return; }
       var cs = unsharedCats(s), keys = keysOf(cs);
       return captureOwner(s).then(function () {
-        return sget('sync', ['focusLocks'].concat(Object.keys(STRICT), Object.keys(LOOSER)));
+        return sget('sync', ['focusLocks'].concat(LOCKABLE));
       }).then(function (live) {
-        var snap = to.settings || {}, held = lockedLooser(snap, live, keys);
+        var snap = to.settings || {}, held = lockedKeys(live, keys);
         return applyLive(snap, keys.filter(function (k) { return held.indexOf(k) < 0; }));
       }).then(function () {
         return writeCaches(to.settings || {}, cs);

@@ -81,13 +81,15 @@ test("damaged locks: a bad time stays locked until clicked; anything else that i
     { saturation: { unlockAt: null } }, "ended and unknown locks are dropped");
 });
 
-test("a profile's values or a backup can't loosen a locked setting; stricter ones and unlocked ones come in", () => {
+test("a backup or profile cannot replace any currently locked setting", () => {
   const locks = { searchDelaySeconds: { unlockAt: null }, saturation: { unlockAt: NOW + MIN }, nsfwAction: { unlockAt: null } };
   const current = { searchDelaySeconds: 60, saturation: 40, tabLimit: 5, nsfwAction: "blur" };
   assert.deepEqual(L.withoutLoosening({ searchDelaySeconds: 15, saturation: 30, tabLimit: 0, nsfwAction: "off", Theme: "x" }, current, locks, NOW),
-    { saturation: 30, tabLimit: 0, Theme: "x" });
+    { tabLimit: 0, Theme: "x" });
   assert.deepEqual(L.withoutLoosening({ searchDelaySeconds: 120, saturation: 90, nsfwAction: "blackout" }, current, locks, NOW),
-    { searchDelaySeconds: 120, nsfwAction: "blackout" });
+    {});
+  assert.deepEqual(L.withoutLoosening({ searchDelaySeconds: 15 }, current, { searchDelaySeconds: { unlockAt: NOW + MIN } }, NOW),
+    {}, "an unlocking setting is still protected");
 });
 
 test("an old color lock carries on until it would have ended", () => {

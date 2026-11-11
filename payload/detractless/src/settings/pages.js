@@ -14,9 +14,6 @@ import { scrollFadeSection } from './scrollFadePage.js';
 
 export const REVIEW_URL = "https://chromewebstore.google.com/detail/ipgmbcinekdcmhhnbanlahedgpehffab";
 
-/** The reset page asks before erasing; this is whether it is asking. */
-export const resetState = { confirming: false };
-
 const selectFor = (key) => select(key, labelOf(key));
 const toggleFor = (key) => toggle(key, CONTROLS[key].get());
 
@@ -114,14 +111,6 @@ function backupPage() {
   ])]);
 }
 
-function resetPage() {
-  const asking = resetState.confirming;
-  return section("", [card([
-    row("Reset everything", "Erases bookmarks, settings and snippets stored on this computer", asking ? "" : `<button class="sp-pill danger" data-action="reset-ask">Reset</button>`),
-    ...(asking ? [`<div class="sp-confirm"><div class="sp-row-desc">This cannot be undone. Everything stored on this computer is deleted.</div><div class="sp-confirm-btns"><button class="sp-pill" data-action="reset-cancel">Cancel</button><button class="sp-pill danger" data-action="reset-go">Erase everything</button></div></div>`] : [])
-  ])]);
-}
-
 /** Page id -> render(). profilesPage.js adds "profiles" through AtlasSettingsUI.register.
     There is no Pages page any more: pages are added, renamed, moved and deleted in the address bar (Add page, and
     right-click a page in the new tab's page switcher). */
@@ -131,7 +120,6 @@ export const PAGES = {
   focus: focusPage,
   usage: usagePage,
   backup: backupPage,
-  reset: resetPage,
 };
 
 export const NAV = [
@@ -143,7 +131,6 @@ export const NAV = [
   ] },
   { group: "Data", items: [
     { id: "backup", label: "Backup", icon: I.db },
-    { id: "reset", label: "Reset", icon: I.reset },
     { id: "review", label: "Leave a review", icon: I.star, external: true }
   ] }
 ];

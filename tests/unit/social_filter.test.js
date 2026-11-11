@@ -77,11 +77,11 @@ test("locked, the filter can only get stricter; unlocked, anything goes", () => 
   assert.equal(L.changeAllowed(unlocking, "socialFilter", { mode: "all", parts: [] }, { mode: "off", parts: [] }, NOW), false, "still locked while it unlocks");
 });
 
-test("a profile or a backup can't loosen a locked filter, and its lock is kept like the others", () => {
+test("a profile or a backup can't replace a locked filter, and its lock is kept like the others", () => {
   const current = { socialFilter: { mode: "parts", parts: ["likes"] }, tabLimit: 5 };
   assert.deepEqual(L.withoutLoosening({ socialFilter: { mode: "off", parts: [] }, tabLimit: 9 }, current, locked, NOW), { tabLimit: 9 });
   const stricter = { socialFilter: { mode: "all", parts: [] } };
-  assert.deepEqual(L.withoutLoosening(stricter, current, locked, NOW), stricter);
+  assert.deepEqual(L.withoutLoosening(stricter, current, locked, NOW), {});
   assert.ok(L.LOCKABLE.includes("socialFilter"));
   assert.deepEqual(L.clickLock({}, "socialFilter", NOW), { socialFilter: { unlockAt: null } });
   assert.equal(L.lockState(L.clickLock({}, "socialFilter", NOW), "socialFilter", NOW), "held");

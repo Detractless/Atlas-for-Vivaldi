@@ -32,6 +32,42 @@ def old_installer():
     return mod
 
 
+def comparable_preferences(prefs):
+    """Remove known post-split additions before comparing shared behavior."""
+    prefs = json.loads(json.dumps(prefs))
+    session = prefs.get("session")
+    if isinstance(session, dict):
+        session.pop("restore_on_startup", None)
+        if not session:
+            prefs.pop("session")
+
+    vivaldi = prefs.get("vivaldi")
+    if not isinstance(vivaldi, dict):
+        return prefs
+    startup = vivaldi.get("startup")
+    if isinstance(startup, dict):
+        startup.pop("type", None)
+        if not startup:
+            vivaldi.pop("startup")
+    downloads = vivaldi.get("downloads")
+    if isinstance(downloads, dict):
+        downloads.pop("open_panel_on_new", None)
+        if not downloads:
+            vivaldi.pop("downloads")
+    panels = vivaldi.get("panels")
+    if isinstance(panels, dict):
+        web = panels.get("web")
+        if isinstance(web, dict) and isinstance(web.get("elements"), list):
+            web["elements"] = [e for e in web["elements"]
+                                if not isinstance(e, dict) or e.get("id") != "WEBPANEL_atlas_downloads"]
+            if not web["elements"]:
+                web.pop("elements")
+    toolbars = vivaldi.get("toolbars")
+    if isinstance(toolbars, dict) and isinstance(toolbars.get("panel"), list):
+        toolbars["panel"] = [x for x in toolbars["panel"] if x != "WEBPANEL_atlas_downloads"]
+    return prefs
+
+
 SAMPLE_PREFS = {
     "vivaldi": {
         "toolbars": {
@@ -114,7 +150,7 @@ class InstallerTest(unittest.TestCase):
         self.assertEqual(json.loads(dated[0].read_text()), SAMPLE_PREFS)
 
     def test_step6_writes_what_the_original_installer_wrote(self):
-        """Splitting the installer must not change a single Preferences value."""
+        """Shared Preferences edits match the pre-split installer."""
         old = old_installer()
         cases = [SAMPLE_PREFS, {}, {"vivaldi": {"toolbars": {"navigation": ["AddressField"]}}}]
         for i, prefs in enumerate(cases):
@@ -125,8 +161,19 @@ class InstallerTest(unittest.TestCase):
             (b / "Preferences").write_text(json.dumps(prefs))
             self.run_step6(old, a / "Preferences")
             self.run_step6(preferences, b / "Preferences")
-            self.assertEqual(json.loads((b / "Preferences").read_text()),
-                             json.loads((a / "Preferences").read_text()), f"case {i}")
+            self.assertEqual(comparable_preferences(json.loads((b / "Preferences").read_text())),
+                             comparable_preferences(json.loads((a / "Preferences").read_text())), f"case {i}")
+
+    def test_user_startup_settings_are_preserved(self):
+        prefs_file = self.tmp / "Preferences"
+        prefs_file.write_text(json.dumps({
+            "session": {"restore_on_startup": 4},
+            "vivaldi": {"startup": {"type": 1}},
+        }))
+        self.run_step6(preferences, prefs_file)
+        result = json.loads(prefs_file.read_text())
+        self.assertEqual(result["session"]["restore_on_startup"], 4)
+        self.assertEqual(result["vivaldi"]["startup"]["type"], 1)
 
     def test_profile_facts_hold_what_other_profiles_need(self):
         css = self.tmp / "css-mods"

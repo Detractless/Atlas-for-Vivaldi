@@ -83,7 +83,8 @@ test("Settings lists Profiles, Search, Appearance, Focus, Usage, then the data p
   click(t.window, t.document.getElementById("global-settings-btn"));
   await waitFor(() => t.document.querySelector('#sp-nav [data-page="profiles"]'), 2000, "Profiles in the list");
   assert.deepEqual([...t.document.querySelectorAll("#sp-nav [data-page]")].map((b) => b.dataset.page),
-    ["profiles", "search", "appearance", "focus", "usage", "backup", "reset", "review"]);
+    ["profiles", "search", "appearance", "focus", "usage", "backup", "review"]);
+  assert.equal(t.document.querySelector('#sp-nav [data-page="reset"]'), null, "reset is not available in Settings");
   await waitFor(() => text(t.document.querySelector("#sp-content .sp-page-title")) === "Profiles", 2000, "opens on Profiles");
   const u = await openNewTab({ query: "?settings=pages" });
   await waitFor(() => !u.document.getElementById("sp-root").hidden, 2000, "settings open from an old link");

@@ -68,8 +68,7 @@ async function settingsFromImport(importData) {
   }
   if (storageData.customSearchEngines) await moveEngineIconsToDb(storageData.customSearchEngines);
   if (storageData.Theme) storageData.Theme = await themeWithBackgroundInDb(storageData.Theme);
-  // A locked Focus setting (utils/focusLock.js) keeps its value unless the backup's is stricter: importing a file
-  // must not undo a lock.
+  // Locked Focus settings stay live and are never replaced by backup values.
   const live = await storageGet('sync', ['focusLocks', ...LOCKABLE]);
   return withoutLoosening(storageData, live, live.focusLocks);
 }

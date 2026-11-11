@@ -145,7 +145,7 @@ test("the color lock: grayer only while locked, and it never frees itself", asyn
   assert.deepEqual(t.errors, []);
 });
 
-test("switching profile can't loosen a locked setting, including the shield mode", async () => {
+test("switching profile cannot replace any locked setting, including with stricter values", async () => {
   const profiles = {
     v: 2, active: "personal", owner: "personal",
     share: { bookmarks: true, theme: true, appearance: true, search: true, focus: false },
@@ -164,7 +164,7 @@ test("switching profile can't loosen a locked setting, including the shield mode
   await t.window.AtlasProfiles.switchTo("school");
   const live = t.chrome.storage.sync._data;
   assert.equal(live.searchDelaySeconds, 60, "locked: school's shorter delay stays out");
-  assert.equal(live.saturation, 20, "locked, but school's is grayer: it comes in");
+  assert.equal(live.saturation, 50, "a stricter profile value cannot replace a locked setting");
   assert.equal(live.tabLimit, 9, "the tab limit isn't locked: school's comes in");
   assert.equal(live.nsfwAction, "blur", "the shield lock prevents a profile switch from turning it off");
   assert.deepEqual(plain(live.focusLocks), {

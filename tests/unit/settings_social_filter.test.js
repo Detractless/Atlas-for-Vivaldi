@@ -169,7 +169,7 @@ test("the panel follows the keyboard, stays put when a pill is switched, and goe
   assert.deepEqual(t.errors, []);
 });
 
-test("switching profile can't loosen a locked social media filter", async () => {
+test("switching profile cannot replace a locked social media filter", async () => {
   const profiles = {
     v: 2, active: "personal", owner: "personal",
     share: { bookmarks: true, theme: true, appearance: true, search: true, focus: false },
@@ -187,7 +187,7 @@ test("switching profile can't loosen a locked social media filter", async () => 
   await t.window.AtlasProfiles.switchTo("school");
   assert.deepEqual(plain(t.chrome.storage.sync._data.socialFilter), { mode: "parts", parts: ["likes"] }, "school's Off stays out");
   await t.window.AtlasProfiles.switchTo("work");
-  assert.deepEqual(plain(t.chrome.storage.sync._data.socialFilter), { mode: "all", parts: [] }, "work's stricter one comes in");
+  assert.deepEqual(plain(t.chrome.storage.sync._data.socialFilter), { mode: "parts", parts: ["likes"] }, "a stricter profile value cannot replace a locked filter");
   assert.deepEqual(plain(t.chrome.storage.sync._data.focusLocks), { socialFilter: { unlockAt: null } }, "the lock didn't move");
   assert.deepEqual(t.errors, []);
 });

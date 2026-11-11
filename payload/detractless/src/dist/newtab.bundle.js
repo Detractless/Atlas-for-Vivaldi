@@ -577,7 +577,6 @@
   var storageGet = (area, keys) => call(area, "get", keys).then((r) => r || {});
   var storageSet = (area, items) => call(area, "set", items);
   var storageRemove = (area, keys) => call(area, "remove", keys);
-  var storageClear = (area) => call(area, "clear");
 
   // src/services/bookmarksDB.js
   var BookmarkDB = {
@@ -3650,7 +3649,7 @@
   function withoutLoosening(incoming, current2, locks2, now = Date.now()) {
     const out = { ...incoming };
     for (const key of LOCKABLE) {
-      if (out[key] !== void 0 && !changeAllowed(locks2, key, (current2 || {})[key], out[key], now)) delete out[key];
+      if (out[key] !== void 0 && isLocked(locks2, key, now)) delete out[key];
     }
     return out;
   }
@@ -5507,15 +5506,6 @@
     });
     return _dbPromise;
   }
-  async function closeDB() {
-    if (!_dbPromise) return;
-    const pending2 = _dbPromise;
-    _dbPromise = null;
-    try {
-      (await pending2).close();
-    } catch (_) {
-    }
-  }
   var p = (req) => new Promise((res, rej) => {
     req.onsuccess = () => res(req.result);
     req.onerror = () => rej(req.error);
@@ -6675,7 +6665,6 @@
 
   // src/settings/pages.js
   var REVIEW_URL = "https://chromewebstore.google.com/detail/ipgmbcinekdcmhhnbanlahedgpehffab";
-  var resetState = { confirming: false };
   var selectFor = (key) => select(key, labelOf(key));
   var toggleFor = (key) => toggle(key, CONTROLS[key].get());
   function searchPage() {
@@ -6755,20 +6744,12 @@
       row("Import", "Bring in a .detractless, .pastekit or .json file", `<button class="sp-pill" data-action="import">Import</button>`)
     ])]);
   }
-  function resetPage() {
-    const asking = resetState.confirming;
-    return section("", [card([
-      row("Reset everything", "Erases bookmarks, settings and snippets stored on this computer", asking ? "" : `<button class="sp-pill danger" data-action="reset-ask">Reset</button>`),
-      ...asking ? [`<div class="sp-confirm"><div class="sp-row-desc">This cannot be undone. Everything stored on this computer is deleted.</div><div class="sp-confirm-btns"><button class="sp-pill" data-action="reset-cancel">Cancel</button><button class="sp-pill danger" data-action="reset-go">Erase everything</button></div></div>`] : []
-    ])]);
-  }
   var PAGES = {
     search: searchPage,
     appearance: appearancePage,
     focus: focusPage,
     usage: usagePage,
-    backup: backupPage,
-    reset: resetPage
+    backup: backupPage
   };
   var NAV = [
     { group: "General", items: [
@@ -6779,7 +6760,6 @@
     ] },
     { group: "Data", items: [
       { id: "backup", label: "Backup", icon: I.db },
-      { id: "reset", label: "Reset", icon: I.reset },
       { id: "review", label: "Leave a review", icon: I.star, external: true }
     ] }
   ];
@@ -6859,33 +6839,6 @@
     }
   }
 
-  // src/services/resetService.js
-  function deleteDatabase(name) {
-    return new Promise((resolve) => {
-      const req = indexedDB.deleteDatabase(name);
-      req.onsuccess = () => resolve();
-      req.onerror = () => resolve();
-      req.onblocked = () => resolve();
-    });
-  }
-  async function resetAllData() {
-    if (BookmarkDB.db) {
-      BookmarkDB.db.close();
-      BookmarkDB.db = null;
-    }
-    for (const name of window.AtlasProfiles ? window.AtlasProfiles.allDbNames() : [BookmarkDB.dbName]) {
-      await deleteDatabase(name);
-    }
-    await closeDB();
-    await deleteDatabase(PASTEKIT_DB);
-    await storageClear("sync");
-    await storageClear("local");
-    if (chrome.storage.session) {
-      await storageClear("session");
-    }
-    window.location.reload();
-  }
-
   // src/settings/shell.js
   var root = null;
   var navEl = null;
@@ -6925,7 +6878,6 @@
     }
     if (!root.hidden && !pageId) return;
     root.hidden = false;
-    resetState.confirming = false;
     $2("sp-version").textContent = "v" + chrome.runtime.getManifest().version;
     render2();
   }
@@ -7009,7 +6961,6 @@
     if (!PAGES[id]) return;
     current = id;
     currentArg = arg;
-    resetState.confirming = false;
     render2();
   }
   function forgetSettingsUrl() {
@@ -7157,13 +7108,6 @@
       if (c) c.clickLock();
     } else if (act === "export") exportBookmarks();
     else if (act === "import") $2("import-file").click();
-    else if (act === "reset-ask") {
-      resetState.confirming = true;
-      renderPage();
-    } else if (act === "reset-cancel") {
-      resetState.confirming = false;
-      renderPage();
-    } else if (act === "reset-go") resetAllData();
   }
   function publishApi() {
     window.AtlasSettingsUI = {

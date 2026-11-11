@@ -33,12 +33,12 @@ function pageCopy() {
   dom.window.close();
   return inner;
 }
-/** profilesCore.js's copy of the lock rule, taken from a profile switch: the keys a locked switch would keep. */
+/** profilesCore.js's lock rule: whether a profile switch must preserve this live setting. */
 function profileKeeps(live, snap, locks) {
   const src = fs.readFileSync(path.join(SRC, "pages", "newtab", "profilesCore.js"), "utf8");
-  const m = /var LOCK_DEFAULTS[\s\S]*?function lockedLooser\(snap, live, keys\) \{[\s\S]*?\r?\n  \}\r?\n/.exec(src);
+  const m = /var LOCKABLE = [^;]+;\r?\n  function lockedKeys\(live, keys\) \{[\s\S]*?\r?\n  \}/.exec(src);
   assert.ok(m, "profilesCore.js still has its lock rule in one block");
-  return new Function(`${m[0]}; return lockedLooser;`)()(snap, { ...live, focusLocks: locks }, ["scrollFade"]).length === 1;
+  return new Function(`${m[0]}; return lockedKeys;`)()({ ...live, focusLocks: locks }, ["scrollFade"]).length === 1;
 }
 
 const SAMPLES = [
@@ -180,20 +180,20 @@ test("the window's layer repeats the setting's rules exactly", async () => {
   } finally { w.window.close(); }
 });
 
-test("profiles keep a locked fade from loosening on a switch, by the same rule", () => {
+test("profiles keep every locked fade unchanged on a switch", () => {
   const locks = { scrollFade: { unlockAt: null } };
   const strong = R.normalize({ on: true, minutes: 3 });
   const weak = R.normalize({ on: true, minutes: 20 });
   assert.equal(profileKeeps({ scrollFade: strong }, { scrollFade: weak }, locks), true, "a switch to a looser one is kept out");
-  assert.equal(profileKeeps({ scrollFade: weak }, { scrollFade: strong }, locks), false, "a stricter one comes in");
+  assert.equal(profileKeeps({ scrollFade: weak }, { scrollFade: strong }, locks), true, "a stricter one is also kept out");
   assert.equal(profileKeeps({ scrollFade: strong }, { scrollFade: weak }, {}), false, "unlocked, anything comes in");
-  assert.equal(profileKeeps({ scrollFade: strong }, {}, locks), true, "a profile with nothing saved is Off, the loosest");
-  assert.equal(profileKeeps({}, { scrollFade: strong }, locks), false, "nothing saved is off: switching to a stronger one is fine");
+  assert.equal(profileKeeps({ scrollFade: strong }, {}, locks), true, "a profile with nothing saved cannot clear the live setting");
+  assert.equal(profileKeeps({}, { scrollFade: strong }, locks), true, "an absent live value is still preserved while locked");
   const ON = [{}, { minutes: 3 }, { minutes: 20 }, { by: "time" }, { by: "distance" }, { screens: 50 }, { darkest: 40 }, { restSeconds: 30 }, { restSeconds: 300 },
     { waitMinutes: 2 }, { waitMinutes: 30 }, { except: ["a.com"] }, { except: ["a.com", "b.com"] }, { except: ["c.com"] }].map((o) => R.normalize({ on: true, ...o }));
   for (const a of [...ON, R.normalize(undefined)]) {
     for (const b of [...ON, R.normalize(undefined)]) {
-      assert.equal(profileKeeps({ scrollFade: a }, { scrollFade: b }, locks), R.looser(a, b), JSON.stringify([a, b]));
+      assert.equal(profileKeeps({ scrollFade: a }, { scrollFade: b }, locks), true, JSON.stringify([a, b]));
     }
   }
 });

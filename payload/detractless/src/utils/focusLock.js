@@ -80,13 +80,13 @@ export function clickLock(locks, key, now = Date.now()) {
 }
 
 /**
- * `incoming` (a profile's saved values, or a backup) without the values that would loosen a locked setting,
- * so switching profile or importing a file can't undo a lock. `current` holds the values in use now.
+ * `incoming` (a profile's saved values, or a backup) without values for locked settings,
+ * so switching profile or importing a file leaves the live setting unchanged.
  */
 export function withoutLoosening(incoming, current, locks, now = Date.now()) {
   const out = { ...incoming };
   for (const key of LOCKABLE) {
-    if (out[key] !== undefined && !changeAllowed(locks, key, (current || {})[key], out[key], now)) delete out[key];
+    if (out[key] !== undefined && isLocked(locks, key, now)) delete out[key];
   }
   return out;
 }
