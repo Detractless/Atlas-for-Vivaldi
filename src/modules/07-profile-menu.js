@@ -121,6 +121,46 @@ var PACTS = {
   browser: function () { chrome.tabs.create({ url: 'vivaldi://settings' }); }
 };
 
+function profileMenuRow(act, icon, label) {
+  return '<button type="button" class="apm-item" role="menuitem" data-act="' + act + '">' +
+    icon + '<span class="apm-row-label">' + label + '</span></button>';
+}
+
+/* One sub-menu (PSUBS): a back head, then that view's own rows. */
+function profileMenuSubHtml(sub) {
+  return '<button type="button" class="apm-head" data-back aria-label="Back">' + PI.back + '<span>' + sub.title + '</span></button>' +
+    '<div class="apm-sep"></div>' + sub.rows.map(function (x) { return profileMenuRow(x[0], x[1], x[2]); }).join('');
+}
+
+/* The main view: the profile strip when profiles are known, then the rows. */
+function profileMenuMainHtml(ap) {
+  var head = '', s = ap && ap.get();
+  if (s) {
+    var cur = ap.active();
+    head = '<div class="apm-strip">' + s.list.map(function (q) {
+      return '<button type="button" class="apm-pick' + (q.id === cur.id ? ' on' : '') + '" data-pick="' + pEsc(q.id) +
+        '" aria-label="' + pEsc(q.name) + '">' + ap.avatar(q, 'apm-av') + '</button>';
+    }).join('') + '<button type="button" class="apm-pick apm-addbtn" data-add aria-label="Add or edit profiles" title="Add or edit profiles">' + PI.plus + '</button></div>' +
+      '<div class="apm-who"><span class="apm-name">' + pEsc(cur.name) + '</span>' +
+      (cur.label ? '<span class="apm-plan">' + pEsc(cur.label) + '</span>' : '') + '</div><div class="apm-sep"></div>';
+  }
+  return head + profileMenuRow('add', PI.plus, 'Add') +
+    profileMenuRow('history', PI.clock, 'History') + profileMenuRow('downloads', PI.down, 'Downloads') +
+    profileMenuRow('settings', PI.gear, 'Settings');
+}
+
+/* Profile picks, sub-menu rows and the plain actions, all from one click. */
+function handleProfileMenuClick(ev, ap, state, refill) {
+  ev.stopPropagation();
+  var t = ev.target.closest ? ev.target : null;
+  var pk = t && t.closest('[data-pick]'), act = t && t.closest('[data-act]');
+  if (pk && ap) ap.switchTo(pk.getAttribute('data-pick')).then(function () { if (menu) refill(); });
+  else if (t && t.closest('[data-add]')) { closeMenu(); openNewTabSettings('profiles'); }
+  else if (t && t.closest('[data-back]')) { state.view = 'main'; refill(); }
+  else if (act && PSUBS[act.getAttribute('data-act')]) { state.view = act.getAttribute('data-act'); refill(); }
+  else if (act) { var f = PACTS[act.getAttribute('data-act')]; closeMenu(); try { f(); } catch (err) { atlasWarn('profile menu action failed', err); } }
+}
+
 function openMenu(btn) {
   closeMenu();
   if (typeof Atlas.closeUiMenu === 'function') Atlas.closeUiMenu();
@@ -134,50 +174,19 @@ function openMenu(btn) {
   menu.setAttribute('role', 'menu');
   /* 'main' is the profiles and the rows; 'add' or 'settings' (PSUBS) is what is left after that row is clicked:
      its choices and a way back, so the menu is shorter. */
-  var view = 'main';
+  var state = { view: 'main' };
 
-  function row(act, icon, label) {
-    return '<button type="button" class="apm-item" role="menuitem" data-act="' + act + '">' +
-      icon + '<span class="apm-row-label">' + label + '</span></button>';
-  }
   function fill() {
-    var s = ap && ap.get(), head = '', sub = PSUBS[view];
-    if (sub) {
-      menu.innerHTML = '<button type="button" class="apm-head" data-back aria-label="Back">' + PI.back + '<span>' + sub.title + '</span></button>' +
-        '<div class="apm-sep"></div>' + sub.rows.map(function (x) { return row(x[0], x[1], x[2]); }).join('');
-      menu.style.top = Math.round(r.bottom + 6) + 'px';
-      menu.style.right = Math.round(window.innerWidth - r.right) + 'px';
-      addDropTail(menu, r);
-      return;
-    }
-    if (s) {
-      var cur = ap.active();
-      head = '<div class="apm-strip">' + s.list.map(function (q) {
-        return '<button type="button" class="apm-pick' + (q.id === cur.id ? ' on' : '') + '" data-pick="' + pEsc(q.id) +
-          '" aria-label="' + pEsc(q.name) + '">' + ap.avatar(q, 'apm-av') + '</button>';
-      }).join('') + '<button type="button" class="apm-pick apm-addbtn" data-add aria-label="Add or edit profiles" title="Add or edit profiles">' + PI.plus + '</button></div>' +
-        '<div class="apm-who"><span class="apm-name">' + pEsc(cur.name) + '</span>' +
-        (cur.label ? '<span class="apm-plan">' + pEsc(cur.label) + '</span>' : '') + '</div><div class="apm-sep"></div>';
-    }
-    menu.innerHTML = head + row('add', PI.plus, 'Add') +
-      row('history', PI.clock, 'History') + row('downloads', PI.down, 'Downloads') + row('settings', PI.gear, 'Settings');
+    var sub = PSUBS[state.view];
+    menu.innerHTML = sub ? profileMenuSubHtml(sub) : profileMenuMainHtml(ap);
     menu.style.top = Math.round(r.bottom + 6) + 'px';
     menu.style.right = Math.round(window.innerWidth - r.right) + 'px';
     addDropTail(menu, r);
-    applyCorner();
+    if (!sub) applyCorner();
   }
   menu.__fill = fill;
 
-  menu.addEventListener('click', function (ev) {
-    ev.stopPropagation();
-    var t = ev.target.closest ? ev.target : null;
-    var pk = t && t.closest('[data-pick]'), act = t && t.closest('[data-act]');
-    if (pk && ap) ap.switchTo(pk.getAttribute('data-pick')).then(function () { if (menu) fill(); });
-    else if (t && t.closest('[data-add]')) { closeMenu(); openNewTabSettings('profiles'); }
-    else if (t && t.closest('[data-back]')) { view = 'main'; fill(); }
-    else if (act && PSUBS[act.getAttribute('data-act')]) { view = act.getAttribute('data-act'); fill(); }
-    else if (act) { var f = PACTS[act.getAttribute('data-act')]; closeMenu(); try { f(); } catch (err) { atlasWarn('profile menu action failed', err); } }
-  });
+  menu.addEventListener('click', function (ev) { handleProfileMenuClick(ev, ap, state, fill); });
 
   host.appendChild(menu);
   setPanelBlur(true);

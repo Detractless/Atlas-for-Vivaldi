@@ -26,77 +26,79 @@ function getToolbarInstance(el) {
   return null;
 }
 
+/* The name Vivaldi recorded for a toolbar button, ours included. */
+function toolbarButtonName(btnWrap) {
+  if (!btnWrap) return null;
+  var name = btnWrap.getAttribute('data-name');
+  if (!name) {
+    var innerBtn = btnWrap.querySelector('button[data-name], [data-name]');
+    if (innerBtn) name = innerBtn.getAttribute('data-name');
+  }
+  if (!name && btnWrap.classList.contains('atlas-home-toggle')) name = 'atlas-home-toggle';
+  return name;
+}
+
+/* Every row the toolbar context menu offers for the button under the cursor. */
+function toolbarMenuItems(inst, btnWrap, btnName) {
+  var items = [];
+  if (btnWrap && btnName) {
+    items.push({
+      label: 'Remove from toolbar',
+      run: function () {
+        if (btnName === 'atlas-home-toggle') {
+          btnWrap.style.display = 'none';
+          try { sessionStorage.setItem('atlas_home_toggle_hidden', '1'); } catch (x) { /* no sessionStorage: hidden until the window reloads */ }
+          return;
+        }
+        if (inst && inst.state && Array.isArray(inst.state.buttons)) {
+          var idx = inst.state.buttons.findIndex(function (b) { return b.name === btnName; });
+          if (idx > -1 && typeof inst.removeButton === 'function') {
+            inst.removeButton(idx);
+          }
+        }
+      }
+    });
+    items.push({ sep: true });
+  }
+
+  items.push({
+    label: 'Customize toolbar…',
+    run: function () {
+      if (inst && typeof inst.editToolbar === 'function') {
+        inst.editToolbar(inst.props.name || 'vivaldi.toolbars.navigation');
+      }
+    }
+  });
+
+  items.push({
+    label: 'Reset toolbar to default',
+    run: function () {
+      if (inst && typeof inst.reset === 'function') {
+        inst.reset();
+      }
+    }
+  });
+  return items;
+}
+
+/* Our menu replaces Vivaldi's on the toolbar, except where Vivaldi must answer. */
 document.addEventListener('contextmenu', function (e) {
   if (e.shiftKey) return;
   if (e.target.closest && e.target.closest('webview')) return;
 
   var tbEl = e.target.closest && e.target.closest('.toolbar-mainbar, .toolbar-addressbar, .button-toolbar');
-  if (tbEl) {
-    if (e.target.closest('.UrlBar-AddressField') || e.target.closest('.atlas-ext-popover')) return;
-    var isExtBtn = e.target.closest('.toolbar-extensions button:not(.ExtensionToggleIcon)');
-    if (isExtBtn) return;
+  if (!tbEl) return;
+  if (e.target.closest('.UrlBar-AddressField') || e.target.closest('.atlas-ext-popover')) return;
+  if (e.target.closest('.toolbar-extensions button:not(.ExtensionToggleIcon)')) return;
 
-    e.preventDefault(); e.stopImmediatePropagation();
-    var bx = e.clientX, by = e.clientY;
-    var inst = getToolbarInstance(tbEl);
-    var btnWrap = e.target.closest('.button-toolbar');
-    var btnName = null;
-    if (btnWrap) {
-      btnName = btnWrap.getAttribute('data-name');
-      if (!btnName) {
-        var innerBtn = btnWrap.querySelector('button[data-name], [data-name]');
-        if (innerBtn) btnName = innerBtn.getAttribute('data-name');
-      }
-      if (!btnName && btnWrap.classList.contains('atlas-home-toggle')) {
-        btnName = 'atlas-home-toggle';
-      }
-    }
-
-    var items = [];
-    if (btnWrap && btnName) {
-      items.push({
-        label: 'Remove from toolbar',
-        run: function () {
-          if (btnName === 'atlas-home-toggle') {
-            btnWrap.style.display = 'none';
-            try { sessionStorage.setItem('atlas_home_toggle_hidden', '1'); } catch (x) { /* no sessionStorage: hidden until the window reloads */ }
-            return;
-          }
-          if (inst && inst.state && Array.isArray(inst.state.buttons)) {
-            var idx = inst.state.buttons.findIndex(function (b) { return b.name === btnName; });
-            if (idx > -1 && typeof inst.removeButton === 'function') {
-              inst.removeButton(idx);
-            }
-          }
-        }
-      });
-      items.push({ sep: true });
-    }
-
-    items.push({
-      label: 'Customize toolbar…',
-      run: function () {
-        if (inst && typeof inst.editToolbar === 'function') {
-          inst.editToolbar(inst.props.name || 'vivaldi.toolbars.navigation');
-        }
-      }
-    });
-
-    items.push({
-      label: 'Reset toolbar to default',
-      run: function () {
-        if (inst && typeof inst.reset === 'function') {
-          inst.reset();
-        }
-      }
-    });
-
-    if (typeof Atlas.showUiMenu === 'function') {
-      Atlas.showUiMenu(bx, by, items);
-    } else if (typeof showUiMenu === 'function') {
-      showUiMenu(bx, by, items);
-    }
-    return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  var inst = getToolbarInstance(tbEl);
+  var btnWrap = e.target.closest('.button-toolbar');
+  var items = toolbarMenuItems(inst, btnWrap, toolbarButtonName(btnWrap));
+  if (typeof Atlas.showUiMenu === 'function') {
+    Atlas.showUiMenu(e.clientX, e.clientY, items);
+  } else if (typeof showUiMenu === 'function') {
+    showUiMenu(e.clientX, e.clientY, items);
   }
 }, true);
 
@@ -104,73 +106,85 @@ document.addEventListener('contextmenu', function (e) {
 var _homeMutating = false;
 var _homeRafScheduled = false;
 
-function ensureHomeButton() {
+/* Dismissed from the toolbar's own menu: absent until the window reloads. */
+function homeButtonHidden() {
   try {
-    if (sessionStorage.getItem('atlas_home_toggle_hidden') === '1') return false;
-  } catch (x) { /* no sessionStorage: show the button */ }
+    return sessionStorage.getItem('atlas_home_toggle_hidden') === '1';
+  } catch (x) { return false; }   // no sessionStorage: show the button
+}
 
+/* Reload button first, then the address field; the bar's end is the last resort. */
+function placeHomeButton(bar, wrap, reloadWrap, addr) {
+  if (reloadWrap) {
+    reloadWrap.insertAdjacentElement('afterend', wrap);
+  } else if (addr) {
+    bar.insertBefore(wrap, addr);
+  } else {
+    bar.appendChild(wrap);
+  }
+}
+
+/* The Atlas home button, shaped like the toolbar's own buttons. */
+function createHomeButton() {
+  var wrap = document.createElement('div');
+  wrap.className = 'button-toolbar atlas-home-toggle';
+  var btn = document.createElement('button');
+  btn.className = 'ToolbarButton-Button';
+  btn.type = 'button';
+  btn.tabIndex = -1;
+  btn.setAttribute('data-name', 'Home');
+  btn.title = 'Home';
+  btn.setAttribute('aria-label', 'Home');
+
+  var icon = document.createElement('span');
+  icon.className = 'button-icon';
+  btn.appendChild(icon);
+  wrap.appendChild(btn);
+
+  btn.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var homeUrl = ATLAS_NEWTAB_URL;
+    if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+      chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
+        if (ts && ts[0]) chrome.tabs.update(ts[0].id, { url: homeUrl });
+        else if (chrome.tabs.create) chrome.tabs.create({ url: homeUrl });
+      });
+    }
+  });
+  return wrap;
+}
+
+function ensureHomeButton() {
+  if (homeButtonHidden()) return false;
   if (_homeMutating) return false;
   _homeMutating = true;
   try {
-      var bar = document.querySelector('.toolbar-mainbar, .toolbar-addressbar');
-      if (!bar) return false;
+    var bar = document.querySelector('.toolbar-mainbar, .toolbar-addressbar');
+    if (!bar) return false;
 
-      var reloadBtn = bar.querySelector('button[data-name="Reload"]');
-      var reloadWrap = reloadBtn ? (reloadBtn.closest('.button-toolbar') || reloadBtn) : null;
-      var addr = bar.querySelector('.UrlBar-AddressField');
+    var reloadBtn = bar.querySelector('button[data-name="Reload"]');
+    var reloadWrap = reloadBtn ? (reloadBtn.closest('.button-toolbar') || reloadBtn) : null;
+    var addr = bar.querySelector('.UrlBar-AddressField');
 
-      var existing = bar.querySelector('.atlas-home-toggle, button[data-name="Home"]');
-      if (existing) {
-        var existingWrap = existing.closest('.button-toolbar') || existing;
-        if (reloadWrap && reloadWrap.nextElementSibling !== existingWrap && reloadWrap !== existingWrap) {
-          reloadWrap.insertAdjacentElement('afterend', existingWrap);
-        } else if (!reloadWrap && addr && addr.previousElementSibling !== existingWrap && addr !== existingWrap) {
-          bar.insertBefore(existingWrap, addr);
-        }
-        return true;
-      }
-
-      if (!reloadWrap && !addr) return false;
-
-      var wrap = document.createElement('div');
-      wrap.className = 'button-toolbar atlas-home-toggle';
-      var btn = document.createElement('button');
-      btn.className = 'ToolbarButton-Button';
-      btn.type = 'button';
-      btn.tabIndex = -1;
-      btn.setAttribute('data-name', 'Home');
-      btn.title = 'Home';
-      btn.setAttribute('aria-label', 'Home');
-
-      var icon = document.createElement('span');
-      icon.className = 'button-icon';
-      btn.appendChild(icon);
-      wrap.appendChild(btn);
-
-      btn.addEventListener('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var homeUrl = ATLAS_NEWTAB_URL;
-        if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
-          chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
-            if (ts && ts[0]) chrome.tabs.update(ts[0].id, { url: homeUrl });
-            else if (chrome.tabs.create) chrome.tabs.create({ url: homeUrl });
-          });
-        }
-      });
-
-      if (reloadWrap) {
-        reloadWrap.insertAdjacentElement('afterend', wrap);
-      } else if (addr) {
-        bar.insertBefore(wrap, addr);
-      } else {
-        bar.appendChild(wrap);
+    var existing = bar.querySelector('.atlas-home-toggle, button[data-name="Home"]');
+    if (existing) {
+      var existingWrap = existing.closest('.button-toolbar') || existing;
+      if (reloadWrap && reloadWrap.nextElementSibling !== existingWrap && reloadWrap !== existingWrap) {
+        reloadWrap.insertAdjacentElement('afterend', existingWrap);
+      } else if (!reloadWrap && addr && addr.previousElementSibling !== existingWrap && addr !== existingWrap) {
+        bar.insertBefore(existingWrap, addr);
       }
       return true;
-    } finally {
-      _homeMutating = false;
     }
+
+    if (!reloadWrap && !addr) return false;
+    placeHomeButton(bar, createHomeButton(), reloadWrap, addr);
+    return true;
+  } finally {
+    _homeMutating = false;
   }
+}
 
   ensureHomeButton();
 

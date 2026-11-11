@@ -212,10 +212,8 @@ function abSave() {
 
 /* ── events ── */
 
-function abWire() {
-  var flow = ab;
-  flow.card.addEventListener('mousedown', function (e) { if (!e.target.closest('input')) e.preventDefault(); });   // keep the cursor in the bar
-  flow.card.addEventListener('click', function (e) {
+function abWireClick(flow) {
+  return function (e) {
     var t = e.target;
     if (t.closest('[data-ab-save]')) return abNext();
     var job = t.closest('[data-ab-job]');
@@ -235,8 +233,12 @@ function abWire() {
     var item = t.closest('[data-ab-item]');
     if (item) return abChoose(item.getAttribute('data-ab-item'), item.getAttribute('data-value'));
     if (flow.menu) abCloseMenus();
-  });
-  function onInput(e) {
+  };
+}
+
+/* Every field writes itself into the flow, so a redraw never loses typing. */
+function abWireInput(flow) {
+  return function (e) {
     var name = e.target.getAttribute && e.target.getAttribute('data-ab-field');
     if (!name) return;
     abError('');
@@ -246,11 +248,12 @@ function abWire() {
     else if (name === 'editValue') { flow.value = e.target.value; if (flow.job === 'sub') abUpdateCount(); }
     else if (name === 'pageName') flow.pageName = e.target.value;
     else if (name === 'sub') { flow.sub = e.target.value; abUpdateCount(); }
-  }
-  flow.field.addEventListener('click', function (e) { if (e.target.closest('[data-ab-back]')) abBack(); });
-  flow.field.addEventListener('input', onInput);
-  flow.card.addEventListener('input', onInput);
-  function onKey(e) {
+  };
+}
+
+/* Arrows walk the site or edit list; Enter takes the screen's main action. */
+function abWireKeys(flow) {
+  return function (e) {
     var field = e.target.getAttribute && e.target.getAttribute('data-ab-field');
     if (!field) return;
     if (field === 'url' && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && flow.sites.length) {
@@ -266,7 +269,18 @@ function abWire() {
       if (field === 'url' && flow.sites.length && !e.shiftKey) abPickSite(flow.sites[flow.siteAt].value);   // Shift+Enter: what was typed, as it is
       else abNext();
     }
-  }
+  };
+}
+
+function abWire() {
+  var flow = ab;
+  flow.card.addEventListener('mousedown', function (e) { if (!e.target.closest('input')) e.preventDefault(); });   // keep the cursor in the bar
+  flow.card.addEventListener('click', abWireClick(flow));
+  var onInput = abWireInput(flow);
+  flow.field.addEventListener('click', function (e) { if (e.target.closest('[data-ab-back]')) abBack(); });
+  flow.field.addEventListener('input', onInput);
+  flow.card.addEventListener('input', onInput);
+  var onKey = abWireKeys(flow);
   flow.field.addEventListener('keydown', onKey);
   flow.card.addEventListener('keydown', onKey);
 }

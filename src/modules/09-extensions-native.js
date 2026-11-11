@@ -71,45 +71,45 @@ function prewarmNativePuzzle() {
   } catch (e) { setDrivingNative(false); }
 }
 
-function openExtensionAction(extId, done) {
-  var specialSel = SPECIAL_EXT_BUTTONS[extId];
-  var special = specialSel && document.querySelector(specialSel);
-  if (special) { fireSeq(special); anchorExtPopup(); done(true); return; }
-  var toggle = document.querySelector('.toolbar-extensions [data-name="Extensions"]');
-  if (!toggle) { done(false); return; }
-  setDrivingNative(true);
-  var wasExpanded = extExpanded();
-  if (!wasExpanded) fireSeq(toggle);
+/* The button appeared: reveal it off-screen, click it where Vivaldi listens,
+   then put the toolbar back exactly as it was. */
+function fireExtensionButton(btn, toggle, wasExpanded) {
+  var box = btn.closest('.button-toolbar') || btn, boxPrev = box.style.cssText;
+  var btnHadHidden = btn.classList.contains('ExtensionIcon--Hidden');
+  var tr2 = toggle.getBoundingClientRect();
+  var clickCx = Math.round(tr2.left + tr2.width / 2), clickCy = Math.round(tr2.top + tr2.height / 2);
+  if (!wasExpanded && extExpanded()) fireSeq(toggle);
+  box.style.cssText = 'display:flex!important;visibility:visible!important;' +
+    'position:fixed!important;left:-9999px!important;top:0!important;' +
+    'width:28px!important;height:28px!important;opacity:0!important;pointer-events:auto!important';
+  if (btnHadHidden) btn.classList.remove('ExtensionIcon--Hidden');
+  void box.offsetWidth;
+  fireSeq(btn, clickCx, clickCy);
+  anchorExtPopup();
+  var popupSeen = false, watchTries = 0;
+  (function watchPopup() {
+    var p = document.querySelector('.extension-popup, [class*="ExtensionPopup"]');
+    if (p) {
+      popupSeen = true;
+      setTimeout(watchPopup, 100);
+      return;
+    }
+    if (!popupSeen && ++watchTries <= 20) { setTimeout(watchPopup, 50); return; }
+    box.style.cssText = boxPrev;
+    if (btnHadHidden) btn.classList.add('ExtensionIcon--Hidden');
+    if (!wasExpanded && extExpanded()) fireSeq(toggle);
+    setDrivingNative(false);
+  })();
+}
+
+/* Wait for the extension's own button to exist, reopening the puzzle once if
+   the first attempt found nothing. */
+function pollForExtensionButton(extId, toggle, wasExpanded, done) {
   var tries = 0, retried = false;
   (function poll() {
     var btn = document.querySelector('.toolbar-extensions button[data-name="' + extId + '"]');
     if (btn) {
-      var box = btn.closest('.button-toolbar') || btn, boxPrev = box.style.cssText;
-      var btnHadHidden = btn.classList.contains('ExtensionIcon--Hidden');
-      var tr2 = toggle.getBoundingClientRect();
-      var clickCx = Math.round(tr2.left + tr2.width / 2), clickCy = Math.round(tr2.top + tr2.height / 2);
-      if (!wasExpanded && extExpanded()) fireSeq(toggle);
-      box.style.cssText = 'display:flex!important;visibility:visible!important;' +
-        'position:fixed!important;left:-9999px!important;top:0!important;' +
-        'width:28px!important;height:28px!important;opacity:0!important;pointer-events:auto!important';
-      if (btnHadHidden) btn.classList.remove('ExtensionIcon--Hidden');
-      void box.offsetWidth;
-      fireSeq(btn, clickCx, clickCy);
-      anchorExtPopup();
-      var popupSeen = false, watchTries = 0;
-      (function watchPopup() {
-        var p = document.querySelector('.extension-popup, [class*="ExtensionPopup"]');
-        if (p) {
-          popupSeen = true;
-          setTimeout(watchPopup, 100);
-          return;
-        }
-        if (!popupSeen && ++watchTries <= 20) { setTimeout(watchPopup, 50); return; }
-        box.style.cssText = boxPrev;
-        if (btnHadHidden) btn.classList.add('ExtensionIcon--Hidden');
-        if (!wasExpanded && extExpanded()) fireSeq(toggle);
-        setDrivingNative(false);
-      })();
+      fireExtensionButton(btn, toggle, wasExpanded);
       done(true);
       return;
     }
@@ -127,4 +127,16 @@ function openExtensionAction(extId, done) {
     }
     setTimeout(poll, 50);
   })();
+}
+
+function openExtensionAction(extId, done) {
+  var specialSel = SPECIAL_EXT_BUTTONS[extId];
+  var special = specialSel && document.querySelector(specialSel);
+  if (special) { fireSeq(special); anchorExtPopup(); done(true); return; }
+  var toggle = document.querySelector('.toolbar-extensions [data-name="Extensions"]');
+  if (!toggle) { done(false); return; }
+  setDrivingNative(true);
+  var wasExpanded = extExpanded();
+  if (!wasExpanded) fireSeq(toggle);
+  pollForExtensionButton(extId, toggle, wasExpanded, done);
 }

@@ -1097,77 +1097,79 @@ function getToolbarInstance(el) {
   return null;
 }
 
+/* The name Vivaldi recorded for a toolbar button, ours included. */
+function toolbarButtonName(btnWrap) {
+  if (!btnWrap) return null;
+  var name = btnWrap.getAttribute('data-name');
+  if (!name) {
+    var innerBtn = btnWrap.querySelector('button[data-name], [data-name]');
+    if (innerBtn) name = innerBtn.getAttribute('data-name');
+  }
+  if (!name && btnWrap.classList.contains('atlas-home-toggle')) name = 'atlas-home-toggle';
+  return name;
+}
+
+/* Every row the toolbar context menu offers for the button under the cursor. */
+function toolbarMenuItems(inst, btnWrap, btnName) {
+  var items = [];
+  if (btnWrap && btnName) {
+    items.push({
+      label: 'Remove from toolbar',
+      run: function () {
+        if (btnName === 'atlas-home-toggle') {
+          btnWrap.style.display = 'none';
+          try { sessionStorage.setItem('atlas_home_toggle_hidden', '1'); } catch (x) { /* no sessionStorage: hidden until the window reloads */ }
+          return;
+        }
+        if (inst && inst.state && Array.isArray(inst.state.buttons)) {
+          var idx = inst.state.buttons.findIndex(function (b) { return b.name === btnName; });
+          if (idx > -1 && typeof inst.removeButton === 'function') {
+            inst.removeButton(idx);
+          }
+        }
+      }
+    });
+    items.push({ sep: true });
+  }
+
+  items.push({
+    label: 'Customize toolbar…',
+    run: function () {
+      if (inst && typeof inst.editToolbar === 'function') {
+        inst.editToolbar(inst.props.name || 'vivaldi.toolbars.navigation');
+      }
+    }
+  });
+
+  items.push({
+    label: 'Reset toolbar to default',
+    run: function () {
+      if (inst && typeof inst.reset === 'function') {
+        inst.reset();
+      }
+    }
+  });
+  return items;
+}
+
+/* Our menu replaces Vivaldi's on the toolbar, except where Vivaldi must answer. */
 document.addEventListener('contextmenu', function (e) {
   if (e.shiftKey) return;
   if (e.target.closest && e.target.closest('webview')) return;
 
   var tbEl = e.target.closest && e.target.closest('.toolbar-mainbar, .toolbar-addressbar, .button-toolbar');
-  if (tbEl) {
-    if (e.target.closest('.UrlBar-AddressField') || e.target.closest('.atlas-ext-popover')) return;
-    var isExtBtn = e.target.closest('.toolbar-extensions button:not(.ExtensionToggleIcon)');
-    if (isExtBtn) return;
+  if (!tbEl) return;
+  if (e.target.closest('.UrlBar-AddressField') || e.target.closest('.atlas-ext-popover')) return;
+  if (e.target.closest('.toolbar-extensions button:not(.ExtensionToggleIcon)')) return;
 
-    e.preventDefault(); e.stopImmediatePropagation();
-    var bx = e.clientX, by = e.clientY;
-    var inst = getToolbarInstance(tbEl);
-    var btnWrap = e.target.closest('.button-toolbar');
-    var btnName = null;
-    if (btnWrap) {
-      btnName = btnWrap.getAttribute('data-name');
-      if (!btnName) {
-        var innerBtn = btnWrap.querySelector('button[data-name], [data-name]');
-        if (innerBtn) btnName = innerBtn.getAttribute('data-name');
-      }
-      if (!btnName && btnWrap.classList.contains('atlas-home-toggle')) {
-        btnName = 'atlas-home-toggle';
-      }
-    }
-
-    var items = [];
-    if (btnWrap && btnName) {
-      items.push({
-        label: 'Remove from toolbar',
-        run: function () {
-          if (btnName === 'atlas-home-toggle') {
-            btnWrap.style.display = 'none';
-            try { sessionStorage.setItem('atlas_home_toggle_hidden', '1'); } catch (x) { /* no sessionStorage: hidden until the window reloads */ }
-            return;
-          }
-          if (inst && inst.state && Array.isArray(inst.state.buttons)) {
-            var idx = inst.state.buttons.findIndex(function (b) { return b.name === btnName; });
-            if (idx > -1 && typeof inst.removeButton === 'function') {
-              inst.removeButton(idx);
-            }
-          }
-        }
-      });
-      items.push({ sep: true });
-    }
-
-    items.push({
-      label: 'Customize toolbar…',
-      run: function () {
-        if (inst && typeof inst.editToolbar === 'function') {
-          inst.editToolbar(inst.props.name || 'vivaldi.toolbars.navigation');
-        }
-      }
-    });
-
-    items.push({
-      label: 'Reset toolbar to default',
-      run: function () {
-        if (inst && typeof inst.reset === 'function') {
-          inst.reset();
-        }
-      }
-    });
-
-    if (typeof Atlas.showUiMenu === 'function') {
-      Atlas.showUiMenu(bx, by, items);
-    } else if (typeof showUiMenu === 'function') {
-      showUiMenu(bx, by, items);
-    }
-    return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  var inst = getToolbarInstance(tbEl);
+  var btnWrap = e.target.closest('.button-toolbar');
+  var items = toolbarMenuItems(inst, btnWrap, toolbarButtonName(btnWrap));
+  if (typeof Atlas.showUiMenu === 'function') {
+    Atlas.showUiMenu(e.clientX, e.clientY, items);
+  } else if (typeof showUiMenu === 'function') {
+    showUiMenu(e.clientX, e.clientY, items);
   }
 }, true);
 
@@ -1175,73 +1177,85 @@ document.addEventListener('contextmenu', function (e) {
 var _homeMutating = false;
 var _homeRafScheduled = false;
 
-function ensureHomeButton() {
+/* Dismissed from the toolbar's own menu: absent until the window reloads. */
+function homeButtonHidden() {
   try {
-    if (sessionStorage.getItem('atlas_home_toggle_hidden') === '1') return false;
-  } catch (x) { /* no sessionStorage: show the button */ }
+    return sessionStorage.getItem('atlas_home_toggle_hidden') === '1';
+  } catch (x) { return false; }   // no sessionStorage: show the button
+}
 
+/* Reload button first, then the address field; the bar's end is the last resort. */
+function placeHomeButton(bar, wrap, reloadWrap, addr) {
+  if (reloadWrap) {
+    reloadWrap.insertAdjacentElement('afterend', wrap);
+  } else if (addr) {
+    bar.insertBefore(wrap, addr);
+  } else {
+    bar.appendChild(wrap);
+  }
+}
+
+/* The Atlas home button, shaped like the toolbar's own buttons. */
+function createHomeButton() {
+  var wrap = document.createElement('div');
+  wrap.className = 'button-toolbar atlas-home-toggle';
+  var btn = document.createElement('button');
+  btn.className = 'ToolbarButton-Button';
+  btn.type = 'button';
+  btn.tabIndex = -1;
+  btn.setAttribute('data-name', 'Home');
+  btn.title = 'Home';
+  btn.setAttribute('aria-label', 'Home');
+
+  var icon = document.createElement('span');
+  icon.className = 'button-icon';
+  btn.appendChild(icon);
+  wrap.appendChild(btn);
+
+  btn.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var homeUrl = ATLAS_NEWTAB_URL;
+    if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+      chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
+        if (ts && ts[0]) chrome.tabs.update(ts[0].id, { url: homeUrl });
+        else if (chrome.tabs.create) chrome.tabs.create({ url: homeUrl });
+      });
+    }
+  });
+  return wrap;
+}
+
+function ensureHomeButton() {
+  if (homeButtonHidden()) return false;
   if (_homeMutating) return false;
   _homeMutating = true;
   try {
-      var bar = document.querySelector('.toolbar-mainbar, .toolbar-addressbar');
-      if (!bar) return false;
+    var bar = document.querySelector('.toolbar-mainbar, .toolbar-addressbar');
+    if (!bar) return false;
 
-      var reloadBtn = bar.querySelector('button[data-name="Reload"]');
-      var reloadWrap = reloadBtn ? (reloadBtn.closest('.button-toolbar') || reloadBtn) : null;
-      var addr = bar.querySelector('.UrlBar-AddressField');
+    var reloadBtn = bar.querySelector('button[data-name="Reload"]');
+    var reloadWrap = reloadBtn ? (reloadBtn.closest('.button-toolbar') || reloadBtn) : null;
+    var addr = bar.querySelector('.UrlBar-AddressField');
 
-      var existing = bar.querySelector('.atlas-home-toggle, button[data-name="Home"]');
-      if (existing) {
-        var existingWrap = existing.closest('.button-toolbar') || existing;
-        if (reloadWrap && reloadWrap.nextElementSibling !== existingWrap && reloadWrap !== existingWrap) {
-          reloadWrap.insertAdjacentElement('afterend', existingWrap);
-        } else if (!reloadWrap && addr && addr.previousElementSibling !== existingWrap && addr !== existingWrap) {
-          bar.insertBefore(existingWrap, addr);
-        }
-        return true;
-      }
-
-      if (!reloadWrap && !addr) return false;
-
-      var wrap = document.createElement('div');
-      wrap.className = 'button-toolbar atlas-home-toggle';
-      var btn = document.createElement('button');
-      btn.className = 'ToolbarButton-Button';
-      btn.type = 'button';
-      btn.tabIndex = -1;
-      btn.setAttribute('data-name', 'Home');
-      btn.title = 'Home';
-      btn.setAttribute('aria-label', 'Home');
-
-      var icon = document.createElement('span');
-      icon.className = 'button-icon';
-      btn.appendChild(icon);
-      wrap.appendChild(btn);
-
-      btn.addEventListener('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var homeUrl = ATLAS_NEWTAB_URL;
-        if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
-          chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
-            if (ts && ts[0]) chrome.tabs.update(ts[0].id, { url: homeUrl });
-            else if (chrome.tabs.create) chrome.tabs.create({ url: homeUrl });
-          });
-        }
-      });
-
-      if (reloadWrap) {
-        reloadWrap.insertAdjacentElement('afterend', wrap);
-      } else if (addr) {
-        bar.insertBefore(wrap, addr);
-      } else {
-        bar.appendChild(wrap);
+    var existing = bar.querySelector('.atlas-home-toggle, button[data-name="Home"]');
+    if (existing) {
+      var existingWrap = existing.closest('.button-toolbar') || existing;
+      if (reloadWrap && reloadWrap.nextElementSibling !== existingWrap && reloadWrap !== existingWrap) {
+        reloadWrap.insertAdjacentElement('afterend', existingWrap);
+      } else if (!reloadWrap && addr && addr.previousElementSibling !== existingWrap && addr !== existingWrap) {
+        bar.insertBefore(existingWrap, addr);
       }
       return true;
-    } finally {
-      _homeMutating = false;
     }
+
+    if (!reloadWrap && !addr) return false;
+    placeHomeButton(bar, createHomeButton(), reloadWrap, addr);
+    return true;
+  } finally {
+    _homeMutating = false;
   }
+}
 
   ensureHomeButton();
 
@@ -1390,6 +1404,46 @@ var PACTS = {
   browser: function () { chrome.tabs.create({ url: 'vivaldi://settings' }); }
 };
 
+function profileMenuRow(act, icon, label) {
+  return '<button type="button" class="apm-item" role="menuitem" data-act="' + act + '">' +
+    icon + '<span class="apm-row-label">' + label + '</span></button>';
+}
+
+/* One sub-menu (PSUBS): a back head, then that view's own rows. */
+function profileMenuSubHtml(sub) {
+  return '<button type="button" class="apm-head" data-back aria-label="Back">' + PI.back + '<span>' + sub.title + '</span></button>' +
+    '<div class="apm-sep"></div>' + sub.rows.map(function (x) { return profileMenuRow(x[0], x[1], x[2]); }).join('');
+}
+
+/* The main view: the profile strip when profiles are known, then the rows. */
+function profileMenuMainHtml(ap) {
+  var head = '', s = ap && ap.get();
+  if (s) {
+    var cur = ap.active();
+    head = '<div class="apm-strip">' + s.list.map(function (q) {
+      return '<button type="button" class="apm-pick' + (q.id === cur.id ? ' on' : '') + '" data-pick="' + pEsc(q.id) +
+        '" aria-label="' + pEsc(q.name) + '">' + ap.avatar(q, 'apm-av') + '</button>';
+    }).join('') + '<button type="button" class="apm-pick apm-addbtn" data-add aria-label="Add or edit profiles" title="Add or edit profiles">' + PI.plus + '</button></div>' +
+      '<div class="apm-who"><span class="apm-name">' + pEsc(cur.name) + '</span>' +
+      (cur.label ? '<span class="apm-plan">' + pEsc(cur.label) + '</span>' : '') + '</div><div class="apm-sep"></div>';
+  }
+  return head + profileMenuRow('add', PI.plus, 'Add') +
+    profileMenuRow('history', PI.clock, 'History') + profileMenuRow('downloads', PI.down, 'Downloads') +
+    profileMenuRow('settings', PI.gear, 'Settings');
+}
+
+/* Profile picks, sub-menu rows and the plain actions, all from one click. */
+function handleProfileMenuClick(ev, ap, state, refill) {
+  ev.stopPropagation();
+  var t = ev.target.closest ? ev.target : null;
+  var pk = t && t.closest('[data-pick]'), act = t && t.closest('[data-act]');
+  if (pk && ap) ap.switchTo(pk.getAttribute('data-pick')).then(function () { if (menu) refill(); });
+  else if (t && t.closest('[data-add]')) { closeMenu(); openNewTabSettings('profiles'); }
+  else if (t && t.closest('[data-back]')) { state.view = 'main'; refill(); }
+  else if (act && PSUBS[act.getAttribute('data-act')]) { state.view = act.getAttribute('data-act'); refill(); }
+  else if (act) { var f = PACTS[act.getAttribute('data-act')]; closeMenu(); try { f(); } catch (err) { atlasWarn('profile menu action failed', err); } }
+}
+
 function openMenu(btn) {
   closeMenu();
   if (typeof Atlas.closeUiMenu === 'function') Atlas.closeUiMenu();
@@ -1403,50 +1457,19 @@ function openMenu(btn) {
   menu.setAttribute('role', 'menu');
   /* 'main' is the profiles and the rows; 'add' or 'settings' (PSUBS) is what is left after that row is clicked:
      its choices and a way back, so the menu is shorter. */
-  var view = 'main';
+  var state = { view: 'main' };
 
-  function row(act, icon, label) {
-    return '<button type="button" class="apm-item" role="menuitem" data-act="' + act + '">' +
-      icon + '<span class="apm-row-label">' + label + '</span></button>';
-  }
   function fill() {
-    var s = ap && ap.get(), head = '', sub = PSUBS[view];
-    if (sub) {
-      menu.innerHTML = '<button type="button" class="apm-head" data-back aria-label="Back">' + PI.back + '<span>' + sub.title + '</span></button>' +
-        '<div class="apm-sep"></div>' + sub.rows.map(function (x) { return row(x[0], x[1], x[2]); }).join('');
-      menu.style.top = Math.round(r.bottom + 6) + 'px';
-      menu.style.right = Math.round(window.innerWidth - r.right) + 'px';
-      addDropTail(menu, r);
-      return;
-    }
-    if (s) {
-      var cur = ap.active();
-      head = '<div class="apm-strip">' + s.list.map(function (q) {
-        return '<button type="button" class="apm-pick' + (q.id === cur.id ? ' on' : '') + '" data-pick="' + pEsc(q.id) +
-          '" aria-label="' + pEsc(q.name) + '">' + ap.avatar(q, 'apm-av') + '</button>';
-      }).join('') + '<button type="button" class="apm-pick apm-addbtn" data-add aria-label="Add or edit profiles" title="Add or edit profiles">' + PI.plus + '</button></div>' +
-        '<div class="apm-who"><span class="apm-name">' + pEsc(cur.name) + '</span>' +
-        (cur.label ? '<span class="apm-plan">' + pEsc(cur.label) + '</span>' : '') + '</div><div class="apm-sep"></div>';
-    }
-    menu.innerHTML = head + row('add', PI.plus, 'Add') +
-      row('history', PI.clock, 'History') + row('downloads', PI.down, 'Downloads') + row('settings', PI.gear, 'Settings');
+    var sub = PSUBS[state.view];
+    menu.innerHTML = sub ? profileMenuSubHtml(sub) : profileMenuMainHtml(ap);
     menu.style.top = Math.round(r.bottom + 6) + 'px';
     menu.style.right = Math.round(window.innerWidth - r.right) + 'px';
     addDropTail(menu, r);
-    applyCorner();
+    if (!sub) applyCorner();
   }
   menu.__fill = fill;
 
-  menu.addEventListener('click', function (ev) {
-    ev.stopPropagation();
-    var t = ev.target.closest ? ev.target : null;
-    var pk = t && t.closest('[data-pick]'), act = t && t.closest('[data-act]');
-    if (pk && ap) ap.switchTo(pk.getAttribute('data-pick')).then(function () { if (menu) fill(); });
-    else if (t && t.closest('[data-add]')) { closeMenu(); openNewTabSettings('profiles'); }
-    else if (t && t.closest('[data-back]')) { view = 'main'; fill(); }
-    else if (act && PSUBS[act.getAttribute('data-act')]) { view = act.getAttribute('data-act'); fill(); }
-    else if (act) { var f = PACTS[act.getAttribute('data-act')]; closeMenu(); try { f(); } catch (err) { atlasWarn('profile menu action failed', err); } }
-  });
+  menu.addEventListener('click', function (ev) { handleProfileMenuClick(ev, ap, state, fill); });
 
   host.appendChild(menu);
   setPanelBlur(true);
@@ -1674,45 +1697,45 @@ function prewarmNativePuzzle() {
   } catch (e) { setDrivingNative(false); }
 }
 
-function openExtensionAction(extId, done) {
-  var specialSel = SPECIAL_EXT_BUTTONS[extId];
-  var special = specialSel && document.querySelector(specialSel);
-  if (special) { fireSeq(special); anchorExtPopup(); done(true); return; }
-  var toggle = document.querySelector('.toolbar-extensions [data-name="Extensions"]');
-  if (!toggle) { done(false); return; }
-  setDrivingNative(true);
-  var wasExpanded = extExpanded();
-  if (!wasExpanded) fireSeq(toggle);
+/* The button appeared: reveal it off-screen, click it where Vivaldi listens,
+   then put the toolbar back exactly as it was. */
+function fireExtensionButton(btn, toggle, wasExpanded) {
+  var box = btn.closest('.button-toolbar') || btn, boxPrev = box.style.cssText;
+  var btnHadHidden = btn.classList.contains('ExtensionIcon--Hidden');
+  var tr2 = toggle.getBoundingClientRect();
+  var clickCx = Math.round(tr2.left + tr2.width / 2), clickCy = Math.round(tr2.top + tr2.height / 2);
+  if (!wasExpanded && extExpanded()) fireSeq(toggle);
+  box.style.cssText = 'display:flex!important;visibility:visible!important;' +
+    'position:fixed!important;left:-9999px!important;top:0!important;' +
+    'width:28px!important;height:28px!important;opacity:0!important;pointer-events:auto!important';
+  if (btnHadHidden) btn.classList.remove('ExtensionIcon--Hidden');
+  void box.offsetWidth;
+  fireSeq(btn, clickCx, clickCy);
+  anchorExtPopup();
+  var popupSeen = false, watchTries = 0;
+  (function watchPopup() {
+    var p = document.querySelector('.extension-popup, [class*="ExtensionPopup"]');
+    if (p) {
+      popupSeen = true;
+      setTimeout(watchPopup, 100);
+      return;
+    }
+    if (!popupSeen && ++watchTries <= 20) { setTimeout(watchPopup, 50); return; }
+    box.style.cssText = boxPrev;
+    if (btnHadHidden) btn.classList.add('ExtensionIcon--Hidden');
+    if (!wasExpanded && extExpanded()) fireSeq(toggle);
+    setDrivingNative(false);
+  })();
+}
+
+/* Wait for the extension's own button to exist, reopening the puzzle once if
+   the first attempt found nothing. */
+function pollForExtensionButton(extId, toggle, wasExpanded, done) {
   var tries = 0, retried = false;
   (function poll() {
     var btn = document.querySelector('.toolbar-extensions button[data-name="' + extId + '"]');
     if (btn) {
-      var box = btn.closest('.button-toolbar') || btn, boxPrev = box.style.cssText;
-      var btnHadHidden = btn.classList.contains('ExtensionIcon--Hidden');
-      var tr2 = toggle.getBoundingClientRect();
-      var clickCx = Math.round(tr2.left + tr2.width / 2), clickCy = Math.round(tr2.top + tr2.height / 2);
-      if (!wasExpanded && extExpanded()) fireSeq(toggle);
-      box.style.cssText = 'display:flex!important;visibility:visible!important;' +
-        'position:fixed!important;left:-9999px!important;top:0!important;' +
-        'width:28px!important;height:28px!important;opacity:0!important;pointer-events:auto!important';
-      if (btnHadHidden) btn.classList.remove('ExtensionIcon--Hidden');
-      void box.offsetWidth;
-      fireSeq(btn, clickCx, clickCy);
-      anchorExtPopup();
-      var popupSeen = false, watchTries = 0;
-      (function watchPopup() {
-        var p = document.querySelector('.extension-popup, [class*="ExtensionPopup"]');
-        if (p) {
-          popupSeen = true;
-          setTimeout(watchPopup, 100);
-          return;
-        }
-        if (!popupSeen && ++watchTries <= 20) { setTimeout(watchPopup, 50); return; }
-        box.style.cssText = boxPrev;
-        if (btnHadHidden) btn.classList.add('ExtensionIcon--Hidden');
-        if (!wasExpanded && extExpanded()) fireSeq(toggle);
-        setDrivingNative(false);
-      })();
+      fireExtensionButton(btn, toggle, wasExpanded);
       done(true);
       return;
     }
@@ -1730,6 +1753,18 @@ function openExtensionAction(extId, done) {
     }
     setTimeout(poll, 50);
   })();
+}
+
+function openExtensionAction(extId, done) {
+  var specialSel = SPECIAL_EXT_BUTTONS[extId];
+  var special = specialSel && document.querySelector(specialSel);
+  if (special) { fireSeq(special); anchorExtPopup(); done(true); return; }
+  var toggle = document.querySelector('.toolbar-extensions [data-name="Extensions"]');
+  if (!toggle) { done(false); return; }
+  setDrivingNative(true);
+  var wasExpanded = extExpanded();
+  if (!wasExpanded) fireSeq(toggle);
+  pollForExtensionButton(extId, toggle, wasExpanded, done);
 }
 
   /* ═══ Module: 10-extensions-popover.js ═══ */
@@ -4379,10 +4414,8 @@ function abSave() {
 
 /* ── events ── */
 
-function abWire() {
-  var flow = ab;
-  flow.card.addEventListener('mousedown', function (e) { if (!e.target.closest('input')) e.preventDefault(); });   // keep the cursor in the bar
-  flow.card.addEventListener('click', function (e) {
+function abWireClick(flow) {
+  return function (e) {
     var t = e.target;
     if (t.closest('[data-ab-save]')) return abNext();
     var job = t.closest('[data-ab-job]');
@@ -4402,8 +4435,12 @@ function abWire() {
     var item = t.closest('[data-ab-item]');
     if (item) return abChoose(item.getAttribute('data-ab-item'), item.getAttribute('data-value'));
     if (flow.menu) abCloseMenus();
-  });
-  function onInput(e) {
+  };
+}
+
+/* Every field writes itself into the flow, so a redraw never loses typing. */
+function abWireInput(flow) {
+  return function (e) {
     var name = e.target.getAttribute && e.target.getAttribute('data-ab-field');
     if (!name) return;
     abError('');
@@ -4413,11 +4450,12 @@ function abWire() {
     else if (name === 'editValue') { flow.value = e.target.value; if (flow.job === 'sub') abUpdateCount(); }
     else if (name === 'pageName') flow.pageName = e.target.value;
     else if (name === 'sub') { flow.sub = e.target.value; abUpdateCount(); }
-  }
-  flow.field.addEventListener('click', function (e) { if (e.target.closest('[data-ab-back]')) abBack(); });
-  flow.field.addEventListener('input', onInput);
-  flow.card.addEventListener('input', onInput);
-  function onKey(e) {
+  };
+}
+
+/* Arrows walk the site or edit list; Enter takes the screen's main action. */
+function abWireKeys(flow) {
+  return function (e) {
     var field = e.target.getAttribute && e.target.getAttribute('data-ab-field');
     if (!field) return;
     if (field === 'url' && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && flow.sites.length) {
@@ -4433,7 +4471,18 @@ function abWire() {
       if (field === 'url' && flow.sites.length && !e.shiftKey) abPickSite(flow.sites[flow.siteAt].value);   // Shift+Enter: what was typed, as it is
       else abNext();
     }
-  }
+  };
+}
+
+function abWire() {
+  var flow = ab;
+  flow.card.addEventListener('mousedown', function (e) { if (!e.target.closest('input')) e.preventDefault(); });   // keep the cursor in the bar
+  flow.card.addEventListener('click', abWireClick(flow));
+  var onInput = abWireInput(flow);
+  flow.field.addEventListener('click', function (e) { if (e.target.closest('[data-ab-back]')) abBack(); });
+  flow.field.addEventListener('input', onInput);
+  flow.card.addEventListener('input', onInput);
+  var onKey = abWireKeys(flow);
   flow.field.addEventListener('keydown', onKey);
   flow.card.addEventListener('keydown', onKey);
 }
