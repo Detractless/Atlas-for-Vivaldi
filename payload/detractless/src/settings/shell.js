@@ -1,16 +1,16 @@
 // src/settings/shell.js — the full-page Settings UI: sidebar, page content,
 // opening and closing. Every control saves the moment it changes (registry.js),
 // so there is no Save button and nothing to discard: "Back to dashboard" closes.
-import { PAGES, NAV, REVIEW_URL, lockNote, lockCountdown } from './pages.js';
+import { PAGES, NAV, REVIEW_URL, lockNote, lockCountdown } from './pages/pages.js';
 import { lockState } from '../utils/focusLock.js';
 import { CONTROLS, lockControl, labelOf, toggleSocialPart, socialPartState } from './controls.js';
 import { onSettingChange, getSetting } from './registry.js';
 import { I, svg, row, card, section, paintLockButton, paintChip } from './markup.js';
 import { initMenu, openMenu, closeMenu, menuIsOpen } from './menu.js';
 import { importBookmarks, exportBookmarks } from '../pages/newtab/importExport.js';
-import { usageAction } from './usagePage.js';
-import { initChipPane, resetChipPane } from './chipPane.js';
-import { showFade, paintFadePreview, paintFadeSites, paintFadeSlider } from './scrollFadePage.js';
+import { usageAction } from './pages/usagePage.js';
+import { initChipPane, resetChipPane } from './pages/chipPane.js';
+import { showFade, paintFadePreview, paintFadeSites, paintFadeSlider } from './pages/scrollFadePage.js';
 import { removeFadeSite } from './fadeControls.js';
 import { normalize } from '../utils/socialFilter.js';
 

@@ -1,12 +1,12 @@
-// src/settings/scrollFadePage.js — the Scroll fade section of Settings > Focus (settings/pages.js adds it): the rows, the
+// src/settings/pages/scrollFadePage.js — the Scroll fade section of Settings > Focus (settings/pages/pages.js adds it): the rows, the
 // sites it leaves alone as pills, and a row of pictures of the page getting darker. Its controls are settings/fadeControls.js.
 // shell.js calls showFade() and paintFadeSites() to bring what is on screen up to date without drawing the page again.
-import { CONTROLS, labelOf } from './controls.js';
-import { getSetting } from './registry.js';
-import { row, card, section, select, slider } from './markup.js';
-import { lockState } from '../utils/focusLock.js';
-import { normalize, DARKEST_MIN, DARKEST_MAX } from '../utils/scrollFade.js';
-import { fade } from './fadeControls.js';
+import { CONTROLS, labelOf } from '../controls.js';
+import { getSetting } from '../registry.js';
+import { row, card, section, select, slider } from '../markup.js';
+import { lockState } from '../../utils/focusLock.js';
+import { normalize, DARKEST_MIN, DARKEST_MAX } from '../../utils/scrollFade.js';
+import { fade } from '../fadeControls.js';
 
 const X_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m4.5 4.5 7 7M11.5 4.5l-7 7"/></svg>';
 const STEPS = [["Start", 0], ["A quarter", 0.25], ["Halfway", 0.5], ["Three quarters", 0.75], ["Fully dim", 1]];

@@ -1,10 +1,10 @@
-// src/settings/chipPane.js — the panel on the right of the social media filter's pills (pages.js socialChips). Rest the pointer on
+// src/settings/pages/chipPane.js — the panel on the right of the social media filter's pills (pages.js socialChips). Rest the pointer on
 // a pill for a moment, or Tab to it, and the panel shows what the part hides, a slideshow of the sites showing it
 // (constants/socialSlides.js; it flips every few seconds), and the sites it is planned for. Moving the pointer across the pills
 // shows nothing, so the panel doesn't flicker as you go past. Point at nothing and it says to point at a part. A part with no
 // pictures is text only. settings/shell.js starts it.
-import { partOf } from '../utils/socialFilter.js';
-import { SLIDE_DIR, slidesOf } from '../constants/socialSlides.js';
+import { partOf } from '../../utils/socialFilter.js';
+import { SLIDE_DIR, slidesOf } from '../../constants/socialSlides.js';
 
 const SLIDE_MS = 2400;
 const HOVER_MS = 350;    // the pointer must rest on a pill this long before the panel shows it

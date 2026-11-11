@@ -6467,7 +6467,7 @@
     return `${s2}s`;
   }
 
-  // src/settings/usagePage.js
+  // src/settings/pages/usagePage.js
   var RANGES = [{ days: 1, label: "Today" }, { days: 7, label: "7 days" }, { days: 30, label: "30 days" }];
   var esc3 = (s2) => String(s2 ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   var SITES_SHOWN = 15;
@@ -6573,7 +6573,7 @@
   };
   var slidesOf = (id) => SLIDES[id] || [];
 
-  // src/settings/chipPane.js
+  // src/settings/pages/chipPane.js
   var SLIDE_MS = 2400;
   var HOVER_MS = 350;
   var SWITCH_MS = 150;
@@ -6650,7 +6650,7 @@
     });
   }
 
-  // src/settings/scrollFadePage.js
+  // src/settings/pages/scrollFadePage.js
   var X_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m4.5 4.5 7 7M11.5 4.5l-7 7"/></svg>';
   var STEPS2 = [["Start", 0], ["A quarter", 0.25], ["Halfway", 0.5], ["Three quarters", 0.75], ["Fully dim", 1]];
   var esc5 = (s2) => String(s2).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -6722,7 +6722,7 @@
     if (sl) sl.min = String(CONTROLS.fadeDarkest.min());
   }
 
-  // src/settings/pages.js
+  // src/settings/pages/pages.js
   var REVIEW_URL = "https://chromewebstore.google.com/detail/ipgmbcinekdcmhhnbanlahedgpehffab";
   var selectFor = (key) => select(key, labelOf(key));
   var toggleFor = (key) => toggle(key, CONTROLS[key].get());

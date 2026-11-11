@@ -153,7 +153,7 @@
 .sp-lockcount:empty { display: none; }
 
 /* Settings > Focus > Social media filter: the parts to hide, as pills in groups (pages.js socialChips) with a panel on the right
-   (settings/chipPane.js) that shows the part you point at. A chip the lock keeps on (aria-disabled) can't be switched off.
+   (settings/pages/chipPane.js) that shows the part you point at. A chip the lock keeps on (aria-disabled) can't be switched off.
    The panel drops below the pills when the card is narrow. */
 .sp-chip-box { container-type: inline-size; }
 .sp-chip-split { display: flex; align-items: stretch; border-top: 1px solid var(--sp-border); }
@@ -247,7 +247,7 @@
 }
 
 
-/* Settings > Focus > Scroll fade (settings/scrollFadePage.js): the sites it works on, as pills with a way to take them off
+/* Settings > Focus > Scroll fade (settings/pages/scrollFadePage.js): the sites it works on, as pills with a way to take them off
    (a lock instead of the cross while the lock holds), and five pictures of the page at points along the dimming. */
 .sp-sites { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--sp-border); }
 .sp-site-add:disabled { opacity: .55; cursor: not-allowed; }

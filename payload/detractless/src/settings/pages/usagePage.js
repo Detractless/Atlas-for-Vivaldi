@@ -1,9 +1,9 @@
-// src/settings/usagePage.js — Settings > Usage: which sites take your time, from the totals the page
+// src/settings/pages/usagePage.js — Settings > Usage: which sites take your time, from the totals the page
 // script collects (components/atlas/atlas-usage.js, utils/usageLog.js). Everything stays on this computer.
-import { row, card, section } from './markup.js';
-import { storageGet } from '../services/storage.js';
-import { summarize, derived, clock } from '../utils/usageLog.js';
-import { sendToBackground } from '../services/backgroundMessenger.js';
+import { row, card, section } from '../markup.js';
+import { storageGet } from '../../services/storage.js';
+import { summarize, derived, clock } from '../../utils/usageLog.js';
+import { sendToBackground } from '../../services/backgroundMessenger.js';
 
 const RANGES = [{ days: 1, label: "Today" }, { days: 7, label: "7 days" }, { days: 30, label: "30 days" }];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

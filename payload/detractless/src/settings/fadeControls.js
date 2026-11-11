@@ -1,6 +1,6 @@
 // src/settings/fadeControls.js — the Scroll fade controls on Settings > Focus. All of them change the one setting
 // `scrollFade` (utils/scrollFade.js), and one lock covers them all: while it holds, a change that would loosen the fade
-// (looser() in utils/scrollFade.js) is refused. settings/scrollFadePage.js draws them.
+// (looser() in utils/scrollFade.js) is refused. settings/pages/scrollFadePage.js draws them.
 import { getSetting, setSetting } from './registry.js';
 import { lockState, changeAllowed } from '../utils/focusLock.js';
 import { lockable } from './lockable.js';

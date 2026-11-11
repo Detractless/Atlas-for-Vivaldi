@@ -1,14 +1,14 @@
-// src/settings/pages.js — what each Settings page shows. Every function returns
+// src/settings/pages/pages.js — what each Settings page shows. Every function returns
 // HTML; settings/shell.js renders it and wires the clicks.
-import { CONTROLS, labelOf, socialPartState } from './controls.js';
-import { getSetting } from './registry.js';
-import { I, row, card, section, select, toggle, slider, lockButton, modeThumb, saturationPreview, chip } from './markup.js';
-import { lockState, unlockTime, unlockSecondsLeft } from '../utils/focusLock.js';
-import { formatTimeCompact } from '../utils/formatDuration.js';
-import { pendingIncreaseText } from '../components/tab-limiter/tab-limiter.js';
-import { pendingDecreaseText } from '../components/search-delay/search-delay.js';
+import { CONTROLS, labelOf, socialPartState } from '../controls.js';
+import { getSetting } from '../registry.js';
+import { I, row, card, section, select, toggle, slider, lockButton, modeThumb, saturationPreview, chip } from '../markup.js';
+import { lockState, unlockTime, unlockSecondsLeft } from '../../utils/focusLock.js';
+import { formatTimeCompact } from '../../utils/formatDuration.js';
+import { pendingIncreaseText } from '../../components/tab-limiter/tab-limiter.js';
+import { pendingDecreaseText } from '../../components/search-delay/search-delay.js';
 import { usagePage } from './usagePage.js';
-import { LIVE_SITES, partsLive, GROUPS, normalize } from '../utils/socialFilter.js';
+import { LIVE_SITES, partsLive, GROUPS, normalize } from '../../utils/socialFilter.js';
 import { restingPane } from './chipPane.js';
 import { scrollFadeSection } from './scrollFadePage.js';
 
@@ -71,7 +71,7 @@ const lockFor = (key) => {
 };
 
 /** The parts of the social media filter, as pills in groups with a panel beside them, shown while its mode is "Block selected
-    parts". The panel (settings/chipPane.js) shows the part you point at. */
+    parts". The panel (settings/pages/chipPane.js) shows the part you point at. */
 function socialChips() {
   if (normalize(getSetting("socialFilter")).mode !== "parts") return "";
   const groups = GROUPS.map((g) =>
