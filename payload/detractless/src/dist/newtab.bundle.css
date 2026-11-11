@@ -77,7 +77,17 @@
   --font-size-13: 13px;
   --font-size-15: 15px;
   --font-size-26: 26px;
+  --font-size-10: 10px;
+  --font-size-11: 11px;
+  --font-size-12: 12px;
+  --font-size-14: 14px;
+  --font-size-16: 16px;
+  --font-size-18: 18px;
+  --font-size-48: 48px;
   --z-context-menu: 300;
+  --z-switcher: 50;
+  --z-floating-suggestions: 40;
+  --z-header-actions: 10;
   --tracking-tight: -0.02em;
   --tracking-snug: -0.01em;
   --tracking-normal: 0;
@@ -710,7 +720,7 @@ input:checked + .toggle-slider::before {
   border: none;
   background: transparent;
   font-family: var(--font-sans);
-  font-size: 16px;
+  font-size: var(--font-size-16);
   font-weight: 400;
   line-height: 1;
   color: var(--text-primary);
@@ -771,7 +781,7 @@ input:checked + .toggle-slider::before {
   gap: 8px;
   align-content: flex-start;
   padding: 4px 2px;
-  z-index: 40;
+  z-index: var(--z-floating-suggestions);
   animation: fadeUp 0.18s var(--ease-out);
 }
 #engine-links.active {
@@ -806,7 +816,7 @@ button.plus__link {
   right: 0;
   top: calc(100% + 10px);
   overflow: hidden;
-  z-index: 40;
+  z-index: var(--z-floating-suggestions);
 }
 .bookmark-search-results {
   display: flex;
@@ -848,7 +858,7 @@ button.plus__link {
   position: fixed;
   top: 16px;
   right: 16px;
-  z-index: 10;
+  z-index: var(--z-header-actions);
   display: flex;
   gap: 4px;
   align-items: center;
@@ -924,7 +934,7 @@ button.plus__link {
   border-radius: var(--radius-circle);
   background: var(--surface-muted);
   color: var(--text-secondary);
-  font-size: 18px;
+  font-size: var(--font-size-18);
   line-height: 1;
   display: flex;
   align-items: center;
@@ -960,7 +970,7 @@ button.plus__link {
 .section-title,
 .section-header h2 {
   font-family: var(--font-sans);
-  font-size: 10px;
+  font-size: var(--font-size-10);
   font-weight: 500;
   letter-spacing: var(--tracking-wider);
   text-transform: uppercase;
@@ -971,7 +981,7 @@ button.plus__link {
 }
 .setting-label {
   display: block;
-  font-size: 15px;
+  font-size: var(--font-size-15);
   font-weight: 400;
   color: var(--text-primary);
   margin-bottom: 6px;
@@ -989,7 +999,7 @@ textarea.form-input {
   border-radius: var(--radius-lg);
   background: var(--surface-muted);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--font-size-14);
   color: var(--text-primary);
 }
 .settings-body .form-input {
@@ -1006,7 +1016,7 @@ textarea.form-input {
   padding: 10px 22px;
   cursor: pointer;
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--font-size-13);
   font-weight: 600;
   transition: all var(--dur-base) var(--ease-out);
   border: none;
@@ -1039,7 +1049,7 @@ textarea.form-input {
 }
 .settings-section-header {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: var(--font-size-11);
   font-weight: 800;
   letter-spacing: 1.1px;
   text-transform: uppercase;
@@ -1106,7 +1116,7 @@ textarea.form-input {
   cursor: pointer;
 }
 .typo-body {
-  font-size: 14px;
+  font-size: var(--font-size-14);
   color: var(--text-primary);
 }
 .button-group {
@@ -1118,7 +1128,7 @@ textarea.form-input {
   background: var(--surface-muted);
   border: none;
   padding: 10px;
-  font-size: 13px;
+  font-size: var(--font-size-13);
   font-weight: 500;
   color: var(--text-primary);
 }
@@ -1127,7 +1137,7 @@ textarea.form-input {
 }
 .version-info {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--font-size-10);
   color: var(--text-tertiary);
   letter-spacing: 0.06em;
 }
@@ -1712,7 +1722,7 @@ textarea.form-input {
   position: fixed;
   top: 16px;
   left: 16px;
-  z-index: 50;
+  z-index: var(--z-switcher);
   display: inline-block;
   margin: 0;
 }
@@ -1761,7 +1771,7 @@ textarea.form-input {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 50;
+  z-index: var(--z-switcher);
   width: 300px;
   padding: 6px;
   background: var(--surface-card);
@@ -1795,7 +1805,7 @@ textarea.form-input {
     Helvetica,
     Arial,
     sans-serif;
-  font-size: 14px;
+  font-size: var(--font-size-14);
   line-height: 20px;
   color: var(--text-primary);
   cursor: pointer;
@@ -1819,7 +1829,7 @@ textarea.form-input {
 }
 .switcher-item .sub {
   display: block;
-  font-size: 12px;
+  font-size: var(--font-size-12);
   line-height: 16px;
   color: var(--text-secondary);
   overflow: hidden;

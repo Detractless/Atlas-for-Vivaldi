@@ -24,21 +24,21 @@ body {
 .engine-icon { width: 18px; height: 18px; flex-shrink: 0; }
 .query-separator { width: 1px; height: 16px; background: var(--line-hairline); flex-shrink: 0; }
 .query-label {
-  font-size: 10px; letter-spacing: var(--tracking-wider); text-transform: uppercase;
+  font-size: var(--font-size-10); letter-spacing: var(--tracking-wider); text-transform: uppercase;
   color: var(--text-secondary); flex-shrink: 0;
 }
-.query-text { font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; }
+.query-text { font-size: var(--font-size-13); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; }
 
 /* Countdown number (revealed by delay.js) */
 .countdown {
-  font-family: var(--font-mono); font-size: 48px; font-weight: 700;
+  font-family: var(--font-mono); font-size: var(--font-size-48); font-weight: 700;
   margin: 40px 0; letter-spacing: 2px; line-height: 1;
   color: var(--text-primary); opacity: 0;
 }
 
 #reveal-button {
   padding: 12px 28px; font-family: var(--font-sans);
-  font-size: 13px; font-weight: 600;
+  font-size: var(--font-size-13); font-weight: 600;
   background: var(--accent); color: var(--accent-text);
   border: none; border-radius: var(--radius-pill);
   cursor: pointer; transition: background var(--dur-base) var(--ease-out);
