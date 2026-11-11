@@ -1,5 +1,5 @@
 // Tab limit changes. Unlocked, a new limit applies at once, lower or higher (a lower one closes or blocks tabs
-// straight away, in the service worker). Locked (the lock beside it on Settings > Focus, utils/focusLock.js),
+// straight away, in the service worker). Locked (the lock beside it on Settings > Focus, utils/focus-lock/focusLock.js),
 // only a lower one applies until you unlock it; Off counts as the highest.
 // Before the lock, a higher limit waited 30 minutes as pendingIncrease. One saved by that version still
 // finishes on time (background/pendingChanges.js), and its note shows until then.
@@ -7,7 +7,7 @@ import { formatTimeRemaining } from '../../utils/formatDuration.js';
 import { getTabCount } from '../../services/tab-saver/tabService.js';
 import { sendToBackground } from '../../services/backgroundMessenger.js';
 import { storageGet, storageRemove, storageSet } from '../../services/storage.js';
-import { changeAllowed } from '../../utils/focusLock.js';
+import { changeAllowed } from '../../utils/focus-lock/focusLock.js';
 
 export const QUEUE_MS = 30 * 60 * 1000;
 

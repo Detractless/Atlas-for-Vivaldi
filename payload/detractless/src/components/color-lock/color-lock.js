@@ -1,9 +1,9 @@
 // Saving the color slider. Moves come in fast while dragging, so they are saved in short steps
 // (chrome.storage.sync allows only about 120 writes a minute), and the last one always lands.
-// What a move does is decided by utils/saturationLock.js: it applies, unless the slider is locked
-// (utils/focusLock.js), when going grayer still applies and going back toward color is refused.
+// What a move does is decided by utils/focus-lock/saturationLock.js: it applies, unless the slider is locked
+// (utils/focus-lock/focusLock.js), when going grayer still applies and going back toward color is refused.
 import { storageGet, storageSet } from '../../services/storage.js';
-import { planChange } from '../../utils/saturationLock.js';
+import { planChange } from '../../utils/focus-lock/saturationLock.js';
 import { clickFocusLock } from '../../services/settings/focusLocks.js';
 
 const STEP_MS = 250;

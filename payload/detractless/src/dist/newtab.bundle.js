@@ -320,7 +320,7 @@
       grayscale: {
         default: null,
         backup: false,
-        note: "Legacy: the old on/off switch. Read once and folded into saturation (utils/saturationLock.js legacySaturation), then removed."
+        note: "Legacy: the old on/off switch. Read once and folded into saturation (utils/focus-lock/saturationLock.js legacySaturation), then removed."
       },
       saturation: {
         default: 100,
@@ -337,7 +337,7 @@
       focusLocks: {
         default: null,
         backup: false,
-        note: "The locks on Settings > Focus (utils/focusLock.js): { tabLimit | searchDelaySeconds | saturation | nsfwAction | socialFilter: { unlockAt } }, unlockAt null while locked or the time its 30-minute unlock ends. Not per profile and not in backups, so a switch or an import can't undo a lock."
+        note: "The locks on Settings > Focus (utils/focus-lock/focusLock.js): { tabLimit | searchDelaySeconds | saturation | nsfwAction | socialFilter: { unlockAt } }, unlockAt null while locked or the time its 30-minute unlock ends. Not per profile and not in backups, so a switch or an import can't undo a lock."
       },
       "bookmarks-migrated": {
         default: null,
@@ -371,7 +371,7 @@
         backup: true,
         importWhen: "truthy",
         profile: "focus",
-        note: "The social media filter (utils/socialFilter.js): { mode: off | parts | all, parts: [ids of the parts to hide] }. Spec 006 makes the choices work: components/atlas/atlas-social-<site>.js hides parts, background/socialBlock.js blocks whole sites."
+        note: "The social media filter (utils/social-filter/socialFilter.js): { mode: off | parts | all, parts: [ids of the parts to hide] }. Spec 006 makes the choices work: components/atlas/atlas-social-<site>.js hides parts, background/socialBlock.js blocks whole sites."
       },
       scrollFade: {
         default: { on: false, by: "either", minutes: 5, screens: 150, darkest: 70, restSeconds: 60, waitMinutes: 10, except: [] },
@@ -2669,7 +2669,7 @@
     });
   }
 
-  // src/utils/themeResolver.js
+  // src/utils/theme/themeResolver.js
   function resolveActiveTheme(cfg) {
     let active = cfg && cfg.Theme || "dark";
     if (active === "system") {
@@ -2678,7 +2678,7 @@
     return active;
   }
 
-  // src/utils/colorFormat.js
+  // src/utils/theme/colorFormat.js
   function formatColorForWeb(hex) {
     if (typeof hex === "string" && hex.length === 9 && hex.startsWith("#")) {
       return "#" + hex.substring(3, 9) + hex.substring(1, 3);
@@ -3517,7 +3517,7 @@
     }
   }
 
-  // src/utils/socialFilter.js
+  // src/utils/social-filter/socialFilter.js
   var LIVE_SITES = ["YouTube", "Reddit", "Twitch", "X", "Instagram", "TikTok", "Facebook", "Snapchat"];
   var partsLive = () => LIVE_SITES.length === 0 ? "none" : LIVE_SITES.length === SITES.length ? "all" : "some";
   var SITES = [
@@ -3634,7 +3634,7 @@
     return time(b) > time(a) || dist(b) > dist(a) || b.darkest < a.darkest || b.restSeconds < a.restSeconds || b.waitMinutes < a.waitMinutes || more;
   }
 
-  // src/utils/focusLock.js
+  // src/utils/focus-lock/focusLock.js
   var UNLOCK_MS = 30 * 60 * 1e3;
   var LOCKABLE = ["tabLimit", "searchDelaySeconds", "saturation", "nsfwAction", "socialFilter", "scrollFade"];
   var DEFAULTS2 = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: "off", socialFilter: { mode: "off", parts: [] }, scrollFade: DEFAULTS };
@@ -4170,7 +4170,7 @@
     return removed;
   }
 
-  // src/utils/saturationLock.js
+  // src/utils/focus-lock/saturationLock.js
   var clampSaturation = (v) => {
     const n = Math.round(Number(v));
     return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 100;
@@ -6745,7 +6745,7 @@
     searchDelaySeconds: { open: "A pause before results. Lock it to stop it getting shorter.", held: "Locked. It can get longer, but not shorter." },
     saturation: { open: "Lock it to stop going back to color.", held: "Locked. It can go grayer, but not back to color." },
     nsfwAction: { open: "Lock it to prevent turning the shield off.", held: "Locked. You can make it more protective, but not turn it off." },
-    // Whole sites can always be blocked; the parts work on the sites in LIVE_SITES (utils/socialFilter.js), and the page says which.
+    // Whole sites can always be blocked; the parts work on the sites in LIVE_SITES (utils/social-filter/socialFilter.js), and the page says which.
     socialFilter: {
       open: partsLive() === "all" ? "Hide the parts of social sites that pull you in. Lock it to prevent turning it off." : `${partsNote()} Lock it to prevent turning it off.`,
       held: "Locked. You can block more, but not less." + (partsLive() === "all" ? "" : ` ${partsNote()}`)

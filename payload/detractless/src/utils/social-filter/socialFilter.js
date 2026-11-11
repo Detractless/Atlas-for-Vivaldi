@@ -4,7 +4,7 @@
 // One setting, `socialFilter`: { mode, parts }. `mode` is 'off', 'parts' (hide the chosen parts) or 'all' (hide the
 // social sites entirely); `parts` is the list of chosen part ids, kept while the mode is something else.
 // While its Focus lock holds, the filter can only get stricter: the mode can't go back down, and a chosen part
-// can't be unchosen (looser(), used by utils/focusLock.js). pages/newtab/profilesCore.js repeats looser() in its
+// can't be unchosen (looser(), used by utils/focus-lock/focusLock.js). pages/newtab/profilesCore.js repeats looser() in its
 // own words (it can't import); keep the two the same.
 //
 // Spec 006 (docs/specs/006-social-filter-blocking) is how the choices work on the sites. 'all' blocks a site

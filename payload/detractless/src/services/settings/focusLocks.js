@@ -1,7 +1,7 @@
 // The Focus locks in chrome.storage.sync (`focusLocks`). What a click does, and what a lock allows, is
-// utils/focusLock.js; this only reads and saves.
+// utils/focus-lock/focusLock.js; this only reads and saves.
 import { storageGet, storageSet } from '../storage.js';
-import { clickLock } from '../../utils/focusLock.js';
+import { clickLock } from '../../utils/focus-lock/focusLock.js';
 
 /** The saved locks ({} when there are none). */
 export async function readLocks() {

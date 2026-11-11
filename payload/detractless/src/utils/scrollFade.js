@@ -17,7 +17,7 @@
 //   except      host names it leaves alone (never counted, never dimmed), each covering its subdomains
 // The scrolling is one total for every site, so going to another site does not start again. The total (chrome.storage.local
 // atlas_scroll_fade) is { ms, screens, last, until }: `until` is when the wait ends, or 0 while there is none.
-// While its Focus lock holds, the setting can only get stricter (looser(), used by utils/focusLock.js).
+// While its Focus lock holds, the setting can only get stricter (looser(), used by utils/focus-lock/focusLock.js).
 // pages/newtab/profilesCore.js repeats looser() in its own words too.
 
 export const DEFAULTS = {

@@ -4,7 +4,7 @@
 import { CONTROLS, labelOf } from '../controls.js';
 import { getSetting } from '../registry.js';
 import { row, card, section, select, slider } from '../markup.js';
-import { lockState } from '../../utils/focusLock.js';
+import { lockState } from '../../utils/focus-lock/focusLock.js';
 import { normalize, DARKEST_MIN, DARKEST_MAX } from '../../utils/scrollFade.js';
 import { fade } from '../fadeControls.js';
 

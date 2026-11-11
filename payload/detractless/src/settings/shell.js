@@ -2,7 +2,7 @@
 // opening and closing. Every control saves the moment it changes (registry.js),
 // so there is no Save button and nothing to discard: "Back to dashboard" closes.
 import { PAGES, NAV, REVIEW_URL, lockNote, lockCountdown } from './pages/pages.js';
-import { lockState } from '../utils/focusLock.js';
+import { lockState } from '../utils/focus-lock/focusLock.js';
 import { CONTROLS, lockControl, labelOf, toggleSocialPart, socialPartState } from './controls.js';
 import { onSettingChange, getSetting } from './registry.js';
 import { I, svg, row, card, section, paintLockButton, paintChip } from './markup.js';
@@ -12,7 +12,7 @@ import { usageAction } from './pages/usagePage.js';
 import { initChipPane, resetChipPane } from './pages/chipPane.js';
 import { showFade, paintFadePreview, paintFadeSites, paintFadeSlider } from './pages/scrollFadePage.js';
 import { removeFadeSite } from './fadeControls.js';
-import { normalize } from '../utils/socialFilter.js';
+import { normalize } from '../utils/social-filter/socialFilter.js';
 
 /* `current` is null until Settings first opens, which then shows the first page in the list (Profiles). */
 let root = null, navEl = null, content = null, current = null, currentArg = null;

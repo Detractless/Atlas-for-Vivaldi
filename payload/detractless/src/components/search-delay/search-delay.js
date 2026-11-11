@@ -1,12 +1,12 @@
 // Search delay changes. Unlocked, a new delay applies at once, longer or shorter. Locked (the lock beside it on
-// Settings > Focus, utils/focusLock.js), only a longer one applies until you unlock it.
+// Settings > Focus, utils/focus-lock/focusLock.js), only a longer one applies until you unlock it.
 // Before the lock, a shorter delay waited 30 minutes as pendingDelayDecrease. One saved by that version still
 // finishes on time (background/pendingChanges.js), and its note shows until then.
 import { formatTimeRemaining } from '../../utils/formatDuration.js';
 import { getDelaySeconds, saveDelaySeconds, clearPendingDecrease } from '../../services/settings/delayStorage.js';
 import { sendToBackground } from '../../services/backgroundMessenger.js';
 import { readLocks } from '../../services/settings/focusLocks.js';
-import { changeAllowed } from '../../utils/focusLock.js';
+import { changeAllowed } from '../../utils/focus-lock/focusLock.js';
 import { QUEUE_MS } from '../tab-limiter/tab-limiter.js';
 
 /** Ask for a new delay in seconds (0 = off). Refused, and nothing saved, when the delay is locked and this is shorter. */

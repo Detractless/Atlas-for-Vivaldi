@@ -2,7 +2,7 @@ import '../../styles/base.css';
 import '../../styles/tokens.css';
 import '../../styles/themes.css';
 import './gate.css';
-import { resolveActiveTheme } from '../../utils/themeResolver.js';
+import { resolveActiveTheme } from '../../utils/theme/themeResolver.js';
 import { formatTimeCompact } from '../../utils/formatDuration.js';
 import { extractSearchQuery, detectSearchEngine } from './searchQuery.js';
 import { storageGet } from '../../services/storage.js';

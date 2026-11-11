@@ -222,8 +222,8 @@ test('health: match counts and trips are kept per part, without page addresses',
   assert.ok(!JSON.stringify(h).includes('example.test'));
 });
 
-test('the engine normalizes the setting like utils/socialFilter.js does', async () => {
-  const { normalize } = await import('../../payload/detractless/src/utils/socialFilter.js');
+test('the engine normalizes the setting like utils/social-filter/socialFilter.js does', async () => {
+  const { normalize } = await import('../../payload/detractless/src/utils/social-filter/socialFilter.js');
   const t = loadSocial({});
   const known = ['homeFeed', 'shortVideos', 'likes'];
   for (const v of [undefined, null, 'x', {}, { mode: 'parts' }, { mode: 'all', parts: ['likes', 'zzz', 'homeFeed'] }, { mode: 'bogus', parts: ['likes'] }]) {

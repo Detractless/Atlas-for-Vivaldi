@@ -3,8 +3,8 @@ import { pruneOrphanedPages } from '../orphanCleanup.js';
 import { BACKUP_SYNC_KEYS } from '../../constants/storageKeys.js';
 import { storageGet, storageSet } from '../storage.js';
 import { warn } from '../log.js';
-import { legacySaturation } from '../../utils/saturationLock.js';
-import { LOCKABLE, withoutLoosening } from '../../utils/focusLock.js';
+import { legacySaturation } from '../../utils/focus-lock/saturationLock.js';
+import { LOCKABLE, withoutLoosening } from '../../utils/focus-lock/focusLock.js';
 
 // Atlas: restore the backup's profiles first, then the usual import fills the active one.
 export async function persistImportData(importData) {

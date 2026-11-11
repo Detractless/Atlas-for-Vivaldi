@@ -8,8 +8,8 @@
 // or the time the unlock ends. A key that is missing, or whose unlockAt has passed, is unlocked.
 // pages/newtab/profilesCore.js repeats changeAllowed() in its own words (it can't import); keep the two the same.
 
-import { looser as filterLooser } from './socialFilter.js';
-import { looser as fadeLooser, DEFAULTS as FADE_DEFAULTS } from './scrollFade.js';
+import { looser as filterLooser } from '../social-filter/socialFilter.js';
+import { looser as fadeLooser, DEFAULTS as FADE_DEFAULTS } from '../scrollFade.js';
 
 export const UNLOCK_MS = 30 * 60 * 1000;
 export const LOCKABLE = ['tabLimit', 'searchDelaySeconds', 'saturation', 'nsfwAction', 'socialFilter', 'scrollFade'];

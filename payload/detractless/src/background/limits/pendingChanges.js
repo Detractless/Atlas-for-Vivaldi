@@ -1,7 +1,7 @@
 import { activeDelays, setTabLimit, setSearchDelayMs } from '../state/workerState.js';
 import { enforceTabLimit } from './tabLimiter.js';
 import { storageGet, storageRemove, storageSet } from '../../services/storage.js';
-import { changeAllowed } from '../../utils/focusLock.js';
+import { changeAllowed } from '../../utils/focus-lock/focusLock.js';
 
 const DELAY_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
@@ -18,7 +18,7 @@ export function pruneActiveDelays() {
 }
 
 /* Before the Focus locks, a higher tab limit or a shorter delay waited 30 minutes here. Settings no longer queues
-   them (a change applies at once unless it is locked, utils/focusLock.js), but one saved by the version before still
+   them (a change applies at once unless it is locked, utils/focus-lock/focusLock.js), but one saved by the version before still
    finishes on time, unless the setting has been locked since: then it is dropped, as Settings would refuse it. */
 
 export async function checkPendingIncrease() {

@@ -3,12 +3,12 @@
 import { CONTROLS, labelOf, socialPartState } from '../controls.js';
 import { getSetting } from '../registry.js';
 import { I, row, card, section, select, toggle, slider, lockButton, modeThumb, saturationPreview, chip } from '../markup.js';
-import { lockState, unlockTime, unlockSecondsLeft } from '../../utils/focusLock.js';
+import { lockState, unlockTime, unlockSecondsLeft } from '../../utils/focus-lock/focusLock.js';
 import { formatTimeCompact } from '../../utils/formatDuration.js';
 import { pendingIncreaseText } from '../../components/tab-limiter/tab-limiter.js';
 import { pendingDecreaseText } from '../../components/search-delay/search-delay.js';
 import { usagePage } from './usagePage.js';
-import { LIVE_SITES, partsLive, GROUPS, normalize } from '../../utils/socialFilter.js';
+import { LIVE_SITES, partsLive, GROUPS, normalize } from '../../utils/social-filter/socialFilter.js';
 import { restingPane } from './chipPane.js';
 import { scrollFadeSection } from './scrollFadePage.js';
 
@@ -41,7 +41,7 @@ const LOCK_TEXT = {
   searchDelaySeconds: { open: "A pause before results. Lock it to stop it getting shorter.", held: "Locked. It can get longer, but not shorter." },
   saturation: { open: "Lock it to stop going back to color.", held: "Locked. It can go grayer, but not back to color." },
   nsfwAction: { open: "Lock it to prevent turning the shield off.", held: "Locked. You can make it more protective, but not turn it off." },
-  // Whole sites can always be blocked; the parts work on the sites in LIVE_SITES (utils/socialFilter.js), and the page says which.
+  // Whole sites can always be blocked; the parts work on the sites in LIVE_SITES (utils/social-filter/socialFilter.js), and the page says which.
   socialFilter: {
     open: partsLive() === "all" ? "Hide the parts of social sites that pull you in. Lock it to prevent turning it off." : `${partsNote()} Lock it to prevent turning it off.`,
     held: "Locked. You can block more, but not less." + (partsLive() === "all" ? "" : ` ${partsNote()}`),

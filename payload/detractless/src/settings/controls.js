@@ -1,11 +1,11 @@
 // src/settings/controls.js — the Settings page controls. Each reads and writes
 // one setting through the registry, which saves it at once.
 import { getSetting, setSetting } from './registry.js';
-import { lockState, changeAllowed } from '../utils/focusLock.js';
+import { lockState, changeAllowed } from '../utils/focus-lock/focusLock.js';
 import { lockable } from './lockable.js';
 import { FADE_CONTROLS } from './fadeControls.js';
 import { flushSaturation, clickSaturationLock } from '../components/color-lock/color-lock.js';
-import { MODES, normalize, withMode, togglePart } from '../utils/socialFilter.js';
+import { MODES, normalize, withMode, togglePart } from '../utils/social-filter/socialFilter.js';
 
 const options = (labels) => Object.entries(labels).map(([value, label]) => ({ value, label }));
 
@@ -55,7 +55,7 @@ const NSFW_ACTIONS = {
   blackout: "Make image black"
 };
 /* The social media filter is one setting, { mode, parts }: the mode is the pill, the parts are the chips (pages.js), and one
-   lock covers both (utils/socialFilter.js says when a change loosens it). */
+   lock covers both (utils/social-filter/socialFilter.js says when a change loosens it). */
 const socialFilter = lockable({
   options: options(MODES),
   get: () => normalize(getSetting("socialFilter")).mode,

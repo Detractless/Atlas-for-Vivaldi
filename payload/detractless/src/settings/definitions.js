@@ -54,7 +54,7 @@ export function defineAllSettings() {
   defineSetting({ key: 'pendingDelayDecrease' });
   defineSetting({ key: 'showQueryOnDelay' });
   defineSetting({ key: 'saturation', write: requestSaturation });
-  // The locks beside the tab limit, delay, color slider, content-shield mode, social media filter and scroll fade (utils/focusLock.js).
+  // The locks beside the tab limit, delay, color slider, content-shield mode, social media filter and scroll fade (utils/focus-lock/focusLock.js).
   defineSetting({ key: 'focusLocks' });
 
   // ── Content shield ──

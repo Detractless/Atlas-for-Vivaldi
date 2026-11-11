@@ -1,4 +1,4 @@
-// Settings > Focus > Scroll fade (settings/scrollFadePage.js, fadeControls.js, shell.js; the rules are utils/scrollFade.js and
+// Settings > Focus > Scroll fade (settings/pages/scrollFadePage.js, fadeControls.js, shell.js; the rules are utils/scrollFade.js and
 // scroll_fade_rules.test.js, the counting script is scroll_fade_page.test.js, the dimming in the window is
 // scroll_fade_layer.test.js): the rows, what each choice saves, the sites left alone as pills, the pictures that follow the
 // slider, and the one lock: locked, the fade can only get stronger.

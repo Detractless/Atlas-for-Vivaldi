@@ -1,6 +1,6 @@
-// src/settings/lockable.js — what a Focus control gets when a lock sits beside it (utils/focusLock.js).
+// src/settings/lockable.js — what a Focus control gets when a lock sits beside it (utils/focus-lock/focusLock.js).
 import { getSetting } from './registry.js';
-import { lockState, changeAllowed } from '../utils/focusLock.js';
+import { lockState, changeAllowed } from '../utils/focus-lock/focusLock.js';
 import { clickFocusLock } from '../services/settings/focusLocks.js';
 
 /* A control with a lock beside it: its lock's state, what clicking the lock does, and

@@ -341,7 +341,7 @@
     }
   });
 
-  // src/utils/socialFilter.js
+  // src/utils/social-filter/socialFilter.js
   var SITES = [
     { name: "YouTube", key: "youtube", hosts: ["youtube.com"], aliases: ["youtu.be"] },
     { name: "Reddit", key: "reddit", hosts: ["reddit.com"], aliases: ["redd.it"] },
@@ -485,7 +485,7 @@
     return time(b) > time(a) || dist(b) > dist(a) || b.darkest < a.darkest || b.restSeconds < a.restSeconds || b.waitMinutes < a.waitMinutes || more;
   }
 
-  // src/utils/focusLock.js
+  // src/utils/focus-lock/focusLock.js
   var UNLOCK_MS = 30 * 60 * 1e3;
   var LOCKABLE = ["tabLimit", "searchDelaySeconds", "saturation", "nsfwAction", "socialFilter", "scrollFade"];
   var DEFAULTS2 = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: "off", socialFilter: { mode: "off", parts: [] }, scrollFade: DEFAULTS };
@@ -792,7 +792,7 @@
       grayscale: {
         default: null,
         backup: false,
-        note: "Legacy: the old on/off switch. Read once and folded into saturation (utils/saturationLock.js legacySaturation), then removed."
+        note: "Legacy: the old on/off switch. Read once and folded into saturation (utils/focus-lock/saturationLock.js legacySaturation), then removed."
       },
       saturation: {
         default: 100,
@@ -809,7 +809,7 @@
       focusLocks: {
         default: null,
         backup: false,
-        note: "The locks on Settings > Focus (utils/focusLock.js): { tabLimit | searchDelaySeconds | saturation | nsfwAction | socialFilter: { unlockAt } }, unlockAt null while locked or the time its 30-minute unlock ends. Not per profile and not in backups, so a switch or an import can't undo a lock."
+        note: "The locks on Settings > Focus (utils/focus-lock/focusLock.js): { tabLimit | searchDelaySeconds | saturation | nsfwAction | socialFilter: { unlockAt } }, unlockAt null while locked or the time its 30-minute unlock ends. Not per profile and not in backups, so a switch or an import can't undo a lock."
       },
       "bookmarks-migrated": {
         default: null,
@@ -843,7 +843,7 @@
         backup: true,
         importWhen: "truthy",
         profile: "focus",
-        note: "The social media filter (utils/socialFilter.js): { mode: off | parts | all, parts: [ids of the parts to hide] }. Spec 006 makes the choices work: components/atlas/atlas-social-<site>.js hides parts, background/socialBlock.js blocks whole sites."
+        note: "The social media filter (utils/social-filter/socialFilter.js): { mode: off | parts | all, parts: [ids of the parts to hide] }. Spec 006 makes the choices work: components/atlas/atlas-social-<site>.js hides parts, background/socialBlock.js blocks whole sites."
       },
       scrollFade: {
         default: { on: false, by: "either", minutes: 5, screens: 150, darkest: 70, restSeconds: 60, waitMinutes: 10, except: [] },
@@ -1778,7 +1778,7 @@
     }
   };
 
-  // src/utils/saturationLock.js
+  // src/utils/focus-lock/saturationLock.js
   var clampSaturation = (v) => {
     const n = Math.round(Number(v));
     return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 100;

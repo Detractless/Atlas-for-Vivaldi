@@ -3,7 +3,7 @@
 // (constants/socialSlides.js; it flips every few seconds), and the sites it is planned for. Moving the pointer across the pills
 // shows nothing, so the panel doesn't flicker as you go past. Point at nothing and it says to point at a part. A part with no
 // pictures is text only. settings/shell.js starts it.
-import { partOf } from '../../utils/socialFilter.js';
+import { partOf } from '../../utils/social-filter/socialFilter.js';
 import { SLIDE_DIR, slidesOf } from '../../constants/socialSlides.js';
 
 const SLIDE_MS = 2400;

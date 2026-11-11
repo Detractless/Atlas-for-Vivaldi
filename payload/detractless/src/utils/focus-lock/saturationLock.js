@@ -1,7 +1,7 @@
 // The color slider's rules, with no page or storage in them so they can be tested alone.
 //
 // One setting, `saturation` (0 to 100, 100 = full color). The slider moves freely until you lock it with the
-// lock beside it (utils/focusLock.js, shared with the tab limit and the search delay). While locked it can go
+// lock beside it (utils/focus-lock/focusLock.js, shared with the tab limit and the search delay). While locked it can go
 // grayer but not back toward color, until you click the lock again and its 30-minute unlock runs out.
 import { changeAllowed } from './focusLock.js';
 

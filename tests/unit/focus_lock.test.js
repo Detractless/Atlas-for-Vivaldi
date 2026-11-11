@@ -1,4 +1,4 @@
-// The locks on Settings > Focus (utils/focusLock.js): you lock it, while locked it can only get stricter,
+// The locks on Settings > Focus (utils/focus-lock/focusLock.js): you lock it, while locked it can only get stricter,
 // clicking again starts a 30-minute unlock, clicking during it keeps it locked. Also the queued changes from the
 // version before, which still finish unless locked since (background/pendingChanges.js).
 // The Settings page around them: settings_focus_locks.test.js. Bundled to CommonJS and run as plain code.
@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { loadSourceModule } = require("../helpers/source-module-loader");
 
-const L = loadSourceModule("utils/focusLock.js");
+const L = loadSourceModule("utils/focus-lock/focusLock.js");
 const NOW = 1_800_000_000_000;
 const MIN = 60 * 1000;
 

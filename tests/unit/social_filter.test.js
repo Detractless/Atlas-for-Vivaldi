@@ -1,4 +1,4 @@
-// The social media filter's rules (utils/socialFilter.js) and its Focus lock (utils/focusLock.js): the list of parts, what
+// The social media filter's rules (utils/social-filter/socialFilter.js) and its Focus lock (utils/focus-lock/focusLock.js): the list of parts, what
 // a saved value is made into, and what counts as loosening it. The Settings page around it: settings_social_filter.test.js.
 // Bundled to CommonJS and run as plain code.
 "use strict";
@@ -16,8 +16,8 @@ function load(rel) {
   return m.exports;
 }
 
-const F = load("utils/socialFilter.js");
-const L = load("utils/focusLock.js");
+const F = load("utils/social-filter/socialFilter.js");
+const L = load("utils/focus-lock/focusLock.js");
 const NOW = 1_800_000_000_000;
 const locked = { socialFilter: { unlockAt: null } };
 const ok = (from, to) => L.changeAllowed(locked, "socialFilter", from, to, NOW);

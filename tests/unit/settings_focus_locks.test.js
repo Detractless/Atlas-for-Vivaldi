@@ -1,4 +1,4 @@
-// Settings > Focus with its locks (settings/pages.js, shell.js, menu.js; the rules are utils/focusLock.js and
+// Settings > Focus with its locks (settings/pages/pages.js, shell.js, menu.js; the rules are utils/focus-lock/focusLock.js and
 // focus_lock.test.js): unlocked, the tab limit, the delay and the color slider change at once both ways. Locked,
 // each can only get stricter, the looser choices are greyed out, and nothing unlocks until you click the lock again;
 // then it takes 30 minutes, and a click during them keeps it locked. A profile switch can't undo a lock.

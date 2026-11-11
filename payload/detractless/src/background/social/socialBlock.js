@@ -1,5 +1,5 @@
 // "Block social sites entirely" (Settings > Focus > Content shield > Social media filter). While that mode is on,
-// opening a page of one of the social sites (utils/socialFilter.js SITES) lands on the block page instead.
+// opening a page of one of the social sites (utils/social-filter/socialFilter.js SITES) lands on the block page instead.
 // Same pattern as the search delay (searchInterception.js): the navigation is replaced before the page is seen.
 // Main frame only, so a video embedded on another site still plays; subdomains and short-link hosts (youtu.be,
 // fb.me) are included. There is no way through the block page: loosening the mode is the Focus lock's decision,
@@ -7,7 +7,7 @@
 //
 // Three events, because a redirect (youtu.be/<id> to youtube.com) only shows up once the page commits.
 import { storageGet } from '../../services/storage.js';
-import { normalize, siteOf } from '../../utils/socialFilter.js';
+import { normalize, siteOf } from '../../utils/social-filter/socialFilter.js';
 
 let mode = 'off';
 // The worker can be woken by a navigation before its first storage read is back: wait for it.

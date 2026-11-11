@@ -1,5 +1,5 @@
-import { resolveActiveTheme } from '../../utils/themeResolver.js';
-import { formatColorForWeb, hexMix } from '../../utils/colorFormat.js';
+import { resolveActiveTheme } from '../../utils/theme/themeResolver.js';
+import { formatColorForWeb, hexMix } from '../../utils/theme/colorFormat.js';
 import { CUSTOM_THEME_VARS } from '../../constants/themeVars.js';
 import { appThemeConfig, setCurrentTheme } from './newtabState.js';
 import { BookmarkDB } from '../../services/bookmarks/bookmarksDB.js';

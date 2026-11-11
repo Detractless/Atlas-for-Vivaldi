@@ -1,4 +1,4 @@
-// The color slider's rules (utils/saturationLock.js), the folds of old settings into it
+// The color slider's rules (utils/focus-lock/saturationLock.js), the folds of old settings into it
 // (background/saturationMigration.js), and the Never setting for bookmark pills (utils/pillSelection.js).
 // The lock itself is shared with the tab limit and the delay: focus_lock.test.js.
 // These source files are ES modules, so each is bundled to CommonJS here and run as plain code.
@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { loadSourceModule } = require("../helpers/source-module-loader");
 
-const { planChange, clampSaturation, legacySaturation } = loadSourceModule("utils/saturationLock.js");
+const { planChange, clampSaturation, legacySaturation } = loadSourceModule("utils/focus-lock/saturationLock.js");
 const NOW = 1_800_000_000_000;
 const locked = { saturation: { unlockAt: null } };
 

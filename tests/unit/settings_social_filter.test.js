@@ -1,5 +1,5 @@
-// Settings > Focus > Content shield: the NSFW image detection row, and the Social media filter under it (settings/pages.js,
-// shell.js, chipPane.js; the rules are utils/socialFilter.js and social_filter.test.js). Only the choices are saved so far:
+// Settings > Focus > Content shield: the NSFW image detection row, and the Social media filter under it (settings/pages/pages.js,
+// shell.js, chipPane.js; the rules are utils/social-filter/socialFilter.js and social_filter.test.js). Only the choices are saved so far:
 // nothing is blocked, and the row says so. Locked, the mode can't go down and a chip that is on can't be switched off.
 "use strict";
 

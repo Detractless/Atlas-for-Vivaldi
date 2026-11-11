@@ -2,7 +2,7 @@
 // `scrollFade` (utils/scrollFade.js), and one lock covers them all: while it holds, a change that would loosen the fade
 // (looser() in utils/scrollFade.js) is refused. settings/pages/scrollFadePage.js draws them.
 import { getSetting, setSetting } from './registry.js';
-import { lockState, changeAllowed } from '../utils/focusLock.js';
+import { lockState, changeAllowed } from '../utils/focus-lock/focusLock.js';
 import { lockable } from './lockable.js';
 import { normalize, withField, cleanSite, BY, MINUTES, SCREENS, REST_SECONDS, WAIT_MINUTES, DARKEST_MIN, DARKEST_MAX } from '../utils/scrollFade.js';
 

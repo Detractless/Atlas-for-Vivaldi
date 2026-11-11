@@ -20,7 +20,7 @@ function load(rel) {
 }
 
 const { SLIDES, SLIDE_DIR, slidesOf } = load("constants/socialSlides.js");
-const { PART_IDS, partOf } = load("utils/socialFilter.js");
+const { PART_IDS, partOf } = load("utils/social-filter/socialFilter.js");
 const dir = path.join(SRC, "assets", "social");
 
 test("every slide is for a real part, names its site, and points at a picture that is there", () => {
