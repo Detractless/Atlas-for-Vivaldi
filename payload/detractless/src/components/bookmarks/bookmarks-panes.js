@@ -2,7 +2,7 @@
    THE PANES INSIDE A BOOKMARK DIALOG
 
    One row shape (icon, label, value), one input pane, one list pane and the
-   arming delete row. bookmarkDialog.js decides WHICH panes a dialog has;
+   arming delete row. bookmarks-dialog.js decides WHICH panes a dialog has;
    this file is how each one is drawn and behaves.
    ══════════════════════════════════════════════════════════════════════ */
 

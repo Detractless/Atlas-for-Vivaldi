@@ -4,7 +4,7 @@ import { BookmarkDB } from '../../services/bookmarksDB.js';
 // no longer opens a menu, but the flag still gates whether right-click does
 // anything at all, so the setting behind it keeps meaning something.
 import { ContextMenu } from '../context-menu/context-menu.js';
-import { openGroupDialog, openBookmarkItemDialog } from './bookmarkDialog.js';
+import { openGroupDialog, openBookmarkItemDialog } from './bookmarks-dialog.js';
 import {
   currentBookmarkPage,
   bookmarks, setBookmarks,
@@ -14,13 +14,13 @@ import {
    add popup), so the writer never depends on the widget. */
 import { attachScrollAffordance } from '../shared/scrollAffordance.js';
 import { editInBar } from '../shared/editInBar.js';
-import { refreshBookmarkCache } from './bookmarkCache.js';
+import { refreshBookmarkCache } from './bookmarks-cache.js';
 import { forActiveAccount } from '../../services/googleAccount.js';
 import { readFailedFor, clearReadFailure, readPageBookmarks, writePageBookmarks, insertBookmark } from './bookmarks-store.js';
 import { rowMetrics, wellHeight, rowsThatFit } from './bookmarks-layout.js';
 
-export { refreshBookmarkCache } from './bookmarkCache.js';
-export { renderBookmarkSearchResults, updateSearchDropdownSelection, hideBookmarkSearchResults, sortByUsage } from './bookmarkSearch.js';
+export { refreshBookmarkCache } from './bookmarks-cache.js';
+export { renderBookmarkSearchResults, updateSearchDropdownSelection, hideBookmarkSearchResults, sortByUsage } from './bookmarks-search.js';
 
 const loadFailed = () => readFailedFor(currentBookmarkPage);
 

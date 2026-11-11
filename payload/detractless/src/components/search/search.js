@@ -1,6 +1,6 @@
 import { isUrl, isFilePath, filePathToUrl, formatUrl } from '../../utils/url.js';
 import { allCachedBookmarks, searchDropdownIndex, currentEngine, searchEngines, defaultEngineKey, getBookmarkPillBehavior } from '../../pages/newtab/newtabState.js';
-import { renderBookmarkSearchResults, updateSearchDropdownSelection, hideBookmarkSearchResults, sortByUsage } from '../bookmarks/bookmarkSearch.js';
+import { renderBookmarkSearchResults, updateSearchDropdownSelection, hideBookmarkSearchResults, sortByUsage } from '../bookmarks/bookmarks-search.js';
 import { resolveEnterAction, searchTextFor } from '../../utils/pillSelection.js';
 import { updateCurrentEngine } from '../engines/enginesUI.js';
 import { attachScrollAffordance } from '../shared/scrollAffordance.js';

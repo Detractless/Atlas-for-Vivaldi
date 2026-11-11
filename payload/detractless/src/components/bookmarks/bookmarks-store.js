@@ -1,5 +1,5 @@
 import { BookmarkDB } from '../../services/bookmarksDB.js';
-import { refreshBookmarkCache } from './bookmarkCache.js';
+import { refreshBookmarkCache } from './bookmarks-cache.js';
 
 let failedPage = null;
 

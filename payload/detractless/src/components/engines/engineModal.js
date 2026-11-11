@@ -5,7 +5,7 @@ import { readFileAsDataURL } from '../../utils/file.js';
 import { attachScrollAffordance } from '../shared/scrollAffordance.js';
 import { createSubpageNav } from '../shared/subpageNav.js';
 import { ContextMenu } from '../context-menu/context-menu.js';
-import { buildDialog } from '../bookmarks/bookmarkDialog.js';
+import { buildDialog } from '../bookmarks/bookmarks-dialog.js';
 import { Icons } from '../../constants/icons.js';
 import {
   searchEngines,

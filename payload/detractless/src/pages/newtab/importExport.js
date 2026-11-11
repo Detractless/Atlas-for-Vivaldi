@@ -2,7 +2,7 @@ import { generateExportData } from '../../services/dataExport.js';
 import { persistImportData } from '../../services/dataImport.js';
 import { packageArchive, isDetractlessFile, openArchive } from '../../services/detractlessFormat.js';
 import { buildExport, importJson } from '../../services/snippetBackup.js';
-import { refreshBookmarkCache } from '../../components/bookmarks/bookmarkCache.js';
+import { refreshBookmarkCache } from '../../components/bookmarks/bookmarks-cache.js';
 import {
   activeTabs,
   setActiveTabs, setSearchEngines, setDefaultEngineKey, setCurrentEngine,

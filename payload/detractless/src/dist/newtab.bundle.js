@@ -957,7 +957,7 @@
     eraser: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"></path><path d="M22 21H7"></path><path d="m5 11 9 9"></path></svg>`
   };
 
-  // src/components/bookmarks/bookmark-panes.js
+  // src/components/bookmarks/bookmarks-panes.js
   function el(tag, className, text) {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -1071,7 +1071,7 @@
     return pane;
   }
 
-  // src/components/bookmarks/bookmarkDialog.js
+  // src/components/bookmarks/bookmarks-dialog.js
   function buildDialog(spec) {
     document.querySelectorAll(".bookmark-dialog").forEach((node) => node.remove());
     const overlay = el("div", "modal show picker-modal bookmark-dialog");
@@ -1392,7 +1392,7 @@
     }
   }
 
-  // src/components/bookmarks/bookmarkCache.js
+  // src/components/bookmarks/bookmarks-cache.js
   async function refreshBookmarkCache() {
     try {
       const [allBookmarksObj, scores] = await Promise.all([
@@ -1546,7 +1546,7 @@
     return raw.startsWith("./") ? raw.slice(2).trim() : raw;
   }
 
-  // src/components/bookmarks/bookmarkSearch.js
+  // src/components/bookmarks/bookmarks-search.js
   function renderBookmarkSearchResults(matches) {
     const resultsContainer = document.getElementById("bookmark-search-results");
     if (!resultsContainer) return;

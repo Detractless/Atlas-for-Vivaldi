@@ -19,7 +19,7 @@
    ══════════════════════════════════════════════════════════════════════ */
 
 import { Icons } from '../../constants/icons.js';
-import { el, hiddenCloseButton, iconSpan, dangerRow, inputPane, listPane } from './bookmark-panes.js';
+import { el, hiddenCloseButton, iconSpan, dangerRow, inputPane, listPane } from './bookmarks-panes.js';
 
 /**
  * @param {object} spec

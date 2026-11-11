@@ -14,7 +14,7 @@
 import './tabs.css';
 import { DEFAULT_TABS } from '../../constants/defaults.js';
 import { ContextMenu } from '../context-menu/context-menu.js';
-import { openTabDialog } from '../bookmarks/bookmarkDialog.js';
+import { openTabDialog } from '../bookmarks/bookmarks-dialog.js';
 import { editInBar } from '../shared/editInBar.js';
 import { BookmarkDB } from '../../services/bookmarksDB.js';
 // Unused here since the switcher replaced the filtered page list; kept so the
