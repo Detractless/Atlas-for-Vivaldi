@@ -109,7 +109,7 @@
   top: 0;
   width: 11px;
   height: 11px;
-  z-index: 5;
+  z-index: var(--z-atlas-fillet);
   pointer-events: none;
 }
 #browser:not(.fullscreen.inner) #webview-container::before {

@@ -178,7 +178,7 @@
   border-radius: 2px;
   opacity: 0;
   pointer-events: none;
-  z-index: 10;
+  z-index: var(--z-atlas-loader);
   transition: width 0.25s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.2s ease;
 }
 
@@ -231,7 +231,7 @@
    shows. The engine pills (4d) use the same card. */
 #browser .atlas-urlcard,
 #browser .atlas-enginecard {
-  position: fixed; z-index: 2147483000; box-sizing: border-box;
+  position: fixed; z-index: var(--z-atlas-url-card); box-sizing: border-box;
   padding: 10px 10px 10px;
   /* The focused field's color (hover-2 over the toolbar), made solid so the
      page doesn't show through. */
@@ -256,17 +256,17 @@
   border-bottom-right-radius: 0 !important;
   transition: none !important;
 }
-#browser .atlas-urlcard-full { color: var(--atlas-text-2); font-size: 12px; line-height: 17px; word-break: break-all; }
+#browser .atlas-urlcard-full { color: var(--atlas-text-2); font-size: var(--font-size-atlas-small); line-height: 17px; word-break: break-all; }
 #browser .atlas-urlcard-full + div { margin-top: 10px; }
 #browser .atlas-urlcard-pills { display: flex; flex-wrap: wrap; gap: 6px; }
 #browser .atlas-urlpill {
   padding: 4px 12px; border: 0; border-radius: 9999px; cursor: pointer;
   background: var(--atlas-hover-2); color: var(--atlas-text-1);
-  font: inherit; font-size: 12.5px; white-space: nowrap;
+  font: inherit; font-size: var(--font-size-atlas-tooltip); white-space: nowrap;
 }
 #browser .atlas-urlpill:hover { background: var(--atlas-hover-3); }
 #browser .atlas-urlpill[aria-selected="true"] { background: var(--atlas-text-1); color: var(--atlas-bar); }
-#browser .atlas-urlcard-hint { margin-top: 8px; color: var(--atlas-text-2); font-size: 11px; opacity: .8; }
+#browser .atlas-urlcard-hint { margin-top: 8px; color: var(--atlas-text-2); font-size: var(--font-size-atlas-hint); opacity: .8; }
 #browser.atlas-pills-open .OmniDropdown { display: none !important; }
 
 /* ── 4d. The engine button (src/modules/19-addressbar-engine-picker.js) ──────
@@ -275,7 +275,7 @@
    as pills instead of the bookmarks (#browser.atlas-engines-open). */
 #browser.atlas-enginebtn-on .UrlBar-AddressField .SiteInfoButton { visibility: hidden !important; }
 #browser .atlas-enginebtn {
-  position: fixed; z-index: 2147483001; box-sizing: border-box;
+  position: fixed; z-index: var(--z-atlas-engine-button); box-sizing: border-box;
   display: flex; align-items: center; justify-content: center;
   padding: 0; border: 0; border-radius: 6px; cursor: pointer;
   background: transparent;

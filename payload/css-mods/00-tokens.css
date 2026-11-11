@@ -12,7 +12,7 @@
 
 /* ── 1. Tokens ───────────────────────────────────────────────────────────── */
 
-#browser {
+:root, #browser {
   --atlas-strip:      #ececec;               /* tab band                    */
   --atlas-bar:        #ffffff;               /* toolbar + active tab        */
   --atlas-content:    #ffffff;               /* page ground                 */
@@ -31,6 +31,14 @@
   --atlas-icon-check:   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 8.5l3.2 3.2L13 4.8'/%3E%3C/svg%3E");   /* the settings menu's tick, as a mask */
   --atlas-icon-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 3.5l4.5 4.5L6 12.5'/%3E%3C/svg%3E");
   --atlas-toggle-off:   #9a9a95;   /* the settings toggle's grey track */
+  --font-size-atlas-small: 12px;
+  --font-size-atlas-tooltip: 12.5px;
+  --font-size-atlas-hint: 11px;
+  --z-atlas-fillet: 5;
+  --z-atlas-loader: 10;
+  --z-atlas-url-card: 2147483000;
+  --z-atlas-engine-button: 2147483001;
+  --z-atlas-tooltip: 2147483002;
   --atlas-tab-radius: 10px;
   /* Background tabs recede; tune these three to taste. */
   --atlas-tab-idle-fg:   rgba(0, 0, 0, .42);   /* inactive tab title       */
