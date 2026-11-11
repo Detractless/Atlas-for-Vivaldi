@@ -5,7 +5,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { openWindow } = require("./helpers/windowDom");
-const { rightClick, menuLabels, answer } = require("./helpers/windowMenus");
+const { menuLabels, answer } = require("./helpers/windowMenus");
 
 const plain = (v) => JSON.parse(JSON.stringify(v === undefined ? null : v));
 let open = [];

@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { setup, latestRequest, prepareAndClassify, classifyFlagged, PREVIEW } = require("../helpers/nsfw_image_env.js");
+const { setup, latestRequest, classifyFlagged, PREVIEW } = require("../helpers/nsfw_image_env.js");
 const { loadBridge } = require("../helpers/nsfw_bridge_env.js");
 const wait = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 const preparedCalls = (env) => env.requests.filter((r) => r.message.act === "nsfw-prepare-shield");

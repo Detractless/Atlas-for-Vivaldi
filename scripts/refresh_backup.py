@@ -7,7 +7,6 @@ excludes .agents/, .git/, build/, node_modules/, .scratch/, *.spec and
 ORIGINAL_REQUEST.md. Git history is the main record now; this is an extra copy.
 """
 
-import os
 import sys
 import zipfile
 from pathlib import Path

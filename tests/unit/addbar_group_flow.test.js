@@ -6,7 +6,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { start, closeAll, wait, card, field, ask, step, click, type, key, input, next, opened } = require("./helpers/addbarHarness");
+const { start, closeAll, wait, card, field, ask, step, click, type, input, next, opened } = require("./helpers/addbarHarness");
 
 test.afterEach(closeAll);
 
