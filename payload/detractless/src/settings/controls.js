@@ -30,7 +30,6 @@ const text = (key) => ({ get: () => String(getSetting(key) || ""), set: (v) => s
 
 const LIMITS = Object.fromEntries(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].map((v) => [v, v === "0" ? "Off" : v]));
 const DELAYS = { "0": "Off", "15": "15 seconds", "30": "30 seconds", "60": "1 minute", "120": "2 minutes", "300": "5 minutes" };
-const SATURATIONS = { "0": "0% (Monochrome)", "25": "25% (Muted)", "50": "50% (Balanced)", "75": "75% (Subtle)", "100": "100% (Full color)" };
 
 /* The theme is one object (mode + custom colours); the page only picks the mode. */
 const theme = {
