@@ -3695,7 +3695,7 @@
     return out;
   }
 
-  // src/components/tab-limiter/tab-limiter-ui.js
+  // src/components/tab-limiter/tab-limiter.js
   var QUEUE_MS = 30 * 60 * 1e3;
   async function requestTabLimit(newLimit) {
     if (isNaN(newLimit)) return;

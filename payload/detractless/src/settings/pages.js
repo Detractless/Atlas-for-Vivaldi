@@ -5,7 +5,7 @@ import { getSetting } from './registry.js';
 import { I, row, card, section, select, toggle, slider, lockButton, modeThumb, saturationPreview, chip } from './markup.js';
 import { lockState, unlockTime, unlockSecondsLeft } from '../utils/focusLock.js';
 import { formatTimeCompact } from '../utils/formatDuration.js';
-import { pendingIncreaseText } from '../components/tab-limiter/tab-limiter-ui.js';
+import { pendingIncreaseText } from '../components/tab-limiter/tab-limiter.js';
 import { pendingDecreaseText } from '../components/search-delay/search-delay.js';
 import { usagePage } from './usagePage.js';
 import { LIVE_SITES, partsLive, GROUPS, normalize } from '../utils/socialFilter.js';
@@ -48,7 +48,7 @@ const LOCK_TEXT = {
   },
   scrollFade: { open: "Dims every page as you keep scrolling. Lock it to stop it getting weaker.", held: "Locked. It can get stronger, but not weaker." },
 };
-/* A change queued by the version before the locks, shown until it finishes (tab-limiter-ui.js, search-delay.js). */
+/* A change queued by the version before the locks, shown until it finishes (tab-limiter.js, search-delay.js). */
 const QUEUED = {
   tabLimit: () => pendingIncreaseText(getSetting("pendingIncrease")),
   searchDelaySeconds: () => pendingDecreaseText(getSetting("pendingDelayDecrease")),

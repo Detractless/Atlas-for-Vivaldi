@@ -11,7 +11,7 @@ import { showPage } from './displayEffects.js';
 import { initializeTabs, setTabNavigationCallbacks, renderTabs, selectSearchTab } from '../../components/tabs/tabs.js';
 import { showModal } from './modalVisibility.js';
 // The tab limiter's stylesheet; imported here so the CSS keeps its place in the bundle.
-import '../../components/tab-limiter/tab-limiter-ui.js';
+import '../../components/tab-limiter/tab-limiter.js';
 import { loadSearchEngines, loadSavedEngine, setManageEnginesCallback, renderEngineDropdown, updateCurrentEngine, followEnginePicks } from '../../components/engines/engines.js';
 import { initEngineModal } from '../../components/engines/engines-modal.js';
 import { initializeSearch } from '../../components/search/search.js';

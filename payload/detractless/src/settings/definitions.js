@@ -11,7 +11,7 @@ import { applySpotlightVisibility, applyFadeIn } from '../pages/newtab/displayEf
 import { requestSaturation } from '../components/color-lock/color-lock.js';
 import { applyThemeConfig } from '../pages/newtab/theme.js';
 import { updateCurrentEngine } from '../components/engines/engines.js';
-import { requestTabLimit } from '../components/tab-limiter/tab-limiter-ui.js';
+import { requestTabLimit } from '../components/tab-limiter/tab-limiter.js';
 import { requestSearchDelay } from '../components/search-delay/search-delay.js';
 
 let defined = false;
