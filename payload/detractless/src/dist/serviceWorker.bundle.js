@@ -975,7 +975,6 @@
   };
 
   // src/constants/storageKeys.js
-  var EXTENSION_ID = atlasKeys_default.extensionId;
   var BOOKMARKS_DB = atlasKeys_default.databases.bookmarks;
   var PASTEKIT_DB = atlasKeys_default.databases.pastekit;
   function syncDefault(key) {

@@ -1,6 +1,6 @@
 # Project overview
 
-825 code files, 109984 lines.
+834 code files, 110288 lines.
 
 A navigation map already exists: see [.claude/MAP.md](../../.claude/MAP.md) (not repeated here).
 
@@ -8,7 +8,7 @@ A navigation map already exists: see [.claude/MAP.md](../../.claude/MAP.md) (not
 
 | folder | code files here | lines (with sub-folders) |
 |---|---|---|
-| . | 2 | 109984 |
+| . | 2 | 110288 |
 | _old/ | 0 | 11582 |
 |   archive/ | 0 | 8860 |
 |     atlas-pages/ | 4 | 1514 |
@@ -149,53 +149,54 @@ A navigation map already exists: see [.claude/MAP.md](../../.claude/MAP.md) (not
 | docs/ | 0 | 141 |
 |   specs/ | 0 | 141 |
 |     001-pages-and-profiles/ | 1 | 141 |
-| installer/ | 12 | 1084 |
-| payload/ | 0 | 21088 |
-|   css-mods/ | 11 | 2037 |
-|   detractless/ | 2 | 12331 |
-|     src/ | 0 | 12134 |
+| installer/ | 12 | 1103 |
+| payload/ | 0 | 21229 |
+|   css-mods/ | 11 | 2021 |
+|   detractless/ | 2 | 12389 |
+|     src/ | 0 | 12191 |
 |       background/ | 14 | 857 |
-|       components/ | 0 | 3547 |
-|         addPopup/ | 3 | 558 |
-|         bookmarks/ | 5 | 992 |
+|       components/ | 0 | 3577 |
+|         addPopup/ | 5 | 587 |
+|         bookmarks/ | 8 | 988 |
 |         colorLock/ | 1 | 61 |
 |         contextMenu/ | 2 | 203 |
 |         engines/ | 5 | 580 |
 |         search/ | 1 | 256 |
 |         searchDelay/ | 1 | 30 |
-|         shared/ | 4 | 323 |
+|         shared/ | 4 | 328 |
 |         tabLimiter/ | 2 | 131 |
 |         tabs/ | 2 | 413 |
-|       constants/ | 6 | 129 |
-|       pages/ | 0 | 2471 |
+|       constants/ | 6 | 128 |
+|       pages/ | 0 | 2483 |
 |         gate/ | 3 | 311 |
-|         newtab/ | 15 | 2053 |
+|         newtab/ | 16 | 2065 |
 |         shared/ | 1 | 107 |
-|       services/ | 23 | 2451 |
-|       settings/ | 12 | 1244 |
+|       services/ | 23 | 2472 |
+|         bookmarks/ | 1 | 60 |
+|       settings/ | 12 | 1239 |
 |       styles/ | 5 | 598 |
 |       utils/ | 13 | 837 |
-|   extensions/ | 0 | 1278 |
-|     harper/ | 3 | 1278 |
-|   install-files/ | 1 | 5442 |
-|     components/ | 0 | 5276 |
-|       atlas/ | 34 | 5276 |
+|   extensions/ | 0 | 1326 |
+|     harper/ | 4 | 1326 |
+|   install-files/ | 1 | 5493 |
+|     components/ | 0 | 5327 |
+|       atlas/ | 34 | 5327 |
 |         nsfw/ | 5 | 586 |
 |     src/ | 2 | 129 |
-| scripts/ | 15 | 2122 |
+| scripts/ | 15 | 2137 |
 |   social_live/ | 3 | 621 |
 |     plans/ | 8 | 324 |
-| src/ | 0 | 6308 |
-|   modules/ | 40 | 6196 |
+| src/ | 0 | 6400 |
+|   modules/ | 41 | 6288 |
 |   native/ | 0 | 112 |
 |     macos/ | 2 | 112 |
-| tests/ | 0 | 14258 |
+| tests/ | 0 | 14286 |
 |   fixtures/ | 0 | 39 |
 |     social/ | 22 | 39 |
-|   helpers/ | 3 | 211 |
+|   helpers/ | 3 | 233 |
 |   native/ | 2 | 113 |
-|   unit/ | 93 | 13895 |
-|     helpers/ | 9 | 655 |
+|   unit/ | 93 | 13901 |
+|     helpers/ | 9 | 656 |
 
 ## 10 biggest files
 
@@ -207,8 +208,8 @@ A navigation map already exists: see [.claude/MAP.md](../../.claude/MAP.md) (not
 - _old/archive/sidebar-tools/files/payload/detractless/src/pages/sidepanel/sidepanel.js: 964 lines
 - .scratch/install_before_split.py: 964 lines
 - _old/tests-legacy/e2e/test_tier1_features.py: 690 lines
-- payload/extensions/harper/background.js: 629 lines
 - _old/archive/sidebar-tools/files/payload/detractless/src/pages/sidepanel/sidepanel.css: 624 lines
+- payload/extensions/harper/background.js: 544 lines
 
 ## Entry points
 
@@ -370,9 +371,9 @@ A navigation map already exists: see [.claude/MAP.md](../../.claude/MAP.md) (not
 
 - payload/detractless/src/services/storage.js: 29
 - tests/unit/helpers/windowDom.js: 21
+- payload/detractless/src/services/bookmarksDB.js: 18
 - tests/unit/helpers/newtabDom.js: 18
 - .scratch/old_payload/payload/detractless/src/pages/newtab/newtabState.js: 16
-- .scratch/p3/payload/detractless/src/pages/newtab/newtabState.js: 16
 
 ## 5 files that import the most others
 

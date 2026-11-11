@@ -35,10 +35,6 @@ export const toggle = (key, on) =>
   `<button class="sp-toggle" role="switch" data-toggle="${key}" aria-checked="${on}"></button>`;
 export const slider = (key, val, min = 0, max = 100, unit = "%") =>
   `<div class="sp-slider-wrap"><input type="range" class="sp-slider" data-slider="${key}" min="${min}" max="${max}" value="${val}" data-unit="${esc(unit)}"><span class="sp-slider-val">${val}${esc(unit)}</span></div>`;
-/** A one-line text field; saves on change (blur or Enter), wired in shell.js. */
-export const textInput = (key, value, placeholder = "") =>
-  `<input class="sp-input" type="text" data-input="${key}" value="${esc(value)}" placeholder="${esc(placeholder)}" spellcheck="false" autocomplete="off">`;
-
 export const LOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
 export const UNLOCK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.8-1"/></svg>';
 /* What the lock button says in each state of utils/focusLock.js. */
