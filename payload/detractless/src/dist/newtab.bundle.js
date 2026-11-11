@@ -201,39 +201,6 @@
     }
   };
 
-  // src/services/mergeSync.js
-  var TOMBSTONE_WINDOW_MS = 90 * 24 * 60 * 60 * 1e3;
-
-  // src/services/bookmarkSync.js
-  function newBookmarkId() {
-    return typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID() || `bm-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  }
-  function dematerialize(nested, now = Date.now()) {
-    const records = [];
-    let sortIndex = 0;
-    for (const [pageKey, groups] of Object.entries(nested || {})) {
-      if (!pageKey.startsWith("page")) continue;
-      const page = Number(pageKey.slice(4));
-      if (Number.isNaN(page)) continue;
-      for (const [group, list] of Object.entries(groups || {})) {
-        for (const bm of list || []) {
-          if (!bm || bm.name === void 0 && bm.url === void 0) continue;
-          records.push({
-            id: newBookmarkId(),
-            page,
-            group,
-            name: bm.name,
-            url: bm.url,
-            sortIndex: sortIndex++,
-            updatedAt: now,
-            deletedAt: null
-          });
-        }
-      }
-    }
-    return records;
-  }
-
   // src/constants/atlasKeys.json
   var atlasKeys_default = {
     _about: "The one list of Atlas storage keys, databases and ids. archived: data an archived feature left in profiles; kept, not used. The bundles import it, install.py reads it, and tests/unit/storage_keys.test.js checks that code and this file agree. Never rename a key: stored user data uses these names. default: value when the key is absent. backup: carried by Export/Import. importWhen: 'defined' restores any value that is not undefined, 'truthy' only a truthy one. profile: the profilesCore.js category that owns it when profiles keep separate settings.",
@@ -578,6 +545,93 @@
   var storageSet = (area, items) => call(area, "set", items);
   var storageRemove = (area, keys) => call(area, "remove", keys);
 
+  // src/services/mergeSync.js
+  var TOMBSTONE_WINDOW_MS = 90 * 24 * 60 * 60 * 1e3;
+
+  // src/services/bookmarkSync.js
+  function newBookmarkId() {
+    return typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID() || `bm-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+  function dematerialize(nested, now = Date.now()) {
+    const records = [];
+    let sortIndex = 0;
+    for (const [pageKey, groups] of Object.entries(nested || {})) {
+      if (!pageKey.startsWith("page")) continue;
+      const page = Number(pageKey.slice(4));
+      if (Number.isNaN(page)) continue;
+      for (const [group, list] of Object.entries(groups || {})) {
+        for (const bm of list || []) {
+          if (!bm || bm.name === void 0 && bm.url === void 0) continue;
+          records.push({
+            id: newBookmarkId(),
+            page,
+            group,
+            name: bm.name,
+            url: bm.url,
+            sortIndex: sortIndex++,
+            updatedAt: now,
+            deletedAt: null
+          });
+        }
+      }
+    }
+    return records;
+  }
+
+  // src/services/bookmarks/record-store.js
+  var recordStoreMethods = {
+    /** Raw nested-store read, independent of getAllBookmarks(). */
+    async _getAllNestedBookmarks() {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const request = this.db.transaction(["bookmarks"], "readonly").objectStore("bookmarks").getAll();
+        request.onsuccess = () => {
+          const result = {};
+          request.result.forEach((item) => {
+            result[`page${item.page}`] = item.data;
+          });
+          resolve(result);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    },
+    async getBookmarkRecords() {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const request = this.db.transaction(["bookmarkRecords"], "readonly").objectStore("bookmarkRecords").getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+    },
+    /** Rewrite the whole records set in one transaction (clear then put). */
+    async putBookmarkRecords(records) {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const tx = this.db.transaction(["bookmarkRecords"], "readwrite");
+        const store2 = tx.objectStore("bookmarkRecords");
+        store2.clear();
+        for (const record of records) store2.put(record);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+      });
+    },
+    /**
+     * One-time, non-destructive migration. It skips existing records so synced
+     * data is never overwritten by a device that has not migrated yet.
+     */
+    async migrateBookmarksToRecords() {
+      if (!this.db) await this.init();
+      if (await this.getUiPref("bookmarksMigratedToRecords")) return;
+      const existing = await this.getBookmarkRecords();
+      if (existing.length === 0) {
+        const nested = await this._getAllNestedBookmarks();
+        await this.putBookmarkRecords(dematerialize(nested, Date.now()));
+      }
+      await this.setUiPref("bookmarksMigratedToRecords", true);
+    }
+  };
+
   // src/services/bookmarksDB.js
   function createStores(db) {
     db.onversionchange = () => {
@@ -619,6 +673,7 @@
     // KEPT, not dropped — it is the backout snapshot until Phase 12 is proven.
     version: 7,
     db: null,
+    ...recordStoreMethods,
     async init() {
       if (!this.fixedName && window.AtlasProfiles) {
         await window.AtlasProfiles.ready;
@@ -757,29 +812,6 @@
         request.onerror = () => reject(request.error);
       });
     },
-    // ── Bookmark records (Phase 12) ──────────────────────────────────────────
-    //
-    // The nested `bookmarks` store above is the OLD form. Records are the new
-    // merge-owned form. During Phase 12 both exist; the nested store is the backout
-    // snapshot. `getAllBookmarks` still reads nested here (Landing A) and is
-    // repointed to materialise from records in Landing B — which is why the
-    // migration below uses its own raw reader rather than getAllBookmarks, so it
-    // keeps reading the ORIGINAL nested data whatever getAllBookmarks becomes.
-    /** Raw read of the nested `bookmarks` store, independent of getAllBookmarks. */
-    async _getAllNestedBookmarks() {
-      if (!this.db) await this.init();
-      return new Promise((resolve, reject) => {
-        const request = this.db.transaction(["bookmarks"], "readonly").objectStore("bookmarks").getAll();
-        request.onsuccess = () => {
-          const result = {};
-          request.result.forEach((item) => {
-            result[`page${item.page}`] = item.data;
-          });
-          resolve(result);
-        };
-        request.onerror = () => reject(request.error);
-      });
-    },
     /* ── Notes (side panel) ──────────────────────────────────────────────
          Deliberately in THIS database rather than a new one, and deliberately in the
          `notes` store v6 already created. Two consequences worth stating: reset
@@ -824,43 +856,6 @@
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
       });
-    },
-    async getBookmarkRecords() {
-      if (!this.db) await this.init();
-      return new Promise((resolve, reject) => {
-        const request = this.db.transaction(["bookmarkRecords"], "readonly").objectStore("bookmarkRecords").getAll();
-        request.onsuccess = () => resolve(request.result || []);
-        request.onerror = () => reject(request.error);
-      });
-    },
-    /** Rewrite the whole records set in one transaction (clear then put). */
-    async putBookmarkRecords(records) {
-      if (!this.db) await this.init();
-      return new Promise((resolve, reject) => {
-        const tx = this.db.transaction(["bookmarkRecords"], "readwrite");
-        const store2 = tx.objectStore("bookmarkRecords");
-        store2.clear();
-        for (const record of records) store2.put(record);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error);
-      });
-    },
-    /**
-     * One-time, NON-DESTRUCTIVE migration: dematerialise the nested bookmarks into
-     * records. The nested store is left untouched. Gated by a flag so it runs once;
-     * it also no-ops if records already exist, so a device that has synced records
-     * down before its own migration ran does not clobber them.
-     */
-    async migrateBookmarksToRecords() {
-      if (!this.db) await this.init();
-      if (await this.getUiPref("bookmarksMigratedToRecords")) return;
-      const existing = await this.getBookmarkRecords();
-      if (existing.length === 0) {
-        const nested = await this._getAllNestedBookmarks();
-        await this.putBookmarkRecords(dematerialize(nested, Date.now()));
-      }
-      await this.setUiPref("bookmarksMigratedToRecords", true);
     },
     async importAllBookmarks(data) {
       if (!this.db) await this.init();

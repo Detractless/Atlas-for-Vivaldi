@@ -1,6 +1,6 @@
-import { dematerialize } from './bookmarkSync.js';
 import { BOOKMARKS_DB } from '../constants/storageKeys.js';
 import { storageGet, storageRemove, storageSet } from './storage.js';
+import { recordStoreMethods } from './bookmarks/record-store.js';
 
 /* Every store this database has ever had, created on first upgrade or added
    in place later. Kept out of init's promise so it reads as connect, then use. */
@@ -53,6 +53,7 @@ export const BookmarkDB = {
   // KEPT, not dropped — it is the backout snapshot until Phase 12 is proven.
   version: 7,
   db: null,
+  ...recordStoreMethods,
 
   async init() {
     // Atlas: each profile may own its bookmarks database (profilesCore.js).
@@ -193,30 +194,6 @@ export const BookmarkDB = {
     });
   },
 
-  // ── Bookmark records (Phase 12) ──────────────────────────────────────────
-  //
-  // The nested `bookmarks` store above is the OLD form. Records are the new
-  // merge-owned form. During Phase 12 both exist; the nested store is the backout
-  // snapshot. `getAllBookmarks` still reads nested here (Landing A) and is
-  // repointed to materialise from records in Landing B — which is why the
-  // migration below uses its own raw reader rather than getAllBookmarks, so it
-  // keeps reading the ORIGINAL nested data whatever getAllBookmarks becomes.
-
-  /** Raw read of the nested `bookmarks` store, independent of getAllBookmarks. */
-  async _getAllNestedBookmarks() {
-    if (!this.db) await this.init();
-    return new Promise((resolve, reject) => {
-      const request = this.db.transaction(['bookmarks'], 'readonly')
-        .objectStore('bookmarks').getAll();
-      request.onsuccess = () => {
-        const result = {};
-        request.result.forEach(item => { result[`page${item.page}`] = item.data; });
-        resolve(result);
-      };
-      request.onerror = () => reject(request.error);
-    });
-  },
-
   /* ── Notes (side panel) ──────────────────────────────────────────────
      Deliberately in THIS database rather than a new one, and deliberately in the
      `notes` store v6 already created. Two consequences worth stating: reset
@@ -266,48 +243,6 @@ export const BookmarkDB = {
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
     });
-  },
-
-  async getBookmarkRecords() {
-    if (!this.db) await this.init();
-    return new Promise((resolve, reject) => {
-      const request = this.db.transaction(['bookmarkRecords'], 'readonly')
-        .objectStore('bookmarkRecords').getAll();
-      request.onsuccess = () => resolve(request.result || []);
-      request.onerror = () => reject(request.error);
-    });
-  },
-
-  /** Rewrite the whole records set in one transaction (clear then put). */
-  async putBookmarkRecords(records) {
-    if (!this.db) await this.init();
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction(['bookmarkRecords'], 'readwrite');
-      const store = tx.objectStore('bookmarkRecords');
-      store.clear();
-      for (const record of records) store.put(record);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error);
-    });
-  },
-
-  /**
-   * One-time, NON-DESTRUCTIVE migration: dematerialise the nested bookmarks into
-   * records. The nested store is left untouched. Gated by a flag so it runs once;
-   * it also no-ops if records already exist, so a device that has synced records
-   * down before its own migration ran does not clobber them.
-   */
-  async migrateBookmarksToRecords() {
-    if (!this.db) await this.init();
-    if (await this.getUiPref('bookmarksMigratedToRecords')) return;
-
-    const existing = await this.getBookmarkRecords();
-    if (existing.length === 0) {
-      const nested = await this._getAllNestedBookmarks();
-      await this.putBookmarkRecords(dematerialize(nested, Date.now()));
-    }
-    await this.setUiPref('bookmarksMigratedToRecords', true);
   },
 
   async importAllBookmarks(data) {
