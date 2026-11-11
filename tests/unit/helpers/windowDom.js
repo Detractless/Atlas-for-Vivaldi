@@ -9,6 +9,7 @@ const path = require("path");
 require("./jsdomNavigation");
 const { JSDOM, VirtualConsole, requestInterceptor } = require("jsdom");
 const { IDBFactory, IDBKeyRange } = require("fake-indexeddb");
+const { captureJsdomErrors } = require("../../helpers/jsdom-error-capture");
 const { makeFakeChrome } = require("./fakeChrome");
 
 const ROOT = path.resolve(__dirname, "..", "..", "..");
@@ -68,11 +69,7 @@ function windowChrome(window, seed, calls, listeners, apis) {
 async function openWindow(opts = {}) {
   const errors = [];
   const virtualConsole = new VirtualConsole();
-  virtualConsole.on("jsdomError", (err) => {
-    if (err.type === "css-parsing" || err.type === "not-implemented") return;
-    errors.push(`${err.type}: ${(err.cause && err.cause.stack) || err.message}`);
-  });
-  virtualConsole.on("error", (...args) => errors.push("console.error: " + args.map(String).join(" ")));
+  captureJsdomErrors(virtualConsole, errors);
   const calls = [], listeners = {};
   let fake;
   const html = `<!DOCTYPE html><html><head></head><body>

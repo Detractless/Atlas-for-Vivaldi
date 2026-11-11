@@ -10,6 +10,7 @@ require("./jsdomNavigation"); // must load before jsdom
 const { JSDOM, VirtualConsole, requestInterceptor } = require("jsdom");
 const { IDBFactory, IDBKeyRange } = require("fake-indexeddb");
 const { makeFakeChrome } = require("./fakeChrome");
+const { captureJsdomErrors } = require("../../helpers/jsdom-error-capture");
 
 const ROOT = path.resolve(__dirname, "..", "..", "..");
 const PAGE_ROOT = path.join(ROOT, "payload", "detractless");
@@ -61,11 +62,7 @@ async function openNewTab(opts = {}) {
   const root = path.resolve(opts.root || process.env.ATLAS_PAGE_ROOT || PAGE_ROOT);
   const errors = [];
   const virtualConsole = new VirtualConsole();
-  virtualConsole.on("jsdomError", (err) => {
-    if (err.type === "css-parsing" || err.type === "not-implemented") return;
-    errors.push(`${err.type}: ${(err.cause && err.cause.stack) || err.message}`);
-  });
-  virtualConsole.on("error", (...args) => errors.push("console.error: " + args.map(String).join(" ")));
+  captureJsdomErrors(virtualConsole, errors);
 
   let fake;
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
