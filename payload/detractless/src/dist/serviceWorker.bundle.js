@@ -1019,6 +1019,37 @@
   var BACKUP_SYNC_KEYS = Object.keys(atlasKeys_default.sync).filter((k) => atlasKeys_default.sync[k].backup).map((k) => ({ key: k, importWhen: atlasKeys_default.sync[k].importWhen || "defined" }));
 
   // src/services/bookmarksDB.js
+  function createStores(db) {
+    db.onversionchange = () => {
+      try {
+        db.close();
+      } catch (_) {
+      }
+    };
+    if (!db.objectStoreNames.contains("bookmarks")) db.createObjectStore("bookmarks", { keyPath: "page" });
+    if (!db.objectStoreNames.contains("icons")) db.createObjectStore("icons");
+    if (!db.objectStoreNames.contains("usage")) db.createObjectStore("usage", { keyPath: "url" });
+    if (!db.objectStoreNames.contains("uiPrefs")) {
+      const store = db.createObjectStore("uiPrefs", { keyPath: "key" });
+      const stash = typeof localStorage !== "undefined" ? localStorage : null;
+      const themePref = stash && stash.getItem("themePref");
+      const uiScaleStr = stash && stash.getItem("uiScale");
+      if (themePref) store.put({ key: "themePref", value: themePref });
+      if (uiScaleStr !== null) {
+        const scale = parseFloat(uiScaleStr);
+        if (!isNaN(scale)) store.put({ key: "uiScale", value: scale });
+      }
+      if (stash) {
+        stash.removeItem("themePref");
+        stash.removeItem("uiScale");
+      }
+    }
+    if (!db.objectStoreNames.contains("notes")) db.createObjectStore("notes", { keyPath: "id" });
+    if (!db.objectStoreNames.contains("events")) db.createObjectStore("events", { keyPath: "id" });
+    if (!db.objectStoreNames.contains("bookmarkRecords")) {
+      db.createObjectStore("bookmarkRecords", { keyPath: "id" });
+    }
+  }
   var BookmarkDB = {
     dbName: BOOKMARKS_DB,
     // v6 added the `notes` and `events` stores. Both features have been removed and
@@ -1060,38 +1091,7 @@
           };
           resolve(this.db);
         };
-        request.onupgradeneeded = (event) => {
-          const db = event.target.result;
-          db.onversionchange = () => {
-            try {
-              db.close();
-            } catch (_) {
-            }
-          };
-          if (!db.objectStoreNames.contains("bookmarks")) db.createObjectStore("bookmarks", { keyPath: "page" });
-          if (!db.objectStoreNames.contains("icons")) db.createObjectStore("icons");
-          if (!db.objectStoreNames.contains("usage")) db.createObjectStore("usage", { keyPath: "url" });
-          if (!db.objectStoreNames.contains("uiPrefs")) {
-            const store = db.createObjectStore("uiPrefs", { keyPath: "key" });
-            const stash = typeof localStorage !== "undefined" ? localStorage : null;
-            const themePref = stash && stash.getItem("themePref");
-            const uiScaleStr = stash && stash.getItem("uiScale");
-            if (themePref) store.put({ key: "themePref", value: themePref });
-            if (uiScaleStr !== null) {
-              const scale = parseFloat(uiScaleStr);
-              if (!isNaN(scale)) store.put({ key: "uiScale", value: scale });
-            }
-            if (stash) {
-              stash.removeItem("themePref");
-              stash.removeItem("uiScale");
-            }
-          }
-          if (!db.objectStoreNames.contains("notes")) db.createObjectStore("notes", { keyPath: "id" });
-          if (!db.objectStoreNames.contains("events")) db.createObjectStore("events", { keyPath: "id" });
-          if (!db.objectStoreNames.contains("bookmarkRecords")) {
-            db.createObjectStore("bookmarkRecords", { keyPath: "id" });
-          }
-        };
+        request.onupgradeneeded = (event) => createStores(event.target.result);
       });
     },
     async getUiPref(key) {

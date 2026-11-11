@@ -579,6 +579,37 @@
   var storageRemove = (area, keys) => call(area, "remove", keys);
 
   // src/services/bookmarksDB.js
+  function createStores(db) {
+    db.onversionchange = () => {
+      try {
+        db.close();
+      } catch (_) {
+      }
+    };
+    if (!db.objectStoreNames.contains("bookmarks")) db.createObjectStore("bookmarks", { keyPath: "page" });
+    if (!db.objectStoreNames.contains("icons")) db.createObjectStore("icons");
+    if (!db.objectStoreNames.contains("usage")) db.createObjectStore("usage", { keyPath: "url" });
+    if (!db.objectStoreNames.contains("uiPrefs")) {
+      const store2 = db.createObjectStore("uiPrefs", { keyPath: "key" });
+      const stash = typeof localStorage !== "undefined" ? localStorage : null;
+      const themePref = stash && stash.getItem("themePref");
+      const uiScaleStr = stash && stash.getItem("uiScale");
+      if (themePref) store2.put({ key: "themePref", value: themePref });
+      if (uiScaleStr !== null) {
+        const scale = parseFloat(uiScaleStr);
+        if (!isNaN(scale)) store2.put({ key: "uiScale", value: scale });
+      }
+      if (stash) {
+        stash.removeItem("themePref");
+        stash.removeItem("uiScale");
+      }
+    }
+    if (!db.objectStoreNames.contains("notes")) db.createObjectStore("notes", { keyPath: "id" });
+    if (!db.objectStoreNames.contains("events")) db.createObjectStore("events", { keyPath: "id" });
+    if (!db.objectStoreNames.contains("bookmarkRecords")) {
+      db.createObjectStore("bookmarkRecords", { keyPath: "id" });
+    }
+  }
   var BookmarkDB = {
     dbName: BOOKMARKS_DB,
     // v6 added the `notes` and `events` stores. Both features have been removed and
@@ -620,38 +651,7 @@
           };
           resolve(this.db);
         };
-        request.onupgradeneeded = (event) => {
-          const db = event.target.result;
-          db.onversionchange = () => {
-            try {
-              db.close();
-            } catch (_) {
-            }
-          };
-          if (!db.objectStoreNames.contains("bookmarks")) db.createObjectStore("bookmarks", { keyPath: "page" });
-          if (!db.objectStoreNames.contains("icons")) db.createObjectStore("icons");
-          if (!db.objectStoreNames.contains("usage")) db.createObjectStore("usage", { keyPath: "url" });
-          if (!db.objectStoreNames.contains("uiPrefs")) {
-            const store2 = db.createObjectStore("uiPrefs", { keyPath: "key" });
-            const stash = typeof localStorage !== "undefined" ? localStorage : null;
-            const themePref = stash && stash.getItem("themePref");
-            const uiScaleStr = stash && stash.getItem("uiScale");
-            if (themePref) store2.put({ key: "themePref", value: themePref });
-            if (uiScaleStr !== null) {
-              const scale = parseFloat(uiScaleStr);
-              if (!isNaN(scale)) store2.put({ key: "uiScale", value: scale });
-            }
-            if (stash) {
-              stash.removeItem("themePref");
-              stash.removeItem("uiScale");
-            }
-          }
-          if (!db.objectStoreNames.contains("notes")) db.createObjectStore("notes", { keyPath: "id" });
-          if (!db.objectStoreNames.contains("events")) db.createObjectStore("events", { keyPath: "id" });
-          if (!db.objectStoreNames.contains("bookmarkRecords")) {
-            db.createObjectStore("bookmarkRecords", { keyPath: "id" });
-          }
-        };
+        request.onupgradeneeded = (event) => createStores(event.target.result);
       });
     },
     async getUiPref(key) {
@@ -2801,19 +2801,9 @@
   // src/components/shared/subpageNav.js
   var BACK_GLYPH = "\u2039";
   var CLOSE_GLYPH = "\xD7";
-  function createSubpageNav(spec) {
-    const {
-      panels,
-      home,
-      title,
-      closeBtn,
-      homeTitle,
-      panelAttr = "data-subpage",
-      titleAttr = "subpageTitle"
-    } = spec;
+  function makeSetChrome(title, closeBtn) {
     const q = (sel) => document.querySelector(sel);
-    const qa = (sel) => document.querySelectorAll(sel);
-    function setChrome(text, mode) {
+    return function setChrome(text, mode) {
       const titleEl = q(title);
       const btn = q(closeBtn);
       if (titleEl) titleEl.textContent = text;
@@ -2827,7 +2817,21 @@
         btn.title = "Close";
         delete btn.dataset.navMode;
       }
-    }
+    };
+  }
+  function createSubpageNav(spec) {
+    const {
+      panels,
+      home,
+      title,
+      closeBtn,
+      homeTitle,
+      panelAttr = "data-subpage",
+      titleAttr = "subpageTitle"
+    } = spec;
+    const q = (sel) => document.querySelector(sel);
+    const qa = (sel) => document.querySelectorAll(sel);
+    const setChrome = makeSetChrome(title, closeBtn);
     function open(name, customTitle) {
       const page = q(`${panels}[${panelAttr}="${name}"]`);
       const homeEl = q(home);
@@ -5342,6 +5346,15 @@
       exportedAt: now,
       producers: mergeProducers(previousManifest)
     };
+    const { pkManifest, csvRows } = pastekitParts(pastekitExport, now);
+    const entries2 = keepForeignEntries(passthrough);
+    entries2[FILE_MANIFEST] = strToU8(JSON.stringify(outerManifest, null, 2));
+    entries2[NEWTAB_CONFIG] = strToU8(JSON.stringify(detractlessConfig, null, 2));
+    entries2[SHARED_PK_MANIFEST] = strToU8(JSON.stringify(pkManifest, null, 2));
+    entries2[SHARED_PK_CSV] = strToU8(toCsv(csvRows));
+    return zipSync(entries2);
+  }
+  function pastekitParts(pastekitExport, now) {
     const pkFolders = (pastekitExport.folders || []).map((f) => ({
       xid: f.xid,
       name: f.name,
@@ -5364,6 +5377,9 @@
       createdAt: s2.createdAt || "",
       updatedAt: s2.updatedAt || ""
     }));
+    return { pkManifest, csvRows };
+  }
+  function keepForeignEntries(passthrough) {
     const entries2 = {};
     if (passthrough) {
       for (const [path, bytes] of Object.entries(passthrough)) {
@@ -5373,11 +5389,27 @@
         entries2[path] = bytes;
       }
     }
-    entries2[FILE_MANIFEST] = strToU8(JSON.stringify(outerManifest, null, 2));
-    entries2[NEWTAB_CONFIG] = strToU8(JSON.stringify(detractlessConfig, null, 2));
-    entries2[SHARED_PK_MANIFEST] = strToU8(JSON.stringify(pkManifest, null, 2));
-    entries2[SHARED_PK_CSV] = strToU8(toCsv(csvRows));
-    return zipSync(entries2);
+    return entries2;
+  }
+  function normalizePaths(rawEntries) {
+    const out = {};
+    for (const [path, bytes] of Object.entries(rawEntries)) out[path.replace(/\\/g, "/")] = bytes;
+    return out;
+  }
+  function readOuterManifest(entries2) {
+    let outerManifest;
+    try {
+      outerManifest = JSON.parse(strFromU8(entries2[FILE_MANIFEST]));
+    } catch (_) {
+      throw new Error(".detractless: manifest.json is not valid JSON");
+    }
+    if (outerManifest.format !== FORMAT) throw new Error("Not a Detractless archive");
+    const version = parseInt(outerManifest.version, 10);
+    if (!Number.isFinite(version)) throw new Error(".detractless: missing version");
+    if (version > FORMAT_VERSION) {
+      throw new Error(`.detractless: file is from a newer version (${version}) \u2014 update Detractless to open it`);
+    }
+    return version;
   }
   function parsePastekit(manifestBytes, csvBytes) {
     let pkManifest;
@@ -5419,26 +5451,9 @@
     return "unknown";
   }
   function importDetractless(rawEntries) {
-    let entries2;
-    entries2 = rawEntries;
-    const normalizedEntries = {};
-    for (const [path, bytes] of Object.entries(entries2)) {
-      normalizedEntries[path.replace(/\\/g, "/")] = bytes;
-    }
-    entries2 = normalizedEntries;
+    const entries2 = normalizePaths(rawEntries);
     if (!entries2[FILE_MANIFEST]) throw new Error(".detractless: manifest.json missing");
-    let outerManifest;
-    try {
-      outerManifest = JSON.parse(strFromU8(entries2[FILE_MANIFEST]));
-    } catch (_) {
-      throw new Error(".detractless: manifest.json is not valid JSON");
-    }
-    if (outerManifest.format !== FORMAT) throw new Error("Not a Detractless archive");
-    const version = parseInt(outerManifest.version, 10);
-    if (!Number.isFinite(version)) throw new Error(".detractless: missing version");
-    if (version > FORMAT_VERSION) {
-      throw new Error(`.detractless: file is from a newer version (${version}) \u2014 update Detractless to open it`);
-    }
+    const version = readOuterManifest(entries2);
     const layout = detectLayout(entries2, version);
     if (layout === "unknown") {
       throw new Error(".detractless: unrecognised archive layout (no newtab or launcher data)");

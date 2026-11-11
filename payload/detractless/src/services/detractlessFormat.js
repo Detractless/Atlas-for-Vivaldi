@@ -100,6 +100,21 @@ export function exportDetractless({ detractlessConfig, pastekitExport, passthrou
     producers: mergeProducers(previousManifest),
   };
 
+  const { pkManifest, csvRows } = pastekitParts(pastekitExport, now);
+
+  const entries = keepForeignEntries(passthrough);
+
+  // 2. Our own namespaces, freshly written.
+  entries[FILE_MANIFEST] = strToU8(JSON.stringify(outerManifest, null, 2));
+  entries[NEWTAB_CONFIG] = strToU8(JSON.stringify(detractlessConfig, null, 2));
+  entries[SHARED_PK_MANIFEST] = strToU8(JSON.stringify(pkManifest, null, 2));
+  entries[SHARED_PK_CSV] = strToU8(toCsv(csvRows));
+
+  return zipSync(entries);
+}
+
+/* The manifest entries this extension wrote, from one export for one moment. */
+function pastekitParts(pastekitExport, now) {
   const pkFolders = (pastekitExport.folders || []).map(f => ({
     xid: f.xid,
     name: f.name,
@@ -124,9 +139,14 @@ export function exportDetractless({ detractlessConfig, pastekitExport, passthrou
     createdAt: s.createdAt || '',
     updatedAt: s.updatedAt || '',
   }));
+  return { pkManifest, csvRows };
+}
 
+/* Everything in the archive we do NOT own, copied out verbatim: v1 entries are
+   skipped (already lifted into our namespaces) and `sync/` never survives.
+   THE CREDENTIAL GUARD: `sync/` must not carry a legacy GitHub token public. */
+function keepForeignEntries(passthrough) {
   const entries = {};
-
   // 1. Everything we do NOT own, copied verbatim from the archive we read.
   //    v1 entries are skipped: importDetractless has already lifted them into
   //    our namespaces, so re-emitting them would duplicate the data.
@@ -142,14 +162,31 @@ export function exportDetractless({ detractlessConfig, pastekitExport, passthrou
       entries[path] = bytes;
     }
   }
+  return entries;
+}
 
-  // 2. Our own namespaces, freshly written.
-  entries[FILE_MANIFEST] = strToU8(JSON.stringify(outerManifest, null, 2));
-  entries[NEWTAB_CONFIG] = strToU8(JSON.stringify(detractlessConfig, null, 2));
-  entries[SHARED_PK_MANIFEST] = strToU8(JSON.stringify(pkManifest, null, 2));
-  entries[SHARED_PK_CSV] = strToU8(toCsv(csvRows));
+/* ZIP tools on Windows store `\` in entry names; one pass makes lookups work. */
+function normalizePaths(rawEntries) {
+  const out = {};
+  for (const [path, bytes] of Object.entries(rawEntries)) out[path.replace(/\\/g, '/')] = bytes;
+  return out;
+}
 
-  return zipSync(entries);
+/* The archive's own manifest, checked before anything else is read. */
+function readOuterManifest(entries) {
+  let outerManifest;
+  try {
+    outerManifest = JSON.parse(strFromU8(entries[FILE_MANIFEST]));
+  } catch (_) {
+    throw new Error('.detractless: manifest.json is not valid JSON');
+  }
+  if (outerManifest.format !== FORMAT) throw new Error('Not a Detractless archive');
+  const version = parseInt(outerManifest.version, 10);
+  if (!Number.isFinite(version)) throw new Error('.detractless: missing version');
+  if (version > FORMAT_VERSION) {
+    throw new Error(`.detractless: file is from a newer version (${version}) — update Detractless to open it`);
+  }
+  return version;
 }
 
 // Parse the PasteKit pair (manifest + CSV) from wherever it lives.
@@ -217,33 +254,11 @@ function detectLayout(entries, version) {
 export function importDetractless(rawEntries) {
   // rawEntries is a {filename: Uint8Array} map, produced by openArchive's
   // async chunked inflate. Normalize path separators then proceed.
-  let entries;
-  entries = rawEntries;
-
-  // Normalize path separators. PowerShell and some Windows ZIP tools store
-  // entry names with backslashes. fflate returns raw bytes, so a lookup for
-  // 'newtab/config.json' would silently miss 'newtab\\config.json'. One
-  // remapping pass makes imports work regardless of which tool created the ZIP.
-  const normalizedEntries = {};
-  for (const [path, bytes] of Object.entries(entries)) {
-    normalizedEntries[path.replace(/\\/g, '/')] = bytes;
-  }
-  entries = normalizedEntries;
+  const entries = normalizePaths(rawEntries);
 
   if (!entries[FILE_MANIFEST]) throw new Error('.detractless: manifest.json missing');
 
-  let outerManifest;
-  try {
-    outerManifest = JSON.parse(strFromU8(entries[FILE_MANIFEST]));
-  } catch (_) {
-    throw new Error('.detractless: manifest.json is not valid JSON');
-  }
-  if (outerManifest.format !== FORMAT) throw new Error('Not a Detractless archive');
-  const version = parseInt(outerManifest.version, 10);
-  if (!Number.isFinite(version)) throw new Error('.detractless: missing version');
-  if (version > FORMAT_VERSION) {
-    throw new Error(`.detractless: file is from a newer version (${version}) — update Detractless to open it`);
-  }
+  const version = readOuterManifest(entries);
 
   const layout = detectLayout(entries, version);
   if (layout === 'unknown') {

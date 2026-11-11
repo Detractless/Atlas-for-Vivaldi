@@ -2,6 +2,48 @@ import { dematerialize } from './bookmarkSync.js';
 import { BOOKMARKS_DB } from '../constants/storageKeys.js';
 import { storageGet, storageRemove, storageSet } from './storage.js';
 
+/* Every store this database has ever had, created on first upgrade or added
+   in place later. Kept out of init's promise so it reads as connect, then use. */
+function createStores(db) {
+  db.onversionchange = () => {
+    try { db.close(); } catch (_) { /* already closed */ }
+  };
+  if (!db.objectStoreNames.contains('bookmarks')) db.createObjectStore('bookmarks', { keyPath: 'page' });
+  if (!db.objectStoreNames.contains('icons')) db.createObjectStore('icons');
+  if (!db.objectStoreNames.contains('usage')) db.createObjectStore('usage', { keyPath: 'url' });
+  if (!db.objectStoreNames.contains('uiPrefs')) {
+    const store = db.createObjectStore('uiPrefs', { keyPath: 'key' });
+    // One-time migration from localStorage on first upgrade to v4.
+    const stash = typeof localStorage !== 'undefined' ? localStorage : null;   // not there in the service worker
+    const themePref = stash && stash.getItem('themePref');
+    const uiScaleStr = stash && stash.getItem('uiScale');
+    if (themePref) store.put({ key: 'themePref', value: themePref });
+    if (uiScaleStr !== null) {
+      const scale = parseFloat(uiScaleStr);
+      if (!isNaN(scale)) store.put({ key: 'uiScale', value: scale });
+    }
+    if (stash) { stash.removeItem('themePref'); stash.removeItem('uiScale'); }
+  }
+  // v6. `notes` is LIVE AGAIN: the side-panel notes feature reads and writes
+  // it through listNotes/saveNote/deleteNote below. Keeping the store rather
+  // than opening a second database was the point of never dropping it, and
+  // it means reset already covers notes, since resetService deletes this
+  // whole database.
+  //
+  // `events` is still vestigial. Nothing reads or writes it. It stays for
+  // the original reason: dropping it means a v8 migration that destroys the
+  // only remaining copy of anything left in it, and that should be a
+  // deliberate, separate decision.
+  if (!db.objectStoreNames.contains('notes')) db.createObjectStore('notes', { keyPath: 'id' });
+  if (!db.objectStoreNames.contains('events')) db.createObjectStore('events', { keyPath: 'id' });
+  // v7 (Phase 12). Populated from the nested `bookmarks` store by
+  // migrateBookmarksToRecords() at init — not here, because that read+write
+  // across stores is easier to reason about outside the upgrade transaction.
+  if (!db.objectStoreNames.contains('bookmarkRecords')) {
+    db.createObjectStore('bookmarkRecords', { keyPath: 'id' });
+  }
+}
+
 export const BookmarkDB = {
   dbName: BOOKMARKS_DB,
   // v6 added the `notes` and `events` stores. Both features have been removed and
@@ -36,46 +78,7 @@ export const BookmarkDB = {
         };
         resolve(this.db);
       };
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-        db.onversionchange = () => {
-          try { db.close(); } catch (_) { /* already closed */ }
-        };
-        if (!db.objectStoreNames.contains('bookmarks')) db.createObjectStore('bookmarks', { keyPath: 'page' });
-        if (!db.objectStoreNames.contains('icons')) db.createObjectStore('icons');
-        if (!db.objectStoreNames.contains('usage')) db.createObjectStore('usage', { keyPath: 'url' });
-        if (!db.objectStoreNames.contains('uiPrefs')) {
-          const store = db.createObjectStore('uiPrefs', { keyPath: 'key' });
-          // One-time migration from localStorage on first upgrade to v4.
-          const stash = typeof localStorage !== 'undefined' ? localStorage : null;   // not there in the service worker
-          const themePref = stash && stash.getItem('themePref');
-          const uiScaleStr = stash && stash.getItem('uiScale');
-          if (themePref) store.put({ key: 'themePref', value: themePref });
-          if (uiScaleStr !== null) {
-            const scale = parseFloat(uiScaleStr);
-            if (!isNaN(scale)) store.put({ key: 'uiScale', value: scale });
-          }
-          if (stash) { stash.removeItem('themePref'); stash.removeItem('uiScale'); }
-        }
-        // v6. `notes` is LIVE AGAIN: the side-panel notes feature reads and writes
-        // it through listNotes/saveNote/deleteNote below. Keeping the store rather
-        // than opening a second database was the point of never dropping it, and
-        // it means reset already covers notes, since resetService deletes this
-        // whole database.
-        //
-        // `events` is still vestigial. Nothing reads or writes it. It stays for
-        // the original reason: dropping it means a v8 migration that destroys the
-        // only remaining copy of anything left in it, and that should be a
-        // deliberate, separate decision.
-        if (!db.objectStoreNames.contains('notes')) db.createObjectStore('notes', { keyPath: 'id' });
-        if (!db.objectStoreNames.contains('events')) db.createObjectStore('events', { keyPath: 'id' });
-        // v7 (Phase 12). Populated from the nested `bookmarks` store by
-        // migrateBookmarksToRecords() at init — not here, because that read+write
-        // across stores is easier to reason about outside the upgrade transaction.
-        if (!db.objectStoreNames.contains('bookmarkRecords')) {
-          db.createObjectStore('bookmarkRecords', { keyPath: 'id' });
-        }
-      };
+      request.onupgradeneeded = (event) => createStores(event.target.result);
     });
   },
 

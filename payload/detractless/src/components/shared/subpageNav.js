@@ -26,6 +26,24 @@
 const BACK_GLYPH  = '‹';
 const CLOSE_GLYPH = '×';
 
+/* The one place a card's title and its close/back button change together. */
+function makeSetChrome(title, closeBtn) {
+  const q = (sel) => document.querySelector(sel);
+  return function setChrome(text, mode) {
+    const titleEl = q(title);
+    const btn     = q(closeBtn);
+    if (titleEl) titleEl.textContent = text;
+    if (!btn) return;
+    if (mode === 'back') {
+      btn.textContent = BACK_GLYPH; btn.title = 'Back';
+      btn.dataset.navMode = 'back';
+    } else {
+      btn.textContent = CLOSE_GLYPH; btn.title = 'Close';
+      delete btn.dataset.navMode;
+    }
+  };
+}
+
 /**
  * @param {object} spec
  * @param {string} spec.panels    selector for every subpage panel in the card
@@ -54,20 +72,7 @@ export function createSubpageNav(spec) {
   const q  = (sel) => document.querySelector(sel);
   const qa = (sel) => document.querySelectorAll(sel);
 
-  // The one place the four writes happen together.
-  function setChrome(text, mode) {
-    const titleEl = q(title);
-    const btn     = q(closeBtn);
-    if (titleEl) titleEl.textContent = text;
-    if (!btn) return;
-    if (mode === 'back') {
-      btn.textContent = BACK_GLYPH; btn.title = 'Back';
-      btn.dataset.navMode = 'back';
-    } else {
-      btn.textContent = CLOSE_GLYPH; btn.title = 'Close';
-      delete btn.dataset.navMode;
-    }
-  }
+  const setChrome = makeSetChrome(title, closeBtn);
 
   function open(name, customTitle) {
     const page   = q(`${panels}[${panelAttr}="${name}"]`);
