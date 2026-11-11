@@ -23,6 +23,7 @@
         "<all_urls>"
       ],
       "js": [
+        "typo-map.js",
         "content.js"
       ],
       "css": [

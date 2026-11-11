@@ -7,24 +7,6 @@
   if (window.__harperContentScriptLoaded) return;
   window.__harperContentScriptLoaded = true;
 
-  // ── Local Fallback Typo Map ────────────────────────────────────────────────
-  const LOCAL_TYPOS = {
-    'teh': ['the'],
-    'definately': ['definitely'],
-    'recieve': ['receive'],
-    'seperate': ['separate'],
-    'adress': ['address'],
-    'wierd': ['weird'],
-    'occured': ['occurred'],
-    'untill': ['until'],
-    'succesful': ['successful'],
-    'neccessary': ['necessary'],
-    'alot': ['a lot'],
-    'beleive': ['believe'],
-    'truely': ['truly'],
-    'tommorrow': ['tomorrow']
-  };
-
   // State
   let activeElement = null;
   let activeIssues = [];
@@ -104,7 +86,7 @@
     while ((match = wordRegex.exec(text)) !== null) {
       const raw = match[1];
       const lower = raw.toLowerCase();
-      if (LOCAL_TYPOS[lower]) {
+      if (HARPER_TYPOS[lower]) {
         issues.push({
           id: 'sp_' + match.index,
           type: 'spelling',
@@ -112,7 +94,7 @@
           end: match.index + raw.length,
           matchedText: raw,
           message: `Possible spelling mistake: '${raw}'`,
-          suggestions: LOCAL_TYPOS[lower]
+          suggestions: HARPER_TYPOS[lower]
         });
       }
     }
