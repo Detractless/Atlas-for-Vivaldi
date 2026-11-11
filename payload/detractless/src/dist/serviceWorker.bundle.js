@@ -106,38 +106,7 @@
     }
   }
 
-  // src/services/log.js
-  function warn(where, err) {
-    try {
-      console.warn("[Atlas] " + where, err);
-    } catch (e) {
-    }
-  }
-
-  // src/services/storage.js
-  function call(area, op, arg) {
-    const chrome2 = globalThis.chrome;
-    return new Promise((resolve) => {
-      const done = (result) => {
-        const err = chrome2.runtime && chrome2.runtime.lastError;
-        if (err) warn(`chrome.storage.${area}.${op} failed`, err);
-        resolve(result);
-      };
-      try {
-        if (arg === void 0) chrome2.storage[area][op](done);
-        else chrome2.storage[area][op](arg, done);
-      } catch (e) {
-        warn(`chrome.storage.${area}.${op} threw`, e);
-        resolve(void 0);
-      }
-    });
-  }
-  var storageGet = (area, keys) => call(area, "get", keys).then((r) => r || {});
-  var storageSet = (area, items) => call(area, "set", items);
-  var storageRemove = (area, keys) => call(area, "remove", keys);
-
-  // src/services/tabSaver.js
-  var STORAGE_KEY = "savedTabGroups";
+  // src/services/tab-saver/saved-tab-groups.js
   var SKIP_SCHEMES = /^(chrome|chrome-extension|edge|about|devtools|view-source|moz-extension):/i;
   function shouldSaveTab(url) {
     if (!url || typeof url !== "string") return false;
@@ -195,6 +164,39 @@
   function nextSeq(groups) {
     return (groups || []).reduce((max, g) => Math.max(max, Number(g && g.seq) || 0), 0) + 1;
   }
+
+  // src/services/log.js
+  function warn(where, err) {
+    try {
+      console.warn("[Atlas] " + where, err);
+    } catch (e) {
+    }
+  }
+
+  // src/services/storage.js
+  function call(area, op, arg) {
+    const chrome2 = globalThis.chrome;
+    return new Promise((resolve) => {
+      const done = (result) => {
+        const err = chrome2.runtime && chrome2.runtime.lastError;
+        if (err) warn(`chrome.storage.${area}.${op} failed`, err);
+        resolve(result);
+      };
+      try {
+        if (arg === void 0) chrome2.storage[area][op](done);
+        else chrome2.storage[area][op](arg, done);
+      } catch (e) {
+        warn(`chrome.storage.${area}.${op} threw`, e);
+        resolve(void 0);
+      }
+    });
+  }
+  var storageGet = (area, keys) => call(area, "get", keys).then((r) => r || {});
+  var storageSet = (area, items) => call(area, "set", items);
+  var storageRemove = (area, keys) => call(area, "remove", keys);
+
+  // src/services/tab-saver/saved-tab-storage.js
+  var STORAGE_KEY = "savedTabGroups";
   async function readGroups() {
     return new Promise((resolve) => {
       storageGet("local", [STORAGE_KEY]).then((res) => resolve(res && res[STORAGE_KEY] || []));

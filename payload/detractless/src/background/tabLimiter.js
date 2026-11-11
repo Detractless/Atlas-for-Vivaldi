@@ -1,5 +1,5 @@
 import { tabLimit, setTabLimit, managementMethod, setManagementMethod } from './workerState.js';
-import { saveClosingTabs } from '../services/tabSaver.js';
+import { saveClosingTabs } from '../services/tab-saver/index.js';
 import { storageGet } from '../services/storage.js';
 import { warn } from '../services/log.js';
 
