@@ -1,4 +1,4 @@
-/* The add popup (addPopup.js): one question per screen. The question is the title.
+/* The add popup (add-popup.js): one question per screen. The question is the title.
    The website and the name use the address bar's card (Atlas css-mods 03-addressbar.css, 4c): the
    field and the pills under it are one shape, 8px corners, a faint line, small pills, a hint line.
    The fills are the same hover-2 and border steps, drawn from the page's text color so they follow

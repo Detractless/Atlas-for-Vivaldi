@@ -1,4 +1,4 @@
-/* The add popup's HTML (addPopup.js wires it): the frame, and each screen drawn from what has been
+/* The add popup's HTML (add-popup.js wires it): the frame, and each screen drawn from what has been
    answered so far. Every value that came from the user (names, pages, groups, addresses) goes through esc(). */
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

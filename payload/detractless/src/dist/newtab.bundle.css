@@ -1137,7 +1137,7 @@ textarea.form-input {
   background: var(--surface-hover);
 }
 
-/* src/components/contextMenu/contextMenu.css */
+/* src/components/context-menu/context-menu.css */
 .context-menu {
   position: fixed;
   z-index: 300;
@@ -1394,7 +1394,7 @@ textarea.form-input {
   font-weight: 600;
 }
 
-/* src/components/addPopup/addPopup.css */
+/* src/components/add-popup/add-popup.css */
 .add-popup {
   --ap-hover2: color-mix(in srgb, var(--text-primary) 10%, transparent);
   --ap-hover3: color-mix(in srgb, var(--text-primary) 16%, transparent);

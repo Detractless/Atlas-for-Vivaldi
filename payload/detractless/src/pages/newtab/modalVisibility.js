@@ -1,7 +1,7 @@
 import { renderEngineListInModal } from '../../components/engines/engineModal.js';
 
 export async function showModal(modalId) {
-  /* No "add-modal" branch: the add popup (components/addPopup) builds itself
+  /* No "add-modal" branch: the add popup (components/add-popup) builds itself
      and is not a registered modal id. Settings is a page (settings/shell.js). */
   if (modalId === "engine-modal") {
     renderEngineListInModal();

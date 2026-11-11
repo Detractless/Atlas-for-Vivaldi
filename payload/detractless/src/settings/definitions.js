@@ -8,11 +8,11 @@ import {
   setAppThemeConfig, setSearchDelaySeconds,
 } from '../pages/newtab/newtabState.js';
 import { applySpotlightVisibility, applyFadeIn } from '../pages/newtab/displayEffects.js';
-import { requestSaturation } from '../components/colorLock/colorLock.js';
+import { requestSaturation } from '../components/color-lock/color-lock.js';
 import { applyThemeConfig } from '../pages/newtab/theme.js';
 import { updateCurrentEngine } from '../components/engines/enginesUI.js';
-import { requestTabLimit } from '../components/tabLimiter/tabLimiterUI.js';
-import { requestSearchDelay } from '../components/searchDelay/searchDelay.js';
+import { requestTabLimit } from '../components/tab-limiter/tab-limiter-ui.js';
+import { requestSearchDelay } from '../components/search-delay/search-delay.js';
 
 let defined = false;
 

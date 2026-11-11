@@ -13,7 +13,7 @@
 
 import './tabs.css';
 import { DEFAULT_TABS } from '../../constants/defaults.js';
-import { ContextMenu } from '../contextMenu/contextMenu.js';
+import { ContextMenu } from '../context-menu/context-menu.js';
 import { openTabDialog } from '../bookmarks/bookmarkDialog.js';
 import { editInBar } from '../shared/editInBar.js';
 import { BookmarkDB } from '../../services/bookmarksDB.js';

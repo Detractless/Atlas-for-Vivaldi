@@ -7,7 +7,7 @@ import { getDelaySeconds, saveDelaySeconds, clearPendingDecrease } from '../../s
 import { sendToBackground } from '../../services/backgroundMessenger.js';
 import { readLocks } from '../../services/focusLocks.js';
 import { changeAllowed } from '../../utils/focusLock.js';
-import { QUEUE_MS } from '../tabLimiter/tabLimiterUI.js';
+import { QUEUE_MS } from '../tab-limiter/tab-limiter-ui.js';
 
 /** Ask for a new delay in seconds (0 = off). Refused, and nothing saved, when the delay is locked and this is shorter. */
 export async function requestSearchDelay(newDelay) {

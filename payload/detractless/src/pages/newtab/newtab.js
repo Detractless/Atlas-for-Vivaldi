@@ -3,15 +3,15 @@ import '../../styles/themes.css';
 import '../../styles/base.css';
 import '../../styles/components.css';
 import './newtab.css';
-import { ContextMenu } from '../../components/contextMenu/contextMenu.js';
+import { ContextMenu } from '../../components/context-menu/context-menu.js';
 import { refreshBookmarkCache, initializeBookmarks, loadBookmarks } from '../../components/bookmarks/bookmarks.js';
-import { initAddPopup } from '../../components/addPopup/addPopup.js';
+import { initAddPopup } from '../../components/add-popup/add-popup.js';
 import { watchSystemTheme } from './theme.js';
 import { showPage } from './displayEffects.js';
 import { initializeTabs, setTabNavigationCallbacks, renderTabs, selectSearchTab } from '../../components/tabs/tabs.js';
 import { showModal } from './modalVisibility.js';
 // The tab limiter's stylesheet; imported here so the CSS keeps its place in the bundle.
-import '../../components/tabLimiter/tabLimiterUI.js';
+import '../../components/tab-limiter/tab-limiter-ui.js';
 import { loadSearchEngines, loadSavedEngine, setManageEnginesCallback, renderEngineDropdown, updateCurrentEngine, followEnginePicks } from '../../components/engines/enginesUI.js';
 import { initEngineModal } from '../../components/engines/engineModal.js';
 import { initializeSearch } from '../../components/search/search.js';

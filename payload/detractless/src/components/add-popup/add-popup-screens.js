@@ -11,7 +11,7 @@ import { NEW_GROUP, setValue, validateStep } from '../../utils/addBookmarkFlow.j
 import { activeTabs, allCachedBookmarks } from '../../pages/newtab/newtabState.js';
 import { cleanSubtitle, MIN_WORDS, MAX_WORDS, MAX_CHARS } from '../../services/pageSubtitle.js';
 import { matchSites, mainDomain, hostOf, nameChoices } from '../../services/siteSuggestions.js';
-import { frameMarkup, button, websiteScreen, siteDrop, placeScreen, dropdown, plainField } from './addPopupMarkup.js';
+import { frameMarkup, button, websiteScreen, siteDrop, placeScreen, dropdown, plainField } from './add-popup-markup.js';
 import { $, field, showError, clearErrors } from './add-popup-dom.js';
 
 export const bookmarkPages = () => activeTabs.filter((t) => t.type !== 'search');

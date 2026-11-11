@@ -1,4 +1,4 @@
-import './contextMenu.css';
+import './context-menu.css';
 
 export const ContextMenu = {
   menu: null, disabled: false,

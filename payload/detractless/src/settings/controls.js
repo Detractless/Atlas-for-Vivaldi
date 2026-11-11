@@ -4,7 +4,7 @@ import { getSetting, setSetting } from './registry.js';
 import { lockState, changeAllowed } from '../utils/focusLock.js';
 import { lockable } from './lockable.js';
 import { FADE_CONTROLS } from './fadeControls.js';
-import { flushSaturation, clickSaturationLock } from '../components/colorLock/colorLock.js';
+import { flushSaturation, clickSaturationLock } from '../components/color-lock/color-lock.js';
 import { MODES, normalize, withMode, togglePart } from '../utils/socialFilter.js';
 
 const options = (labels) => Object.entries(labels).map(([value, label]) => ({ value, label }));

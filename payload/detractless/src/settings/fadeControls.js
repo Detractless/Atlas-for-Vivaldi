@@ -35,7 +35,7 @@ const numbers = (name, usual, labelOf) => () => {
 };
 
 /* The darkest-it-gets slider moves fast while dragging, and chrome.storage.sync allows about 120 writes a minute, so
-   moves are saved in short steps and the last one always lands (the same way the color slider is: colorLock.js). */
+   moves are saved in short steps and the last one always lands (the same way the color slider is: color-lock.js). */
 const STEP_MS = 250;
 let wantDarkest = null, darkestTimer = 0;
 function saveDarkest() {

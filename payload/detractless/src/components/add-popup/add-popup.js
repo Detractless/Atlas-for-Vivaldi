@@ -13,7 +13,7 @@
    answers live in the flow state (utils/addBookmarkFlow.js), not in the widgets that show them, and
    are checked with its rules; the subtitle with services/pageSubtitle.js.
    ═══════════════════════════════════════════════════════ */
-import './addPopup.css';
+import './add-popup.css';
 import { BookmarkDB } from '../../services/bookmarksDB.js';
 import { addBookmark } from '../bookmarks/bookmarks.js';
 import { createPage, updatePage } from '../tabs/tabs.js';

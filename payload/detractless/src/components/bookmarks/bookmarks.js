@@ -3,7 +3,7 @@ import { BookmarkDB } from '../../services/bookmarksDB.js';
 // ContextMenu is imported only for its `disabled` flag now (R-012): this screen
 // no longer opens a menu, but the flag still gates whether right-click does
 // anything at all, so the setting behind it keeps meaning something.
-import { ContextMenu } from '../contextMenu/contextMenu.js';
+import { ContextMenu } from '../context-menu/context-menu.js';
 import { openGroupDialog, openBookmarkItemDialog } from './bookmarkDialog.js';
 import {
   currentBookmarkPage,

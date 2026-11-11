@@ -10,7 +10,7 @@ const path = require("node:path");
 const ROOT = path.join(__dirname, "..", "..");
 const LISTS = [
   ["the address bar's Add flow", "payload/css-mods/08-addbar.css", ".atlas-addrow"],
-  ["the new tab's add popup", "payload/detractless/src/components/addPopup/addPopup.css", ".ap-dd-item"],
+  ["the new tab's add popup", "payload/detractless/src/components/add-popup/add-popup.css", ".ap-dd-item"],
 ];
 
 for (const [name, file, row] of LISTS) {

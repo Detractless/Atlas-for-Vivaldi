@@ -62,7 +62,7 @@
   font: var(--text-caption); color: var(--text-tertiary);
   padding: var(--space-3) var(--space-4) 0; margin: 0;
 }
-/* The queued line. tabLimiterUI.js and searchDelay.js reveal this with an
+/* The queued line. tab-limiter-ui.js and search-delay.js reveal this with an
    inline display:block, so it has to read correctly as a block. */
 .choice-note.queued { color: var(--text-secondary); }
 .choice-note.queued strong { color: var(--text-primary); font-weight: var(--weight-semibold); }
