@@ -1,7 +1,7 @@
-/* ── downloads-core.js: what the Downloads panel says about each download ──────
+/* ── atlas-downloads-core.js: what the Downloads panel says about each download ──────
    Pure logic, no page: the words, dates and grouping of Chromium's own
    chrome://downloads page, worked out from chrome.downloads items. The panel
-   (downloads-panel.js) draws them; tests/unit/downloads_core.test.js checks them.
+   (atlas-downloads-panel.js) draws them; tests/unit/downloads_core.test.js checks them.
    Loaded as a plain script (window.AtlasDownloadsCore) or required by node. ── */
 (function () {
   'use strict';

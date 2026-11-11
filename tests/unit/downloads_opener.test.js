@@ -19,7 +19,7 @@ function open({ showing, button = true } = {}) {
   if (sw) ["pointerdown", "mousedown", "pointerup", "mouseup", "click"].forEach((t) => sw.addEventListener(t, () => presses.push(t)));
   if (showing) {
     const view = w.document.createElement("webview");
-    view.setAttribute("src", "chrome-extension://x/components/atlas/downloads-panel.html");
+    view.setAttribute("src", "chrome-extension://x/components/atlas/atlas-downloads-panel.html");
     view.getBoundingClientRect = () => ({ width: 358 });
     w.document.getElementById("panels-container").appendChild(view);
   }

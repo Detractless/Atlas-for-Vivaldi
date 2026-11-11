@@ -1,4 +1,4 @@
-/* ── downloads-panel.css: Chromium's Downloads page, sized for a sidebar ──────────
+/* ── atlas-downloads-panel.css: Chromium's Downloads page, sized for a sidebar ──────────
    The colours, card shape, spacing and type follow chrome://downloads (white
    cards that lift off the page, blue file-name links, a grey struck-through card
    for a deleted or failed download). Light and dark come from html[data-theme],

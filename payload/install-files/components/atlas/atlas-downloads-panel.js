@@ -1,7 +1,7 @@
-/* ── downloads-panel.js: the Downloads sidebar, laid out like chrome://downloads ──
+/* ── atlas-downloads-panel.js: the Downloads sidebar, laid out like chrome://downloads ──
    Draws chrome.downloads items as Chromium's page does: a "Download History" bar
    with search and Clear all, a heading per day, and one card per download.
-   The words and grouping live in downloads-core.js. Opened as a web panel by
+   The words and grouping live in atlas-downloads-core.js. Opened as a web panel by
    src/modules/34-downloads-panel.js when a download starts. ── */
 (function () {
   'use strict';

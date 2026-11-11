@@ -16,7 +16,7 @@ test("a sidebar panel's page is not counted as a tab", async () => {
 
 test("the Downloads panel is recognised by address before its panel id exists", async () => {
   const { isTabLimitExcluded } = await load();
-  assert.equal(isTabLimitExcluded(tab({ url: "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/components/atlas/downloads-panel.html" })), true);
+  assert.equal(isTabLimitExcluded(tab({ url: "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/components/atlas/atlas-downloads-panel.html" })), true);
 });
 
 test("ordinary tabs are counted, including Atlas's own new-tab page", async () => {

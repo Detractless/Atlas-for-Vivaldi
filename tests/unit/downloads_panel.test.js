@@ -31,7 +31,7 @@ function open(start) {
     open: rec("open"), show: rec("show"), erase: rec("erase"), pause: rec("pause"), resume: rec("resume"), cancel: rec("cancel"), download: rec("download"),
   } };
   w.navigator.clipboard = { writeText: (t) => calls.push(["copy", t]) };
-  w.eval(read("downloads-core.js") + "\n" + read("downloads-panel.js"));
+  w.eval(read("atlas-downloads-core.js") + "\n" + read("atlas-downloads-panel.js"));
   const $ = (s) => w.document.querySelector(s);
   return { w, calls, plain, all, listeners, $, $$: (s) => [...w.document.querySelectorAll(s)], click: (el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: true, cancelable: true })) };
 }

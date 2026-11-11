@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const core = require("../../payload/install-files/components/atlas/downloads-core.js");
+const core = require("../../payload/install-files/components/atlas/atlas-downloads-core.js");
 
 const NOW = new Date(2026, 9, 31, 15, 0, 0).getTime(); // Oct 31 2026, 3pm
 const at = (daysAgo, hour) => new Date(2026, 9, 31 - daysAgo, hour || 10).toISOString();

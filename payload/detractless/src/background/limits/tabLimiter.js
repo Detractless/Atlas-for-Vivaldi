@@ -15,7 +15,7 @@ export function isTabLimitExcluded(tab) {
     || /^chrome-extension:\/\/fcoeoabgfenejglbffodgkkbkcdhcgfn\/sidepanel\.html(?:\?.*)?$/.test(url)
     || /^chrome-extension:\/\/hehggadaopoacecdllhhajmbjkdcmajg\/codex-sidepanel\/index\.html(?:\?.*)?$/.test(url)
     // The Downloads panel, by address too: a new panel's page has no panelId yet when onCreated fires.
-    || /^chrome-extension:\/\/[a-p]{32}\/components\/atlas\/downloads-panel\.html(?:\?.*)?$/.test(url);
+    || /^chrome-extension:\/\/[a-p]{32}\/components\/atlas\/atlas-downloads-panel\.html(?:\?.*)?$/.test(url);
 }
 
 async function getAllTabs() {

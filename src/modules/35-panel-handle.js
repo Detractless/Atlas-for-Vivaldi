@@ -29,7 +29,7 @@ function atlasPanelView() {
 /* The panel's own button in the (hidden) switch strip; pressing it again closes the sidebar. */
 function atlasPanelSwitch(view) {
   var src = view.getAttribute('src') || '', id = null, m;
-  if (/\/components\/atlas\/downloads-panel\.html/.test(src)) id = 'WEBPANEL_atlas_downloads';
+  if (/\/components\/atlas\/atlas-downloads-panel\.html/.test(src)) id = 'WEBPANEL_atlas_downloads';
   else if ((m = /^chrome-extension:\/\/([a-p]{32})\//.exec(src))) id = 'EXT_PANEL_' + m[1];
   var named = id && document.querySelector('[data-name="' + id + '"]');
   return named || document.querySelector('#switch button.button-on');
@@ -51,7 +51,7 @@ var ATLAS_PANEL_HOSTS = { hehggadaopoacecdllhhajmbjkdcmajg: 'chatgpt.com' };
 /* The card's heading: the page's tab title, and the website's address under it. Calls done(info). */
 function atlasPanelInfo(view, done) {
   var src = view.getAttribute('src') || '', m = /^https?:\/\/([^\/?#]+)/.exec(src), ext = /^chrome-extension:\/\/([a-p]{32})\//.exec(src);
-  if (/\/components\/atlas\/downloads-panel\.html/.test(src)) return done({ title: 'Downloads', sub: 'Atlas' });
+  if (/\/components\/atlas\/atlas-downloads-panel\.html/.test(src)) return done({ title: 'Downloads', sub: 'Atlas' });
   var host = m ? m[1].replace(/^www\./, '') : (ext && ATLAS_PANEL_HOSTS[ext[1]]) || '';
   var fallback = view.getAttribute('title') || host || 'Sidebar';
   if (!chrome.tabs || !chrome.tabs.query) return done({ title: fallback, sub: host });

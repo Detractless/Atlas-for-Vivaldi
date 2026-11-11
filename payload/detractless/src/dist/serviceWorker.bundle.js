@@ -220,7 +220,7 @@
     const data = typeof tab?.vivExtData === "string" ? tab.vivExtData : "";
     if (/"panelId"\s*:/.test(data)) return true;
     const url = typeof tab?.url === "string" ? tab.url : "";
-    return /^chrome-extension:\/\/mpognobbkildjkofajifpdfhcoklimli\/sidepanel\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/fcoeoabgfenejglbffodgkkbkcdhcgfn\/sidepanel\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/hehggadaopoacecdllhhajmbjkdcmajg\/codex-sidepanel\/index\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/[a-p]{32}\/components\/atlas\/downloads-panel\.html(?:\?.*)?$/.test(url);
+    return /^chrome-extension:\/\/mpognobbkildjkofajifpdfhcoklimli\/sidepanel\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/fcoeoabgfenejglbffodgkkbkcdhcgfn\/sidepanel\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/hehggadaopoacecdllhhajmbjkdcmajg\/codex-sidepanel\/index\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/[a-p]{32}\/components\/atlas\/atlas-downloads-panel\.html(?:\?.*)?$/.test(url);
   }
   async function getAllTabs() {
     const tabs = await chrome.tabs.query({});

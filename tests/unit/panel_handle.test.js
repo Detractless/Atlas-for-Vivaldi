@@ -96,7 +96,7 @@ test("with no matching tab, the card falls back to the page's own address", () =
 });
 
 test("the Downloads panel is titled Downloads", () => {
-  const p = open({ src: "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/components/atlas/downloads-panel.html" });
+  const p = open({ src: "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/components/atlas/atlas-downloads-panel.html" });
   press(p, "click");
   assert.equal(p.pop().querySelector("b").textContent, "Downloads");
 });
@@ -122,7 +122,7 @@ test("Close sidebar presses the showing panel's own button", () => {
 });
 
 test("the Downloads panel is closed through its own button", () => {
-  const p = open({ src: "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/components/atlas/downloads-panel.html" });
+  const p = open({ src: "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/components/atlas/atlas-downloads-panel.html" });
   press(p, "click");
   run(p, "Close sidebar");
   assert.deepEqual(p.clicks, ["WEBPANEL_atlas_downloads"]);

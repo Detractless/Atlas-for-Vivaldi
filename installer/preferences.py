@@ -18,7 +18,7 @@ PANEL_ID = "WEBPANEL_atlas_sidebar"
 
 # The Downloads sidebar: our own page, laid out like chrome://downloads, as a web panel.
 DOWNLOADS_PANEL_ID = "WEBPANEL_atlas_downloads"
-DOWNLOADS_PANEL_PATH = "components/atlas/downloads-panel.html"
+DOWNLOADS_PANEL_PATH = "components/atlas/atlas-downloads-panel.html"
 
 # Buttons the tab bar's own toolbars do not keep (src/modules/38-profile-recipe.js has the same list).
 TABBAR_OUT = ("Back", "Forward", "WorkspaceButton", "TabButton")

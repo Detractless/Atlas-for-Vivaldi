@@ -4,7 +4,7 @@
   "newTabUrl": "chrome-extension://abc/index.html",
   "downloadsPanel": {
     "id": "WEBPANEL_atlas_downloads",
-    "url": "chrome-extension://abc/components/atlas/downloads-panel.html"
+    "url": "chrome-extension://abc/components/atlas/atlas-downloads-panel.html"
   },
   "themes": [
     { "id": "AtlasLight", "name": "Atlas Light" },
