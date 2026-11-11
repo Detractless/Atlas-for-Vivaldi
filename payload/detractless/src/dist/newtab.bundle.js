@@ -963,62 +963,12 @@
     eraser: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"></path><path d="M22 21H7"></path><path d="m5 11 9 9"></path></svg>`
   };
 
-  // src/components/bookmarks/bookmarkDialog.js
+  // src/components/bookmarks/bookmark-panes.js
   function el(tag, className, text) {
     const node = document.createElement(tag);
     if (className) node.className = className;
     if (text !== void 0) node.textContent = text;
     return node;
-  }
-  function buildDialog(spec) {
-    document.querySelectorAll(".bookmark-dialog").forEach((node) => node.remove());
-    const overlay = el("div", "modal show picker-modal bookmark-dialog");
-    const card2 = el("div", "picker-card");
-    const close2 = () => overlay.remove();
-    const panes = [];
-    const showPane = (pane) => {
-      panes.forEach((p2) => p2.classList.toggle("picker-pane--on", p2 === pane));
-      const field2 = pane.querySelector(".picker-field");
-      if (field2) requestAnimationFrame(() => {
-        field2.focus();
-        field2.select();
-      });
-    };
-    const root2 = buildRootPane(spec, panes, showPane, close2);
-    panes.forEach((p2) => card2.appendChild(p2));
-    card2.appendChild(hiddenCloseButton(close2));
-    overlay.addEventListener("click", (event) => {
-      if (event.target === overlay) close2();
-    });
-    overlay.appendChild(card2);
-    document.body.appendChild(overlay);
-    showPane(root2);
-  }
-  function buildRootPane(spec, panes, showPane, close2) {
-    const root2 = el("div", "picker-pane picker-pane--on");
-    panes.push(root2);
-    root2.appendChild(Object.assign(el("div", "picker-title"), { textContent: spec.title }));
-    if (spec.subtitle) root2.appendChild(el("div", "picker-subtitle", spec.subtitle));
-    const rootHost = el("div", "picker-wellhost");
-    const rootWell = el("div", "picker-well");
-    spec.actions.forEach((action) => {
-      if (action.kind === "danger") {
-        rootWell.appendChild(dangerRow(action, close2));
-        return;
-      }
-      const row2 = el("button", "picker-row");
-      row2.type = "button";
-      row2.appendChild(iconSpan(action.icon));
-      row2.appendChild(el("span", null, action.label));
-      if (action.value) row2.appendChild(el("span", "picker-row-value", action.value));
-      const pane = action.kind === "input" ? inputPane(action, close2, () => showPane(root2)) : listPane(action, close2, () => showPane(root2));
-      panes.push(pane);
-      row2.addEventListener("click", () => showPane(pane));
-      rootWell.appendChild(row2);
-    });
-    rootHost.appendChild(rootWell);
-    root2.appendChild(rootHost);
-    return root2;
   }
   function hiddenCloseButton(close2) {
     const hiddenClose = el("button", "close-btn picker-hidden-close");
@@ -1125,6 +1075,58 @@
     foot.appendChild(back2);
     pane.appendChild(foot);
     return pane;
+  }
+
+  // src/components/bookmarks/bookmarkDialog.js
+  function buildDialog(spec) {
+    document.querySelectorAll(".bookmark-dialog").forEach((node) => node.remove());
+    const overlay = el("div", "modal show picker-modal bookmark-dialog");
+    const card2 = el("div", "picker-card");
+    const close2 = () => overlay.remove();
+    const panes = [];
+    const showPane = (pane) => {
+      panes.forEach((p2) => p2.classList.toggle("picker-pane--on", p2 === pane));
+      const field2 = pane.querySelector(".picker-field");
+      if (field2) requestAnimationFrame(() => {
+        field2.focus();
+        field2.select();
+      });
+    };
+    const root2 = buildRootPane(spec, panes, showPane, close2);
+    panes.forEach((p2) => card2.appendChild(p2));
+    card2.appendChild(hiddenCloseButton(close2));
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close2();
+    });
+    overlay.appendChild(card2);
+    document.body.appendChild(overlay);
+    showPane(root2);
+  }
+  function buildRootPane(spec, panes, showPane, close2) {
+    const root2 = el("div", "picker-pane picker-pane--on");
+    panes.push(root2);
+    root2.appendChild(Object.assign(el("div", "picker-title"), { textContent: spec.title }));
+    if (spec.subtitle) root2.appendChild(el("div", "picker-subtitle", spec.subtitle));
+    const rootHost = el("div", "picker-wellhost");
+    const rootWell = el("div", "picker-well");
+    spec.actions.forEach((action) => {
+      if (action.kind === "danger") {
+        rootWell.appendChild(dangerRow(action, close2));
+        return;
+      }
+      const row2 = el("button", "picker-row");
+      row2.type = "button";
+      row2.appendChild(iconSpan(action.icon));
+      row2.appendChild(el("span", null, action.label));
+      if (action.value) row2.appendChild(el("span", "picker-row-value", action.value));
+      const pane = action.kind === "input" ? inputPane(action, close2, () => showPane(root2)) : listPane(action, close2, () => showPane(root2));
+      panes.push(pane);
+      row2.addEventListener("click", () => showPane(pane));
+      rootWell.appendChild(row2);
+    });
+    rootHost.appendChild(rootWell);
+    root2.appendChild(rootHost);
+    return root2;
   }
   function openGroupDialog({ name, count, pages, currentPageLabel, onRename, onMove, onDelete }) {
     buildDialog({
@@ -2209,6 +2211,22 @@
     return [...starts, ...has].slice(0, limit);
   }
 
+  // src/components/addPopup/add-popup-dom.js
+  function close(popup) {
+    popup.overlay.remove();
+  }
+  var $ = (popup, sel) => popup.overlay.querySelector(sel);
+  var field = (popup, name) => $(popup, `[data-field="${name}"]`);
+  function showError(popup, name, message) {
+    const slot = $(popup, `[data-error-for="${name}"]`);
+    if (slot) slot.textContent = message || "";
+  }
+  function clearErrors(popup) {
+    popup.overlay.querySelectorAll("[data-error-for]").forEach((s2) => {
+      s2.textContent = "";
+    });
+  }
+
   // src/components/addPopup/addPopupMarkup.js
   var esc = (s2) => String(s2 ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   var CHEV = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>';
@@ -2269,62 +2287,9 @@
     return `${label ? `<div class="ap-label">${esc(label)}</div>` : ""}<div class="ap-plain"><input class="ap-input" type="text" data-field="${field2}" value="${esc(value)}" placeholder="${esc(placeholder)}" autocomplete="off" spellcheck="false">${aside}</div>${errorSlot(field2)}`;
   }
 
-  // src/components/addPopup/addPopup.js
+  // src/components/addPopup/add-popup-screens.js
   var bookmarkPages = () => activeTabs.filter((t) => t.type !== "search");
   var savedDomains = () => new Set((allCachedBookmarks || []).map((b) => mainDomain(hostOf(b && b.url))).filter(Boolean));
-  function openAddPopup(opts = {}) {
-    document.querySelectorAll(".add-popup").forEach((n) => n.remove());
-    const editing = opts.page || null;
-    const pages = bookmarkPages();
-    const startPage = pages.some((t) => t.id === currentBookmarkPage) ? currentBookmarkPage : pages[0] && pages[0].id;
-    const overlay = document.createElement("div");
-    overlay.className = "modal show picker-modal add-popup";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
-    overlay.setAttribute("aria-label", editing ? "Edit page" : opts.mode === "page" ? "Add page" : "Add bookmark");
-    document.body.appendChild(overlay);
-    const popup = {
-      overlay,
-      opts,
-      editing,
-      kind: editing || opts.mode === "page" ? "page" : "bookmark",
-      step: 1,
-      flow: createFlowState(startPage === void 0 ? null : startPage),
-      urlText: "",
-      nameTouched: false,
-      sites: [],
-      siteAt: 0,
-      groups: [],
-      groupsFor: null,
-      menu: null,
-      pageName: editing ? editing.label : "",
-      sub: editing ? editing.sub || "" : "",
-      pageCount: pages.length + 1
-    };
-    wire(popup);
-    render(popup);
-    if (popup.kind === "bookmark") {
-      loadSites().then((sites) => {
-        popup.sites = sites;
-        if (overlay.isConnected && popup.step === 1) paintSites(popup);
-      });
-    }
-    return popup;
-  }
-  function close(popup) {
-    popup.overlay.remove();
-  }
-  var $ = (popup, sel) => popup.overlay.querySelector(sel);
-  var field = (popup, name) => $(popup, `[data-field="${name}"]`);
-  function showError(popup, name, message) {
-    const slot = $(popup, `[data-error-for="${name}"]`);
-    if (slot) slot.textContent = message || "";
-  }
-  function clearErrors(popup) {
-    popup.overlay.querySelectorAll("[data-error-for]").forEach((s2) => {
-      s2.textContent = "";
-    });
-  }
   function sitePills(popup) {
     return matchSites(popup.sites, popup.urlText, 8, savedDomains()).map((s2) => ({ label: s2.domain, value: s2.domain }));
   }
@@ -2498,6 +2463,47 @@
       }
     }
     closeMenus(popup);
+  }
+
+  // src/components/addPopup/addPopup.js
+  function openAddPopup(opts = {}) {
+    document.querySelectorAll(".add-popup").forEach((n) => n.remove());
+    const editing = opts.page || null;
+    const pages = bookmarkPages();
+    const startPage = pages.some((t) => t.id === currentBookmarkPage) ? currentBookmarkPage : pages[0] && pages[0].id;
+    const overlay = document.createElement("div");
+    overlay.className = "modal show picker-modal add-popup";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", editing ? "Edit page" : opts.mode === "page" ? "Add page" : "Add bookmark");
+    document.body.appendChild(overlay);
+    const popup = {
+      overlay,
+      opts,
+      editing,
+      kind: editing || opts.mode === "page" ? "page" : "bookmark",
+      step: 1,
+      flow: createFlowState(startPage === void 0 ? null : startPage),
+      urlText: "",
+      nameTouched: false,
+      sites: [],
+      siteAt: 0,
+      groups: [],
+      groupsFor: null,
+      menu: null,
+      pageName: editing ? editing.label : "",
+      sub: editing ? editing.sub || "" : "",
+      pageCount: pages.length + 1
+    };
+    wire(popup);
+    render(popup);
+    if (popup.kind === "bookmark") {
+      loadSites().then((sites) => {
+        popup.sites = sites;
+        if (overlay.isConnected && popup.step === 1) paintSites(popup);
+      });
+    }
+    return popup;
   }
   function wire(popup) {
     wireClick(popup);
