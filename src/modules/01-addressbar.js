@@ -14,6 +14,20 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
   });
 }
 
+/* 2b. The two "home" triggers below (the Home button and the home keyword) do
+   the same thing: stop the event and send the active tab to the new tab. */
+function openAtlasHome(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  var homeUrl = ATLAS_NEWTAB_URL;
+  if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
+      if (ts && ts[0]) chrome.tabs.update(ts[0].id, { url: homeUrl });
+      else if (chrome.tabs.create) chrome.tabs.create({ url: homeUrl });
+    });
+  }
+}
+
 /* 2. Mark the window while the active tab is the Atlas new tab, so the
       stylesheet can keep the address field empty there and the address bar's
       engine button can show (19-addressbar-engine-picker.js). It is the
@@ -83,15 +97,7 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
   document.addEventListener('click', function (e) {
     var homeBtn = e.target.closest && e.target.closest('button[data-name="Home"]');
     if (homeBtn) {
-      e.preventDefault();
-      e.stopPropagation();
-      var homeUrl = ATLAS_NEWTAB_URL;
-      if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
-        chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
-          if (ts && ts[0]) chrome.tabs.update(ts[0].id, { url: homeUrl });
-          else if (chrome.tabs.create) chrome.tabs.create({ url: homeUrl });
-        });
-      }
+      openAtlasHome(e);
     }
   }, true);
 
@@ -105,15 +111,7 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
     if (!isField) return;
     var val = (target.value || '').trim().toLowerCase();
     if (val === 'home' || val === 'home/' || val === '') {
-      e.preventDefault();
-      e.stopPropagation();
-      var homeUrl = ATLAS_NEWTAB_URL;
-      if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
-        chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
-          if (ts && ts[0]) chrome.tabs.update(ts[0].id, { url: homeUrl });
-          else if (chrome.tabs.create) chrome.tabs.create({ url: homeUrl });
-        });
-      }
+      openAtlasHome(e);
       if (typeof target.blur === 'function') target.blur();
     }
   }, true);
