@@ -1213,15 +1213,7 @@ function createHomeButton() {
   wrap.appendChild(btn);
 
   btn.addEventListener('click', function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    var homeUrl = ATLAS_NEWTAB_URL;
-    if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
-      chrome.tabs.query({ active: true, currentWindow: true }, function (ts) {
-        if (ts && ts[0]) chrome.tabs.update(ts[0].id, { url: homeUrl });
-        else if (chrome.tabs.create) chrome.tabs.create({ url: homeUrl });
-      });
-    }
+    openAtlasHome(e);
   });
   return wrap;
 }
