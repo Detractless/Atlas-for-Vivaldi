@@ -88,6 +88,7 @@ button.plus__link { border: none; }
   max-height: 200px; overflow-y: auto; padding: 4px 2px;
   animation: fadeUp 0.18s var(--ease-out);
 }
+.bookmark-search-results.is-hidden { display: none; }
 .bookmark-search-item {
   display: inline-flex; align-items: center; padding: 6px 14px;
   border-radius: var(--radius-pill); background: var(--surface-card);
@@ -235,7 +236,13 @@ button.plus__link { border: none; }
   color: var(--text-tertiary);
   padding: 0 16px; margin: 20px 0 8px;
 }
+.settings-section-header--compact { margin-top: 4px; }
 #settings-home > .settings-section-header:first-child { margin-top: 4px; }
+#engine-add-icon-row { border-radius: 16px; }
+#engine-add-error { padding: 6px 0 0; font-size: var(--font-size-13); }
+#engine-add-submit-wrap { margin-top: 20px; }
+#engine-add-submit { width: 100%; }
+.engine-footer-buttons { margin-left: auto; }
 /* Shared settings rows live in styles/components.css; this page keeps its chevron. */
 .settings-row-chevron {
   width: 8px; height: 8px; flex-shrink: 0;

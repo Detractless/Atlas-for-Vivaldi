@@ -8,7 +8,7 @@
 <body class="theme-dark">
   <div class="container">
     <div id="timer-container">
-      <div class="lds-facebook" style="color: inherit; margin: 20px 0;">
+      <div class="lds-facebook gate-loader">
         <div></div>
         <div></div>
         <div></div>
@@ -18,20 +18,20 @@
       </div>
     </div>
     
-    <div id="reveal-container" style="display: none;">
-      <p style="font-size: 24px; margin-bottom: 30px;">Time's up! Click the button to reveal your search results.</p>
+    <div id="reveal-container" class="gate-hidden">
+      <p class="gate-reveal-copy">Time's up! Click the button to reveal your search results.</p>
       <button id="reveal-button">Reveal Results</button>
     </div>
   </div>
 
   <!-- Block page for "Block social sites entirely" (gate.js shows it when the address says ?why=social) -->
-  <div class="container" id="social-container" style="display: none;">
-    <p id="social-title" style="font-size: 24px; margin-bottom: 12px;">Blocked</p>
-    <p id="social-text" style="opacity: 0.7;">Social sites are blocked.</p>
+  <div class="container gate-hidden" id="social-container">
+    <p id="social-title" class="gate-social-title">Blocked</p>
+    <p id="social-text" class="gate-social-text">Social sites are blocked.</p>
   </div>
 
   <!-- Query Display (hidden by default, shown if option is enabled) -->
-  <div class="query-display" id="query-display" style="display: none;">
+  <div class="query-display gate-hidden" id="query-display">
     <img class="engine-icon" id="engine-icon" src="" alt="">
     <div class="query-separator"></div>
     <span class="query-label">Searching:</span>
