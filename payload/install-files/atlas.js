@@ -505,7 +505,7 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
     { id: 'atlas-nsfw-guard', matches: ['http://*/*', 'https://*/*'],
       excludeMatches: ['https://chromewebstore.google.com/*'],
       allFrames: true,
-      js: ['components/atlas/atlas-nsfw-log.js', 'components/atlas/atlas-nsfw-work.js', 'components/atlas/atlas-nsfw-image-work.js', 'components/atlas/atlas-nsfw-image-layout.js', 'components/atlas/atlas-nsfw-image-observer.js', 'components/atlas/atlas-nsfw-image-ui.js', 'components/atlas/atlas-nsfw-image-sources.js', 'components/atlas/atlas-nsfw-image-shield.js', 'components/atlas/atlas-nsfw-guard-watch.js', 'components/atlas/atlas-nsfw-guard.js', 'components/atlas/atlas-nsfw-drag.js'], runAt: 'document_start' }
+      js: ['components/atlas/atlas-nsfw-log.js', 'components/atlas/atlas-nsfw-work.js', 'components/atlas/atlas-nsfw-image-work.js', 'components/atlas/atlas-nsfw-image-layout.js', 'components/atlas/atlas-nsfw-image-observer.js', 'components/atlas/atlas-nsfw-image-ui.js', 'components/atlas/atlas-nsfw-image-sources.js', 'components/atlas/atlas-nsfw-image-shield.js', 'components/atlas/atlas-nsfw-guard-watch.js', 'components/atlas/atlas-nsfw-guard-config.js', 'components/atlas/atlas-nsfw-guard.js', 'components/atlas/atlas-nsfw-drag.js'], runAt: 'document_start' }
   ];
   /* Social media filter (spec 006): one registration per site, so one site can be switched off alone. Each runs
      the shared engine, then that site's table, at document_start in the top frame. The hosts are the ones in

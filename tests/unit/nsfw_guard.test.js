@@ -7,11 +7,12 @@ const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const GUARD_PATH = path.join(ROOT, "payload", "install-files", "components", "atlas", "atlas-nsfw-guard.js");
+const CONFIG_PATH = path.join(ROOT, "payload", "install-files", "components", "atlas", "atlas-nsfw-guard-config.js");
 const DRAG_PATH = path.join(ROOT, "payload", "install-files", "components", "atlas", "atlas-nsfw-drag.js");
 const SCRIPTS_PATH = path.join(ROOT, "src", "modules", "03-bridge-content-scripts.js");
 
 test("atlas-nsfw-guard.js parses and reads the Content shield config", () => {
-  const code = fs.readFileSync(GUARD_PATH, "utf8");
+  const code = fs.readFileSync(CONFIG_PATH, "utf8") + "\n" + fs.readFileSync(GUARD_PATH, "utf8");
   assert.doesNotThrow(() => new Function(code), "guard parses as a script");
   assert.ok(code.includes("__atlasNsfwGuard"), "guard defines __atlasNsfwGuard namespace");
   assert.ok(code.includes("'nsfwAction'"), "guard reads nsfwAction from sync storage");
@@ -54,5 +55,6 @@ test("the drag blocker stops dragging flagged media out of the page", () => {
   assert.ok(bridge.includes("components/atlas/atlas-nsfw-image-shield.js"), "loads the image shield controller");
   assert.ok(bridge.indexOf("atlas-nsfw-image-ui.js") < bridge.indexOf("atlas-nsfw-image-shield.js"), "loads the UI before the controller");
   assert.ok(bridge.includes("'components/atlas/atlas-nsfw-drag.js'"), "registered with the guard content script");
+  assert.ok(bridge.indexOf("atlas-nsfw-guard-config.js") < bridge.indexOf("atlas-nsfw-guard.js"), "loads the config module before the guard");
   assert.ok(bridge.includes("allFrames: true"), "runs in every frame");
 });
