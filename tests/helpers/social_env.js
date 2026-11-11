@@ -10,7 +10,7 @@ const { makeFakeChrome } = require("../unit/helpers/fakeChrome");
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const DIR = path.join(ROOT, "payload", "install-files", "components", "atlas");
-const ENGINE = ["atlas-social-behaviors.js", "atlas-social-guard.js", "atlas-social-core.js"];
+const ENGINE = ["atlas-social-behaviors.js", "atlas-social-guard.js", "atlas-social-shadow.js", "atlas-social-core.js"];
 const read = (name) => fs.readFileSync(path.join(DIR, name), "utf8");
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const open = [];

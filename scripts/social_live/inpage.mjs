@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const COMPONENTS = path.resolve(HERE, "..", "..", "payload", "install-files", "components", "atlas");
 export const WORLD = "atlas-social";
-const ENGINE = ["atlas-social-behaviors.js", "atlas-social-guard.js", "atlas-social-core.js"];
+const ENGINE = ["atlas-social-behaviors.js", "atlas-social-guard.js", "atlas-social-shadow.js", "atlas-social-core.js"];
 
 /* A stand-in for chrome.storage, so the engine reads the setting the review chooses. */
 const STUB = `(function () {

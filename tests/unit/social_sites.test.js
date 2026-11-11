@@ -159,7 +159,7 @@ test("registration: every site's page scripts are registered for its hosts", asy
     for (const host of site.hosts) assert.ok(code.includes(`*://*.${host}/*`), `${site.key}: ${host} is not in its matches`);
     assert.ok(fs.existsSync(path.join(DIR, `atlas-social-${site.key}.js`)));
   }
-  for (const f of ["atlas-social-behaviors.js", "atlas-social-guard.js", "atlas-social-core.js"]) assert.ok(code.includes(f), f);
+  for (const f of ["atlas-social-behaviors.js", "atlas-social-guard.js", "atlas-social-shadow.js", "atlas-social-core.js"]) assert.ok(code.includes(f), f);
 });
 
 test("siteOf matches a site's own pages and its subdomains, not look-alikes or links", async () => {

@@ -510,7 +510,7 @@ if (chrome.scripting && chrome.scripting.registerContentScripts) {
   /* Social media filter (spec 006): one registration per site, so one site can be switched off alone. Each runs
      the shared engine, then that site's table, at document_start in the top frame. The hosts are the ones in
      SITES (payload/detractless/src/utils/socialFilter.js); tests/unit/social_sites.test.js checks they agree. */
-  var SOCIAL_ENGINE = ['components/atlas/atlas-social-behaviors.js', 'components/atlas/atlas-social-guard.js', 'components/atlas/atlas-social-core.js'];
+  var SOCIAL_ENGINE = ['components/atlas/atlas-social-behaviors.js', 'components/atlas/atlas-social-guard.js', 'components/atlas/atlas-social-shadow.js', 'components/atlas/atlas-social-core.js'];
   var SOCIAL_SITES = [
     { key: 'youtube', matches: ['*://*.youtube.com/*'], js: 'components/atlas/atlas-social-youtube.js' },
     { key: 'reddit', matches: ['*://*.reddit.com/*'], js: 'components/atlas/atlas-social-reddit.js' },
