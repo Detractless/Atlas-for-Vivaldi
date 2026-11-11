@@ -167,23 +167,52 @@ function saveManifest(file, manifest) {
   fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\n");
 }
 
+/* The thumbnail extension of an acceptable candidate, or null to reject it.
+   Rejection reasons: junk title, too small to judge, too big to fetch blind. */
+function usableExtension(title, info, label) {
+  if (SKIP_ANY_TITLE.test(title)) return null;
+  if (label === "leak" && SKIP_LEAK_TITLE.test(title)) return null;
+  const ext = thumbExt(info);
+  if (!ext) return null;
+  if (!info.width || info.width < 640) return null;
+  if (!info.thumburl && (info.size ?? 0) > 8 * 1024 * 1024) return null;
+  return ext;
+}
+
+/* Fetch one image. Every third 429 costs a minute's cooldown; after five of
+   those this category is left for another run. Returns "ok", "skip" or "stop". */
+async function fetchThumb(title, info, dest, cat, limits) {
+  try {
+    await download(info.thumburl || info.url, dest);
+    return "ok";
+  } catch (e) {
+    console.error(`skip ${title}: ${e.message}`);
+    if (!/429/.test(e.message)) return "skip";
+    limits.throttled += 1;
+    if (limits.throttled % 3 !== 0) return "skip";
+    limits.cooldowns += 1;
+    if (limits.cooldowns >= 5) {
+      console.error(`## ${cat}: still throttled after 5 cooldowns, leaving for a later run`);
+      return "stop";
+    }
+    console.error(`## ${cat}: throttled, cooling down 60s`);
+    await sleep(60000);
+    return "skip";
+  }
+}
+
 async function fetchCategory(state, label, cat, reason, cap) {
   const { root, manifest, width, dry, seen } = state;
   const wanted = Math.min(cap, 200);
   const titles = await categoryTitles(cat, wanted * 4);
   const infos = await fileInfos(titles, width);
+  const limits = { throttled: 0, cooldowns: 0 };
   let added = 0;
-  let throttled = 0;
-  let cooldowns = 0;
   for (const { title, info } of infos) {
     if (added >= wanted) break;
     if (seen.has(title)) continue;
-    if (SKIP_ANY_TITLE.test(title)) continue;
-    if (label === "leak" && SKIP_LEAK_TITLE.test(title)) continue;
-    const ext = thumbExt(info);
+    const ext = usableExtension(title, info, label);
     if (!ext) continue;
-    if (!info.width || info.width < 640) continue;
-    if (!info.thumburl && (info.size ?? 0) > 8 * 1024 * 1024) continue;
     const rel = imageName(label, cat, title.replace(/^File:/, ""), ext);
     if (manifest.images.some((e) => e.path === rel)) {
       seen.add(title);
@@ -196,22 +225,9 @@ async function fetchCategory(state, label, cat, reason, cap) {
       added += 1;
       continue;
     }
-    try {
-      await download(info.thumburl || info.url, path.join(root, rel));
-    } catch (e) {
-      console.error(`skip ${title}: ${e.message}`);
-      if (!/429/.test(e.message)) continue;
-      throttled += 1;
-      if (throttled % 3 !== 0) continue;
-      cooldowns += 1;
-      if (cooldowns >= 5) {
-        console.error(`## ${cat}: still throttled after 5 cooldowns, leaving for a later run`);
-        break;
-      }
-      console.error(`## ${cat}: throttled, cooling down 60s`);
-      await sleep(60000);
-      continue;
-    }
+    const outcome = await fetchThumb(title, info, path.join(root, rel), cat, limits);
+    if (outcome === "stop") break;
+    if (outcome === "skip") continue;
     manifest.images.push({ path: rel, label, reason, source: info.descriptionurl ?? "" });
     seen.add(title);
     added += 1;

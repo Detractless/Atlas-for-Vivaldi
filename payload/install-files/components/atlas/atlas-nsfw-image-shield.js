@@ -228,48 +228,54 @@
     send({ act: 'nsfw-retry', snapshotId: state.snapshotId }, function (response) {
       if (state.generation !== generation || !img.isConnected || state.phase !== 'retrying') return;
       if (!response || response.error || typeof response.isNsfw !== 'boolean') {
-        var rawError = response && (response.errorCode || response.error) || (response ? 'retry-failed' : 'bridge-no-response');
-        var errorAliases = { 'wasm-unavailable': 'runtime-unavailable', 'wasm-init-failed': 'model-load-failed' };
-        var errorCode = errorAliases[String(rawError)] || String(rawError);
-        var messages = {
-          'bridge-no-response': 'Checker didn’t respond',
-          'detector-unavailable': 'Checker unavailable',
-          'detector-timeout': 'Checker timed out',
-          'runtime-unavailable': 'Stronger model unavailable',
-          'model-load-failed': 'Stronger model couldn’t load',
-          'snapshot-decode-failed': 'Image couldn’t be prepared',
-          'inference-failed': 'Stronger check failed',
-          'snapshot-expired': 'Image check expired',
-          'invalid-snapshot': 'Image check expired',
-          'retry-capacity': 'Checker is busy',
-          'invalid-response': 'Stronger check returned no result',
-          'retry-failed': 'Stronger check failed'
-        };
-        var freshCheck = errorCode === 'snapshot-expired' || errorCode === 'invalid-snapshot';
-        var message = messages[errorCode] || 'Stronger check failed';
-        state.phase = 'error';
-        render(img, state, message, 'error', freshCheck ? 'Check again' : 'Try again', function () {
-          if (freshCheck) begin(img, state.source, true, null, true);
-          else retry(img, state);
-        });
-        log('retry.error', { kind: 'img', stage: 'strong', model: 'freepik-448-fp16',
-          errorCode: errorCode, errorDetail: response && response.errorDetail ? String(response.errorDetail).slice(0, 180) : '' });
+        retryFailed(img, state, response);
         return;
       }
-      state.snapshotId = '';
-      log('model.verdict', { kind: 'img', stage: response.stage, model: response.model, isNsfw: response.isNsfw, score: response.score, threshold: response.threshold, requestId: state.requestId, url: state.source });
-      if (response.isNsfw) {
-        state.phase = 'confirmed';
-        render(img, state, 'NSFW confirmed', 'confirmed');
-        return;
-      }
-      state.phase = 'sfw-confirmed';
-      render(img, state, 'SFW confirmed', 'sfw-confirmed');
-      if (state.ui) state.ui.fade();
-      setTimeout(function () {
-        if (state.generation === generation && state.phase === 'sfw-confirmed' && img.isConnected) restore(img, state);
-      }, 320);
+      retryVerdict(img, state, generation, response);
     });
+  }
+
+  /* Every way the stronger model can fail, by code, in the words the user sees. */
+  var RETRY_MESSAGES = {
+    'bridge-no-response': 'Checker didn’t respond', 'detector-unavailable': 'Checker unavailable',
+    'detector-timeout': 'Checker timed out', 'runtime-unavailable': 'Stronger model unavailable',
+    'model-load-failed': 'Stronger model couldn’t load', 'snapshot-decode-failed': 'Image couldn’t be prepared',
+    'inference-failed': 'Stronger check failed', 'snapshot-expired': 'Image check expired',
+    'invalid-snapshot': 'Image check expired', 'retry-capacity': 'Checker is busy',
+    'invalid-response': 'Stronger check returned no result', 'retry-failed': 'Stronger check failed'
+  };
+
+  /* An expired snapshot cannot be re-checked, so offer a fresh check instead. */
+  function retryFailed(img, state, response) {
+    var rawError = response && (response.errorCode || response.error) || (response ? 'retry-failed' : 'bridge-no-response');
+    var errorAliases = { 'wasm-unavailable': 'runtime-unavailable', 'wasm-init-failed': 'model-load-failed' };
+    var errorCode = errorAliases[String(rawError)] || String(rawError);
+    var freshCheck = errorCode === 'snapshot-expired' || errorCode === 'invalid-snapshot';
+    var message = RETRY_MESSAGES[errorCode] || 'Stronger check failed';
+    state.phase = 'error';
+    render(img, state, message, 'error', freshCheck ? 'Check again' : 'Try again', function () {
+      if (freshCheck) begin(img, state.source, true, null, true);
+      else retry(img, state);
+    });
+    log('retry.error', { kind: 'img', stage: 'strong', model: 'freepik-448-fp16',
+      errorCode: errorCode, errorDetail: response && response.errorDetail ? String(response.errorDetail).slice(0, 180) : '' });
+  }
+
+  /* The stronger model answered: confirm it, or fade the overlay back out. */
+  function retryVerdict(img, state, generation, response) {
+    state.snapshotId = '';
+    log('model.verdict', { kind: 'img', stage: response.stage, model: response.model, isNsfw: response.isNsfw, score: response.score, threshold: response.threshold, requestId: state.requestId, url: state.source });
+    if (response.isNsfw) {
+      state.phase = 'confirmed';
+      render(img, state, 'NSFW confirmed', 'confirmed');
+      return;
+    }
+    state.phase = 'sfw-confirmed';
+    render(img, state, 'SFW confirmed', 'sfw-confirmed');
+    if (state.ui) state.ui.fade();
+    setTimeout(function () {
+      if (state.generation === generation && state.phase === 'sfw-confirmed' && img.isConnected) restore(img, state);
+    }, 320);
   }
 
   function analyze(img, src, options) {
