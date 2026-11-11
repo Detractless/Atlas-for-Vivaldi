@@ -12,14 +12,14 @@
 #sp-root .pf-input:focus { border-color: var(--sp-text-3); background: var(--sp-bg); }
 #sp-root .pf-input::placeholder { color: var(--sp-text-3); }
 #sp-root .pf-name { font-weight: 500; }
-#sp-root .pf-label { font-size: 12px; line-height: 16px; color: var(--sp-text-2); }
+#sp-root .pf-label { font-size: var(--font-size-12); line-height: 16px; color: var(--sp-text-2); }
 #sp-root .pf-label:empty::before { content: "No label"; color: var(--sp-text-3); }
-#sp-root .pf-badge { font-size: 12px; line-height: 16px; padding: 2px 10px; border-radius: 9999px; background: var(--sp-nav-active); color: var(--sp-text-2); }
+#sp-root .pf-badge { font-size: var(--font-size-12); line-height: 16px; padding: 2px 10px; border-radius: 9999px; background: var(--sp-nav-active); color: var(--sp-text-2); }
 #sp-root .sp-pill[disabled] { opacity: .45; cursor: default; }
 #sp-root .sp-pill[disabled]:hover { background: var(--sp-pill); }
 #sp-root .pf-addrow { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
 #sp-root .pf-row + .pf-addrow::before { content: ""; position: absolute; top: 0; left: 16px; right: 16px; height: 1px; background: var(--sp-border); }
-#sp-root .pf-notice { font-size: 12px; color: var(--sp-danger); }
+#sp-root .pf-notice { font-size: var(--font-size-12); color: var(--sp-danger); }
 #sp-root .pf-intro { margin: 0 0 12px; }
 
 /* The list's avatars are pictures, not buttons; the image is chosen on the edit page. */
@@ -29,7 +29,7 @@
 #sp-root .pfe-head { display: flex; align-items: center; gap: 16px; margin: 0 0 16px; }
 #sp-root .pfe-head .pf-av, #sp-root .pfe-head .pf-avatar { width: 64px; height: 64px; }
 #sp-root .pfe-head-btns { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-#sp-root .pfe-head-btns .sp-pill, #sp-root .sp-row-ctrl .sp-pill.sm { height: 30px; padding: 0 12px; font-size: 13px; }
+#sp-root .pfe-head-btns .sp-pill, #sp-root .sp-row-ctrl .sp-pill.sm { height: 30px; padding: 0 12px; font-size: var(--font-size-13); }
 #sp-root .sp-row-ctrl .pf-input { width: 240px; border-color: var(--sp-border); }
 #sp-root .pfe-ga { display: block; margin-top: 4px; color: var(--sp-text-3); }
 
@@ -42,13 +42,13 @@
 #sp-root .pfe-acc[disabled] { opacity: .5; cursor: default; }
 #sp-root .pfe-acc[disabled]:hover { background: none; }
 #sp-root .pfe-acc-photo, #sp-root .pfe-acc-initials { width: 40px; height: 40px; border-radius: 50%; flex: none; object-fit: cover; }
-#sp-root .pfe-acc-initials { display: grid; place-items: center; background: var(--sp-nav-active); color: var(--sp-text-2); font-size: 14px; font-weight: 500; }
+#sp-root .pfe-acc-initials { display: grid; place-items: center; background: var(--sp-nav-active); color: var(--sp-text-2); font-size: var(--font-size-14); font-weight: 500; }
 #sp-root .pfe-acc-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-#sp-root .pfe-acc-name { font-size: 15px; line-height: 20px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#sp-root .pfe-acc-email { font-size: 13px; line-height: 18px; color: var(--sp-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#sp-root .pfe-acc-check { margin-left: auto; font-size: 16px; color: var(--sp-text); }
-#sp-root .pfe-ga-links { display: block; margin-top: 6px; color: var(--sp-text-3); font-size: 12px; }
-#sp-root .pfe-link { border: 0; background: none; padding: 0; color: var(--sp-text-2); font-size: 12px; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+#sp-root .pfe-acc-name { font-size: var(--font-size-15); line-height: 20px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sp-root .pfe-acc-email { font-size: var(--font-size-13); line-height: 18px; color: var(--sp-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sp-root .pfe-acc-check { margin-left: auto; font-size: var(--font-size-16); color: var(--sp-text); }
+#sp-root .pfe-ga-links { display: block; margin-top: 6px; color: var(--sp-text-3); font-size: var(--font-size-12); }
+#sp-root .pfe-link { border: 0; background: none; padding: 0; color: var(--sp-text-2); font-size: var(--font-size-12); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 #sp-root .pfe-link:hover { color: var(--sp-text); }
 
 /* The profile list: click a profile to switch; the active one is highlighted. */

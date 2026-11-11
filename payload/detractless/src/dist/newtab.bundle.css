@@ -14,6 +14,12 @@
   --mono-800: #1c1c18;
   --mono-900: #111110;
   --mono-950: #0a0a09;
+  --color-black: #000;
+  --color-preview-background: #111;
+  --overlay-black-soft: rgba(0, 0, 0, .12);
+  --overlay-black-medium: rgba(0, 0, 0, .2);
+  --overlay-chip: rgba(10, 10, 9, .78);
+  --overlay-white-soft: rgba(255, 255, 255, .08);
   --radius-xs: 8px;
   --radius-sm: 12px;
   --radius-md: 18px;
@@ -84,10 +90,13 @@
   --font-size-16: 16px;
   --font-size-18: 18px;
   --font-size-48: 48px;
+  --font-size-24: 24px;
   --z-context-menu: 300;
   --z-switcher: 50;
   --z-floating-suggestions: 40;
   --z-header-actions: 10;
+  --z-settings-overlay: 210;
+  --z-settings-menu: 220;
   --tracking-tight: -0.02em;
   --tracking-snug: -0.01em;
   --tracking-normal: 0;
@@ -202,7 +211,7 @@ body {
   background-color: var(--surface-canvas);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--font-size-14);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
@@ -1967,7 +1976,7 @@ textarea.form-input {
     sans-serif;
   position: fixed;
   inset: 0;
-  z-index: 210;
+  z-index: var(--z-settings-overlay);
   background: var(--sp-bg);
   color: var(--sp-text);
   font: 16px/24px var(--sp-font);
@@ -2014,7 +2023,7 @@ textarea.form-input {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  font-size: 14px;
+  font-size: var(--font-size-14);
   line-height: 20px;
   text-align: left;
   cursor: pointer;
@@ -2071,7 +2080,7 @@ textarea.form-input {
   padding: 0 6px 0 10px;
   margin-top: 4px;
   color: var(--sp-text-2);
-  font-size: 14px;
+  font-size: var(--font-size-14);
 }
 .sp-group-label:not(:first-of-type) {
   margin-top: 12px;
@@ -2085,7 +2094,7 @@ textarea.form-input {
   background: none;
   padding: 4px 10px;
   color: var(--sp-text-3);
-  font-size: 12px;
+  font-size: var(--font-size-12);
   cursor: default;
 }
 .sp-main {
@@ -2099,7 +2108,7 @@ textarea.form-input {
 }
 .sp-page-title {
   padding-top: 4px;
-  font-size: 24px;
+  font-size: var(--font-size-24);
   line-height: 28.8px;
   font-weight: 400;
   margin: 0;
@@ -2107,7 +2116,7 @@ textarea.form-input {
   color: var(--sp-text);
 }
 .sp-section-title {
-  font-size: 16px;
+  font-size: var(--font-size-16);
   line-height: 24px;
   font-weight: 500;
   margin: 0;
@@ -2160,12 +2169,12 @@ textarea.form-input {
   gap: 2px;
 }
 .sp-row-title {
-  font-size: 14px;
+  font-size: var(--font-size-14);
   line-height: 20px;
   font-weight: 500;
 }
 .sp-row-desc {
-  font-size: 12px;
+  font-size: var(--font-size-12);
   line-height: 16px;
   color: var(--sp-text-2);
 }
@@ -2184,7 +2193,7 @@ textarea.form-input {
   border: 1px solid var(--sp-border);
   border-radius: 9999px;
   background: var(--sp-pill);
-  font-size: 14px;
+  font-size: var(--font-size-14);
   line-height: 18px;
   cursor: pointer;
   white-space: nowrap;
@@ -2274,7 +2283,7 @@ textarea.form-input {
 }
 .sp-menu {
   position: fixed;
-  z-index: 220;
+  z-index: var(--z-settings-menu);
   min-width: 200px;
   max-height: 70vh;
   overflow-y: auto;
@@ -2288,7 +2297,7 @@ textarea.form-input {
   box-shadow:
     0 0 0 .5px var(--sp-border),
     0 0 0 .5px var(--sp-border),
-    0 8px 16px -4px rgba(0, 0, 0, .12);
+    0 8px 16px -4px var(--overlay-black-soft);
   opacity: 0;
   transform: scale(.97);
   transform-origin: top right;
@@ -2307,7 +2316,7 @@ textarea.form-input {
   height: 36px;
   padding: 6px 10px;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: var(--font-size-14);
   line-height: 20px;
   cursor: pointer;
   outline: none;
@@ -2370,7 +2379,7 @@ textarea.form-input {
   border-radius: 8px;
   background: none;
   color: var(--sp-text-2);
-  font-size: 13px;
+  font-size: var(--font-size-13);
   cursor: pointer;
 }
 #sp-root .sp-back-link:hover {
@@ -2421,7 +2430,7 @@ textarea.form-input {
 .sp-lockcount {
   min-width: 40px;
   text-align: right;
-  font-size: 12px;
+  font-size: var(--font-size-12);
   color: var(--sp-text-2);
   font-variant-numeric: tabular-nums;
 }
@@ -2443,7 +2452,7 @@ textarea.form-input {
 }
 .sp-chip-label {
   padding: 14px 0 10px;
-  font-size: 12px;
+  font-size: var(--font-size-12);
   line-height: 16px;
   font-weight: 600;
   color: var(--sp-text-2);
@@ -2463,7 +2472,7 @@ textarea.form-input {
   border-radius: 9999px;
   background: var(--sp-pill);
   color: var(--sp-text);
-  font-size: 14px;
+  font-size: var(--font-size-14);
   line-height: 18px;
   cursor: pointer;
 }
@@ -2527,14 +2536,14 @@ textarea.form-input {
   height: 34px;
 }
 .sp-chip-pane-title {
-  font-size: 14px;
+  font-size: var(--font-size-14);
   line-height: 20px;
   font-weight: 600;
   color: var(--sp-text);
 }
 .sp-chip-pane-desc {
   margin-top: 2px;
-  font-size: 12px;
+  font-size: var(--font-size-12);
   line-height: 17px;
   color: var(--sp-text-2);
 }
@@ -2543,7 +2552,7 @@ textarea.form-input {
 }
 .sp-chip-pane-sites {
   margin-top: 8px;
-  font-size: 12px;
+  font-size: var(--font-size-12);
   line-height: 16px;
   color: var(--sp-text-3);
 }
@@ -2553,7 +2562,7 @@ textarea.form-input {
   aspect-ratio: 16 / 10;
   border-radius: 8px;
   overflow: hidden;
-  background: #111;
+  background: var(--color-preview-background);
 }
 .sp-chip-slide {
   position: absolute;
@@ -2577,9 +2586,9 @@ textarea.form-input {
   bottom: 8px;
   padding: 2px 9px;
   border-radius: 9999px;
-  background: rgba(10, 10, 9, .78);
-  color: #fff;
-  font-size: 11px;
+  background: var(--overlay-chip);
+  color: var(--mono-000);
+  font-size: var(--font-size-11);
   line-height: 16px;
   font-weight: 600;
 }
@@ -2627,7 +2636,7 @@ textarea.form-input {
   border-radius: 9999px;
   background: transparent;
   color: var(--sp-text-2);
-  font-size: 13px;
+  font-size: var(--font-size-13);
   line-height: 20px;
   cursor: pointer;
 }
@@ -2667,11 +2676,11 @@ textarea.form-input {
 }
 .sp-usage-hint {
   padding: 8px 4px 0;
-  font-size: 12px;
+  font-size: var(--font-size-12);
   color: var(--sp-text-3);
 }
 .sp-usage-time {
-  font-size: 14px;
+  font-size: var(--font-size-14);
   font-weight: 500;
   min-width: 56px;
   text-align: right;
@@ -2693,7 +2702,7 @@ textarea.form-input {
 .sp-slider {
   -webkit-appearance: auto !important;
   appearance: auto !important;
-  accent-color: var(--sp-accent, #7aa7f7);
+  accent-color: var(--sp-accent);
   cursor: pointer;
   width: 140px;
   user-select: text !important;
@@ -2708,7 +2717,7 @@ textarea.form-input {
   cursor: grabbing;
 }
 .sp-slider-val {
-  font-size: 13px;
+  font-size: var(--font-size-13);
   color: var(--sp-text-2);
   min-width: 36px;
   text-align: right;
@@ -2724,8 +2733,8 @@ textarea.form-input {
   height: 140px;
   object-fit: cover;
   border-radius: 8px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--sp-border, rgba(255, 255, 255, 0.08));
+  box-shadow: 0 1px 4px var(--overlay-black-medium);
+  border: 1px solid var(--sp-border);
   user-select: none;
   -webkit-user-select: none;
   pointer-events: none;
@@ -2750,7 +2759,7 @@ textarea.form-input {
   padding: 0 14px;
 }
 .sp-sites-none {
-  font-size: 12px;
+  font-size: var(--font-size-12);
   color: var(--sp-text-3);
 }
 .sp-fade-prev {
@@ -2766,7 +2775,7 @@ textarea.form-input {
 }
 .sp-fade-prev figcaption {
   margin-top: 6px;
-  font-size: 12px;
+  font-size: var(--font-size-12);
   line-height: 16px;
   color: var(--sp-text-2);
 }
@@ -2775,7 +2784,7 @@ textarea.form-input {
   aspect-ratio: 16 / 10;
   border-radius: 8px;
   overflow: hidden;
-  background: #111;
+  background: var(--color-preview-background);
   border: 1px solid var(--sp-border);
 }
 .sp-fade-shot img {
@@ -2789,5 +2798,5 @@ textarea.form-input {
 .sp-fade-shot i {
   position: absolute;
   inset: 0;
-  background: #000;
+  background: var(--color-black);
 }
