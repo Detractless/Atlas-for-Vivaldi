@@ -111,6 +111,8 @@
   --z-header-actions: 10;
   --z-settings-overlay: 210;
   --z-settings-menu: 220;
+  --z-modal-overlay: 200;
+  --z-picker-modal: 400;
 
   /* --- Tracking --- */
   --tracking-tight: -0.02em;
