@@ -1,5 +1,5 @@
 .context-menu {
-  position: fixed; z-index: 300; min-width: 170px;
+  position: fixed; z-index: var(--z-context-menu); min-width: 170px;
   background: var(--surface-card); border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg); padding: 6px; display: none;
   animation: fadeUp 0.14s var(--ease-out);
@@ -32,12 +32,12 @@
 .context-menu-actions { display: flex; gap: 6px; justify-content: flex-end; }
 .context-menu-action-btn {
   padding: 8px 0; border: none; border-radius: var(--radius-pill);
-  background: var(--surface-muted); font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+  background: var(--surface-muted); font-family: var(--font-sans); font-size: var(--font-size-13); font-weight: 500;
   color: var(--text-secondary); cursor: pointer; text-align: center;
   transition: all var(--dur-base) var(--ease-out); flex: 1;
 }
 .context-menu-action-btn:hover { background: var(--surface-hover); }
 .context-menu-action-btn.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 600; }
 .context-menu-action-btn.primary:hover { background: var(--accent-hover); }
-.context-menu-action-btn.delete { background: var(--color-error); color: #fff; border-color: transparent; font-weight: 600; }
+.context-menu-action-btn.delete { background: var(--color-error); color: var(--mono-000); border-color: transparent; font-weight: 600; }
 .context-menu-action-btn.delete:hover { opacity: 0.85; }

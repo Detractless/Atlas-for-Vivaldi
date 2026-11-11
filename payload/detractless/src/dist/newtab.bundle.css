@@ -74,6 +74,10 @@
   --text-label: 500 13px/1.3 var(--font-sans);
   --text-caption: 400 12px/1.35 var(--font-sans);
   --text-mono: 400 12px/1.3 var(--font-mono);
+  --font-size-13: 13px;
+  --font-size-15: 15px;
+  --font-size-26: 26px;
+  --z-context-menu: 300;
   --tracking-tight: -0.02em;
   --tracking-snug: -0.01em;
   --tracking-normal: 0;
@@ -1140,7 +1144,7 @@ textarea.form-input {
 /* src/components/context-menu/context-menu.css */
 .context-menu {
   position: fixed;
-  z-index: 300;
+  z-index: var(--z-context-menu);
   min-width: 170px;
   background: var(--surface-card);
   border-radius: var(--radius-md);
@@ -1222,7 +1226,7 @@ textarea.form-input {
   border-radius: var(--radius-pill);
   background: var(--surface-muted);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--font-size-13);
   font-weight: 500;
   color: var(--text-secondary);
   cursor: pointer;
@@ -1244,7 +1248,7 @@ textarea.form-input {
 }
 .context-menu-action-btn.delete {
   background: var(--color-error);
-  color: #fff;
+  color: var(--mono-000);
   border-color: transparent;
   font-weight: 600;
 }
@@ -1831,7 +1835,7 @@ textarea.form-input {
   visibility: visible;
 }
 
-/* src/components/engines/enginesUI.css */
+/* src/components/engines/engines.css */
 .engine-field {
   margin-top: 0;
 }
@@ -1907,7 +1911,7 @@ textarea.form-input {
   background: var(--surface-muted);
   cursor: pointer;
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--font-size-13);
   font-weight: 500;
   color: var(--text-secondary);
   transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
