@@ -1,5 +1,5 @@
 ﻿import './enginesUI.css';
-import { loadEngines, saveEngines } from '../../services/engineStorage.js';
+import { loadEngines } from '../../services/engineStorage.js';
 import { Icons } from '../../constants/icons.js';
 import {
   searchEngines, setSearchEngines,
@@ -8,7 +8,6 @@ import {
   searchEngineBehavior, setSearchEngineBehavior
 } from '../../pages/newtab/newtabState.js';
 import { setEngineIconSrc } from './engineIcons.js';
-import { renderEngineListInModal } from './engineModal.js';
 import { storageGet, storageSet } from '../../services/storage.js';
 import { warn } from '../../services/log.js';
 
@@ -17,12 +16,6 @@ export function setManageEnginesCallback(cb) { _onManageEngines = cb; }
 
 export async function loadSearchEngines() {
   setSearchEngines(await loadEngines());
-}
-
-export function saveSearchEngines() {
-  saveEngines(searchEngines, () => {
-    renderEngineDropdown(); renderEngineListInModal();
-  });
 }
 
 export function renderEngineDropdown() {

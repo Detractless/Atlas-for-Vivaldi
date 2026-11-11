@@ -2799,6 +2799,42 @@
     }
   }
 
+  // src/constants/engines.js
+  var DEFAULT_ENGINES = {
+    default: { name: "Browser Default", url: null, icon: "src/assets/svg/default.api.svg", isDefault: true },
+    google: { name: "Google", url: "https://www.google.com/search?q=", icon: "src/assets/svg/google.com.svg", isDefault: true },
+    bing: { name: "Bing", url: "https://www.bing.com/search?q=", icon: "src/assets/svg/bing.com.svg", isDefault: true },
+    duckduckgo: { name: "DuckDuckGo", url: "https://duckduckgo.com/?q=", icon: "src/assets/svg/duckduckgo.com.svg", isDefault: true },
+    youtube: { name: "YouTube", url: "https://www.youtube.com/results?search_query=", icon: "src/assets/svg/youtube.com.svg", isDefault: true },
+    reddit: { name: "Reddit", url: "https://www.reddit.com/search/?q=", icon: "src/assets/svg/reddit.com.svg", isDefault: true },
+    yandex: { name: "Yandex", url: "https://yandex.com/search/?text=", icon: "src/assets/svg/yandex.com.svg", isDefault: true },
+    yahoo: { name: "Yahoo", url: "https://search.yahoo.com/search?p=", icon: "src/assets/svg/yahoo.com.svg", isDefault: true },
+    mojeek: { name: "Mojeek", url: "https://www.mojeek.com/search?q=", icon: "src/assets/svg/mojeek.com.svg", isDefault: true }
+  };
+
+  // src/services/engineStorage.js
+  async function loadEngines() {
+    return new Promise((resolve) => {
+      if (window.chrome && window.chrome.storage) {
+        storageGet("sync", ["customSearchEngines"]).then((result) => {
+          if (result.customSearchEngines && Object.keys(result.customSearchEngines).length > 0) {
+            resolve(result.customSearchEngines);
+          } else {
+            const defaults = JSON.parse(JSON.stringify(DEFAULT_ENGINES));
+            storageSet("sync", { customSearchEngines: defaults }).then(() => resolve(defaults));
+          }
+        });
+      } else {
+        resolve(JSON.parse(JSON.stringify(DEFAULT_ENGINES)));
+      }
+    });
+  }
+  function saveEngines(engines, callback) {
+    if (window.chrome && window.chrome.storage) {
+      storageSet("sync", { customSearchEngines: engines }).then(callback);
+    }
+  }
+
   // src/components/shared/acronymBadge.js
   function generateAcronymSvg(text, color) {
     const acronym = text.trim().toUpperCase().substring(0, 2);
@@ -2897,42 +2933,6 @@
     }
   }
 
-  // src/constants/engines.js
-  var DEFAULT_ENGINES = {
-    default: { name: "Browser Default", url: null, icon: "src/assets/svg/default.api.svg", isDefault: true },
-    google: { name: "Google", url: "https://www.google.com/search?q=", icon: "src/assets/svg/google.com.svg", isDefault: true },
-    bing: { name: "Bing", url: "https://www.bing.com/search?q=", icon: "src/assets/svg/bing.com.svg", isDefault: true },
-    duckduckgo: { name: "DuckDuckGo", url: "https://duckduckgo.com/?q=", icon: "src/assets/svg/duckduckgo.com.svg", isDefault: true },
-    youtube: { name: "YouTube", url: "https://www.youtube.com/results?search_query=", icon: "src/assets/svg/youtube.com.svg", isDefault: true },
-    reddit: { name: "Reddit", url: "https://www.reddit.com/search/?q=", icon: "src/assets/svg/reddit.com.svg", isDefault: true },
-    yandex: { name: "Yandex", url: "https://yandex.com/search/?text=", icon: "src/assets/svg/yandex.com.svg", isDefault: true },
-    yahoo: { name: "Yahoo", url: "https://search.yahoo.com/search?p=", icon: "src/assets/svg/yahoo.com.svg", isDefault: true },
-    mojeek: { name: "Mojeek", url: "https://www.mojeek.com/search?q=", icon: "src/assets/svg/mojeek.com.svg", isDefault: true }
-  };
-
-  // src/services/engineStorage.js
-  async function loadEngines() {
-    return new Promise((resolve) => {
-      if (window.chrome && window.chrome.storage) {
-        storageGet("sync", ["customSearchEngines"]).then((result) => {
-          if (result.customSearchEngines && Object.keys(result.customSearchEngines).length > 0) {
-            resolve(result.customSearchEngines);
-          } else {
-            const defaults = JSON.parse(JSON.stringify(DEFAULT_ENGINES));
-            storageSet("sync", { customSearchEngines: defaults }).then(() => resolve(defaults));
-          }
-        });
-      } else {
-        resolve(JSON.parse(JSON.stringify(DEFAULT_ENGINES)));
-      }
-    });
-  }
-  function saveEngines(engines, callback) {
-    if (window.chrome && window.chrome.storage) {
-      storageSet("sync", { customSearchEngines: engines }).then(callback);
-    }
-  }
-
   // src/components/engines/enginesUI.js
   var _onManageEngines = null;
   function setManageEnginesCallback(cb) {
@@ -2940,12 +2940,6 @@
   }
   async function loadSearchEngines() {
     setSearchEngines(await loadEngines());
-  }
-  function saveSearchEngines() {
-    saveEngines(searchEngines, () => {
-      renderEngineDropdown();
-      renderEngineListInModal();
-    });
   }
   function renderEngineDropdown() {
     const container = document.getElementById("engine-links");
@@ -3318,6 +3312,12 @@
           }
         }
       ]
+    });
+  }
+  function saveSearchEngines() {
+    saveEngines(searchEngines, () => {
+      renderEngineDropdown();
+      renderEngineListInModal();
     });
   }
   function setDefaultEngine(key) {

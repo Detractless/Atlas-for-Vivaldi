@@ -1,4 +1,5 @@
 import { BookmarkDB } from '../../services/bookmarksDB.js';
+import { saveEngines } from '../../services/engineStorage.js';
 import { generateAcronymSvg } from '../shared/acronymBadge.js';
 import { readFileAsDataURL } from '../../utils/file.js';
 import { attachScrollAffordance } from '../shared/scrollAffordance.js';
@@ -12,7 +13,7 @@ import {
   defaultEngineKey, setDefaultEngineKey
 } from '../../pages/newtab/newtabState.js';
 import { setEngineIconSrc } from './engineIcons.js';
-import { saveSearchEngines, updateCurrentEngine } from './enginesUI.js';
+import { renderEngineDropdown, updateCurrentEngine } from './enginesUI.js';
 import { iconChoice, resetIconChoice, openIconTypePicker } from './engineIconPicker.js';
 import { storageSet } from '../../services/storage.js';
 
@@ -167,6 +168,13 @@ function openEngineItemDialog(key) {
 }
 
 /* ── Engine actions ───────────────────────────────────────────────── */
+
+function saveSearchEngines() {
+  saveEngines(searchEngines, () => {
+    renderEngineDropdown();
+    renderEngineListInModal();
+  });
+}
 
 function setDefaultEngine(key) {
   setDefaultEngineKey(key);
