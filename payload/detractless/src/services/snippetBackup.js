@@ -14,40 +14,44 @@ import { PASTEKIT_DB } from '../constants/storageKeys.js';
 const DB_NAME = PASTEKIT_DB, DB_VERSION = 2;
 let _dbPromise = null;
 
+/* Stores and the v1 -> v2 index drop, created on first open or upgraded in
+   place. Runs without a passphrase, so it never touches snippet records. */
+function upgradeSchema(req, event) {
+  const db = req.result;
+  if (!db.objectStoreNames.contains('snippets')) {
+    db.createObjectStore('snippets', { keyPath: 'id', autoIncrement: true });
+  }
+  if (!db.objectStoreNames.contains('folders')) {
+    const f = db.createObjectStore('folders', { keyPath: 'id', autoIncrement: true });
+    f.createIndex('name', 'name');
+    f.createIndex('parentId', 'parentId');
+  }
+  if (!db.objectStoreNames.contains('settings'))
+    db.createObjectStore('settings', { keyPath: 'key' });
+
+  // 1 -> 2: drop every snippet index. They were built over fields that are
+  // about to become ciphertext, and an index over a field that no longer
+  // exists on the record is dead weight that also breaks `put` on a unique
+  // index the moment two sealed rows both lack `name`.
+  //
+  // Records themselves are NOT touched here. This upgrade runs without a
+  // passphrase — it can fire on a browser restart long before the user
+  // unlocks — so it must not need one. Existing rows stay plaintext until
+  // encryptAllSnippets() migrates them, and both shapes are readable in the
+  // meantime.
+  if (event.oldVersion >= 1 && event.oldVersion < 2) {
+    const s = req.transaction.objectStore('snippets');
+    for (const name of ['name', 'folderId', 'tags', 'updatedAt']) {
+      if (s.indexNames.contains(name)) s.deleteIndex(name);
+    }
+  }
+}
+
 function openDB() {
   if (_dbPromise) return _dbPromise;
   _dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = (event) => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains('snippets')) {
-        db.createObjectStore('snippets', { keyPath: 'id', autoIncrement: true });
-      }
-      if (!db.objectStoreNames.contains('folders')) {
-        const f = db.createObjectStore('folders', { keyPath: 'id', autoIncrement: true });
-        f.createIndex('name', 'name');
-        f.createIndex('parentId', 'parentId');
-      }
-      if (!db.objectStoreNames.contains('settings'))
-        db.createObjectStore('settings', { keyPath: 'key' });
-
-      // 1 -> 2: drop every snippet index. They were built over fields that are
-      // about to become ciphertext, and an index over a field that no longer
-      // exists on the record is dead weight that also breaks `put` on a unique
-      // index the moment two sealed rows both lack `name`.
-      //
-      // Records themselves are NOT touched here. This upgrade runs without a
-      // passphrase — it can fire on a browser restart long before the user
-      // unlocks — so it must not need one. Existing rows stay plaintext until
-      // encryptAllSnippets() migrates them, and both shapes are readable in the
-      // meantime.
-      if (event.oldVersion >= 1 && event.oldVersion < 2) {
-        const s = req.transaction.objectStore('snippets');
-        for (const name of ['name', 'folderId', 'tags', 'updatedAt']) {
-          if (s.indexNames.contains(name)) s.deleteIndex(name);
-        }
-      }
-    };
+    req.onupgradeneeded = (event) => upgradeSchema(req, event);
     req.onblocked = () => {
       _dbPromise = null;
       console.warn('[PasteKit DB] open blocked by another open connection');

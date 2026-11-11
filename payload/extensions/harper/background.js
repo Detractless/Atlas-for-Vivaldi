@@ -337,9 +337,21 @@ const CONFUSION_RULES = [
 
 function analyzeText(text) {
   if (!text || typeof text !== 'string') return [];
-  const issues = [];
+  const issues = [
+    ...findRepeatedWords(text),
+    ...findCapitalizationIssues(text),
+    ...findConfusionIssues(text),
+    ...findArticleIssues(text)
+  ];
+  issues.push(...findSpellingIssues(text, issues));
+  // Sort issues in chronological offset order
+  issues.sort((a, b) => a.start - b.start);
+  return issues;
+}
 
-  // 1. Grammar Check: Repeated Words (e.g. "the the", "in in", "is is")
+/* 1. Grammar: the same word twice in a row. */
+function findRepeatedWords(text) {
+  const issues = [];
   const repeatedWordRegex = /\b([a-zA-Z]{2,})\s+\1\b/gi;
   let match;
   while ((match = repeatedWordRegex.exec(text)) !== null) {
@@ -354,8 +366,13 @@ function analyzeText(text) {
       suggestions: [singleWord]
     });
   }
+  return issues;
+}
 
-  // 2. Grammar Check: Capitalization at beginning of text or after terminal punctuation
+/* 2. Grammar: a sentence that starts in lowercase. */
+function findCapitalizationIssues(text) {
+  const issues = [];
+  let match;
   const sentenceCapRegex = /(?:^|[.!?]\s+)([a-z])/g;
   while ((match = sentenceCapRegex.exec(text)) !== null) {
     const charIndex = match.index + match[0].length - 1;
@@ -370,8 +387,13 @@ function analyzeText(text) {
       suggestions: [char.toUpperCase()]
     });
   }
+  return issues;
+}
 
-  // 3. Grammar Check: Common Confusions & Collocations
+/* 3. Grammar: the confusion table above. */
+function findConfusionIssues(text) {
+  const issues = [];
+  let match;
   for (const rule of CONFUSION_RULES) {
     const regex = new RegExp(rule.pattern.source, 'gi');
     while ((match = regex.exec(text)) !== null) {
@@ -388,8 +410,13 @@ function analyzeText(text) {
       });
     }
   }
+  return issues;
+}
 
-  // 4. Grammar Check: Indefinite Article Agreement ("a" vs "an")
+/* 4. Grammar: "a" before a vowel sound, "an" before a consonant sound. */
+function findArticleIssues(text) {
+  const issues = [];
+  let match;
   const articleRegex = /\b(a|an)\s+([a-zA-Z]+)\b/gi;
   while ((match = articleRegex.exec(text)) !== null) {
     const art = match[1].toLowerCase();
@@ -423,8 +450,14 @@ function analyzeText(text) {
       });
     }
   }
+  return issues;
+}
 
-  // 5. Spelling Check: Scan individual words
+/* 5. Spelling: words no dictionary or typo map knows, skipping anything a
+   grammar rule already flagged and never touching all-caps acronyms. */
+function findSpellingIssues(text, existingIssues) {
+  const issues = [];
+  let match;
   const wordRegex = /\b([a-zA-Z]{2,})\b/g;
   while ((match = wordRegex.exec(text)) !== null) {
     const rawWord = match[1];
@@ -432,7 +465,7 @@ function analyzeText(text) {
     const endIndex = startIndex + rawWord.length;
 
     // Check if covered by an existing grammar issue
-    const alreadyHandled = issues.some(iss => iss.start <= startIndex && iss.end >= endIndex);
+    const alreadyHandled = existingIssues.some(iss => iss.start <= startIndex && iss.end >= endIndex);
     if (alreadyHandled) continue;
 
     // Ignore acronyms / all caps (e.g. NASA, HTML, URL, USA)
@@ -452,9 +485,6 @@ function analyzeText(text) {
       });
     }
   }
-
-  // Sort issues in chronological offset order
-  issues.sort((a, b) => a.start - b.start);
   return issues;
 }
 
