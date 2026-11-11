@@ -8,25 +8,25 @@ from . import util
 from .util import fail, say
 
 
-def step8_disable_autoupdates(app_root: Path):
-    if sys.platform == "darwin":
-        if util.DRY:
-            say("[dry-run] would disable Sparkle auto-updates in com.vivaldi.Vivaldi")
-        else:
-            try:
-                subprocess.run(
-                    ["defaults", "write", "com.vivaldi.Vivaldi", "SUEnableAutomaticChecks", "-bool", "false"],
-                    capture_output=True,
-                )
-                subprocess.run(
-                    ["defaults", "write", "com.vivaldi.Vivaldi", "SUAutomaticallyUpdate", "-bool", "false"],
-                    capture_output=True,
-                )
-            except Exception as e:
-                say(f"Warning: could not turn off auto-updates: {e}", dim=True)
-        say("Auto-updates         permanently disabled (Sparkle)")
-        return
+def _disable_autoupdates_macos():
+    if util.DRY:
+        say("[dry-run] would disable Sparkle auto-updates in com.vivaldi.Vivaldi")
+    else:
+        try:
+            subprocess.run(
+                ["defaults", "write", "com.vivaldi.Vivaldi", "SUEnableAutomaticChecks", "-bool", "false"],
+                capture_output=True,
+            )
+            subprocess.run(
+                ["defaults", "write", "com.vivaldi.Vivaldi", "SUAutomaticallyUpdate", "-bool", "false"],
+                capture_output=True,
+            )
+        except Exception as e:
+            say(f"Warning: could not turn off auto-updates: {e}", dim=True)
+    say("Auto-updates         permanently disabled (Sparkle)")
 
+
+def _disable_autoupdates_windows(app_root: Path):
     if sys.platform != "win32":
         return
     # 1. Disable Windows Scheduled Tasks for Vivaldi updates
@@ -78,6 +78,15 @@ def step8_disable_autoupdates(app_root: Path):
             say(f"Warning: could not set the update policy in the registry: {e}", dim=True)
 
     say("Auto-updates         permanently disabled")
+
+
+def step8_disable_autoupdates(app_root: Path):
+    if sys.platform == "darwin":
+        _disable_autoupdates_macos()
+        return
+    if sys.platform != "win32":
+        return
+    _disable_autoupdates_windows(app_root)
 
 
 def step9_macos_codesign(res: Path):

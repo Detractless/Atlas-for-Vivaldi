@@ -34,7 +34,7 @@ from installer.system import step8_disable_autoupdates, step9_macos_codesign
 from installer.util import fail, say
 
 
-def main():
+def parse_args():
     ap = argparse.ArgumentParser(description="Atlas for Vivaldi installer")
     ap.add_argument("--yes", "-y", action="store_true", help="kept for compatibility; nothing to confirm now")
     ap.add_argument("--close", action="store_true", help="quit Vivaldi before installing (old behaviour)")
@@ -45,6 +45,29 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="print every change, touch nothing")
     args = ap.parse_args()
     util.DRY = args.dry_run
+    return args
+
+
+def launch_vivaldi(app_root: Path):
+    if sys.platform == "darwin":
+        app_candidates = [
+            Path("/Applications/Vivaldi.app"),
+            Path.home() / "Applications" / "Vivaldi.app",
+        ]
+        app_path = next((p for p in app_candidates if p.is_dir()), None)
+        if app_path:
+            subprocess.Popen(["open", "-a", str(app_path)])
+            say("Vivaldi relaunched.")
+    else:
+        exe = app_root / "vivaldi.exe"
+        if exe.is_file():
+            flags = getattr(subprocess, "DETACHED_PROCESS", 0) if sys.platform == "win32" else 0
+            subprocess.Popen([str(exe)], creationflags=flags)
+            say("Vivaldi relaunched.")
+
+
+def main():
+    args = parse_args()
 
     print()
     say("Atlas for Vivaldi - installer" + ("   [DRY RUN]" if util.DRY else ""))
@@ -87,21 +110,7 @@ def main():
     say("Done." + ("  (dry run - nothing was changed)" if util.DRY else ""))
 
     if args.launch and not util.DRY:
-        if sys.platform == "darwin":
-            app_candidates = [
-                Path("/Applications/Vivaldi.app"),
-                Path.home() / "Applications" / "Vivaldi.app",
-            ]
-            app_path = next((p for p in app_candidates if p.is_dir()), None)
-            if app_path:
-                subprocess.Popen(["open", "-a", str(app_path)])
-                say("Vivaldi relaunched.")
-        else:
-            exe = app_root / "vivaldi.exe"
-            if exe.is_file():
-                flags = getattr(subprocess, "DETACHED_PROCESS", 0) if sys.platform == "win32" else 0
-                subprocess.Popen([str(exe)], creationflags=flags)
-                say("Vivaldi relaunched.")
+        launch_vivaldi(app_root)
     print()
 
 

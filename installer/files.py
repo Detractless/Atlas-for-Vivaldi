@@ -114,26 +114,7 @@ def _remove_archived_sidebar_files(res: Path):
         say(f"Tools sidebar        removed {gone} archived files")
 
 
-def step3_detractless(detract: Path, res: Path, skip: bool):
-    if skip:
-        return
-    if not detract.is_dir():
-        say("Detractless payload missing - SKIPPED")
-        return
-    for d in DETRACTLESS_DIRS:
-        if (detract / d).is_dir():
-            copy_tree(detract / d, res / d)
-    for rel in DETRACTLESS_FILES:
-        sp = detract / rel
-        if not sp.is_file():
-            fail(f"Payload is missing {rel} - package is incomplete.")
-        copy_file(sp, (res / rel).parent)
-    _remove_archived_sidebar_files(res)
-
-    if util.DRY:
-        say("Detractless          installed + shimmed  [dry-run: head edits skipped]")
-        return
-
+def _shim_html_heads(res: Path):
     for f in ("index.html", "gate.html"):
         p = res / f
         if not p.is_file():
@@ -165,6 +146,29 @@ def step3_detractless(detract: Path, res: Path, skip: bool):
                 t, count=1,
             )
         write_text(p, t, label=f)
+
+
+def step3_detractless(detract: Path, res: Path, skip: bool):
+    if skip:
+        return
+    if not detract.is_dir():
+        say("Detractless payload missing - SKIPPED")
+        return
+    for d in DETRACTLESS_DIRS:
+        if (detract / d).is_dir():
+            copy_tree(detract / d, res / d)
+    for rel in DETRACTLESS_FILES:
+        sp = detract / rel
+        if not sp.is_file():
+            fail(f"Payload is missing {rel} - package is incomplete.")
+        copy_file(sp, (res / rel).parent)
+    _remove_archived_sidebar_files(res)
+
+    if util.DRY:
+        say("Detractless          installed + shimmed  [dry-run: head edits skipped]")
+        return
+
+    _shim_html_heads(res)
     say("Detractless          installed + shimmed")
 
 
