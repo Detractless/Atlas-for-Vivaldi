@@ -4,18 +4,8 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { openWindow } = require("./helpers/windowDom");
+const { plain, startWindow: start } = require("../helpers/window-test-fixture");
 const { menuLabels, answer } = require("./helpers/windowMenus");
-
-const plain = (v) => JSON.parse(JSON.stringify(v === undefined ? null : v));
-let open = [];
-test.afterEach(() => { for (const w of open) w.window.close(); open = []; });
-
-async function start(opts) {
-  const w = await openWindow(opts);
-  open.push(w);
-  return w;
-}
 
 test("atlas.js starts in the browser window without errors", async () => {
   const w = await start();

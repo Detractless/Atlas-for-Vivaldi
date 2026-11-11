@@ -5,23 +5,8 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { openWindow } = require("./helpers/windowDom");
-
-const plain = (v) => JSON.parse(JSON.stringify(v === undefined ? null : v));
-let open = [];
-test.afterEach(() => { for (const w of open) w.window.close(); open = []; });
-
-async function start(opts) {
-  const w = await openWindow(opts);
-  open.push(w);
-  return w;
-}
-
-function answer(w, name, value) {
-  const call = [...w.calls].reverse().find((c) => c.name === name);
-  assert.ok(call, `${name} was called`);
-  call.args.find((a) => typeof a === "function")(w.window.JSON.parse(JSON.stringify(value)));
-}
+const { plain, startWindow: start } = require("../helpers/window-test-fixture");
+const { answer } = require("./helpers/windowMenus");
 
 async function waitFor(fn, what, ms = 2000) {
   const t0 = Date.now();
