@@ -6,18 +6,9 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const path = require("path");
-const esbuild = require("esbuild");
+const { loadSourceModule } = require("../helpers/source-module-loader");
 
-const SRC = path.join(__dirname, "..", "..", "payload", "detractless", "src");
-function load(rel) {
-  const out = esbuild.buildSync({ entryPoints: [path.join(SRC, rel)], bundle: true, format: "cjs", platform: "node", write: false }).outputFiles[0].text;
-  const m = { exports: {} };
-  new Function("module", "exports", "require", out)(m, m.exports, require);
-  return m.exports;
-}
-
-const L = load("utils/focusLock.js");
+const L = loadSourceModule("utils/focusLock.js");
 const NOW = 1_800_000_000_000;
 const MIN = 60 * 1000;
 
@@ -111,7 +102,7 @@ test("a change queued by the version before finishes on time, unless the setting
     remove: (keys, cb) => { for (const k of [].concat(keys)) delete data[k]; cb(); },
   };
   globalThis.chrome = { storage: { sync: area, local: area }, runtime: {}, tabs: { query: (q, cb) => (cb ? cb([]) : Promise.resolve([])) } };
-  const { checkPendingIncrease, checkPendingDelayDecrease } = load("background/pendingChanges.js");
+  const { checkPendingIncrease, checkPendingDelayDecrease } = loadSourceModule("background/pendingChanges.js");
   await checkPendingIncrease();
   await checkPendingDelayDecrease();
   assert.equal(data.tabLimit, 8, "the tab limit is unlocked: its queued increase finishes");

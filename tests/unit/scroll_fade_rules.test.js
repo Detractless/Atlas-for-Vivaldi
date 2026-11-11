@@ -7,20 +7,12 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
-const esbuild = require("esbuild");
 const { JSDOM } = require("jsdom");
 const { makeFakeChrome } = require("./helpers/fakeChrome");
 const { openWindow } = require("./helpers/windowDom");
+const { ROOT, SRC, loadSourceModule } = require("../helpers/source-module-loader");
 
-const ROOT = path.join(__dirname, "..", "..");
-const SRC = path.join(ROOT, "payload", "detractless", "src");
-function load(rel) {
-  const out = esbuild.buildSync({ entryPoints: [path.join(SRC, rel)], bundle: true, format: "cjs", platform: "node", write: false }).outputFiles[0].text;
-  const m = { exports: {} };
-  new Function("module", "exports", "require", out)(m, m.exports, require);
-  return m.exports;
-}
-const R = load("utils/scrollFade.js");
+const R = loadSourceModule("utils/scrollFade.js");
 const KEYS = JSON.parse(fs.readFileSync(path.join(SRC, "constants", "atlasKeys.json"), "utf8"));
 const plain = (v) => JSON.parse(JSON.stringify(v));
 
