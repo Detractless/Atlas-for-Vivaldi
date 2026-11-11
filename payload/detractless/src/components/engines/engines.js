@@ -1,4 +1,4 @@
-﻿import './enginesUI.css';
+﻿import './engines.css';
 import { loadEngines } from '../../services/engineStorage.js';
 import { Icons } from '../../constants/icons.js';
 import {
@@ -7,7 +7,7 @@ import {
   defaultEngineKey, setDefaultEngineKey,
   searchEngineBehavior, setSearchEngineBehavior
 } from '../../pages/newtab/newtabState.js';
-import { setEngineIconSrc } from './engineIcons.js';
+import { setEngineIconSrc } from './engines-icons.js';
 import { storageGet, storageSet } from '../../services/storage.js';
 import { warn } from '../../services/log.js';
 

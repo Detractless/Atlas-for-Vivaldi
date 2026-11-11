@@ -1,4 +1,4 @@
-import { renderEngineListInModal } from '../../components/engines/engineModal.js';
+import { renderEngineListInModal } from '../../components/engines/engines-modal.js';
 
 export async function showModal(modalId) {
   /* No "add-modal" branch: the add popup (components/add-popup) builds itself

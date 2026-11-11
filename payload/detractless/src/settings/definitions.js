@@ -10,7 +10,7 @@ import {
 import { applySpotlightVisibility, applyFadeIn } from '../pages/newtab/displayEffects.js';
 import { requestSaturation } from '../components/color-lock/color-lock.js';
 import { applyThemeConfig } from '../pages/newtab/theme.js';
-import { updateCurrentEngine } from '../components/engines/enginesUI.js';
+import { updateCurrentEngine } from '../components/engines/engines.js';
 import { requestTabLimit } from '../components/tab-limiter/tab-limiter-ui.js';
 import { requestSearchDelay } from '../components/search-delay/search-delay.js';
 
@@ -32,7 +32,7 @@ export function defineAllSettings() {
     apply: (v, { local }) => {
       setSearchEngineBehavior(v);
       // Choosing "always reset" in Settings resets the engine right away; at page
-      // start loadSavedEngine (enginesUI.js) does the same from storage.
+      // start loadSavedEngine (engines.js) does the same from storage.
       if (local && v === 'always-default') updateCurrentEngine('default');
     },
   });

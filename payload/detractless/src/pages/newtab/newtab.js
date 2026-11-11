@@ -12,8 +12,8 @@ import { initializeTabs, setTabNavigationCallbacks, renderTabs, selectSearchTab 
 import { showModal } from './modalVisibility.js';
 // The tab limiter's stylesheet; imported here so the CSS keeps its place in the bundle.
 import '../../components/tab-limiter/tab-limiter-ui.js';
-import { loadSearchEngines, loadSavedEngine, setManageEnginesCallback, renderEngineDropdown, updateCurrentEngine, followEnginePicks } from '../../components/engines/enginesUI.js';
-import { initEngineModal } from '../../components/engines/engineModal.js';
+import { loadSearchEngines, loadSavedEngine, setManageEnginesCallback, renderEngineDropdown, updateCurrentEngine, followEnginePicks } from '../../components/engines/engines.js';
+import { initEngineModal } from '../../components/engines/engines-modal.js';
 import { initializeSearch } from '../../components/search/search.js';
 import { setImportCompleteCallback } from './importExport.js';
 import { runOrphanRepairOnce } from '../../services/orphanCleanup.js';

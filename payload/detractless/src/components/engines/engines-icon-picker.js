@@ -1,7 +1,7 @@
-// src/components/engines/engineIconPicker.js — the two-layer icon picker of the
+// src/components/engines/engines-icon-picker.js — the two-layer icon picker of the
 // Add Engine form: layer 1 picks the icon type (SVG file or acronym), layer 2
 // takes the file or the letters and colour. The choice lives in iconChoice until
-// the form is submitted (engineModal.js handleAddEngine).
+// the form is submitted (engines-modal.js handleAddEngine).
 
 /** What the user picked for the engine being added. resetIconChoice() clears it. */
 export const iconChoice = { type: 'file', file: null, acronym: { text: '', color: '#3b82f6' } };

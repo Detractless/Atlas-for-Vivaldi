@@ -104,7 +104,7 @@ function buildRootPane(spec, panes, showPane, close) {
 
    These are the existing panes with a one-pane shell around them, NOT a third
    picker implementation. settingsModal.openPickerDialog and
-   engineModal.buildEngineDialog are the two that already exist; a fourth hand
+   engines-modal.buildEngineDialog are the two that already exist; a fourth hand
    rolled card is the drift this file was created to prevent. Back closes,
    because at one pane deep there is nowhere behind to go. */
 function onePaneDialog(buildPane) {

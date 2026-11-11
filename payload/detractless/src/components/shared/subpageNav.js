@@ -6,7 +6,7 @@
    overlay, which is the property that separates this from a picker dialog.
 
    WHY IT IS SHARED. This was four coupled writes living inside
-   engineModal.js: the visible panel, the header text, the close disc's glyph
+   engines-modal.js: the visible panel, the header text, the close disc's glyph
    AND its title attribute, and a dataset flag the click handler branches on.
    Miss one and the card claims to be somewhere it is not. The add flow is
    adopting the same pattern, and this project has twice paid for the

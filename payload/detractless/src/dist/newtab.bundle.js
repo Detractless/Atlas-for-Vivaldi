@@ -2914,7 +2914,7 @@
     return { open, close: close2, isSubpage };
   }
 
-  // src/components/engines/engineIcons.js
+  // src/components/engines/engines-icons.js
   async function setEngineIconSrc(imgElement, engine, engineId) {
     const defaultIcon = "src/assets/svg/default.api.svg";
     if (engine.isCustomIcon) {
@@ -2933,7 +2933,7 @@
     }
   }
 
-  // src/components/engines/enginesUI.js
+  // src/components/engines/engines.js
   var _onManageEngines = null;
   function setManageEnginesCallback(cb) {
     _onManageEngines = cb;
@@ -3039,7 +3039,7 @@
     }
   }
 
-  // src/components/engines/engineIconPicker.js
+  // src/components/engines/engines-icon-picker.js
   var iconChoice = { type: "file", file: null, acronym: { text: "", color: "#3b82f6" } };
   function resetIconChoice() {
     iconChoice.type = "file";
@@ -3169,7 +3169,7 @@
     });
   }
 
-  // src/components/engines/engineModal.js
+  // src/components/engines/engines-modal.js
   var nav = createSubpageNav({
     panels: ".engine-subpage",
     home: "#engine-home",

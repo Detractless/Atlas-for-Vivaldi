@@ -12,9 +12,9 @@ import {
   currentEngine, setCurrentEngine,
   defaultEngineKey, setDefaultEngineKey
 } from '../../pages/newtab/newtabState.js';
-import { setEngineIconSrc } from './engineIcons.js';
-import { renderEngineDropdown, updateCurrentEngine } from './enginesUI.js';
-import { iconChoice, resetIconChoice, openIconTypePicker } from './engineIconPicker.js';
+import { setEngineIconSrc } from './engines-icons.js';
+import { renderEngineDropdown, updateCurrentEngine } from './engines.js';
+import { iconChoice, resetIconChoice, openIconTypePicker } from './engines-icon-picker.js';
 import { storageSet } from '../../services/storage.js';
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -41,7 +41,7 @@ import { storageSet } from '../../services/storage.js';
    WRITTEN (declared, then cleared on returning home) and never read: they held
    the state of the edit subpage that this file's header claimed existed and
    index.html never had. They went with the dead dialogs. */
-// The icon choice of the Add form lives in engineIconPicker.js (iconChoice).
+// The icon choice of the Add form lives in engines-icon-picker.js (iconChoice).
 
 /* ── Subpage navigation ───────────────────────────────────────────── */
 
@@ -284,6 +284,6 @@ async function handleAddEngine() {
 
 /* Five more exports stood here (renameEngine, editEngineUrl, deleteEngine,
    toggleIconInput, addNewEngine). Nothing in the project imported any of them:
-   the module's only consumers are enginesUI.js, modalVisibility.js and
+   the module's only consumers are engines.js, modalVisibility.js and
    newtab.js, and between them they take renderEngineListInModal and
    initEngineModal. toggleIconInput had already decayed to an empty body. */

@@ -8,7 +8,7 @@ import { loadBookmarkData, closeBookmarkData } from './bookmarkData.js';
 import { refreshBookmarkCache, loadBookmarks } from '../../components/bookmarks/bookmarks.js';
 import { loadSettings } from '../../settings/registry.js';
 import { initializeTabs, selectSearchTab } from '../../components/tabs/tabs.js';
-import { loadSearchEngines, loadSavedEngine } from '../../components/engines/enginesUI.js';
+import { loadSearchEngines, loadSavedEngine } from '../../components/engines/engines.js';
 import { showPage } from './displayEffects.js';
 import { activeTabs, currentPage, currentBookmarkPage } from './newtabState.js';
 
