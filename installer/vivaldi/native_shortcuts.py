@@ -5,7 +5,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import util
+from .. import config
+
+from ..console import fail, say
 
 LOADER_ENTRY = "@executable_path/../Frameworks/AtlasShortcuts.dylib"
 
@@ -38,15 +40,15 @@ def native_shortcuts_needed(masters: Path, res: Path):
     payload = masters / "native/macos/AtlasShortcuts.dylib"
     target = app / "Contents/Frameworks/AtlasShortcuts.dylib"
     if not payload.is_file():
-        util.fail("AtlasShortcuts.dylib is missing. Build with scripts/build_native_shortcuts.py.")
+        fail("AtlasShortcuts.dylib is missing. Build with scripts/build_native_shortcuts.py.")
     plist = plistlib.loads((app / "Contents/Info.plist").read_bytes())
     return (not target.is_file() or payload.read_bytes() != target.read_bytes() or
             desired_plist(plist) != plist)
 
 
 def preflight_native_shortcuts(masters: Path, res: Path):
-    if native_shortcuts_needed(masters, res) and not util.DRY and app_running(bundle_for(res)):
-        util.fail("Quit Vivaldi before installing this native shortcut update. "
+    if native_shortcuts_needed(masters, res) and not config.DRY and app_running(bundle_for(res)):
+        fail("Quit Vivaldi before installing this native shortcut update. "
                   "Its app signature must be updated while it is stopped; no files were changed.")
 
 
@@ -54,15 +56,15 @@ def install_native_shortcuts(masters: Path, res: Path):
     if not native_shortcuts_needed(masters, res):
         return
     app = bundle_for(res)
-    if util.DRY:
-        util.say(f"[dry-run] install browser-contained shortcuts in {app.name}")
+    if config.DRY:
+        say(f"[dry-run] install browser-contained shortcuts in {app.name}")
         return
     if app_running(app):
-        util.fail("Native shortcut installation requires this Vivaldi app to be stopped.")
+        fail("Native shortcut installation requires this Vivaldi app to be stopped.")
     target = app / "Contents/Frameworks/AtlasShortcuts.dylib"
     shutil.copy2(masters / "native/macos/AtlasShortcuts.dylib", target)
     info = app / "Contents/Info.plist"
     old_bytes = info.read_bytes()
     format_ = plistlib.FMT_BINARY if old_bytes.startswith(b"bplist") else plistlib.FMT_XML
     info.write_bytes(plistlib.dumps(desired_plist(plistlib.loads(old_bytes)), fmt=format_, sort_keys=False))
-    util.say("Native shortcuts     installed inside Vivaldi (no separate helper)")
+    say("Native shortcuts     installed inside Vivaldi (no separate helper)")

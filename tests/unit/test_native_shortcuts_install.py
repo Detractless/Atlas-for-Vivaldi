@@ -12,7 +12,8 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from installer import native_shortcuts as native, files, util
+from installer import config, files
+from installer.vivaldi import native_shortcuts as native
 
 
 class NativeInstallTest(unittest.TestCase):
@@ -34,10 +35,10 @@ class NativeInstallTest(unittest.TestCase):
         self.running.start()
         self.quiet = redirect_stdout(io.StringIO())
         self.quiet.__enter__()
-        util.DRY = False
+        config.DRY = False
 
     def tearDown(self):
-        util.DRY = False
+        config.DRY = False
         self.quiet.__exit__(None, None, None)
         self.running.stop()
         self.platform.stop()
@@ -70,7 +71,7 @@ class NativeInstallTest(unittest.TestCase):
 
     def test_dry_run_writes_nothing_even_with_running_app(self):
         before = self.info.read_bytes()
-        util.DRY = True
+        config.DRY = True
         with mock.patch.object(native, "app_running", return_value=True):
             native.preflight_native_shortcuts(self.masters, self.res)
             native.install_native_shortcuts(self.masters, self.res)

@@ -7,8 +7,8 @@ import sys
 import time
 from pathlib import Path
 
-from . import util
-from .util import say
+from .. import config
+from ..console import fail, say
 
 
 class MacOSStagingContext:
@@ -33,7 +33,7 @@ class MacOSStagingContext:
         # Test write permission on res
         test_file = self.orig_res / ".write_test"
         can_write = False
-        if not util.DRY:
+        if not config.DRY:
             try:
                 test_file.touch()
                 test_file.unlink()
@@ -52,7 +52,7 @@ class MacOSStagingContext:
         elif vivaldi_running():
             # Swapping the .app bundle out from under a running Vivaldi is too
             # risky; ask for a quit instead.
-            util.fail("Vivaldi's app bundle is locked (macOS App Management) while Vivaldi runs.\n"
+            fail("Vivaldi's app bundle is locked (macOS App Management) while Vivaldi runs.\n"
                       "  Quit Vivaldi, or pass --close to let the installer quit it first.")
 
         say("macOS App Management detected: staging bundle to bypass lock...")
@@ -68,7 +68,7 @@ class MacOSStagingContext:
         return self.staging_bundle / rel
 
     def finalize(self):
-        if not self.is_staged or not self.staging_bundle or util.DRY:
+        if not self.is_staged or not self.staging_bundle or config.DRY:
             return
 
         say("Replacing Vivaldi bundle with patched version...")

@@ -5,9 +5,10 @@ import shutil
 import time
 from pathlib import Path
 
-from . import util
+from . import config
 from .paths import atlas_keys, get_prefs_file, newtab_url
-from .util import fail, read_text, say, write_json
+from .console import fail, say
+from .file_access import read_text, write_json
 
 
 # The Tools sidebar (PasteKit, Remover, Notes, Saved tabs) is archived, not
@@ -33,7 +34,7 @@ def _load_prefs(prefs_file: Path) -> dict:
     """Read Preferences. A file that exists but will not parse stops the install:
     writing over it would wipe every Vivaldi setting the user has."""
     if not prefs_file.is_file():
-        if util.DRY:
+        if config.DRY:
             say(f"[dry-run] Preferences not found ({prefs_file}) - will create new profile config")
         else:
             say(f"Initializing new Preferences profile ({prefs_file})")
@@ -53,7 +54,7 @@ def _load_prefs(prefs_file: Path) -> dict:
 
 def _backup_prefs(prefs_file: Path):
     """Keep the very first copy (.atlas-bak) plus a dated copy of every install."""
-    if util.DRY or not prefs_file.is_file():
+    if config.DRY or not prefs_file.is_file():
         return
     first = prefs_file.with_name(prefs_file.name + ".atlas-bak")
     if not first.exists():

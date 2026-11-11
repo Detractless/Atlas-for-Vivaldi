@@ -20,7 +20,8 @@ ROOT = Path(__file__).resolve().parents[2]
 PAYLOAD = ROOT / "payload"
 sys.path.insert(0, str(ROOT))
 
-from installer import util, files, preferences, profile_facts, system  # noqa: E402
+from installer import config, files, file_access, preferences, profile_facts  # noqa: E402
+from installer.vivaldi import system  # noqa: E402
 
 
 def old_installer():
@@ -88,7 +89,7 @@ SAMPLE_PREFS = {
 class InstallerTest(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
-        util.DRY = False
+        config.DRY = False
         self.quiet = redirect_stdout(io.StringIO())
         self.quiet.__enter__()
 
@@ -105,7 +106,7 @@ class InstallerTest(unittest.TestCase):
         src.mkdir()
         for n in ("keep.js", "x.pem", ".DS_Store", "keep.js.map"):
             (src / n).write_text("x")
-        util.copy_tree(src, dst)
+        file_access.copy_tree(src, dst)
         self.assertEqual(sorted(p.name for p in dst.iterdir()), ["keep.js"])
 
     def test_detractless_installs_only_loaded_files(self):
@@ -194,7 +195,7 @@ class InstallerTest(unittest.TestCase):
     def test_a_dry_run_writes_no_facts_file(self):
         res = self.tmp / "res"
         res.mkdir()
-        util.DRY = True
+        config.DRY = True
         profile_facts.step6_profile_facts(res, PAYLOAD, self.tmp / "css-mods")
         self.assertFalse((res / "atlas-profile.json").exists())
 

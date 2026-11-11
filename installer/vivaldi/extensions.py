@@ -3,9 +3,9 @@
 import sys
 from pathlib import Path
 
-from . import util
-from .paths import get_atlas_root
-from .util import say
+from .. import config
+from ..paths import get_atlas_root
+from ..console import say
 
 
 def step7_harper_extension(payload: Path):
@@ -18,7 +18,7 @@ def step7_harper_extension(payload: Path):
     ext_id = "lodbfhdipoipcjmlebjbgmmgekckhpfb"
     crx_id = "oenajmgiaobmflfekmhekopaookeambi"
 
-    if not util.DRY:
+    if not config.DRY:
         if sys.platform == "darwin":
             ext_dirs = [
                 Path.home() / "Library" / "Application Support" / "Vivaldi" / "External Extensions",

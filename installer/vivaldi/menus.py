@@ -3,7 +3,8 @@
 import json
 from pathlib import Path
 
-from .util import read_text, say, write_json
+from ..console import say
+from ..file_access import read_text, write_json
 
 
 MENU_PLAN = {

@@ -1,22 +1,15 @@
-"""Output, dry-run switch and the file helpers every step uses."""
+"""File reads, writes and copies performed by the installer."""
 
 import json
 import shutil
-import sys
 from pathlib import Path
 
-
-DRY = False
-
-
-def say(msg, *, dim=False):
-    print(("  " + msg) if not dim else ("  " + msg))
+from . import config
+from .console import say
 
 
 def _guard():
-    if DRY:
-        return True
-    return False
+    return config.DRY
 
 
 def copy_file(src: Path, dst_dir: Path):
@@ -61,9 +54,3 @@ def write_json(p: Path, data, *, label=None):
         return
     with open(p, "w", encoding="utf-8", newline="") as f:
         f.write(blob)
-
-
-def fail(msg: str):
-    print()
-    print("  ERROR: " + msg)
-    sys.exit(1)

@@ -4,9 +4,10 @@ import re
 import shutil
 from pathlib import Path
 
-from . import util
+from . import config
 from .paths import get_atlas_root
-from .util import _guard, copy_file, copy_tree, fail, read_text, say, write_text
+from .console import fail, say
+from .file_access import _guard, copy_file, copy_tree, read_text, write_text
 
 
 COMPASS = (
@@ -170,7 +171,7 @@ def step3_detractless(detract: Path, res: Path, skip: bool):
         copy_file(sp, (res / rel).parent)
     _remove_archived_sidebar_files(res)
 
-    if util.DRY:
+    if config.DRY:
         say("Detractless          installed + shimmed  [dry-run: head edits skipped]")
         return
 

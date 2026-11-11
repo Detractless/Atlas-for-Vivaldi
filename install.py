@@ -20,18 +20,18 @@ import subprocess
 import sys
 from pathlib import Path
 
-from installer import util
-from installer.extensions import step7_harper_extension
+from installer import config
+from installer.vivaldi.extensions import step7_harper_extension
 from installer.files import step1_atlas_files, step2_core_html, step2_window_html, step3_detractless, step4_css_mods
-from installer.menus import step5_context_menus
-from installer.native_shortcuts import preflight_native_shortcuts, install_native_shortcuts
+from installer.vivaldi.menus import step5_context_menus
+from installer.vivaldi.native_shortcuts import preflight_native_shortcuts, install_native_shortcuts
 from installer.paths import find_vivaldi_res, payload_root
 from installer.preferences import step6_preferences
 from installer.profile_facts import step6_profile_facts
 from installer.process import close_vivaldi, vivaldi_running
-from installer.staging import MacOSStagingContext
-from installer.system import step8_disable_autoupdates, step9_macos_codesign
-from installer.util import fail, say
+from installer.vivaldi.staging import MacOSStagingContext
+from installer.vivaldi.system import step8_disable_autoupdates, step9_macos_codesign
+from installer.console import fail, say
 
 
 def parse_args():
@@ -44,7 +44,7 @@ def parse_args():
     ap.add_argument("--skip-detractless", action="store_true", help="do not install Detractless")
     ap.add_argument("--dry-run", action="store_true", help="print every change, touch nothing")
     args = ap.parse_args()
-    util.DRY = args.dry_run
+    config.DRY = args.dry_run
     return args
 
 
@@ -70,7 +70,7 @@ def main():
     args = parse_args()
 
     print()
-    say("Atlas for Vivaldi - installer" + ("   [DRY RUN]" if util.DRY else ""))
+    say("Atlas for Vivaldi - installer" + ("   [DRY RUN]" if config.DRY else ""))
     say("------------------------------")
 
     payload = payload_root()
@@ -107,9 +107,9 @@ def main():
         staging_ctx.finalize()
 
     print()
-    say("Done." + ("  (dry run - nothing was changed)" if util.DRY else ""))
+    say("Done." + ("  (dry run - nothing was changed)" if config.DRY else ""))
 
-    if args.launch and not util.DRY:
+    if args.launch and not config.DRY:
         launch_vivaldi(app_root)
     print()
 

@@ -11,7 +11,8 @@ from pathlib import Path
 
 from .paths import atlas_keys, newtab_url
 from .preferences import DOWNLOADS_PANEL_ID, DOWNLOADS_PANEL_PATH
-from .util import read_text, say, write_json
+from .console import say
+from .file_access import read_text, write_json
 
 RECIPE_VERSION = 2
 FACTS_FILE = "atlas-profile.json"

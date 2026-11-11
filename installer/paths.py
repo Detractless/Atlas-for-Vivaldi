@@ -6,7 +6,8 @@ import re
 import sys
 from pathlib import Path
 
-from .util import fail, read_text, say
+from .console import fail, say
+from .file_access import read_text
 
 
 def payload_root() -> Path:

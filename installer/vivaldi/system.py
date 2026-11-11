@@ -4,12 +4,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import util
-from .util import fail, say
+from .. import config
+from ..console import fail, say
 
 
 def _disable_autoupdates_macos():
-    if util.DRY:
+    if config.DRY:
         say("[dry-run] would disable Sparkle auto-updates in com.vivaldi.Vivaldi")
     else:
         try:
@@ -47,7 +47,7 @@ def _disable_windows_update_tasks():
                 parts = line.split(",")
                 if parts:
                     task_name = parts[0].strip('"')
-                    if util.DRY:
+                    if config.DRY:
                         say(f"[dry-run] would disable scheduled task: {task_name}")
                     else:
                         subprocess.run(
@@ -63,7 +63,7 @@ def _disable_windows_update_notifier(app_root: Path):
     notifier = app_root / "update_notifier.exe"
     disabled_notifier = app_root / "update_notifier.exe.disabled"
     if notifier.is_file():
-        if util.DRY:
+        if config.DRY:
             say(f"[dry-run] would rename {notifier.name} -> {disabled_notifier.name}")
         else:
             try:
@@ -76,7 +76,7 @@ def _disable_windows_update_notifier(app_root: Path):
 
 def _disable_windows_update_policy():
     # 3. Registry policy flags
-    if not util.DRY:
+    if not config.DRY:
         try:
             import winreg
             with winreg.CreateKeyEx(
@@ -108,10 +108,10 @@ def step9_macos_codesign(res: Path):
             break
     if not app_bundle or not app_bundle.is_dir():
         return
-    if util.DRY:
+    if config.DRY:
         say(f"[dry-run] strip quarantine and ad-hoc re-sign {app_bundle.name}")
         return
-    from .process import vivaldi_running
+    from ..process import vivaldi_running
     if vivaldi_running():
         # --deep re-signing rewrites the executable files the live process is
         # running from, which can kill it. The signature is already ad-hoc and

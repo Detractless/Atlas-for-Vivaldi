@@ -5,8 +5,8 @@ import sys
 import time
 from pathlib import Path
 
-from . import util
-from .util import say
+from . import config
+from .console import say
 
 
 def vivaldi_running() -> bool:
@@ -25,7 +25,7 @@ def vivaldi_running() -> bool:
 def close_vivaldi():
     if not vivaldi_running():
         return
-    if util.DRY:
+    if config.DRY:
         say("[dry-run] would close Vivaldi")
         return
     say("Closing Vivaldi...")
