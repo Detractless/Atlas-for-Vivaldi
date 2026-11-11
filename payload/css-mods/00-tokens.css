@@ -34,6 +34,7 @@
   --font-size-atlas-small: 12px;
   --font-size-atlas-tooltip: 12.5px;
   --font-size-atlas-hint: 11px;
+  --font-size-atlas-title: 15px;
   --font-size-atlas-tiny: 10px;
   --font-size-atlas-key: 11.5px;
   --font-size-atlas-body: 13px;
@@ -44,6 +45,13 @@
   --z-atlas-engine-button: 2147483001;
   --z-atlas-tooltip: 2147483002;
   --z-atlas-profile-menu: 10000;
+  --z-atlas-sidebar-handle: 100;
+  --z-atlas-sidebar-popover: 101;
+  --z-atlas-extension-layer: 3;
+  --z-atlas-extension-menu: 10000;
+  --z-atlas-addbar-dimmer: 2147482900;
+  --z-atlas-addbar-button: 2147483100;
+  --z-atlas-addbar-card: 2147483000;
   --atlas-tab-radius: 10px;
   /* Background tabs recede; tune these three to taste. */
   --atlas-tab-idle-fg:   rgba(0, 0, 0, .42);   /* inactive tab title       */
