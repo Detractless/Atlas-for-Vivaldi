@@ -9,30 +9,15 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { openWindow } = require("./helpers/windowDom");
-
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-let open = [];
-test.afterEach(() => { for (const w of open) w.window.close(); open = []; });
-
-const NEWTAB = "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/index.html";
-const ENGINES = { google: { name: "Google", url: "https://www.google.com/search?q=", icon: "src/assets/svg/google.com.svg" } };
+const { NEWTAB, startAddressbarWindow, wait } = require("../helpers/addressbar-window");
 
 /* A window with an address field showing `value`, after a tab switch (which
    Atlas answers from the field's text, 01-addressbar.js). */
 async function start(value) {
-  const w = await openWindow({ sync: { customSearchEngines: ENGINES, defaultEngineKey: "google" } });
-  open.push(w);
-  const doc = w.window.document;
-  doc.getElementById("browser").insertAdjacentHTML("beforeend",
+  return startAddressbarWindow(value,
     '<div class="toolbar-mainbar"><div class="UrlBar-AddressField">' +
     '<div class="toolbar toolbar-small toolbar-insideinput"><button class="button-addressfield SiteInfoButton web"></button></div>' +
     '<div class="UrlBar-UrlFieldWrapper"><input class="UrlBar-UrlField url vivaldi-addressfield"></div></div></div>');
-  w.input = doc.querySelector(".UrlBar-AddressField input.url");
-  w.input.value = value;
-  for (const fn of w.listeners["chrome.tabs.onActivated"] || []) fn({ tabId: 1 });
-  await wait(80);
-  return w;
 }
 
 const browserOf = (w) => w.window.document.getElementById("browser");
