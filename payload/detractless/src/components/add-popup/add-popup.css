@@ -68,12 +68,12 @@
 }
 .ap-pill:hover { background: var(--ap-hover3); }
 .ap-pill[aria-selected="true"] { background: var(--text-primary); color: var(--surface-card); }
-.ap-hint { margin-top: 10px; color: var(--text-secondary); font-size: 12px; opacity: .8; }
+.ap-hint { margin-top: 10px; color: var(--text-secondary); font-size: var(--font-size-12); opacity: .8; }
 .ap-hint:empty { display: none; }
 
 /* A plain one-line field (a page's name and subtitle). */
 .ap-plain { display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 14px; border-radius: 9999px; background: var(--surface-muted); }
-.ap-plain .ap-input { font-size: 15px; }
+.ap-plain .ap-input { font-size: var(--font-size-15); }
 .ap-count { font: 11px/14px var(--font-sans); color: var(--text-tertiary); white-space: nowrap; }
 .ap-label { margin: 12px 4px 4px; font: 12px/16px var(--font-sans); color: var(--text-tertiary); }
 
@@ -88,7 +88,7 @@
 }
 .ap-dd > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ap-dd svg { width: 16px; height: 16px; flex: none; color: var(--text-tertiary); }
-.ap-dd-menu { position: absolute; z-index: 5; left: 0; right: 0; top: 64px; padding: 6px; border: 1px solid var(--line-hairline); border-radius: 16px; background: var(--surface-card); }
+.ap-dd-menu { position: absolute; z-index: var(--z-add-popup-dropdown); left: 0; right: 0; top: 64px; padding: 6px; border: 1px solid var(--line-hairline); border-radius: 16px; background: var(--surface-card); }
 .ap-dd-menu[hidden] { display: none; }
 .ap-dd-rows { max-height: 170px; overflow-y: auto; }
 .ap-dd-item {

@@ -99,6 +99,7 @@
   --z-settings-menu: 220;
   --z-modal-overlay: 200;
   --z-picker-modal: 400;
+  --z-add-popup-dropdown: 5;
   --tracking-tight: -0.02em;
   --tracking-snug: -0.01em;
   --tracking-normal: 0;
@@ -1610,7 +1611,7 @@ textarea.form-input {
 .ap-hint {
   margin-top: 10px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--font-size-12);
   opacity: .8;
 }
 .ap-hint:empty {
@@ -1626,7 +1627,7 @@ textarea.form-input {
   background: var(--surface-muted);
 }
 .ap-plain .ap-input {
-  font-size: 15px;
+  font-size: var(--font-size-15);
 }
 .ap-count {
   font: 11px/14px var(--font-sans);
@@ -1679,7 +1680,7 @@ textarea.form-input {
 }
 .ap-dd-menu {
   position: absolute;
-  z-index: 5;
+  z-index: var(--z-add-popup-dropdown);
   left: 0;
   right: 0;
   top: 64px;

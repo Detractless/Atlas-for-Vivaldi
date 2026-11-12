@@ -113,6 +113,7 @@
   --z-settings-menu: 220;
   --z-modal-overlay: 200;
   --z-picker-modal: 400;
+  --z-add-popup-dropdown: 5;
 
   /* --- Tracking --- */
   --tracking-tight: -0.02em;
