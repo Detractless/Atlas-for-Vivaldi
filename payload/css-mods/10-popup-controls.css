@@ -31,7 +31,7 @@
   background-image: none;
   box-shadow: none;
   color: var(--atlas-text-1);
-  font-size: 12.5px;
+  font-size: var(--font-size-atlas-tooltip);
   line-height: 18px;
 }
 #browser :is(.SiteInfo, .SiteInfo-Footer, .SiteInfo-Field-Permissions, .addressfield-popup-container)
@@ -89,7 +89,7 @@
 #browser .SiteInfo-Header {
   padding: 10px 16px 0;
   border-bottom: 0;
-  font-size: 14px;
+  font-size: var(--font-size-atlas-medium);
 }
 #browser .SiteInfo-Header::after {
   content: "";
@@ -107,7 +107,7 @@
   margin: 0;
   padding: 2px 0 0;
   color: var(--atlas-text-2);
-  font-size: 10px;
+  font-size: var(--font-size-atlas-tiny);
   font-weight: 800;
   letter-spacing: .12em;
   text-transform: uppercase;
@@ -121,7 +121,7 @@
   padding: 0 10px;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--font-size-atlas-body);
 }
 /* A row whose own button already pads (Site Settings) must not be padded twice; the Reset
    Permissions row holds only the pill; and Vivaldi's 3px label padding goes so icons line up. */
@@ -134,7 +134,7 @@
 #browser .SiteInfo-Status { padding: 0 10px 6px; }
 #browser .SiteInfo-Back { margin: 8px 10px 6px; }
 #browser .SiteInfo :is(a, .InlineText) { color: var(--atlas-text-1); text-decoration: underline; }   /* "Learn more." is a span */
-#browser .SiteInfo-Counter { margin-top: 8px; padding: 0 10px 8px; font-size: 12.5px; line-height: 1.15; }
+#browser .SiteInfo-Counter { margin-top: 8px; padding: 0 10px 8px; font-size: var(--font-size-atlas-tooltip); line-height: 1.15; }
 #browser .SiteInfo-Counter--Number {
   align-items: center;
   height: 32px;

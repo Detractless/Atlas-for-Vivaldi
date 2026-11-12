@@ -88,7 +88,8 @@ test("the pointer is a sized, bordered square in front of the popup, for every s
 test("the Site info popup uses the profile flyout's measure: 32px rows, 13px text", () => {
   const rows = /#browser \.SiteInfo-Label,\s*#browser \.SiteInfo-Field-Permissions li \{([^}]*)\}/.exec(controls)[1];
   assert.match(rows, /min-height:\s*32px/);
-  assert.match(rows, /font-size:\s*13px/);
+  assert.match(rows, /font-size:\s*var\(--font-size-atlas-body\)/);
+  assert.match(read("00-tokens.css"), /--font-size-atlas-body:\s*13px/);
   assert.match(controls, /#browser \.SiteInfo-Field \{ padding: 0; \}/);
 });
 
@@ -103,7 +104,8 @@ test("a second page's line is moved under the site name, and its title becomes a
   assert.match(controls, /#browser \.SiteInfo-Header::after \{ order: 1; \}/);
   const title = /#browser \.SiteInfo-Header-Title \{([^}]*)\}/.exec(controls)[1];
   assert.match(title, /order:\s*2/);
-  assert.match(title, /font-size:\s*10px/);
+  assert.match(title, /font-size:\s*var\(--font-size-atlas-tiny\)/);
+  assert.match(read("00-tokens.css"), /--font-size-atlas-tiny:\s*10px/);
   assert.match(title, /text-transform:\s*uppercase/);
 });
 
