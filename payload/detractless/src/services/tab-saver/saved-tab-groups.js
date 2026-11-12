@@ -21,7 +21,6 @@ export function dayKey(ts) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** The shape stored for one tab. */
 export function toEntry(tab, closedAt) {
   return {
     url: tab.url,
@@ -111,7 +110,6 @@ export function pruneEmptyGroups(groups) {
   return (groups || []).filter(g => g && Array.isArray(g.tabs) && g.tabs.length > 0);
 }
 
-/** Case-insensitive match over a group's description and its tabs. */
 export function groupMatches(group, query) {
   const q = String(query || '').trim().toLowerCase();
   if (!q) return true;

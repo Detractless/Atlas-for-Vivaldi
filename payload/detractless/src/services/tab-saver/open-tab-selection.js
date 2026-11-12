@@ -1,11 +1,7 @@
 import { addTabsToGroups, shouldSaveTab, toEntry } from './saved-tab-groups.js';
 import { readGroups, writeGroups } from './saved-tab-storage.js';
 
-/* Pure selection rules for the Choose tabs page. */
-
-/** Offer current, pinned, then remaining tabs in window order.
- *  Keep the unticked special rows above the default selection.
- */
+/** Current, pinned, then remaining tabs in window order. */
 export function classifyOpenTabs(tabs) {
   const candidates = (tabs || [])
     .filter(tab => tab && shouldSaveTab(tab.url))
@@ -23,7 +19,6 @@ export function classifyOpenTabs(tabs) {
   return candidates.sort((a, b) => rank(a) - rank(b) || a.order - b.order);
 }
 
-/** Select ordinary tabs by default; current and pinned tabs stay opt-in. */
 export function defaultSelection(candidates) {
   return (candidates || []).filter(c => !c.isCurrent && !c.pinned).map(c => c.id);
 }
@@ -66,7 +61,6 @@ export function planSaveAndClose(tabs, selectedIds, now = Date.now()) {
 /** The new tab page, which the extension overrides, so this lands on ours. */
 export const NEW_TAB_URL = 'chrome://newtab/';
 
-/** Every open tab worth offering, ready for the Choose tabs page. */
 export async function listOpenTabCandidates() {
   return classifyOpenTabs(await chrome.tabs.query({ currentWindow: true }));
 }
