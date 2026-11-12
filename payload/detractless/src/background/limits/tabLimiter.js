@@ -50,7 +50,6 @@ function byStalestFirst(tabs) {
  * Which tabs to close, given the whole tab list and the settings. Pure: no
  * chrome APIs, no module state, and the caller's array is never reordered.
  *
- * Returns [] when the limit is 0 (off) or the list is within the limit.
  */
 export function selectTabsToClose(tabs, limit, method) {
   if (!limit || limit <= 0) return [];
@@ -65,7 +64,6 @@ export function selectTabsToClose(tabs, limit, method) {
 
 export async function enforceTabLimit() {
   try {
-    // Re-fetch settings to be safe
     const result = await storageGet('sync', ['tabLimit', 'managementMethod'])
     setTabLimit(result.tabLimit !== undefined ? result.tabLimit : 0)
     setManagementMethod(result.managementMethod || "block")

@@ -132,11 +132,6 @@ export function groupMatches(group, query) {
  *
  * @returns {{groups: Array}|{error: string}}
  */
-/* needsOpenConfirm lived here from spec 002 to spec 004: clicking a session
-   used to OPEN it, so large sessions confirmed first. Spec 004 made opening an
-   explicit, always-visible pill that names its count, and a row click only
-   navigates, so the guard's reason is gone and the guard went with it. */
-
 export function applyTabEdit(groups, groupId, oldUrl, patch) {
   const list = Array.isArray(groups) ? groups : [];
   const group = list.find(g => g && g.id === groupId);

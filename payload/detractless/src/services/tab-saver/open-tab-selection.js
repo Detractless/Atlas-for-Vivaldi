@@ -1,28 +1,10 @@
 import { addTabsToGroups, shouldSaveTab, toEntry } from './saved-tab-groups.js';
 import { readGroups, writeGroups } from './saved-tab-storage.js';
 
-/* saveAndCloseOpenTabs was DELETED in spec 007. It saved every tab except the
-   active one and closed them, with no way to choose and nothing shown first. The
-   Choose tabs page replaced it, and it was removed rather than kept as a shortcut:
-   two code paths that both close a window's worth of tabs drift apart, and the
-   one nobody looks at is the one that keeps the old rules. Its two decisions
-   survive as DEFAULTS on the new page rather than as laws: the current tab starts
-   unticked, and so, newly, do pinned tabs. */
+/* Pure selection rules for the Choose tabs page. */
 
-/* ─── Spec 007: choosing which tabs to save ──────────────────────────────────
- *
- * Pure, so the interesting decisions are testable without Chrome. The whole
- * point of separating them is planSaveAndClose, which owns a guard that is easy
- * to state and easy to get wrong.
- */
-
-/**
- * The open tabs worth offering, in the order they should be listed.
- *
- * ORDER IS PART OF THE DESIGN. The current tab comes first, then pinned tabs in
- * window order, then everything else in window order. The special rows start
- * unticked, so putting them first keeps the ticked block below them contiguous
- * rather than interleaving ticked and unticked rows down the list.
+/** Offer current, pinned, then remaining tabs in window order.
+ *  Keep the unticked special rows above the default selection.
  */
 export function classifyOpenTabs(tabs) {
   const candidates = (tabs || [])
@@ -41,16 +23,7 @@ export function classifyOpenTabs(tabs) {
   return candidates.sort((a, b) => rank(a) - rank(b) || a.order - b.order);
 }
 
-/**
- * What is ticked when the page opens: everything except the current tab and
- * pinned tabs.
- *
- * This is the old saveAndCloseOpenTabs behaviour turned into a starting point.
- * The active tab was excluded because closing what you are looking at is not
- * what "save and clear" means; pinned tabs are excluded because pinning is the
- * user already saying "not this one". Both are now overridable, which is the
- * user's decision in spec 007, made against the recommendation.
- */
+/** Select ordinary tabs by default; current and pinned tabs stay opt-in. */
 export function defaultSelection(candidates) {
   return (candidates || []).filter(c => !c.isCurrent && !c.pinned).map(c => c.id);
 }
