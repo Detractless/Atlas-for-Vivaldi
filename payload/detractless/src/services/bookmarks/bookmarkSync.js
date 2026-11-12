@@ -11,8 +11,8 @@
 // EXTENSION-ONLY. The launcher passes `newtab/config.json` through byte-for-byte
 // and never parses bookmarks, so — unlike mergeSync.js — this has no Kotlin twin
 // and no committed vectors. It reuses mergeSync's merge rule and adds only the
-// bookmark-specific shape: the record, and the projection to/from the nested form
-// the renderer still reads.
+// bookmark-specific record shape and the conversion used to read locally owned
+// bookmarks from the nested form the renderer still reads.
 //
 // A record: { id, page, group, name, url, sortIndex, updatedAt, deletedAt }.
 //   - `page` is the numeric page id (the `pageN` suffix).
@@ -62,73 +62,4 @@ export function dematerialize(nested, now = Date.now()) {
     }
   }
   return records;
-}
-
-/**
- * Flat records → nested `{ pageN: { group: [{name,url}] } }` for the renderer.
- *
- * Live rows only; tombstones never render. Group order follows the order in which
- * each group's first live bookmark appears by sortIndex, which is stable across
- * merges because merge renumbers sortIndex while preserving relative order.
- */
-export function materialize(records) {
-  const live = (records || [])
-    .filter((r) => r.deletedAt === null || r.deletedAt === undefined)
-    .slice()
-    .sort((a, b) => a.sortIndex - b.sortIndex);
-
-  const nested = {};
-  for (const r of live) {
-    const pageKey = `page${r.page}`;
-    if (!nested[pageKey]) nested[pageKey] = {};
-    if (!nested[pageKey][r.group]) nested[pageKey][r.group] = [];
-    nested[pageKey][r.group].push({ name: r.name, url: r.url });
-  }
-  return nested;
-}
-
-/** Records from an archive's JSON. Corrupt JSON yields [] — never take the page down. */
-export function parseBookmarkRecords(json) {
-  let raw;
-  try {
-    raw = JSON.parse(json);
-  } catch (_) {
-    return [];
-  }
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((r, i) => ({
-      id: r.id,
-      page: Number(r.page),
-      group: r.group,
-      name: r.name,
-      url: r.url,
-      sortIndex: r.sortIndex === undefined || r.sortIndex === null ? i : r.sortIndex,
-      updatedAt: r.updatedAt === undefined || r.updatedAt === null ? 0 : r.updatedAt,
-      deletedAt: r.deletedAt === undefined || r.deletedAt === null ? null : r.deletedAt,
-    }))
-    .filter((r) => r.id !== undefined && r.id !== null && !Number.isNaN(r.page));
-}
-
-/**
- * Records → archive JSON. Includes tombstones on purpose (the delete has to
- * travel), and omits `deletedAt` on live rows to match the notes/events codec's
- * field-omission style.
- */
-export function serializeBookmarkRecords(records) {
-  return JSON.stringify(
-    (records || []).map((r) => {
-      const out = {
-        id: r.id,
-        page: r.page,
-        group: r.group,
-        name: r.name,
-        url: r.url,
-        sortIndex: r.sortIndex,
-        updatedAt: r.updatedAt,
-      };
-      if (r.deletedAt !== null && r.deletedAt !== undefined) out.deletedAt = r.deletedAt;
-      return out;
-    }),
-  );
 }

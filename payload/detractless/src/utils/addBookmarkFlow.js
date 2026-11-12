@@ -43,14 +43,6 @@ export function currentStep(state) {
   return STEPS[state.stepIndex] || null;
 }
 
-export function isFirstStep(state) {
-  return state.stepIndex <= 0;
-}
-
-export function isComplete(state) {
-  return state.stepIndex >= STEPS.length;
-}
-
 /**
  * Record an answer. Returns a NEW state; the caller's object is never mutated,
  * so a cancelled flow cannot leave edits behind in a shared object.
@@ -70,10 +62,6 @@ export function setValue(state, key, value) {
     next.newGroupName = '';
   }
   return next;
-}
-
-export function goNext(state) {
-  return { ...state, stepIndex: Math.min(state.stepIndex + 1, STEPS.length) };
 }
 
 export function goBack(state) {
@@ -103,23 +91,4 @@ export function validateStep(state, step = currentStep(state)) {
     default:
       return null;
   }
-}
-
-/**
- * The values to write, or an error. Re-validates every step rather than trusting
- * that the walk through them was clean: Back means steps can be revisited in any
- * order, so "we got here" is not proof the earlier answers survived.
- */
-export function resolveFlow(state) {
-  for (const step of STEPS) {
-    const error = validateStep(state, step);
-    if (error) return { error };
-  }
-  const isNew = state.group === NEW_GROUP;
-  return {
-    name: state.name.trim(),
-    url: state.url.trim(),
-    group: isNew ? state.newGroupName.trim() : state.group,
-    page: state.page,
-  };
 }

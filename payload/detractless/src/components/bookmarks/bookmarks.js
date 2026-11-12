@@ -248,9 +248,8 @@ function openBookmarkMenu(groupName, bookmark) {
 
 /* R-015: the three alert() calls here are gone. R-021 moved validation again,
    out of this file entirely: each of the four dialogs validates its own answer
-   as it is given and reports on that dialog's error line, and resolveFlow
-   re-checks all four before the write. So there is nothing left to validate
-   here beyond the guard below. */
+   as it is given and reports on that dialog's error line. So there is nothing
+   left to validate here beyond the guard below. */
 /**
  * Write one bookmark. Takes RESOLVED values from the add flow rather than
  * reading a form: the flow owns its own state now (utils/addBookmarkFlow.js) and
@@ -283,8 +282,6 @@ export function renameGroup(oldName) {
   }
 }
 
-export function deleteGroup(groupName) { if (confirm(`Are you sure you want to delete the group "${groupName}" and all its bookmarks?`)) { delete bookmarks[groupName]; saveBookmarks(); renderBookmarks(); } }
-
 export async function moveGroupToPage(groupName, targetPage) {
   if (targetPage === currentBookmarkPage) return; const groupData = bookmarks[groupName]; if (!groupData) return;
   delete bookmarks[groupName]; await saveBookmarks();
@@ -294,22 +291,4 @@ export async function moveGroupToPage(groupName, targetPage) {
     await refreshBookmarkCache();
     renderBookmarks();
   } catch (error) { alert('Error moving group.'); }
-}
-
-export function renameBookmark(groupName, bookmark) {
-  const newName = prompt("Enter new name:", bookmark.name); if (newName === null || !newName.trim()) return;
-  const bookmarkIndex = bookmarks[groupName].findIndex((b) => b.name === bookmark.name && b.url === bookmark.url);
-  if (bookmarkIndex !== -1) { bookmarks[groupName][bookmarkIndex].name = newName.trim(); saveBookmarks(); renderBookmarks(); }
-}
-
-export function editBookmarkUrl(groupName, bookmark) {
-  const newUrl = prompt("Enter new URL:", bookmark.url); if (newUrl === null || !newUrl.trim()) return;
-  const bookmarkIndex = bookmarks[groupName].findIndex((b) => b.name === bookmark.name && b.url === bookmark.url);
-  if (bookmarkIndex !== -1) { let finalUrl = newUrl.trim().match(/^https?:\/\//) ? newUrl.trim() : "https://" + newUrl.trim(); bookmarks[groupName][bookmarkIndex].url = finalUrl; saveBookmarks(); renderBookmarks(); }
-}
-
-export function deleteBookmark(groupName, bookmark) {
-  if (confirm(`Are you sure you want to delete "${bookmark.name}"?`)) {
-    bookmarks[groupName] = bookmarks[groupName].filter((b) => b.name !== bookmark.name || b.url !== bookmark.url); if (bookmarks[groupName].length === 0) delete bookmarks[groupName]; saveBookmarks(); renderBookmarks();
-  }
 }

@@ -71,30 +71,6 @@ function openDB() {
   return _dbPromise;
 }
 
-/**
- * Close this page's connection and forget it.
- *
- * EXISTS FOR ONE CALLER: `resetAllData`. IndexedDB will not delete a database
- * while any connection to it is open — `deleteDatabase` fires `onblocked` and
- * simply never completes. Since `openDB` memoises its connection for the lifetime
- * of the page and never closes it (correct for normal use, where one page holds
- * one connection), a reset that did not call this would report success, reload,
- * and leave every snippet exactly where it was.
- *
- * Safe to call when nothing is open. The next database call reopens lazily.
- */
-export async function closeDB() {
-  if (!_dbPromise) return;
-  const pending = _dbPromise;
-  _dbPromise = null;
-  try {
-    (await pending).close();
-  } catch (_) {
-    // Already closed, or never opened successfully. Either way there is no
-    // connection left to block the delete, which is all the caller needs.
-  }
-}
-
 // Promise wrapper for an IDBRequest.
 const p = (req) => new Promise((res, rej) => {
   req.onsuccess = () => res(req.result);

@@ -27,51 +27,12 @@
       this._position(event.clientX, event.clientY);
     },
     showRename(currentName, onConfirm) {
-      this.menu.innerHTML = "";
-      const wrap = document.createElement("div");
-      wrap.className = "context-menu-inline";
-      wrap.onclick = (e) => e.stopPropagation();
-      const input = document.createElement("input");
-      input.type = "text";
-      input.className = "context-menu-input";
-      input.value = currentName;
-      const actions = document.createElement("div");
-      actions.className = "context-menu-actions";
-      const cancel = document.createElement("button");
-      cancel.className = "context-menu-action-btn";
-      cancel.textContent = "Cancel";
-      cancel.onclick = () => this.close();
-      const confirm2 = document.createElement("button");
-      confirm2.className = "context-menu-action-btn primary";
-      confirm2.textContent = "Rename";
-      confirm2.onclick = () => {
-        const val = input.value.trim();
-        if (val) {
-          onConfirm(val);
-          this.close();
-        }
-      };
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          const val = input.value.trim();
-          if (val) {
-            onConfirm(val);
-            this.close();
-          }
-        }
-        if (e.key === "Escape") this.close();
-      });
-      actions.appendChild(cancel);
-      actions.appendChild(confirm2);
-      wrap.appendChild(input);
-      wrap.appendChild(actions);
-      this.menu.appendChild(wrap);
-      requestAnimationFrame(() => {
-        input.focus();
-        input.select();
-      });
+      this._showInlineInput(currentName, "Rename", onConfirm);
     },
     showInput(currentValue, buttonLabel, onConfirm) {
+      this._showInlineInput(currentValue, buttonLabel, onConfirm);
+    },
+    _showInlineInput(currentValue, buttonLabel, onConfirm) {
       this.menu.innerHTML = "";
       const wrap = document.createElement("div");
       wrap.className = "context-menu-inline";
@@ -86,10 +47,10 @@
       cancel.className = "context-menu-action-btn";
       cancel.textContent = "Cancel";
       cancel.onclick = () => this.close();
-      const confirm2 = document.createElement("button");
-      confirm2.className = "context-menu-action-btn primary";
-      confirm2.textContent = buttonLabel;
-      confirm2.onclick = () => {
+      const confirm = document.createElement("button");
+      confirm.className = "context-menu-action-btn primary";
+      confirm.textContent = buttonLabel;
+      confirm.onclick = () => {
         const val = input.value.trim();
         if (val) {
           onConfirm(val);
@@ -107,7 +68,7 @@
         if (e.key === "Escape") this.close();
       });
       actions.appendChild(cancel);
-      actions.appendChild(confirm2);
+      actions.appendChild(confirm);
       wrap.appendChild(input);
       wrap.appendChild(actions);
       this.menu.appendChild(wrap);
@@ -151,21 +112,21 @@
       cancel.textContent = "Cancel";
       cancel.onclick = () => this.close();
       let confirmed = false;
-      const confirm2 = document.createElement("button");
-      confirm2.className = "context-menu-action-btn delete";
-      confirm2.textContent = "Delete";
-      confirm2.onclick = () => {
+      const confirm = document.createElement("button");
+      confirm.className = "context-menu-action-btn delete";
+      confirm.textContent = "Delete";
+      confirm.onclick = () => {
         if (!confirmed) {
           confirmed = true;
           msg.textContent = `Are you sure you want to delete "${label}"?`;
-          confirm2.textContent = "Delete";
+          confirm.textContent = "Delete";
           return;
         }
         onConfirm();
         this.close();
       };
       actions.appendChild(cancel);
-      actions.appendChild(confirm2);
+      actions.appendChild(confirm);
       wrap.appendChild(msg);
       wrap.appendChild(actions);
       this.menu.appendChild(wrap);
@@ -813,11 +774,10 @@
     },
     /* ── Notes (side panel) ──────────────────────────────────────────────
          Deliberately in THIS database rather than a new one, and deliberately in the
-         `notes` store v6 already created. Two consequences worth stating: reset
-         covers notes for free, because resetService deletes this database whole; and
-         notes are NOT in the pastekit database, so the whole-store lock that gates
-         snippets does not gate them. A note is not a secret and must not be
-         unreachable because the snippet store happens to be locked.
+         `notes` store v6 already created. Notes follow the same database lifecycle
+         as bookmarks, and are NOT in the pastekit database, so the whole-store lock
+         that gates snippets does not gate them. A note is not a secret and must not
+         be unreachable because the snippet store happens to be locked.
     
          A note: { id, title, body, updatedAt }. */
     async listNotes() {

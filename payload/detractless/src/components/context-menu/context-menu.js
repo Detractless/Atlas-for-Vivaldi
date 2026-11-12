@@ -21,40 +21,12 @@ export const ContextMenu = {
     this._position(event.clientX, event.clientY);
   },
   showRename(currentName, onConfirm) {
-    this.menu.innerHTML = '';
-    const wrap = document.createElement('div');
-    wrap.className = 'context-menu-inline';
-    wrap.onclick = e => e.stopPropagation();
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'context-menu-input';
-    input.value = currentName;
-
-    const actions = document.createElement('div');
-    actions.className = 'context-menu-actions';
-
-    const cancel = document.createElement('button');
-    cancel.className = 'context-menu-action-btn';
-    cancel.textContent = 'Cancel';
-    cancel.onclick = () => this.close();
-
-    const confirm = document.createElement('button');
-    confirm.className = 'context-menu-action-btn primary';
-    confirm.textContent = 'Rename';
-    confirm.onclick = () => { const val = input.value.trim(); if (val) { onConfirm(val); this.close(); } };
-
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { const val = input.value.trim(); if (val) { onConfirm(val); this.close(); } }
-      if (e.key === 'Escape') this.close();
-    });
-
-    actions.appendChild(cancel); actions.appendChild(confirm);
-    wrap.appendChild(input); wrap.appendChild(actions);
-    this.menu.appendChild(wrap);
-    requestAnimationFrame(() => { input.focus(); input.select(); });
+    this._showInlineInput(currentName, 'Rename', onConfirm);
   },
   showInput(currentValue, buttonLabel, onConfirm) {
+    this._showInlineInput(currentValue, buttonLabel, onConfirm);
+  },
+  _showInlineInput(currentValue, buttonLabel, onConfirm) {
     this.menu.innerHTML = '';
     const wrap = document.createElement('div');
     wrap.className = 'context-menu-inline';

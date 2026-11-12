@@ -1255,11 +1255,10 @@
     },
     /* ── Notes (side panel) ──────────────────────────────────────────────
          Deliberately in THIS database rather than a new one, and deliberately in the
-         `notes` store v6 already created. Two consequences worth stating: reset
-         covers notes for free, because resetService deletes this database whole; and
-         notes are NOT in the pastekit database, so the whole-store lock that gates
-         snippets does not gate them. A note is not a secret and must not be
-         unreachable because the snippet store happens to be locked.
+         `notes` store v6 already created. Notes follow the same database lifecycle
+         as bookmarks, and are NOT in the pastekit database, so the whole-store lock
+         that gates snippets does not gate them. A note is not a secret and must not
+         be unreachable because the snippet store happens to be locked.
     
          A note: { id, title, body, updatedAt }. */
     async listNotes() {
