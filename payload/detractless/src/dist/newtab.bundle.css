@@ -1949,6 +1949,26 @@ textarea.form-input {
 .engine-icon-chip--on:hover {
   background: var(--accent-hover);
 }
+#engine-home > .settings-section-header:first-child,
+.engine-subpage[data-engine-panel=add] > .settings-section-header:first-child {
+  margin-top: 4px;
+}
+#engine-add-icon-row {
+  border-radius: 16px;
+}
+#engine-add-error {
+  padding: 6px 0 0;
+  font-size: var(--font-size-13);
+}
+.engine-add-actions {
+  margin-top: 20px;
+}
+#engine-add-submit {
+  width: 100%;
+}
+#engine-modal .settings-footer .footer-buttons {
+  margin-left: auto;
+}
 
 /* src/pages/newtab/settingsPage.css */
 #sp-root {

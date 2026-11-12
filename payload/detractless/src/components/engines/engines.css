@@ -53,3 +53,14 @@
 .engine-icon-chip:hover { background: var(--surface-hover); color: var(--text-primary); }
 .engine-icon-chip--on { background: var(--accent); color: var(--accent-text); }
 .engine-icon-chip--on:hover { background: var(--accent-hover); }
+
+/* Engine modal layout previously carried by inline styles in index.html. */
+#engine-home > .settings-section-header:first-child,
+.engine-subpage[data-engine-panel="add"] > .settings-section-header:first-child {
+  margin-top: 4px;
+}
+#engine-add-icon-row { border-radius: 16px; }
+#engine-add-error { padding: 6px 0 0; font-size: var(--font-size-13); }
+.engine-add-actions { margin-top: 20px; }
+#engine-add-submit { width: 100%; }
+#engine-modal .settings-footer .footer-buttons { margin-left: auto; }
