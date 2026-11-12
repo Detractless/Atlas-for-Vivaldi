@@ -8,16 +8,9 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
-const esbuild = require("esbuild");
-
+const { loadSourceModule: load } = require("./source-module-loader/load-source-module");
 const ROOT = path.join(__dirname, "..", "..");
 const SRC = path.join(ROOT, "payload", "detractless", "src");
-function load(rel) {
-  const out = esbuild.buildSync({ entryPoints: [path.join(SRC, rel)], bundle: true, format: "cjs", platform: "node", write: false }).outputFiles[0].text;
-  const m = { exports: {} };
-  new Function("module", "exports", "require", out)(m, m.exports, require);
-  return m.exports;
-}
 
 const { SLIDES, SLIDE_DIR, slidesOf } = load("constants/socialSlides.js");
 const { PART_IDS, partOf } = load("utils/social-filter/socialFilter.js");
