@@ -60,9 +60,8 @@ test("popup buttons are soft pills in every place the Site info popup can live",
 
 test("the chosen row shows a tick, never a fill, in the Site info choice, the dropdowns and the workspaces", () => {
   assert.match(controls, /\.SiteInfo-Label--Active \{ background-color: transparent;/);
-  assert.match(controls, /\.SiteInfo-Label--Active::after \{[^}]*mask: var\(--atlas-icon-check\)/);
+  assert.match(controls, /#browser \.VivaldiSelector__option--is-selected::after,\s*#browser \.SiteInfo-Label--Active::after \{[^}]*mask: var\(--atlas-icon-check\)/);
   assert.match(css, /\.VivaldiSelector__option--is-selected \{ background-color: transparent; \}/);
-  assert.match(css, /\.VivaldiSelector__option--is-selected::after \{[^}]*mask: var\(--atlas-icon-check\)/);
   assert.ok(!/workspace-item-wrapper\.selected[^{]*\{[^}]*background-color/.test(css), "selected workspace has no fill");
 });
 

@@ -63,6 +63,18 @@
   min-width: 196px;
   font-size: var(--font-size-atlas-body);
 }
+#browser .atlas-profile-menu .apm-item,
+#browser .atlas-ext-pop .aep-row,
+#browser .atlas-ext-pop .aep-manage {
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
 #browser .atlas-profile-menu .apm-sep {
   height: 1px;
   margin: 2px 4px 6px;
@@ -73,15 +85,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  box-sizing: border-box;
   width: 100%;
-  text-align: left;
-  padding: 6px 10px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
   cursor: default;
 }
 #browser .atlas-profile-menu .apm-item:hover { background-color: var(--atlas-hover-2); }

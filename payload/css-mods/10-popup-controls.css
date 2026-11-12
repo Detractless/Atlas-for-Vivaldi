@@ -54,6 +54,7 @@
 #browser .SiteInfo-Label--Active { background-color: transparent; color: var(--atlas-text-1); }
 #browser .SiteInfo-Label--Active svg { color: var(--atlas-text-1); }
 #browser .SiteInfo-Label--Active svg .outline { stroke: var(--atlas-text-1); }
+#browser .VivaldiSelector__option--is-selected::after,
 #browser .SiteInfo-Label--Active::after {
   content: "";
   flex: none;
