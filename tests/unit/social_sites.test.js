@@ -11,7 +11,7 @@ const { JSDOM } = require("jsdom");
 const { DIR, ROOT } = require("../helpers/social_env");
 
 const SF = path.join(ROOT, "payload", "detractless", "src", "utils", "social-filter", "socialFilter.js");
-const REGISTER = path.join(ROOT, "src", "modules", "03-bridge-content-scripts.js");
+const REGISTER = path.join(ROOT, "src", "modules", "bridge", "03-bridge-content-scripts.js");
 const PART_KEYS = new Set(["css", "on", "hide", "maxArea", "maxMatches", "redirect", "act", "shadow", "english"]);
 const TABLE_KEYS = new Set(["key", "name", "live", "hosts", "route", "landmarks", "smoke", "parts", "todo", "settle"]);
 const is = (v, tag) => Object.prototype.toString.call(v) === `[object ${tag}]`;

@@ -64,14 +64,14 @@ const ACTIONS = {
   // --- Usage totals (components/atlas/atlas-usage.js sends these) ---
   recordUsage: (m, send) => { recordUsage(m).then(() => ok(send)); },
   clearUsage: (m, send) => { clearUsage().then(() => ok(send)); },
-  // --- Add bookmark / Add group / Add page in the address bar (src/modules/23-addbar-core.js) ---
+  // --- Add bookmark / Add group / Add page in the address bar (src/modules/addbar/23-addbar-core.js) ---
   addInfo: (m, send) => answer(addInfo(m), send),
   addGroups: (m, send) => answer(addGroups(m), send),
   addSuggest: (m, send) => answer(addSuggest(m), send),
   addBookmark: (m, send) => answer(addBookmarkTo(m).then(announce), send),
   addGroup: (m, send) => answer(addGroupTo(m).then(announce), send),
   addPage: (m, send) => answer(addPageTo(m).then(announce), send),
-  // --- Right-click on the new tab: change a bookmark, a group or a page (src/modules/26-addbar-edit.js) ---
+  // --- Right-click on the new tab: change a bookmark, a group or a page (src/modules/addbar/26-addbar-edit.js) ---
   editBookmark: (m, send) => answer(editBookmark(m).then(announce), send),
   editGroup: (m, send) => answer(editGroup(m).then(announce), send),
   editPage: (m, send) => answer(editPage(m).then(announce), send),
@@ -85,7 +85,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-/* In Vivaldi this file runs inside the browser window's own page (src/modules/02-bridge-setup.js), and Chrome
+/* In Vivaldi this file runs inside the browser window's own page (src/modules/bridge/02-bridge-setup.js), and Chrome
    never delivers a message to the page that sent it. So code in that page (the address bar's Add flow) asks
    here directly. Resolves to the answer, or undefined when the message is not one of ours. */
 globalThis.__atlasWorker = {

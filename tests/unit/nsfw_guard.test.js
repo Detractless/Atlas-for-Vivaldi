@@ -9,7 +9,7 @@ const ROOT = path.resolve(__dirname, "..", "..");
 const GUARD_PATH = path.join(ROOT, "payload", "install-files", "components", "atlas", "atlas-nsfw-guard.js");
 const CONFIG_PATH = path.join(ROOT, "payload", "install-files", "components", "atlas", "atlas-nsfw-guard-config.js");
 const DRAG_PATH = path.join(ROOT, "payload", "install-files", "components", "atlas", "atlas-nsfw-drag.js");
-const SCRIPTS_PATH = path.join(ROOT, "src", "modules", "03-bridge-content-scripts.js");
+const SCRIPTS_PATH = path.join(ROOT, "src", "modules", "bridge", "03-bridge-content-scripts.js");
 
 test("atlas-nsfw-guard.js parses and reads the Content shield config", () => {
   const code = fs.readFileSync(CONFIG_PATH, "utf8") + "\n" + fs.readFileSync(GUARD_PATH, "utf8");

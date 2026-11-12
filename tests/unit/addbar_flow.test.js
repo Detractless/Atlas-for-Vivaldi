@@ -1,4 +1,4 @@
-// "Add bookmark" and "Add page" in the address bar (src/modules/23-addbar-core.js, 24-addbar-screens.js, 25-addbar-place.js):
+// "Add bookmark" and "Add page" in the address bar (src/modules/addbar/23-addbar-core.js, 24-addbar-screens.js, 25-addbar-place.js):
 // a field over the bar and a card under it, on whatever page you are on. The service worker's answers
 // (background/addFlow.js) are played by a stand-in so each screen can be driven. Add group: addbar_group_flow.test.js.
 "use strict";

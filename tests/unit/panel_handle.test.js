@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { JSDOM } = require("jsdom");
 
-const source = fs.readFileSync(path.join(__dirname, "../../src/modules/35-panel-handle.js"), "utf8");
+const source = fs.readFileSync(path.join(__dirname, "../../src/modules/panels/35-panel-handle.js"), "utf8");
 const windows = [];
 test.after(() => windows.forEach((w) => w.close()));
 

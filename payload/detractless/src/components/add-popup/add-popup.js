@@ -198,7 +198,7 @@ function savePage(popup) {
 }
 
 /** The + button on the new tab opens the popup for a bookmark. Run once at start. (The profile menu's
-    Add bookmark and Add page open in the address bar instead: src/modules/23-addbar-core.js.) */
+    Add bookmark and Add page open in the address bar instead: src/modules/addbar/23-addbar-core.js.) */
 export function initAddPopup() {
   const plus = document.getElementById('global-add-btn');
   if (plus) plus.addEventListener('click', (e) => { e.stopPropagation(); openAddPopup({ mode: 'bookmark' }); });

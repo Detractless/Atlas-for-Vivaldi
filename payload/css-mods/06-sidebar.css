@@ -59,9 +59,9 @@
 /* ── 13b. Downloads panel ────────────────────────────────────────────────
    Not styled here: the Downloads sidebar is our own page, laid out like Chromium's
    chrome://downloads (components/atlas/downloads-panel.html), so Vivaldi's built-in
-   Downloads panel never opens. src/modules/34-downloads-panel.js opens ours. */
+   Downloads panel never opens. src/modules/downloads/34-downloads-panel.js opens ours. */
 
-/* The sidebar's menu tab (src/modules/35-panel-handle.js): the browser frame's own colour growing
+/* The sidebar's menu tab (src/modules/panels/35-panel-handle.js): the browser frame's own colour growing
    into the sidebar's top-right corner, flush with its edges and rounded only where it meets the
    page, so it reads as part of the frame. Click it for the card below. */
 #browser .atlas-panel-handle {
@@ -142,7 +142,7 @@
 
 /* ── 14. History page ────────────────────────────────────────────────────
    Not styled here: History is Chromium's own chrome://history, which CSS cannot
-   reach. src/modules/33-history-redirect.js swaps Vivaldi's page for it. */
+   reach. src/modules/history/33-chromium-pages.js swaps Vivaldi's page for it. */
 
 /* ── 15. Panel column — Tools sidebar only ───────────────────────────────
    History and Downloads are full pages now, so Vivaldi's built-in panels are

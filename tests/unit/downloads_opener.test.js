@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { JSDOM } = require("jsdom");
 
-const source = fs.readFileSync(path.join(__dirname, "../../src/modules/34-downloads-panel.js"), "utf8");
+const source = fs.readFileSync(path.join(__dirname, "../../src/modules/downloads/34-downloads-panel.js"), "utf8");
 const BUTTON = '<div id="panels-container"><button data-name="WEBPANEL_atlas_downloads"></button></div>';
 
 // A browser window with the panel's switch button; `showing` puts the panel's page on screen.

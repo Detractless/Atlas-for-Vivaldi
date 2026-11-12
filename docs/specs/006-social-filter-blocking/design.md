@@ -16,7 +16,7 @@ entirely (`background/socialBlock.js`, main frame only, subdomains included, no 
 
 ## How it works
 
-- `src/modules/03-bridge-content-scripts.js` registers one persistent content script per site (`atlas-social-<key>`),
+- `src/modules/bridge/03-bridge-content-scripts.js` registers one persistent content script per site (`atlas-social-<key>`),
   at `document_start`, top frame only, for the site's hosts. Each is: `atlas-social-behaviors.js`,
   `atlas-social-guard.js`, `atlas-social-core.js`, then the site's table `atlas-social-<key>.js`
   (all in `payload/install-files/components/atlas/`). The table calls `__atlasSocial.run(table)` itself.

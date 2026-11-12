@@ -1,4 +1,4 @@
-// The data behind "Add bookmark", "Add group" and "Add page" in the address bar (src/modules/23-addbar-core.js,
+// The data behind "Add bookmark", "Add group" and "Add page" in the address bar (src/modules/addbar/23-addbar-core.js,
 // 24-addbar-screens.js and 25-addbar-place.js in the browser window). The window asks; this answers and writes, using the same
 // bookmark database and page list as the new tab, so what is added shows there at once.
 import { BookmarkDB } from '../../services/bookmarks/bookmarksDB.js';

@@ -1,5 +1,5 @@
 // Scroll fade's setting and rules (utils/scrollFade.js), and that the page script (components/atlas/atlas-scroll-fade.js),
-// the window's layer (src/modules/36-scroll-fade-layer.js) and profiles (pages/newtab/profilesCore.js), which repeat them
+// the window's layer (src/modules/appearance/36-scroll-fade-layer.js) and profiles (pages/newtab/profilesCore.js), which repeat them
 // in their own words, agree. Bundled to CommonJS and run as plain code.
 "use strict";
 

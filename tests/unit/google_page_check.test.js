@@ -1,7 +1,7 @@
 // Spec 002, phase 4: every Google, Gmail and YouTube page that opens (typed in
 // the address bar, a link, history) uses the active profile's account.
 // components/atlas/atlas-google-account.js runs in the page and asks the browser
-// window (src/modules/16-google-accounts.js), which decides with redirectFor.
+// window (src/modules/accounts/16-google-accounts.js), which decides with redirectFor.
 "use strict";
 
 const test = require("node:test");

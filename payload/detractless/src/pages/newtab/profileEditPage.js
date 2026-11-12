@@ -41,7 +41,7 @@
   const onPage = () => UI.current() === "profile";
   const redraw = () => UI.rerender();
 
-  /* The Google accounts the browser window found (src/modules/16-google-accounts.js
+  /* The Google accounts the browser window found (src/modules/accounts/16-google-accounts.js
      caches them in chrome.storage.local). Shown on the Google row; asked for
      afresh each time a profile's page opens. */
   let gaCache = null, gaLooking = false, googleTyped = false;

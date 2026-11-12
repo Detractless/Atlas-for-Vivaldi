@@ -20,7 +20,7 @@ PANEL_ID = "WEBPANEL_atlas_sidebar"
 DOWNLOADS_PANEL_ID = "WEBPANEL_atlas_downloads"
 DOWNLOADS_PANEL_PATH = "components/atlas/atlas-downloads-panel.html"
 
-# Buttons the tab bar's own toolbars do not keep (src/modules/38-profile-recipe.js has the same list).
+# Buttons the tab bar's own toolbars do not keep (src/modules/profiles/38-profile-recipe.js has the same list).
 TABBAR_OUT = ("Back", "Forward", "WorkspaceButton", "TabButton")
 
 
@@ -95,7 +95,7 @@ def _prefs_remove_tools_panel(v: dict):
 
 
 def _prefs_downloads_panel(v: dict):
-    # Vivaldi's own panel stops opening on a new download; src/modules/34-downloads-panel.js
+    # Vivaldi's own panel stops opening on a new download; src/modules/downloads/34-downloads-panel.js
     # opens ours instead. The panel bar stays hidden by the CSS, so this adds only the
     # panel itself and its switch button.
     url = f"chrome-extension://{atlas_keys()['extensionId']}/{DOWNLOADS_PANEL_PATH}"

@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const context = vm.createContext({});
-vm.runInContext(fs.readFileSync(path.join(__dirname, '../../src/modules/30-command-taps.js'), 'utf8'), context);
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../../src/modules/commands/30-command-taps.js'), 'utf8'), context);
 const create = context.createAtlasCommandTapDetector;
 
 function setup() {

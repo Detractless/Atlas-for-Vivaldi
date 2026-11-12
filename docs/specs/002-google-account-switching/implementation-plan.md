@@ -77,7 +77,7 @@ Requirements (acceptance criteria):
 **Key Design Decisions**:
 
 - **Identity is the email; the number is looked up.** A profile keeps `google: { email }` (spec 001, unchanged). The account number is looked up from a fresh detection when a switch happens, because numbers shift. If the live check (T1.5.3) shows Google accepts `authuser=<email>` on every service tried, the lookup is a safety net; if not, the number is what gets used.
-- **Detection lives on the browser-window side.** `src/modules/16-google-accounts.js` (bundled into `atlas.js`, runs in `window.html`) fetches and parses the account list and caches it in `chrome.storage.local["atlasGoogleAccounts"]` (`{ accounts: [{ index, name, email, photo }], at, error }`). window.html is the Vivaldi UI extension, which already holds `<all_urls>` host access (Atlas registers its page-menu script for `<all_urls>` from there, and it works live), so the request can carry Google's cookies. The new tab reads the cache and asks for a refresh by message (`{ atlas: { act: "google-accounts", refresh: true } }`); it never parses Google's reply itself. Pages are never asked to fetch it (their requests are bound by the page's CORS).
+- **Detection lives on the browser-window side.** `src/modules/accounts/16-google-accounts.js` (bundled into `atlas.js`, runs in `window.html`) fetches and parses the account list and caches it in `chrome.storage.local["atlasGoogleAccounts"]` (`{ accounts: [{ index, name, email, photo }], at, error }`). window.html is the Vivaldi UI extension, which already holds `<all_urls>` host access (Atlas registers its page-menu script for `<all_urls>` from there, and it works live), so the request can carry Google's cookies. The new tab reads the cache and asks for a refresh by message (`{ atlas: { act: "google-accounts", refresh: true } }`); it never parses Google's reply itself. Pages are never asked to fetch it (their requests are bound by the page's CORS).
 - **One decision function.** `redirectFor(url, account, guards)` in the window module decides, for one page, whether to switch and to what URL. The content script, the profile-switch handler and the tests all go through it.
 - **Switch on profile change: the active tab now, the rest when shown.** Reloading every Google tab at once could cost unsaved work (a half-written Docs edit, a form). So the active tab switches at once; another Google tab switches when the user moves to it (`chrome.tabs.onActivated`). (Decision E1.)
 - **Check on load: a thin content script.** `components/atlas/atlas-google-account.js` (installed with the other `components/atlas` files) runs on `*.google.com`, `*.gmail.com` and `*.youtube.com` at `document_start`, asks the window `{ atlas: { act: "google-account-for-page", url } }`, and if told to, replaces the location once. Registered beside the page menu in `03-bridge-content-scripts.js`.
@@ -107,7 +107,7 @@ Requirements (acceptance criteria):
   - Window-side tests use `tests/unit/helpers/windowDom.js` (`openWindow`, recorded `chrome.*` calls, `opts.searchEngines`-style stand-ins); page-side tests load a content script into jsdom like `tests/unit/page_ctxmenu.test.js`; new-tab tests use `tests/unit/helpers/newtabDom.js`
   - No fixture holds real account data: test replies are made up in the same shape
 - Interfaces to implement:
-  - `src/modules/16-google-accounts.js`: `parseAccountList(text)` → `[{ index, name, email, photo }]`; `refreshGoogleAccounts()` → cache; `accountFor(email)` → `{ email, index } | null`; `redirectFor(url, account, guards)` → new URL or `null`; message handlers `google-accounts` and `google-account-for-page`; a profile-change handler and a `chrome.tabs.onActivated` handler
+  - `src/modules/accounts/16-google-accounts.js`: `parseAccountList(text)` → `[{ index, name, email, photo }]`; `refreshGoogleAccounts()` → cache; `accountFor(email)` → `{ email, index } | null`; `redirectFor(url, account, guards)` → new URL or `null`; message handlers `google-accounts` and `google-account-for-page`; a profile-change handler and a `chrome.tabs.onActivated` handler
   - `payload/install-files/components/atlas/atlas-google-account.js`: the content script
   - `payload/detractless/src/pages/newtab/profileEditPage.js`: the picker in `googleRow`
   - `atlasKeys.json`: `local.atlasGoogleAccounts` (`backup: false`)
@@ -119,7 +119,7 @@ Requirements (acceptance criteria):
 - [ ] T1 Phase 1 Account detection, with a live check (REQ-1, REQ-6)
 
     - [x] T1.1 Prime Context
-        - [x] T1.1.1 Read how the window side answers messages and registers page scripts `[ref: src/modules/04-bridge-messages.js; lines: 1-37]` `[ref: src/modules/03-bridge-content-scripts.js; lines: 1-45]`
+        - [x] T1.1.1 Read how the window side answers messages and registers page scripts `[ref: src/modules/bridge/04-bridge-messages.js; lines: 1-37]` `[ref: src/modules/bridge/03-bridge-content-scripts.js; lines: 1-45]`
         - [x] T1.1.2 Read the reference extension's account-list reader (summary above) and the profile edit page's Google row `[ref: payload/detractless/src/pages/newtab/profileEditPage.js; lines: 60-75, 125-150]`
     - [x] T1.2 Write Tests (`tests/unit/google_accounts_detect.test.js`)
         - [x] T1.2.1 `parseAccountList` reads a made-up reply in Google's shape: names, emails, photos, numbers (from `[7]`, else position), `\xNN` and `\/` escapes undone `[ref: REQ-1]` `[activity: unit-test]`
@@ -128,7 +128,7 @@ Requirements (acceptance criteria):
         - [x] T1.2.4 The `google-accounts` message answers from the cache and refreshes when asked; `accountFor(email)` finds the number, case-insensitively, or returns null `[ref: REQ-1]` `[activity: unit-test]`
         - [x] T1.2.5 The cached list is not in a backup export, and `atlasGoogleAccounts` is listed in `atlasKeys.json` (the storage-key test) `[ref: REQ-1; Key decisions "Privacy"]` `[activity: unit-test]`
     - [x] T1.3 Implement
-        - [x] T1.3.1 `src/modules/16-google-accounts.js`: parser, fetch, cache, `accountFor`, message handler; refresh at window start and when asked `[activity: frontend]`
+        - [x] T1.3.1 `src/modules/accounts/16-google-accounts.js`: parser, fetch, cache, `accountFor`, message handler; refresh at window start and when asked `[activity: frontend]`
         - [x] T1.3.2 `atlasKeys.json`: `local.atlasGoogleAccounts`, `backup: false` `[activity: frontend]`
         - [x] T1.3.3 A read-only line in the edit page's Google row: "N Google accounts found" or the reason none were `[activity: frontend]`
     - [x] T1.4 Implement: nothing on the new-tab link path changes in this phase (REQ-6) `[activity: frontend]`
@@ -137,7 +137,7 @@ Requirements (acceptance criteria):
         - [x] T1.5.2 `npm run build`, `npm test`, dry run `[activity: run-tests]`
         - [x] T1.5.3 **Live check (gate).** The user installs and opens a profile's edit page: does it list their accounts? Then opens `https://mail.google.com/mail/?authuser=<email>` and `https://www.youtube.com/?authuser=<email>` for a second account: does each open as it? Record both answers here. If detection fails, Phases 2-4 still go ahead on the typed email (REQ-6) and the picker shows the reason; if `authuser=<email>` fails, switching uses the number from `accountFor` `[activity: business-acceptance]`
     - Live, 2026-10-09 02:50 after the install: Vivaldi's storage holds the list Atlas read at start, 4 signed-in accounts (numbers 0-3, each with a photo), no error. So detection works in Vivaldi. The user's screenshot of a profile's edit page shows "Found 4 Google accounts: ..." with all four addresses. The user asked for click-to-select instead of typing (Phase 2). Measured in Vivaldi later that day, after the user reported a Google search not using the linked account: google.com/search with `authuser=<email>` opened account 0, with `authuser=3` it opened account 3; Gmail took `authuser=<email>`. So the number is what gets used (new-tab links switched to it in the same commit); the email stays the fallback when there is no list.
-    - Built 2026-10-09: `src/modules/16-google-accounts.js`, `local.atlasGoogleAccounts` in atlasKeys.json, and the "Found N Google accounts" line on the edit page's Google row (it also asks the browser window for a fresh list when a profile's page opens). Each account also carries `signedIn` (signed-out accounts stay in Google's list). Tests: `tests/unit/google_accounts_detect.test.js` (10, all failing before the code). The spelling speed test (`suggestions are fast`) failed in full runs at 1:30-1:36 while another job kept the computer at load 6-12; the last commit's suite failed it the same way at the same time, and it passes on its own. Fixed in the next commit: its timing bars are three times looser while the computer is busy (load per core above 0.5) and unchanged otherwise; node 144/144 + 1 todo, twice. T1.5.3 waits for the user's install.
+    - Built 2026-10-09: `src/modules/accounts/16-google-accounts.js`, `local.atlasGoogleAccounts` in atlasKeys.json, and the "Found N Google accounts" line on the edit page's Google row (it also asks the browser window for a fresh list when a profile's page opens). Each account also carries `signedIn` (signed-out accounts stay in Google's list). Tests: `tests/unit/google_accounts_detect.test.js` (10, all failing before the code). The spelling speed test (`suggestions are fast`) failed in full runs at 1:30-1:36 while another job kept the computer at load 6-12; the last commit's suite failed it the same way at the same time, and it passes on its own. Fixed in the next commit: its timing bars are three times looser while the computer is busy (load per core above 0.5) and unchanged otherwise; node 144/144 + 1 todo, twice. T1.5.3 waits for the user's install.
 
 - [ ] T2 Phase 2 Account picker on the profile edit page (REQ-2, REQ-6). Needs Phase 1. `[parallel: true]` with Phase 3
 
@@ -161,7 +161,7 @@ Requirements (acceptance criteria):
 - [ ] T3 Phase 3 Google tabs switch on profile change (REQ-3, REQ-5). Needs Phase 1. `[parallel: true]` with Phase 2
 
     - [x] T3.1 Prime Context
-        - [x] T3.1.1 Read how the window learns of a profile switch `[ref: src/modules/07-profile-menu.js; lines: 82-90, 210-220]` `[ref: payload/detractless/src/pages/newtab/profilesCore.js; lines: 183-195, 355-371]`
+        - [x] T3.1.1 Read how the window learns of a profile switch `[ref: src/modules/menus/07-profile-menu.js; lines: 82-90, 210-220]` `[ref: payload/detractless/src/pages/newtab/profilesCore.js; lines: 183-195, 355-371]`
     - [x] T3.2 Write Tests (`tests/unit/google_switch.test.js`, window harness)
         - [x] T3.2.1 `redirectFor`: a Google or YouTube URL showing another account gets the profile's account (`authuser`, and a `/u/N/` part replaced); one already showing it, a non-Google URL, a look-alike host and an unlinked profile get `null` `[ref: REQ-3]` `[activity: unit-test]`
         - [x] T3.2.2 A profile switch reloads the active tab when it is a Google or YouTube page, with the new account; a non-Google active tab is not touched `[ref: REQ-3]` `[activity: unit-test]`
@@ -173,12 +173,12 @@ Requirements (acceptance criteria):
         - [x] T3.5.1 Rules, `node --check`, bundle `[activity: lint-code, review-code]`
         - [x] T3.5.2 `npm test` `[activity: run-tests]`
         - [ ] T3.5.3 The user switches profile on YouTube and Gmail in Vivaldi `[activity: business-acceptance]`
-    - Built 2026-10-09 in `src/modules/17-google-switch.js` (split from 16 to keep each module to one job). It asks Google by account number (`authuser=N`, the /u/N/ path too), since the live check showed Search ignores an email. Tests: `tests/unit/google_switch.test.js` (5, failing before the code). T3.5.3 waits for the user's install.
+    - Built 2026-10-09 in `src/modules/accounts/17-google-switch.js` (split from 16 to keep each module to one job). It asks Google by account number (`authuser=N`, the /u/N/ path too), since the live check showed Search ignores an email. Tests: `tests/unit/google_switch.test.js` (5, failing before the code). T3.5.3 waits for the user's install.
 
 - [ ] T4 Phase 4 Google pages checked as they load, with loop guards (REQ-4, REQ-5). Needs Phase 3 (shares `redirectFor`)
 
     - [x] T4.1 Prime Context
-        - [x] T4.1.1 Read how the page menu script is loaded into pages and tested `[ref: src/modules/03-bridge-content-scripts.js; lines: 14-45]` `[ref: tests/unit/page_ctxmenu.test.js]`
+        - [x] T4.1.1 Read how the page menu script is loaded into pages and tested `[ref: src/modules/bridge/03-bridge-content-scripts.js; lines: 14-45]` `[ref: tests/unit/page_ctxmenu.test.js]`
     - [x] T4.2 Write Tests (`tests/unit/google_page_check.test.js`)
         - [x] T4.2.1 The content script, loaded into a jsdom page at a Google URL, asks the window and replaces the location once when told to; it does nothing when told nothing `[ref: REQ-4]` `[activity: unit-test]`
         - [x] T4.2.2 Guard: a URL that already names an account is left alone, without asking the window `[ref: REQ-5]` `[activity: unit-test]`

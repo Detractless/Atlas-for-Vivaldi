@@ -24,7 +24,7 @@ const DYNAMIC_OK = {
   "payload/detractless/src/background/state/stateSync.js": "SEEDED_KEYS, each checked by syncDefault()",
   "payload/detractless/src/components/tabs/tabs.js": "legacy page<id> key (syncPatterns)",
   "payload/detractless/src/background/flows/editFlow.js": "legacy page<id> key (syncPatterns), removed with its page as tabs.js deletePage does",
-  "src/modules/02-bridge-setup.js": "seeds the service-worker defaults (atlas_window.test.js checks the values)",
+  "src/modules/bridge/02-bridge-setup.js": "seeds the service-worker defaults (atlas_window.test.js checks the values)",
 };
 
 function sourceFiles() {

@@ -1,5 +1,5 @@
 /* Usage totals for one web page: how long it is in front of you, and what you do there.
-   Injected as a content script on web pages (src/modules/03-bridge-content-scripts.js), top frame
+   Injected as a content script on web pages (src/modules/bridge/03-bridge-content-scripts.js), top frame
    only, never in a private window. Every 30 seconds, and when you leave the tab, it sends the
    change since the last time to the service worker (background/usageLog.js), which adds it to the
    hourly totals for this site. Only the site's name and numbers go: never the page's address or

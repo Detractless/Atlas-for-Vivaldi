@@ -1,6 +1,6 @@
 /* ============================================================================
    08-addbar.css: "Add bookmark" and "Add page" in the address bar
-   (src/modules/23-addbar-core.js and 24-addbar-screens.js).
+   (src/modules/addbar/23-addbar-core.js and 24-addbar-screens.js).
 
    The profile menu's Add bookmark / Add page open here, on whatever page you are on. A field sits over
    the address bar and a card grows under it, as one shape, at the size of the address bar's own card

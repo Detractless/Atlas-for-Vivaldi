@@ -5,8 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM } = require('jsdom');
 
-const source = fs.readFileSync(path.join(__dirname, '../../src/modules/33-chromium-pages.js'), 'utf8');
-const flyout = fs.readFileSync(path.join(__dirname, '../../src/modules/07-profile-menu.js'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '../../src/modules/history/33-chromium-pages.js'), 'utf8');
+const flyout = fs.readFileSync(path.join(__dirname, '../../src/modules/menus/07-profile-menu.js'), 'utf8');
 const HISTORY = 'chrome://history/';
 const BOOKMARKS = 'chrome://bookmarks/';
 

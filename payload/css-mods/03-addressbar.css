@@ -219,7 +219,7 @@
   }
 }
 
-/* ── 4c. The address bar card (src/modules/18-addressbar-pills.js) ──────────
+/* ── 4c. The address bar card (src/modules/addressbar/18-addressbar-pills.js) ──────────
    While the field is in use, a card grows down from it over the page, the same
    width as the field: the whole address wrapped when it is too long for the
    one-line field, and while typing, the matching bookmarks as pills (the new
@@ -269,7 +269,7 @@
 #browser .atlas-urlcard-hint { margin-top: 8px; color: var(--atlas-text-2); font-size: var(--font-size-atlas-hint); opacity: .8; }
 #browser.atlas-pills-open .OmniDropdown { display: none !important; }
 
-/* ── 4d. The engine button (src/modules/19-addressbar-engine-picker.js) ──────
+/* ── 4d. The engine button (src/modules/addressbar/19-addressbar-engine-picker.js) ──────
    While the field is in use, the engine a search will use sits over Vivaldi's
    left icon (#browser.atlas-enginebtn-on). Clicked, the card shows the engines
    as pills instead of the bookmarks (#browser.atlas-engines-open). */

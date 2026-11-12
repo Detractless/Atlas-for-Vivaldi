@@ -4,10 +4,10 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..", "..");
-const BRIDGE_PATH = path.join(ROOT, "src", "modules", "04-bridge-messages.js");
-const VERDICTS_PATH = path.join(ROOT, "src", "modules", "27-nsfw-verdicts.js");
-const RETRY_BRIDGE_PATH = path.join(ROOT, "src", "modules", "28-nsfw-retry-bridge.js");
-const PREPARE_BRIDGE_PATH = path.join(ROOT, "src", "modules", "29-nsfw-shield-prepare.js");
+const BRIDGE_PATH = path.join(ROOT, "src", "modules", "bridge", "04-bridge-messages.js");
+const VERDICTS_PATH = path.join(ROOT, "src", "modules", "nsfw", "27-nsfw-verdicts.js");
+const RETRY_BRIDGE_PATH = path.join(ROOT, "src", "modules", "nsfw", "28-nsfw-retry-bridge.js");
+const PREPARE_BRIDGE_PATH = path.join(ROOT, "src", "modules", "nsfw", "29-nsfw-shield-prepare.js");
 const OFFSCREEN_PATH = path.join(ROOT, "payload", "install-files", "components", "atlas", "nsfw", "offscreen.js");
 const OFFSCREEN_HTML_PATH = path.join(ROOT, "payload", "install-files", "components", "atlas", "nsfw", "offscreen.html");
 const GUARD_PATH = path.join(ROOT, "payload", "install-files", "components", "atlas", "atlas-nsfw-guard.js");

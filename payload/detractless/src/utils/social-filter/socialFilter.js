@@ -16,7 +16,7 @@ export const LIVE_SITES = ['YouTube', 'Reddit', 'Twitch', 'X', 'Instagram', 'Tik
 export const partsLive = () => (LIVE_SITES.length === 0 ? 'none' : LIVE_SITES.length === SITES.length ? 'all' : 'some');
 
 /* The sites, and where each lives. The page scripts (components/atlas/atlas-social-<key>.js), their registration
-   (src/modules/03-bridge-content-scripts.js) and the block-sites-entirely guard (background/socialBlock.js) all
+   (src/modules/bridge/03-bridge-content-scripts.js) and the block-sites-entirely guard (background/socialBlock.js) all
    use these hosts; tests/unit/social_sites.test.js checks they agree. A host covers its subdomains. */
 export const SITES = [
   { name: 'YouTube', key: 'youtube', hosts: ['youtube.com'], aliases: ['youtu.be'] },

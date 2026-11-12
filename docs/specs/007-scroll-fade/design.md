@@ -24,7 +24,7 @@ Web Store). The rules below are the second version. The old per-site list ("Only
   limits does not end it. When `until` passes, the total goes back to nothing and the page comes back.
 - **Leave these sites alone** (`except`, empty to start): never counted, never dimmed. A host covers its subdomains. Every
   other site works, so there is no "only these sites" list.
-- **Drawn in the browser window, not in each page** (`src/modules/36-scroll-fade-layer.js`), the way the colour filter is
+- **Drawn in the browser window, not in each page** (`src/modules/appearance/36-scroll-fade-layer.js`), the way the colour filter is
   (`22-page-saturation.js`): one black layer after `#webpage-stack` inside its container, `pointer-events: none`, eased 1.2 s.
   It follows the tab you are on: a web page that is not left alone dims; Atlas's pages (the new tab, Settings), Vivaldi's own
   and a tab whose address is not known yet stay clear. Because it is in the window it also dims the Web Store and anything a
@@ -42,8 +42,8 @@ Web Store). The rules below are the second version. The old per-site list ("Only
 | --- | --- |
 | `payload/detractless/src/utils/scrollFade.js` | The setting and every rule: `normalize`, `progress`, `amount`, `settle`, `appliesTo`, `looser`, choices. No page, no storage. |
 | `payload/install-files/components/atlas/atlas-scroll-fade.js` | Counts scrolling on pages into the total. Cannot import, so it repeats `normalize` (on, except, restSeconds). |
-| `src/modules/36-scroll-fade-layer.js` | The layer, the pill and the wait. Repeats `normalize`, `progress` and `settle`; reachable as `Atlas.scrollFade` for the tests. |
-| `src/modules/03-bridge-content-scripts.js` | Registers the counting script (`atlas-scroll-fade`, `document_idle`, http/https). |
+| `src/modules/appearance/36-scroll-fade-layer.js` | The layer, the pill and the wait. Repeats `normalize`, `progress` and `settle`; reachable as `Atlas.scrollFade` for the tests. |
+| `src/modules/bridge/03-bridge-content-scripts.js` | Registers the counting script (`atlas-scroll-fade`, `document_idle`, http/https). |
 | `settings/scrollFadePage.js`, `fadeControls.js`, `lockable.js` | The section, its controls, the shared lock helper. |
 | `utils/focusLock.js`, `pages/newtab/profilesCore.js` | One lock, `scrollFade`; locked, it can only get stronger. profilesCore repeats `looser()`. |
 | `constants/atlasKeys.json` | `sync.scrollFade` (per profile: focus; in backups) and `local.atlas_scroll_fade` (never backed up). |

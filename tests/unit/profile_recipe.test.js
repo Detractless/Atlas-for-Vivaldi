@@ -1,4 +1,4 @@
-// src/modules/38-profile-recipe.js: the settings Atlas gives a Vivaldi profile, as a pure function of what the
+// src/modules/profiles/38-profile-recipe.js: the settings Atlas gives a Vivaldi profile, as a pure function of what the
 // profile has now. Loaded on its own (no window), so these are plain data in, plain data out.
 "use strict";
 
@@ -7,7 +7,7 @@ const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
 
-const SOURCE = fs.readFileSync(path.join(__dirname, "..", "..", "src", "modules", "38-profile-recipe.js"), "utf8");
+const SOURCE = fs.readFileSync(path.join(__dirname, "..", "..", "src", "modules", "profiles", "38-profile-recipe.js"), "utf8");
 function loadRecipe() {
   const Atlas = {};
   new Function("Atlas", SOURCE)(Atlas);

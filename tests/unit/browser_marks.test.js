@@ -1,4 +1,4 @@
-// Atlas's marks on the window (atlasMark, src/modules/00-shared.js). Vivaldi
+// Atlas's marks on the window (atlasMark, src/modules/browser-marks/00-browser-marks.js). Vivaldi
 // rebuilds #browser's whole class list now and then (when the window gains or
 // loses focus, among others), and that erased Atlas's marks: the address bar's
 // engine logo then sat over Vivaldi's own icon, both showing. Marks Atlas has

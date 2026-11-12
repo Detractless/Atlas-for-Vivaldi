@@ -1,7 +1,7 @@
 // Scroll fade (Settings > Focus): the longer or farther you scroll, on any site, the darker every page gets. When it is fully
 // dim it stays that way for a wait you can't shorten by scrolling or by stopping. This file is the setting and its rules,
 // with no page or storage in it, so they can be tested alone. Two files repeat parts of it in their own words (they can't
-// import): src/modules/36-scroll-fade-layer.js draws the dimming in the browser window and keeps the wait, and
+// import): src/modules/appearance/36-scroll-fade-layer.js draws the dimming in the browser window and keeps the wait, and
 // components/atlas/atlas-scroll-fade.js counts the scrolling on pages. tests/unit/scroll_fade_rules.test.js feeds all of them
 // the same values; keep them the same.
 //

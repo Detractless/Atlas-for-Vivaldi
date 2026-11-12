@@ -12,7 +12,7 @@ function start() {
     windows:{onFocusChanged:event('focus')}};
   const Atlas={resetCommandTaps:()=>resets++, resetUiShortcuts:()=>resets++};
   const window={__Atlas:Atlas,vivaldiWindowId:7,vivaldi:{menubar:{onActivated:event('menu')}},addEventListener:(n,f)=>listeners[n]=f};
-  vm.runInNewContext(fs.readFileSync(__dirname+'/../../src/modules/31-native-sequences.js','utf8'),{window,chrome,ATLAS_NEWTAB_URL:'atlas://index.html',navigator:{platform:'MacIntel'},performance:{now:()=>time}});
+  vm.runInNewContext(fs.readFileSync(__dirname+'/../../src/modules/commands/31-native-sequences.js','utf8'),{window,chrome,ATLAS_NEWTAB_URL:'atlas://index.html',navigator:{platform:'MacIntel'},performance:{now:()=>time}});
   return {listeners,actions,queries,signals,Atlas,window,advance:()=>time=5000, resets:()=>resets,
     emit:(act,id=7)=>listeners.menu(id,'ATLAS_SEQUENCE_'+act), answer:(id=9)=>{const q=queries.shift();q.cb([{id,windowId:7}]);},
     answerWith:tabs=>{const q=queries.shift();q.cb(tabs);return q.q;}};

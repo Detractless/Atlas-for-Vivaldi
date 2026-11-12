@@ -1,5 +1,5 @@
 // Spec 002, phase 3: switching Atlas profile switches the open Google tab to the
-// new profile's account (src/modules/16-google-accounts.js, browser-window side).
+// new profile's account (src/modules/accounts/16-google-accounts.js, browser-window side).
 // The active tab switches at once; other Google tabs open at the time switch
 // when the user moves to them, once.
 "use strict";

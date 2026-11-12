@@ -1,7 +1,7 @@
 """Step 6b: the facts every other profile needs, written next to atlas.js.
 
 The installer sets up the one profile it is run for (preferences.py). Atlas's window code runs in every
-profile; src/modules/39-profile-setup.js reads this file on a profile's first open and applies the same
+profile; src/modules/profiles/39-profile-setup.js reads this file on a profile's first open and applies the same
 settings there (38-profile-recipe.js holds the rules; tests/unit/profile_recipe_parity.test.js keeps the two
 in step). Raise RECIPE_VERSION when the settings change and every profile applies them once more.
 """

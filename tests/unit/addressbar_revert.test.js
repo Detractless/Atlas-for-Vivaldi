@@ -1,5 +1,5 @@
 // Clicking away from the address field after typing puts the page's address
-// back (src/modules/21-addressbar-revert.js): Atlas runs Vivaldi's own reset
+// back (src/modules/addressbar/21-addressbar-revert.js): Atlas runs Vivaldi's own reset
 // for the tab the field was editing, once the bar has faded out of sight,
 // never while you can still see it. Vivaldi's core is faked here: a module
 // list with the reset among other modules, reached the way Atlas reaches the

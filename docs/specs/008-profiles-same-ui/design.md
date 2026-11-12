@@ -33,10 +33,10 @@ styled only by the CSS mods, so without them it was an unstyled strip along the 
 1. `payload/install-files/atlas-profile.json`, written by the installer (`installer/profile_facts.py`) next to `atlas.js`: the
    look-folder path, the new-tab address, the Atlas themes, the Downloads panel, and `version` (raise `RECIPE_VERSION` when the
    settings change and every profile applies them once more).
-2. `src/modules/38-profile-recipe.js`: `profileRecipe(snapshot, facts)` returns only what must change, merging: a profile's own
+2. `src/modules/profiles/38-profile-recipe.js`: `profileRecipe(snapshot, facts)` returns only what must change, merging: a profile's own
    toolbar buttons, themes and panels stay. `profilePaths()` lists what to read. It follows `installer/preferences.py` rule by
    rule; `tests/unit/profile_recipe_parity.test.js` runs both on the same starting profiles and compares every setting.
-3. `src/modules/39-profile-setup.js`, in every window of every profile, 1.5 s after it opens (under a Web Lock, so two windows
+3. `src/modules/profiles/39-profile-setup.js`, in every window of every profile, 1.5 s after it opens (under a Web Lock, so two windows
    of one profile do not both do it):
    - no facts file, or no Vivaldi settings API: nothing;
    - the mark `chrome.storage.local.atlas_profile_setup` is at this version already: nothing;

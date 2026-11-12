@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM } = require('jsdom');
 
-const source = fs.readFileSync(path.join(__dirname, '../../src/modules/32-tab-card.js'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '../../src/modules/tabs/32-tab-card.js'), 'utf8');
 const ID = 'mpognobbkildjkofajifpdfhcoklimli';
 const OTHER = 'cjpalhdlnbpafiamejdnhcphjbkeiagm';
 

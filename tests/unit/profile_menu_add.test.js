@@ -1,4 +1,4 @@
-// The profile menu's Add and Settings rows (src/modules/07-profile-menu.js): clicking Add shrinks the menu
+// The profile menu's Add and Settings rows (src/modules/menus/07-profile-menu.js): clicking Add shrinks the menu
 // to three choices (bookmark, group, page) and a way back, and each choice opens that flow in the address bar.
 // Clicking Settings shrinks it to Atlas (Atlas's own settings) and Advanced (the browser's, vivaldi://settings).
 "use strict";

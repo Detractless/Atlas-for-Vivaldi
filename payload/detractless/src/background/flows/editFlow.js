@@ -1,4 +1,4 @@
-// The data behind right-click on the new tab (src/modules/26-addbar-edit.js in the browser window): rename, change
+// The data behind right-click on the new tab (src/modules/addbar/26-addbar-edit.js in the browser window): rename, change
 // the address of, move or delete a bookmark, a group or a page. The window asks; this answers and writes, in the
 // same bookmark database and page list as the new tab. Every answer is { ok: true } or { error: 'text to show' }.
 // The checks and their words are the ones the new tab's own pop-ups used (components/bookmarks/bookmarks.js).

@@ -378,7 +378,7 @@
         backup: true,
         importWhen: "truthy",
         profile: "focus",
-        note: "Scroll fade (utils/scrollFade.js): every page dims the longer or farther you scroll, on all sites together, then stays fully dim for a wait. { on, by: either | time | distance, minutes, screens, darkest (percent), restSeconds (clears a page that is not fully dim), waitMinutes (how long it stays fully dim), except: [host names left alone] }. Off until switched on. components/atlas/atlas-scroll-fade.js counts the scrolling; src/modules/36-scroll-fade-layer.js draws the dimming and keeps the wait; the Focus lock keeps it from getting weaker."
+        note: "Scroll fade (utils/scrollFade.js): every page dims the longer or farther you scroll, on all sites together, then stays fully dim for a wait. { on, by: either | time | distance, minutes, screens, darkest (percent), restSeconds (clears a page that is not fully dim), waitMinutes (how long it stays fully dim), except: [host names left alone] }. Off until switched on. components/atlas/atlas-scroll-fade.js counts the scrolling; src/modules/appearance/36-scroll-fade-layer.js draws the dimming and keeps the wait; the Focus lock keeps it from getting weaker."
       },
       nsfwStrictness: {
         default: 65,
@@ -440,12 +440,12 @@
       atlas_scroll_fade: {
         default: null,
         backup: false,
-        note: "Scroll fade total (components/atlas/atlas-scroll-fade.js adds to it, src/modules/36-scroll-fade-layer.js clears it): { ms of scrolling, screens scrolled, last: when you last scrolled, until: when the wait ends or 0 }. One total for every site and tab. Only numbers, never a page address. Never backed up."
+        note: "Scroll fade total (components/atlas/atlas-scroll-fade.js adds to it, src/modules/appearance/36-scroll-fade-layer.js clears it): { ms of scrolling, screens scrolled, last: when you last scrolled, until: when the wait ends or 0 }. One total for every site and tab. Only numbers, never a page address. Never backed up."
       },
       atlas_profile_setup: {
         default: null,
         backup: false,
-        note: "This Vivaldi profile has been given Atlas's settings: { v: recipe version, applied: false when the installer had already set it up, at: when }. Written by src/modules/39-profile-setup.js before it changes anything, so it can never run twice for one version. Belongs to the Vivaldi profile it is in; never backed up."
+        note: "This Vivaldi profile has been given Atlas's settings: { v: recipe version, applied: false when the installer had already set it up, at: when }. Written by src/modules/profiles/39-profile-setup.js before it changes anything, so it can never run twice for one version. Belongs to the Vivaldi profile it is in; never backed up."
       },
       atlasProfilesV2: {
         default: null,
@@ -453,12 +453,12 @@
       },
       atlasGoogleAccounts: {
         default: null,
-        note: "Google accounts signed into Vivaldi, read by the browser window (src/modules/16-google-accounts.js). Never backed up."
+        note: "Google accounts signed into Vivaldi, read by the browser window (src/modules/accounts/16-google-accounts.js). Never backed up."
       },
       atlasNsfwScores: {
         default: null,
         backup: false,
-        note: "Content Shield scores by URL digest so images are not classified again after a restart: {16-char digest: [score, time]}. Capped at 5000 entries / 1 MB, 7-day expiry (src/modules/27-nsfw-verdicts.js). Never backed up."
+        note: "Content Shield scores by URL digest so images are not classified again after a restart: {16-char digest: [score, time]}. Capped at 5000 entries / 1 MB, 7-day expiry (src/modules/nsfw/27-nsfw-verdicts.js). Never backed up."
       },
       __atlas_localstorage__: {
         default: {},

@@ -17,9 +17,9 @@ Read these files before implementation:
 - `payload/install-files/components/atlas/atlas-nsfw-guard.js` — current image, background and video state handling; pre-hide behavior; CSS blur.
 - `payload/install-files/components/atlas/atlas-nsfw-drag.js` — current protection against dragging a flagged original image.
 - `payload/install-files/components/atlas/nsfw/offscreen.js` — current fetch, decode, model invocation and image-score path.
-- `src/modules/04-bridge-messages.js` — detector routing, URL cache, request coalescing and response handling.
-- `src/modules/27-nsfw-verdicts.js` — persistent first-model score cache and threshold mapping.
-- `src/modules/03-bridge-content-scripts.js` — document-start script registration and ordering.
+- `src/modules/bridge/04-bridge-messages.js` — detector routing, URL cache, request coalescing and response handling.
+- `src/modules/nsfw/27-nsfw-verdicts.js` — persistent first-model score cache and threshold mapping.
+- `src/modules/bridge/03-bridge-content-scripts.js` — document-start script registration and ordering.
 - `tests/unit/nsfw_guard.test.js`, `tests/unit/nsfw_detector.test.js`, and `tests/unit/nsfw_debug.test.js` — existing test conventions and guard invariants.
 - `docs/specs/004-nsfw-model-eval/implementation-plan.md` — model measurements and the measured Freepik/Marqo tradeoff.
 
@@ -74,7 +74,7 @@ There is no manual reveal control. The status fade completes before the original
 
 ### T2 — Build the image replacement lifecycle
 
-1. Add an image-shield controller, preferably in `payload/install-files/components/atlas/atlas-nsfw-image-shield.js` to keep the existing guard below the project's 400-line component guideline. Register it adjacent to the guard in `src/modules/03-bridge-content-scripts.js` and preserve document-start ordering.
+1. Add an image-shield controller, preferably in `payload/install-files/components/atlas/atlas-nsfw-image-shield.js` to keep the existing guard below the project's 400-line component guideline. Register it adjacent to the guard in `src/modules/bridge/03-bridge-content-scripts.js` and preserve document-start ordering.
 2. Track each image in a `WeakMap` record containing original `src`, `srcset`, `sizes`, active `<picture>` source candidates, layout measurements, source generation, generated preview URL, and request identifier. Do not serialize this record into DOM attributes.
 3. On first-stage NSFW, have the detector host return a blurred raster generated from the same decoded source used by the classifier. The replacement should retain aspect ratio and enough dimensions for a natural-looking blur while staying under the payload cap.
 4. Replace active image candidates with the blurred raster and preserve dimensions/layout. Handle source mutation, lazy loading, responsive candidates and React-style attribute rewrites without mistakenly classifying the replacement as a new source or restoring a stale image.
@@ -85,7 +85,7 @@ There is no manual reveal control. The status fade completes before the original
 
 ### T3 — Add stronger-model retry protocol
 
-1. Add a typed retry action from the guard through `src/modules/04-bridge-messages.js` to the offscreen detector. Include an opaque request token and stage/model identifier; do not send a page-provided model name directly to the detector.
+1. Add a typed retry action from the guard through `src/modules/bridge/04-bridge-messages.js` to the offscreen detector. Include an opaque request token and stage/model identifier; do not send a page-provided model name directly to the detector.
 2. Add a stronger-model initialization path in `offscreen.js`, loaded only after Retry. Reuse the retained original snapshot from T1; do not refetch a potentially changed URL.
 3. Bypass `nsfwCacheGet` for the retry. Coalesce duplicate requests by `requestToken + model`, cap simultaneous retries, and reject expired or unknown tokens.
 4. Normalize the stronger model's output using its own calibrated decision threshold. Return `{stage, model, isNsfw, score?, error?}`; persist only first-model scores in the existing URL cache unless a separate, explicitly reviewed model-versioned cache is added later.

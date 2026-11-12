@@ -1,4 +1,4 @@
-// Atlas's right-click menus in the browser window (src/modules/05-contextmenu.js draws the click
+// Atlas's right-click menus in the browser window (src/modules/menus/05-contextmenu.js draws the click
 // handlers, 37-ui-menu.js the menu), in a stand-in window.html.
 "use strict";
 

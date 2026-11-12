@@ -61,6 +61,6 @@ export function defineAllSettings() {
   defineSetting({ key: 'nsfwAction' });
   defineSetting({ key: 'socialFilter' });
 
-  // ── Scroll fade ── (utils/scrollFade.js; components/atlas/atlas-scroll-fade.js counts the scrolling on pages; src/modules/36-scroll-fade-layer.js draws the dimming)
+  // ── Scroll fade ── (utils/scrollFade.js; components/atlas/atlas-scroll-fade.js counts the scrolling on pages; src/modules/appearance/36-scroll-fade-layer.js draws the dimming)
   defineSetting({ key: 'scrollFade' });
 }

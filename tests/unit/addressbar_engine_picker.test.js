@@ -1,4 +1,4 @@
-// The address bar's engine button (src/modules/19-addressbar-engine-picker.js)
+// The address bar's engine button (src/modules/addressbar/19-addressbar-engine-picker.js)
 // and the engine the address bar searches with (15-addressbar-engine.js):
 // while the field is in use its left icon is that engine, as on the new tab's
 // engine button; click it for the engines as pills; a pick is the new tab's

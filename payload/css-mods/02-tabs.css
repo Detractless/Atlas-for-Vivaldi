@@ -170,7 +170,7 @@
   -webkit-line-clamp: 2;
 }
 #browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text .url { color: var(--atlas-text-2); }
-/* Atlas's own pages: the extension id is replaced by the app name (src/modules/32-tab-card.js). */
+/* Atlas's own pages: the extension id is replaced by the app name (src/modules/tabs/32-tab-card.js). */
 #browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text .url.atlas-own { font-size: 0; }
 #browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text .url.atlas-own::after {
   content: "Atlas";

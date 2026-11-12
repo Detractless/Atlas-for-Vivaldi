@@ -195,7 +195,7 @@ Requirements (acceptance criteria):
         - [x] T4.3.1 `src/services/googleAccount.js` (`withGoogleAccount`, `activeGoogleEmail`) `[activity: frontend]`
         - [x] T4.3.2 Apply it at the three link-opening points `[activity: frontend]`
         - [x] T4.3.3 Google account field on the edit page: picker if the spike worked, typed email if not `[activity: frontend]`
-    - [ ] T4.4 Implement, only if D4 says so: address-bar searches follow the profile (the Google engine template in `src/modules/15-addressbar-engine.js` carries `authuser`) `[activity: frontend]`
+    - [ ] T4.4 Implement, only if D4 says so: address-bar searches follow the profile (the Google engine template in `src/modules/addressbar/15-addressbar-engine.js` carries `authuser`) `[activity: frontend]`
     - [x] T4.5 Validate
         - [x] T4.5.1 Rules and `node --check` `[activity: lint-code, review-code]`
         - [x] T4.5.2 Build and `npm test` `[activity: run-tests]`
