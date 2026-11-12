@@ -11,6 +11,10 @@ body {
 
 .container { max-width: 600px; padding: 20px; }
 
+#reveal-container p { font-size: var(--font-size-24); margin-bottom: 30px; }
+#social-title { font-size: var(--font-size-24); margin-bottom: 12px; }
+#social-text { opacity: .7; }
+
 /* Query chip (bottom) */
 .query-display {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -51,7 +55,7 @@ body {
 .lds-facebook, .lds-facebook div { box-sizing: border-box; }
 .lds-facebook {
   display: inline-block; position: relative; width: 240px; height: 240px;
-  color: var(--text-tertiary);
+  color: inherit; margin: 20px 0;
 }
 .lds-facebook div {
   display: inline-block; position: absolute; left: 24px; width: 48px;

@@ -259,6 +259,17 @@ body {
   max-width: 600px;
   padding: 20px;
 }
+#reveal-container p {
+  font-size: var(--font-size-24);
+  margin-bottom: 30px;
+}
+#social-title {
+  font-size: var(--font-size-24);
+  margin-bottom: 12px;
+}
+#social-text {
+  opacity: .7;
+}
 .query-display {
   position: fixed;
   bottom: 24px;
@@ -347,7 +358,8 @@ body {
   position: relative;
   width: 240px;
   height: 240px;
-  color: var(--text-tertiary);
+  color: inherit;
+  margin: 20px 0;
 }
 .lds-facebook div {
   display: inline-block;
