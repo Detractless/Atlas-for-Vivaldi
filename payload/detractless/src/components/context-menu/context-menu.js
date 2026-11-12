@@ -27,23 +27,13 @@ export const ContextMenu = {
     this._showInlineInput(currentValue, buttonLabel, onConfirm);
   },
   _showInlineInput(currentValue, buttonLabel, onConfirm) {
-    this.menu.innerHTML = '';
-    const wrap = document.createElement('div');
-    wrap.className = 'context-menu-inline';
-    wrap.onclick = e => e.stopPropagation();
-
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'context-menu-input';
     input.value = currentValue;
 
-    const actions = document.createElement('div');
-    actions.className = 'context-menu-actions';
-
-    const cancel = document.createElement('button');
-    cancel.className = 'context-menu-action-btn';
-    cancel.textContent = 'Cancel';
-    cancel.onclick = () => this.close();
+    const { wrap, actions } = this._buildInlineActions();
+    wrap.insertBefore(input, actions);
 
     const confirm = document.createElement('button');
     confirm.className = 'context-menu-action-btn primary';
@@ -55,9 +45,7 @@ export const ContextMenu = {
       if (e.key === 'Escape') this.close();
     });
 
-    actions.appendChild(cancel); actions.appendChild(confirm);
-    wrap.appendChild(input); wrap.appendChild(actions);
-    this.menu.appendChild(wrap);
+    actions.appendChild(confirm);
     requestAnimationFrame(() => { input.focus(); input.select(); });
   },
   showSelect(options, onSelect) {
@@ -75,22 +63,12 @@ export const ContextMenu = {
     this.menu.appendChild(ul);
   },
   showConfirm(label, onConfirm) {
-    this.menu.innerHTML = '';
-    const wrap = document.createElement('div');
-    wrap.className = 'context-menu-inline';
-    wrap.onclick = e => e.stopPropagation();
-
     const msg = document.createElement('p');
     msg.className = 'context-menu-confirm-msg';
     msg.textContent = `Delete "${label}"?`;
 
-    const actions = document.createElement('div');
-    actions.className = 'context-menu-actions';
-
-    const cancel = document.createElement('button');
-    cancel.className = 'context-menu-action-btn';
-    cancel.textContent = 'Cancel';
-    cancel.onclick = () => this.close();
+    const { wrap, actions } = this._buildInlineActions();
+    wrap.insertBefore(msg, actions);
 
     let confirmed = false;
     const confirm = document.createElement('button');
@@ -106,9 +84,26 @@ export const ContextMenu = {
       onConfirm(); this.close();
     };
 
-    actions.appendChild(cancel); actions.appendChild(confirm);
-    wrap.appendChild(msg); wrap.appendChild(actions);
+    actions.appendChild(confirm);
+  },
+  _buildInlineActions() {
+    this.menu.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'context-menu-inline';
+    wrap.onclick = e => e.stopPropagation();
+
+    const actions = document.createElement('div');
+    actions.className = 'context-menu-actions';
+
+    const cancel = document.createElement('button');
+    cancel.className = 'context-menu-action-btn';
+    cancel.textContent = 'Cancel';
+    cancel.onclick = () => this.close();
+
+    actions.appendChild(cancel);
+    wrap.appendChild(actions);
     this.menu.appendChild(wrap);
+    return { wrap, actions };
   },
   _renderItems(items) {
     this.menu.innerHTML = '';
