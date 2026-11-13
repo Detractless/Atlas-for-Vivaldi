@@ -4,12 +4,6 @@
    Change --atlas-avatar-initials to your own letters. */
 #browser {
   --atlas-avatar-initials: "D";
-  --atlas-avatar-bg: #3a3a3a;
-  --atlas-avatar-fg: #ffffff;
-}
-#browser.theme-dark {
-  --atlas-avatar-bg: #d8d8d8;
-  --atlas-avatar-fg: #1c1c1c;
 }
 
 /* The badge replaces the avatar <img>'s CONTENT in place (Chromium supports
