@@ -204,6 +204,16 @@ a {
   --bg-error: #2E1815;
   --surface-base: var(--surface-muted);
 }
+:root {
+  --bg-body: var(--surface-canvas);
+  --win-bg: var(--surface-canvas);
+  --ctrl-bg: var(--surface-card);
+  --ctrl-hover: var(--surface-hover);
+  --border: var(--line-hairline);
+  --text-pri: var(--text-primary);
+  --text-sec: var(--text-secondary);
+  --sel-bg: var(--select-bg);
+}
 :root[data-theme=light] {
   --surface-canvas: #E3E3E0;
   --surface-card: #FFFFFF;
@@ -217,10 +227,6 @@ a {
   --text-secondary: #76766F;
   --text-tertiary: #9A9A95;
   --text-error: #B3382E;
-  --mono-200: #D8D7D3;
-  --mono-400: #9A9A95;
-  --mono-600: #57574F;
-  --mono-900: #111110;
   --surface-inverse: var(--mono-900);
   --text-inverse: #FFFFFF;
   --text-on-muted: var(--mono-600);
@@ -236,16 +242,6 @@ a {
   --color-error: var(--text-error);
   --bg-error: #FBEAE8;
   --surface-base: var(--surface-muted);
-}
-:root {
-  --bg-body: var(--surface-canvas);
-  --win-bg: var(--surface-canvas);
-  --ctrl-bg: var(--surface-card);
-  --ctrl-hover: var(--surface-hover);
-  --border: var(--line-hairline);
-  --text-pri: var(--text-primary);
-  --text-sec: var(--text-secondary);
-  --sel-bg: var(--select-bg);
 }
 
 /* src/pages/gate/gate.css */

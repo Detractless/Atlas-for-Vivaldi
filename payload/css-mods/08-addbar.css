@@ -9,9 +9,8 @@
 
 #browser .atlas-addscrim {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-atlas-addbar-dimmer);
-  background: rgba(0, 0, 0, .28);
+  background: var(--atlas-scrim);
 }
-#browser.theme-dark .atlas-addscrim { background: rgba(0, 0, 0, .4); }
 
 #browser .atlas-addfield {
   position: fixed; z-index: var(--z-atlas-addbar-button); box-sizing: border-box; height: 30px;
@@ -84,7 +83,7 @@
 #browser .atlas-addrow svg { width: 13px; height: 13px; flex: none; }
 #browser .atlas-addnote { padding: 4px 10px 2px; font-size: var(--font-size-atlas-hint); color: var(--atlas-text-2); }
 
-#browser .atlas-adderror { margin-top: 8px; font-size: var(--font-size-atlas-hint); line-height: 15px; color: var(--atlas-error, #d14343); }
+#browser .atlas-adderror { margin-top: 8px; font-size: var(--font-size-atlas-hint); line-height: 15px; color: var(--atlas-error); }
 #browser .atlas-adderror:empty { display: none; }
 #browser .atlas-addbtn {
   margin-left: auto; flex: none; padding: 4px 14px; border: 0; border-radius: 9999px; cursor: pointer;
@@ -93,4 +92,4 @@
 #browser .atlas-addbtn:hover { opacity: .85; }
 #browser .atlas-addbtn + .atlas-addbtn { margin-left: 0; }   /* two buttons: Cancel and Delete sit together on the right */
 #browser .atlas-addbtn.is-soft { background: var(--atlas-hover-2); color: var(--atlas-text-1); }
-#browser .atlas-addbtn.is-danger { background: var(--atlas-error, #d14343); color: #fff; }
+#browser .atlas-addbtn.is-danger { background: var(--atlas-error); color: var(--atlas-on-danger); }

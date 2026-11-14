@@ -1,0 +1,27 @@
+{
+  "exclude": [
+    {
+      "path": "payload/install-files",
+      "reason": "generated installer copy of the extension; rebuilt from src/ and payload/detractless"
+    },
+    {
+      "path": "payload/extensions/harper",
+      "reason": "vendored Harper extension; not our code to split or restyle"
+    },
+    {
+      "path": "payload/css-mods",
+      "reason": "one file per CSS mod by design, so the folder is long on purpose",
+      "rules": ["too-big"]
+    },
+    {
+      "path": "payload/detractless/src/pages/newtab",
+      "reason": "pages folder groups one file per page by design",
+      "rules": ["too-big"]
+    },
+    {
+      "path": "scripts",
+      "reason": "one helper script per task by design",
+      "rules": ["too-big"]
+    }
+  ]
+}

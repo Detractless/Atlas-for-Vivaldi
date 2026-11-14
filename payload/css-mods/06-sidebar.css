@@ -44,7 +44,7 @@
 }
 #browser #history-panel .title { color: var(--atlas-text-1) !important; }
 #browser #history-panel .time,
-#browser #history-panel .date-range { color: var(--atlas-text-3, rgba(0,0,0,.4)) !important; }
+#browser #history-panel .date-range { color: var(--atlas-text-3) !important; }
 
 /* The selected panel button: grey wash instead of the blue accent chip, and
    no accent bar on the window edge. */
@@ -104,7 +104,7 @@
   border-radius: 14px 6px 14px 14px;
   background: var(--atlas-menu);
   color: var(--atlas-text-1, inherit);
-  box-shadow: 0 0 0 1px var(--atlas-border), 0 12px 32px rgba(0, 0, 0, .22);
+  box-shadow: 0 0 0 1px var(--atlas-border), var(--atlas-pop-shadow);
   font: 13.5px/1.3 system-ui, -apple-system, 'Helvetica Neue', sans-serif;
 }
 /* Two triangles: the outer one in the border colour, the inner one in the card colour, so the arrow has the card's outline on both slanted sides. */
@@ -224,9 +224,7 @@
    are both #111110); only light diverged (page #E3E3E0 vs sidebar #f9f9f9), so
    this overrides §13's wash with the page canvas. */
 #browser #panels-container,
-#browser .panel-group { background-color: #E3E3E0 !important; }
-#browser.theme-dark #panels-container,
-#browser.theme-dark .panel-group { background-color: #111110 !important; }
+#browser .panel-group { background-color: var(--atlas-canvas) !important; }
 /* And actually RECLAIM that reserved band rather than only recolour it. Vivaldi
    locks the panel content wrapper (.panel-collapse-guard) to panelWidth minus a
    ~35px switcher-controls reserve, via inline `min-width`/`max-width` — the dead
