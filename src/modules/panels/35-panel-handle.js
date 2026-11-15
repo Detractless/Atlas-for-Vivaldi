@@ -19,11 +19,16 @@ var ATLAS_POP_ICONS = {
 
 function atlasPanelContainer() { return document.getElementById('panels-container'); }
 
-/* The page in the sidebar that is showing: the panel webview with a width. */
+/* The page in the sidebar that is showing: the WIDEST panel webview. Two panels can
+   both report a width for one frame while the 220 ms open/close slide runs, and the
+   first one in the DOM is not always the one on screen. */
 function atlasPanelView() {
-  var views = document.querySelectorAll('#panels-container webview'), i;
-  for (i = 0; i < views.length; i++) if (views[i].getBoundingClientRect().width > 0) return views[i];
-  return null;
+  var views = document.querySelectorAll('#panels-container webview'), i, widest = 0, best = null;
+  for (i = 0; i < views.length; i++) {
+    var width = views[i].getBoundingClientRect().width;
+    if (width > widest) { widest = width; best = views[i]; }
+  }
+  return best;
 }
 
 /* The panel's own button in the (hidden) switch strip; pressing it again closes the sidebar. */
@@ -35,13 +40,26 @@ function atlasPanelSwitch(view) {
   return named || document.querySelector('#switch button.button-on');
 }
 
-function atlasCloseSidebar() {
-  var view = atlasPanelView(), button = view && atlasPanelSwitch(view);
-  if (!button) return;
+/* Press a panel switch the way a user does: Vivaldi's switch ignores a bare click(),
+   so send the pointer and mouse pair it listens for. */
+function atlasPressSwitch(button) {
   ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (type) {
     var Kind = type.indexOf('pointer') === 0 && typeof PointerEvent === 'function' ? PointerEvent : MouseEvent;
     button.dispatchEvent(new Kind(type, { bubbles: true, cancelable: true, composed: true, button: 0 }));
   });
+}
+
+/* Close the page that is showing. The slide takes 220 ms, and a switch pressed while
+   another panel is still sliding ignores the press; if the same page is still showing
+   after the slide, the press was swallowed, so press the same switch once more. */
+function atlasCloseSidebar(retried) {
+  var view = atlasPanelView(), button = view && atlasPanelSwitch(view);
+  if (!button) return;
+  atlasPressSwitch(button);
+  if (retried) return;
+  setTimeout(function () {
+    if (atlasPanelView() === view) atlasCloseSidebar(true);
+  }, 300);
 }
 
 /* Extension panels show a page the browser UI can't read (ChatGPT's panel is an extension page holding

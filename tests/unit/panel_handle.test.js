@@ -121,6 +121,39 @@ test("Close sidebar presses the showing panel's own button", () => {
   assert.deepEqual(p.clicks, ["EXT_PANEL_hehggadaopoacecdllhhajmbjkdcmajg"]);
 });
 
+test("the panel on screen wins over DOM order: the widest webview's button is pressed", () => {
+  const p = open();
+  const box = p.w.document.getElementById("panels-container");
+  const first = p.w.document.querySelector("webview");
+  first.getBoundingClientRect = () => ({ width: 50 });
+  const second = p.w.document.createElement("webview");
+  second.setAttribute("src", "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/components/atlas/atlas-downloads-panel.html");
+  second.getBoundingClientRect = () => ({ width: 240 });
+  box.appendChild(second);
+  press(p, "click");
+  run(p, "Close sidebar");
+  assert.deepEqual(p.clicks, ["WEBPANEL_atlas_downloads"]);
+});
+
+test("a close press the switch ignores is repeated once after the slide", async () => {
+  const p = open();
+  press(p, "click");
+  run(p, "Close sidebar");
+  await new Promise((r) => setTimeout(r, 350));
+  assert.deepEqual(p.clicks, ["EXT_PANEL_hehggadaopoacecdllhhajmbjkdcmajg", "EXT_PANEL_hehggadaopoacecdllhhajmbjkdcmajg"]);
+});
+
+test("a close press that closes the page is not repeated", async () => {
+  const p = open();
+  const view = p.w.document.querySelector("webview");
+  p.w.document.querySelector('[data-name="EXT_PANEL_hehggadaopoacecdllhhajmbjkdcmajg"]')
+    .addEventListener("click", () => { view.getBoundingClientRect = () => ({ width: 0 }); });
+  press(p, "click");
+  run(p, "Close sidebar");
+  await new Promise((r) => setTimeout(r, 350));
+  assert.deepEqual(p.clicks, ["EXT_PANEL_hehggadaopoacecdllhhajmbjkdcmajg"]);
+});
+
 test("the Downloads panel is closed through its own button", () => {
   const p = open({ src: "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/components/atlas/atlas-downloads-panel.html" });
   press(p, "click");
