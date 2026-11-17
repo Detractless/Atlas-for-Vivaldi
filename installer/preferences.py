@@ -5,9 +5,10 @@ import shutil
 import time
 from pathlib import Path
 
-from . import util
+from . import config
 from .paths import atlas_keys, get_prefs_file, newtab_url
-from .util import fail, read_text, say, write_json
+from .console import fail, say
+from .file_access import read_text, write_json
 
 
 # The Tools sidebar (PasteKit, Remover, Notes, Saved tabs) is archived, not
@@ -17,9 +18,9 @@ PANEL_ID = "WEBPANEL_atlas_sidebar"
 
 # The Downloads sidebar: our own page, laid out like chrome://downloads, as a web panel.
 DOWNLOADS_PANEL_ID = "WEBPANEL_atlas_downloads"
-DOWNLOADS_PANEL_PATH = "components/atlas/downloads-panel.html"
+DOWNLOADS_PANEL_PATH = "components/atlas/atlas-downloads-panel.html"
 
-# Buttons the tab bar's own toolbars do not keep (src/modules/38-profile-recipe.js has the same list).
+# Buttons the tab bar's own toolbars do not keep (src/modules/profiles/38-profile-recipe.js has the same list).
 TABBAR_OUT = ("Back", "Forward", "WorkspaceButton", "TabButton")
 
 
@@ -33,7 +34,7 @@ def _load_prefs(prefs_file: Path) -> dict:
     """Read Preferences. A file that exists but will not parse stops the install:
     writing over it would wipe every Vivaldi setting the user has."""
     if not prefs_file.is_file():
-        if util.DRY:
+        if config.DRY:
             say(f"[dry-run] Preferences not found ({prefs_file}) - will create new profile config")
         else:
             say(f"Initializing new Preferences profile ({prefs_file})")
@@ -53,7 +54,7 @@ def _load_prefs(prefs_file: Path) -> dict:
 
 def _backup_prefs(prefs_file: Path):
     """Keep the very first copy (.atlas-bak) plus a dated copy of every install."""
-    if util.DRY or not prefs_file.is_file():
+    if config.DRY or not prefs_file.is_file():
         return
     first = prefs_file.with_name(prefs_file.name + ".atlas-bak")
     if not first.exists():
@@ -94,7 +95,7 @@ def _prefs_remove_tools_panel(v: dict):
 
 
 def _prefs_downloads_panel(v: dict):
-    # Vivaldi's own panel stops opening on a new download; src/modules/34-downloads-panel.js
+    # Vivaldi's own panel stops opening on a new download; src/modules/downloads/34-downloads-panel.js
     # opens ours instead. The panel bar stays hidden by the CSS, so this adds only the
     # panel itself and its switch button.
     url = f"chrome-extension://{atlas_keys()['extensionId']}/{DOWNLOADS_PANEL_PATH}"
@@ -104,6 +105,9 @@ def _prefs_downloads_panel(v: dict):
     ours = [e for e in elements if isinstance(e, dict) and e.get("id") == DOWNLOADS_PANEL_ID]
     if ours:
         ours[0]["url"] = url
+        ours[0]["title"] = "Downloads"
+        ours[0]["faviconUrl"] = ""
+        ours[0]["faviconUrlValid"] = False
     else:
         elements.append({
             "id": DOWNLOADS_PANEL_ID, "url": url, "title": "Downloads", "faviconUrl": "",

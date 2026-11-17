@@ -4,16 +4,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const path = require("path");
-const esbuild = require("esbuild");
-
-const SRC = path.join(__dirname, "..", "..", "payload", "detractless", "src");
-function load(rel) {
-  const out = esbuild.buildSync({ entryPoints: [path.join(SRC, rel)], bundle: true, format: "cjs", platform: "node", write: false }).outputFiles[0].text;
-  const m = { exports: {} };
-  new Function("module", "exports", "require", out)(m, m.exports, require);
-  return m.exports;
-}
+const { loadSourceModule: load } = require("./source-module-loader/load-source-module");
 const U = load("utils/usageLog.js");
 const at = (y, mo, d, h = 12) => new Date(y, mo - 1, d, h, 30).getTime();
 const NOW = at(2026, 10, 15, 4);

@@ -10,8 +10,8 @@ const vm = require("vm");
 const { JSDOM } = require("jsdom");
 const { DIR, ROOT } = require("../helpers/social_env");
 
-const SF = path.join(ROOT, "payload", "detractless", "src", "utils", "socialFilter.js");
-const REGISTER = path.join(ROOT, "src", "modules", "03-bridge-content-scripts.js");
+const SF = path.join(ROOT, "payload", "detractless", "src", "utils", "social-filter", "socialFilter.js");
+const REGISTER = path.join(ROOT, "src", "modules", "bridge", "03-bridge-content-scripts.js");
 const PART_KEYS = new Set(["css", "on", "hide", "maxArea", "maxMatches", "redirect", "act", "shadow", "english"]);
 const TABLE_KEYS = new Set(["key", "name", "live", "hosts", "route", "landmarks", "smoke", "parts", "todo", "settle"]);
 const is = (v, tag) => Object.prototype.toString.call(v) === `[object ${tag}]`;
@@ -71,7 +71,7 @@ test("every site has a table that follows the format", async () => {
     if (t.settle) assert.ok(Array.isArray(t.settle.events) && t.settle.events.length && t.settle.events.every((e) => typeof e === "string" && e), `${site.key}: settle.events is a list of event names`);
     assert.equal(t.key, site.key);
     assert.equal(t.name, site.name);
-    assert.deepEqual(Array.from(t.hosts), site.hosts, `${site.key}: hosts differ from utils/socialFilter.js SITES`);
+    assert.deepEqual(Array.from(t.hosts), site.hosts, `${site.key}: hosts differ from utils/social-filter/socialFilter.js SITES`);
     assert.equal(typeof t.live, "boolean");
     assert.equal(typeof t.route, "function");
     assert.ok(Array.isArray(t.landmarks) && t.landmarks.length > 0, `${site.key}: needs landmarks`);
@@ -159,7 +159,7 @@ test("registration: every site's page scripts are registered for its hosts", asy
     for (const host of site.hosts) assert.ok(code.includes(`*://*.${host}/*`), `${site.key}: ${host} is not in its matches`);
     assert.ok(fs.existsSync(path.join(DIR, `atlas-social-${site.key}.js`)));
   }
-  for (const f of ["atlas-social-behaviors.js", "atlas-social-guard.js", "atlas-social-core.js"]) assert.ok(code.includes(f), f);
+  for (const f of ["atlas-social-behaviors.js", "atlas-social-guard.js", "atlas-social-shadow.js", "atlas-social-core.js"]) assert.ok(code.includes(f), f);
 });
 
 test("siteOf matches a site's own pages and its subdomains, not look-alikes or links", async () => {

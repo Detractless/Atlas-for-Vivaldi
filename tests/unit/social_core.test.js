@@ -5,28 +5,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { loadSocial, styles, wait, closeAll } = require("../helpers/social_env");
+const { HTML, table, on } = require("./social-fixtures/social-page-fixture");
 
 test.afterEach(closeAll);
-
-const HTML = `<!doctype html><html><head><title>T</title></head><body>
-  <div id="app"><header id="search"><input id="q"></header>
-  <main id="feed"><div class="short">s1</div><div class="short">s2</div><div class="like">l</div></main>
-  <aside id="rail"><div class="who">w</div></aside></div></body></html>`;
-
-function table(extra) {
-  return Object.assign({
-    key: 'demo', name: 'Demo', live: true, hosts: ['example.test'],
-    route: (path) => (path === '/' ? 'home' : path.startsWith('/watch') ? 'watch' : 'other'),
-    landmarks: [{ sel: '#app' }, { sel: '#search' }, { sel: '#feed', on: ['home'] }],
-    parts: {
-      shortVideos: { css: ['.short'] },
-      whoToFollow: { css: ['.who'], on: ['home'] },
-      likes: { css: ['.like'] },
-    },
-  }, extra || {});
-}
-
-const on = (parts) => ({ mode: 'parts', parts });
 
 test('filter off: nothing is added to the page', async () => {
   const t = loadSocial({ html: HTML, table: table(), filter: { mode: 'off', parts: ['shortVideos'] } });
@@ -222,8 +203,8 @@ test('health: match counts and trips are kept per part, without page addresses',
   assert.ok(!JSON.stringify(h).includes('example.test'));
 });
 
-test('the engine normalizes the setting like utils/socialFilter.js does', async () => {
-  const { normalize } = await import('../../payload/detractless/src/utils/socialFilter.js');
+test('the engine normalizes the setting like utils/social-filter/socialFilter.js does', async () => {
+  const { normalize } = await import('../../payload/detractless/src/utils/social-filter/socialFilter.js');
   const t = loadSocial({});
   const known = ['homeFeed', 'shortVideos', 'likes'];
   for (const v of [undefined, null, 'x', {}, { mode: 'parts' }, { mode: 'all', parts: ['likes', 'zzz', 'homeFeed'] }, { mode: 'bogus', parts: ['likes'] }]) {

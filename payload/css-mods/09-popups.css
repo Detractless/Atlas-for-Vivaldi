@@ -60,7 +60,7 @@
   border-bottom: 0;
   padding: 10px 14px 4px;
   color: var(--atlas-text-2);
-  font-size: 10px;
+  font-size: var(--font-size-atlas-tiny);
   font-weight: 800;
   letter-spacing: .12em;
   text-transform: uppercase;
@@ -116,12 +116,3 @@
 }
 /* The chosen row shows the settings menu's tick, nothing else. */
 #browser .VivaldiSelector__option--is-selected { background-color: transparent; }
-#browser .VivaldiSelector__option--is-selected::after {
-  content: "";
-  flex: none;
-  width: 14px;
-  height: 14px;
-  margin-left: auto;
-  background-color: currentColor;
-  mask: var(--atlas-icon-check) center / 14px no-repeat;
-}

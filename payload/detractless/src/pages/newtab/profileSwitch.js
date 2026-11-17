@@ -3,12 +3,12 @@
 // have already been swapped by then, and the registry applies those as they
 // change; what is left is the bookmarks database (when profiles keep separate
 // bookmarks), the page list, the engines and the open view.
-import { BookmarkDB } from '../../services/bookmarksDB.js';
+import { BookmarkDB } from '../../services/bookmarks/bookmarksDB.js';
 import { loadBookmarkData, closeBookmarkData } from './bookmarkData.js';
 import { refreshBookmarkCache, loadBookmarks } from '../../components/bookmarks/bookmarks.js';
 import { loadSettings } from '../../settings/registry.js';
 import { initializeTabs, selectSearchTab } from '../../components/tabs/tabs.js';
-import { loadSearchEngines, loadSavedEngine } from '../../components/engines/enginesUI.js';
+import { loadSearchEngines, loadSavedEngine } from '../../components/engines/engines.js';
 import { showPage } from './displayEffects.js';
 import { activeTabs, currentPage, currentBookmarkPage } from './newtabState.js';
 
@@ -29,7 +29,11 @@ async function refreshAfterOutsideAdd() {
   await initializeTabs();
   if (currentPage === 'bookmarks') {
     if (activeTabs.some((t) => String(t.id) === String(currentBookmarkPage))) loadBookmarks();
-    else { selectSearchTab(); showPage('search'); }   // the page on screen was deleted from the address bar: back to Home
+    else {
+      // The page on screen was deleted from the address bar: go back to empty Home.
+      showPage('home');
+      selectSearchTab();
+    }
   }
   if (window.AtlasSettingsUI) window.AtlasSettingsUI.rerender();
 }
@@ -46,7 +50,7 @@ export async function applyProfileSwitch() {
   await initializeTabs();
   if (currentPage === 'bookmarks') {
     if (activeTabs.some((t) => String(t.id) === String(currentBookmarkPage))) loadBookmarks();
-    else { selectSearchTab(); showPage('search'); }
+    else { showPage('home'); selectSearchTab(); }
   }
   await loadSearchEngines();
   loadSavedEngine();

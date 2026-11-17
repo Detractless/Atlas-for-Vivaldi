@@ -1,4 +1,4 @@
-// The color slider's rules (utils/saturationLock.js), the folds of old settings into it
+// The color slider's rules (utils/focus-lock/saturationLock.js), the folds of old settings into it
 // (background/saturationMigration.js), and the Never setting for bookmark pills (utils/pillSelection.js).
 // The lock itself is shared with the tab limit and the delay: focus_lock.test.js.
 // These source files are ES modules, so each is bundled to CommonJS here and run as plain code.
@@ -6,18 +6,9 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const path = require("path");
-const esbuild = require("esbuild");
+const { loadSourceModule } = require("../helpers/source-module-loader");
 
-const SRC = path.join(__dirname, "..", "..", "payload", "detractless", "src");
-function load(rel) {
-  const out = esbuild.buildSync({ entryPoints: [path.join(SRC, rel)], bundle: true, format: "cjs", platform: "node", write: false }).outputFiles[0].text;
-  const m = { exports: {} };
-  new Function("module", "exports", "require", out)(m, m.exports, require);
-  return m.exports;
-}
-
-const { planChange, clampSaturation, legacySaturation } = load("utils/saturationLock.js");
+const { planChange, clampSaturation, legacySaturation } = loadSourceModule("utils/focus-lock/saturationLock.js");
 const NOW = 1_800_000_000_000;
 const locked = { saturation: { unlockAt: null } };
 
@@ -67,7 +58,7 @@ test("settings from before the slider: the level that was showing is kept", () =
 test("the service worker folds the old Grayscale switch into the slider once, then drops it", async () => {
   const data = { grayscale: true, saturation: 30 };
   fakeSync(data);
-  const { migrateGrayscale } = load("background/saturationMigration.js");
+  const { migrateGrayscale } = loadSourceModule("background/state/saturationMigration.js");
   await migrateGrayscale();
   assert.deepEqual(data, { saturation: 30 });
   data.grayscale = false; data.saturation = 0;
@@ -82,7 +73,7 @@ test("a color lock running when you update becomes a Focus lock that unlocks whe
   const until = Date.now() + 10 * 60 * 1000;
   const data = { saturation: 40, saturationLock: { ceiling: 40, until, manual: true }, focusLocks: { searchDelaySeconds: { unlockAt: null } } };
   fakeSync(data);
-  const { migrateSaturationLock } = load("background/saturationMigration.js");
+  const { migrateSaturationLock } = loadSourceModule("background/state/saturationMigration.js");
   await migrateSaturationLock();
   assert.deepEqual(data, { saturation: 40, focusLocks: { searchDelaySeconds: { unlockAt: null }, saturation: { unlockAt: until } } }, "the other locks are kept");
   data.saturationLock = { ceiling: 40, until: Date.now() - 1, manual: true };
@@ -96,7 +87,7 @@ test("a color lock running when you update becomes a Focus lock that unlocks whe
 });
 
 test("the pills setting Never shows no pills, not even after ./", () => {
-  const { modeForInput } = load("utils/pillSelection.js");
+  const { modeForInput } = loadSourceModule("utils/pillSelection.js");
   assert.equal(modeForInput("net", "never"), null);
   assert.equal(modeForInput("./net", "never"), null);
   assert.notEqual(modeForInput("./net", "prefix"), null, "When typing ./ still works");

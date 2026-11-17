@@ -1,19 +1,18 @@
 // src/settings/shell.js — the full-page Settings UI: sidebar, page content,
 // opening and closing. Every control saves the moment it changes (registry.js),
 // so there is no Save button and nothing to discard: "Back to dashboard" closes.
-import { PAGES, NAV, REVIEW_URL, resetState, lockNote, lockCountdown } from './pages.js';
-import { lockState } from '../utils/focusLock.js';
+import { PAGES, NAV, REVIEW_URL, lockNote, lockCountdown } from './pages/pages.js';
+import { lockState } from '../utils/focus-lock/focusLock.js';
 import { CONTROLS, lockControl, labelOf, toggleSocialPart, socialPartState } from './controls.js';
 import { onSettingChange, getSetting } from './registry.js';
 import { I, svg, row, card, section, paintLockButton, paintChip } from './markup.js';
 import { initMenu, openMenu, closeMenu, menuIsOpen } from './menu.js';
 import { importBookmarks, exportBookmarks } from '../pages/newtab/importExport.js';
-import { resetAllData } from '../services/resetService.js';
-import { usageAction } from './usagePage.js';
-import { initChipPane, resetChipPane } from './chipPane.js';
-import { showFade, paintFadePreview, paintFadeSites, paintFadeSlider } from './scrollFadePage.js';
+import { usageAction } from './pages/usagePage.js';
+import { initChipPane, resetChipPane } from './pages/chipPane.js';
+import { showFade, paintFadePreview, paintFadeSites, paintFadeSlider } from './pages/scrollFadePage.js';
 import { removeFadeSite } from './fadeControls.js';
-import { normalize } from '../utils/socialFilter.js';
+import { normalize } from '../utils/social-filter/socialFilter.js';
 
 /* `current` is null until Settings first opens, which then shows the first page in the list (Profiles). */
 let root = null, navEl = null, content = null, current = null, currentArg = null;
@@ -57,7 +56,6 @@ export function openSettings(pageId) {
   else if (!current || !PAGES[current]) { current = NAV[0].items[0].id; currentArg = null; }
   if (!root.hidden && !pageId) return;
   root.hidden = false;
-  resetState.confirming = false;
   $("sp-version").textContent = "v" + chrome.runtime.getManifest().version;
   render();
 }
@@ -147,7 +145,6 @@ function go(id, arg = null) {
   if (!PAGES[id]) return;
   current = id;
   currentArg = arg;
-  resetState.confirming = false;
   render();
 }
 
@@ -284,9 +281,6 @@ function runAction(act, el) {
   else if (act === "focus-lock") { const c = lockControl(el.dataset.lock); if (c) c.clickLock(); }
   else if (act === "export") exportBookmarks();
   else if (act === "import") $("import-file").click();
-  else if (act === "reset-ask") { resetState.confirming = true; renderPage(); }
-  else if (act === "reset-cancel") { resetState.confirming = false; renderPage(); }
-  else if (act === "reset-go") resetAllData();
 }
 
 /* Other scripts (profilesPage.js) add pages through this. A page can be asked

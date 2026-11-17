@@ -50,7 +50,7 @@ Research references (chat, 2026-10-18; summaries are in the thread, not committe
 - `docs/specs/003-nsfw-video-and-overload/design-notes.md` — scheduling and visibility work; explicitly leaves model evaluation to this spec
 - `payload/install-files/components/atlas/nsfw/offscreen.js` — the current detector host (tfjs, Marqo 384, batch 1)
 - `payload/install-files/components/atlas/atlas-nsfw-guard.js` — capture and reveal logic that the swap would leave untouched
-- `src/modules/27-nsfw-verdicts.js` — the strictness→threshold map and persistence caps
+- `src/modules/nsfw/27-nsfw-verdicts.js` — the strictness→threshold map and persistence caps
 - `scripts/size_report.mjs` — conventions for `scripts/` helper programs
 - `package.json`, `README.md` — commands
 

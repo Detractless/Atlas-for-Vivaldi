@@ -13,13 +13,13 @@
 
 import './tabs.css';
 import { DEFAULT_TABS } from '../../constants/defaults.js';
-import { ContextMenu } from '../contextMenu/contextMenu.js';
-import { openTabDialog } from '../bookmarks/bookmarkDialog.js';
-import { editInBar } from '../shared/editInBar.js';
-import { BookmarkDB } from '../../services/bookmarksDB.js';
+import { ContextMenu } from '../context-menu/context-menu.js';
+import { openTabDialog } from '../bookmarks/bookmarks-dialog.js';
+import { editInBar } from '../edit-in-bar/edit-in-bar.js';
+import { BookmarkDB } from '../../services/bookmarks/bookmarksDB.js';
 // Unused here since the switcher replaced the filtered page list; kept so the
 // bundle's module order (and so its start-up order) stays the same.
-import '../shared/scrollAffordance.js';
+import '../scroll-affordance/scroll-affordance.js';
 import { storageGet, storageRemove, storageSet } from '../../services/storage.js';
 import { cleanSubtitle, fillMissingSubtitles, starterSubtitle, subtitleProblem } from '../../services/pageSubtitle.js';
 import {
@@ -76,6 +76,14 @@ export function selectSearchTab() {
     selectedTabId = home.id;
     syncSelection();
   }
+}
+
+/** Select one page in the switcher by id (used when the page on screen is gone). */
+export function selectTab(id) {
+  const tab = activeTabs.find((t) => String(t.id) === String(id));
+  if (!tab) return;
+  selectedTabId = tab.id;
+  syncSelection();
 }
 
 function buildShell(container) {
@@ -195,7 +203,7 @@ function switcherItem(tab) {
     e.preventDefault();
     if (ContextMenu.disabled) return;
     setOpen(false);
-    // The address bar opens for it (editInBar.js); the pop-up is what runs when nothing answers.
+    // The address bar opens for it (edit-in-bar.js); the pop-up is what runs when nothing answers.
     editInBar({ kind: 'page', id: tab.id, label: tab.label, name: displayName(tab), sub: cleanSubtitle(tab.sub) || starterSubtitle(tab), type: tab.type },
       () => openPageDialog(tab));
   });

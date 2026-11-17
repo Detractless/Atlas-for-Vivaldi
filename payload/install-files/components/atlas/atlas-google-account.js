@@ -1,7 +1,7 @@
 /* ── atlas-google-account.js: Google pages open as the active profile's account ──
    Spec 002, phase 4. Runs at document_start on Google, Gmail and YouTube pages
-   (top frames only; registered in src/modules/03-bridge-content-scripts.js).
-   It asks the browser window (src/modules/16-google-accounts.js) whether this
+   (top frames only; registered in src/modules/bridge/03-bridge-content-scripts.js).
+   It asks the browser window (src/modules/accounts/16-google-accounts.js) whether this
    page should show another account, and if so opens it as that account, once.
 
    Guards, so it never loops or fights the user:

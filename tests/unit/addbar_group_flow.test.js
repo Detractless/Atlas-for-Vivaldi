@@ -1,4 +1,4 @@
-// "Add group" in the address bar, and the group choices of Add bookmark (src/modules/23-addbar-core.js,
+// "Add group" in the address bar, and the group choices of Add bookmark (src/modules/addbar/23-addbar-core.js,
 // 24-addbar-screens.js, 25-addbar-place.js): the group's name, then its page; a page with no groups says
 // "None yet" and offers Add group, which comes back to the bookmark. The worker's answers are a stand-in
 // (helpers/addbarHarness.js); the real worker is tested in addbar_worker.test.js.
@@ -6,7 +6,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { start, closeAll, wait, card, field, ask, step, click, type, key, input, next, opened } = require("./helpers/addbarHarness");
+const { start, closeAll, wait, card, field, ask, step, click, type, input, next, opened } = require("./helpers/addbarHarness");
 
 test.afterEach(closeAll);
 

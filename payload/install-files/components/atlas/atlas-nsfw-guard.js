@@ -6,7 +6,6 @@
   if (window.__atlasNsfwGuard) return;
   window.__atlasNsfwGuard = true;
 
-  var HIDE_STYLE_ID = 'atlas-nsfw-pending-hide';
   var MIN_SIZE = 41;
   var FRAME_SIZE = 224;
   var VIDEO_INTERVAL = 10;
@@ -27,19 +26,6 @@
   function logEvent(event, data) { _t.log(event, data); }
   function srcKind(url) { return _t.kind ? _t.kind(url) : ''; }
   function verdictLog(kind, url, isNsfw, meta) { if (_t.verdict) _t.verdict(kind, url, isNsfw, meta); }
-
-  function injectPreHideStyle() {
-    if (document.getElementById(HIDE_STYLE_ID)) return;
-    var style = document.createElement('style');
-    style.id = HIDE_STYLE_ID;
-    style.textContent = 'img:not([data-nsfw-filter-status]),img[data-nsfw-filter-status="processing"],video:not([data-nsfw-filter-status]),video[data-nsfw-filter-status="processing"]{visibility:hidden !important}';
-    if (document.documentElement) document.documentElement.appendChild(style);
-  }
-
-  function removePreHideStyle() {
-    var el = document.getElementById(HIDE_STYLE_ID);
-    if (el) el.remove();
-  }
 
   function classify(url, cb) {
     if (!url || typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) return cb(null, { error: 'bridge-missing' });
@@ -339,7 +325,7 @@
 
   function revealAll() {
     if (window.__atlasNsfwImageShield) window.__atlasNsfwImageShield.restoreAll();
-    removePreHideStyle();
+    window.__atlasNsfwGuardConfig.removePreHideStyle();
     if (_observer) { _observer.disconnect(); _observer = null; }
     if (_bgObserver) { _bgObserver.disconnect(); _bgObserver = null; }
     document.querySelectorAll('img[data-nsfw-filter-status], video[data-nsfw-filter-status]').forEach(function (el) { revealElement(el, true); });
@@ -349,33 +335,5 @@
     });
   }
 
-  function fetchConfig() {
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
-      chrome.storage.sync.get(['nsfwAction'], function (items) {
-        if (!items) return;
-        _config.action = items.nsfwAction || 'off';
-        if (_config.action !== 'off' && _config.action !== 'blur' && _config.action !== 'blackout') {
-          _config.action = 'blur';   /* retired actions fall back to a blur */
-        }
-        _config.enabled = _config.action !== 'off';
-
-        if (_config.enabled) {
-          injectPreHideStyle();
-          startObserver();
-          // Keep pre-hide style so unclassified media never flashes before verdict
-        } else {
-          revealAll();
-        }
-      });
-    }
-  }
-
-  fetchConfig();
-  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
-    chrome.storage.onChanged.addListener(function (changes, area) {
-      if (area === 'sync' && changes.nsfwAction) {
-        fetchConfig();
-      }
-    });
-  }
+  window.__atlasNsfwGuardConfig.start(_config, startObserver, revealAll);
 })();

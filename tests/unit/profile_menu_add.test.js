@@ -1,27 +1,12 @@
-// The profile menu's Add and Settings rows (src/modules/07-profile-menu.js): clicking Add shrinks the menu
+// The profile menu's Add and Settings rows (src/modules/menus/07-profile-menu.js): clicking Add shrinks the menu
 // to three choices (bookmark, group, page) and a way back, and each choice opens that flow in the address bar.
 // Clicking Settings shrinks it to Atlas (Atlas's own settings) and Advanced (the browser's, vivaldi://settings).
 "use strict";
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { openWindow } = require("./helpers/windowDom");
-
-const plain = (v) => JSON.parse(JSON.stringify(v === undefined ? null : v));
-let open = [];
-test.afterEach(() => { for (const w of open) w.window.close(); open = []; });
-
-async function start(opts) {
-  const w = await openWindow(opts);
-  open.push(w);
-  return w;
-}
-
-function answer(w, name, value) {
-  const call = [...w.calls].reverse().find((c) => c.name === name);
-  assert.ok(call, `${name} was called`);
-  call.args.find((a) => typeof a === "function")(w.window.JSON.parse(JSON.stringify(value)));
-}
+const { plain, startWindow: start } = require("../helpers/window-test-fixture");
+const { answer } = require("./helpers/windowMenus");
 
 async function waitFor(fn, what, ms = 2000) {
   const t0 = Date.now();

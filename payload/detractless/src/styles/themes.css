@@ -53,6 +53,19 @@
   --surface-base:    var(--surface-muted);
 }
 
+/* --- Legacy structural aliases: old variable names → semantic names.
+       Kept until every stylesheet/render fn uses the new names. --- */
+:root {
+  --bg-body:     var(--surface-canvas);
+  --win-bg:      var(--surface-canvas);
+  --ctrl-bg:     var(--surface-card);
+  --ctrl-hover:  var(--surface-hover);
+  --border:      var(--line-hairline);
+  --text-pri:    var(--text-primary);
+  --text-sec:    var(--text-secondary);
+  --sel-bg:      var(--select-bg);
+}
+
 /* --- LIGHT — family light --- */
 :root[data-theme="light"] {
   --surface-canvas:  #E3E3E0;
@@ -71,11 +84,6 @@
   --text-tertiary:  #9A9A95;
   --text-error:     #B3382E;
 
-  --mono-200: #D8D7D3;
-  --mono-400: #9A9A95;
-  --mono-600: #57574F;
-  --mono-900: #111110;
-
   /* legacy aliases (migration only, no new uses) */
   --surface-inverse: var(--mono-900);
   --text-inverse:    #FFFFFF;
@@ -92,17 +100,4 @@
   --color-error:     var(--text-error);
   --bg-error:        #FBEAE8;
   --surface-base:    var(--surface-muted);
-}
-
-/* --- Legacy structural aliases: old variable names → semantic names.
-       Kept until every stylesheet/render fn uses the new names. --- */
-:root {
-  --bg-body:     var(--surface-canvas);
-  --win-bg:      var(--surface-canvas);
-  --ctrl-bg:     var(--surface-card);
-  --ctrl-hover:  var(--surface-hover);
-  --border:      var(--line-hairline);
-  --text-pri:    var(--text-primary);
-  --text-sec:    var(--text-secondary);
-  --sel-bg:      var(--select-bg);
 }

@@ -4,12 +4,6 @@
    Change --atlas-avatar-initials to your own letters. */
 #browser {
   --atlas-avatar-initials: "D";
-  --atlas-avatar-bg: #3a3a3a;
-  --atlas-avatar-fg: #ffffff;
-}
-#browser.theme-dark {
-  --atlas-avatar-bg: #d8d8d8;
-  --atlas-avatar-fg: #1c1c1c;
 }
 
 /* The badge replaces the avatar <img>'s CONTENT in place (Chromium supports
@@ -45,18 +39,35 @@
   opacity: .88;
 }
 
-/* The context menu base styles (built by atlas.js) */
-#browser .atlas-profile-menu {
-  position: fixed;
-  z-index: 10000;
-  min-width: 196px;
+/* The surface every Atlas menu shares: the profile menu (built by atlas.js) and
+   the extensions popover (07-extensions.css, .atlas-ext-pop). Each sets its own
+   size and text after this. */
+#browser .atlas-profile-menu,
+#browser .atlas-ext-pop {
   padding: 6px;
   border-radius: 12px;
   background-color: var(--atlas-menu);
   border: 1px solid var(--atlas-border);
   box-shadow: var(--atlas-shadow);
   color: var(--atlas-text-1);
-  font-size: 13px;
+}
+#browser .atlas-profile-menu {
+  position: fixed;
+  z-index: var(--z-atlas-profile-menu);
+  min-width: 196px;
+  font-size: var(--font-size-atlas-body);
+}
+#browser .atlas-profile-menu .apm-item,
+#browser .atlas-ext-pop .aep-row,
+#browser .atlas-ext-pop .aep-manage {
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
 }
 #browser .atlas-profile-menu .apm-sep {
   height: 1px;
@@ -68,15 +79,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  box-sizing: border-box;
   width: 100%;
-  text-align: left;
-  padding: 6px 10px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
   cursor: default;
 }
 #browser .atlas-profile-menu .apm-item:hover { background-color: var(--atlas-hover-2); }
@@ -86,22 +89,17 @@
   pointer-events: none;
 }
 #browser .atlas-profile-menu .apm-key {
-  font-size: 11.5px;
+  font-size: var(--font-size-atlas-key);
   opacity: 0.45;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 /* ── No Surf Menu (Option 1: Classic Bubble with Bold Headers) ─────────── */
+/* The surface (min-width, padding, radius, background, border, shadow, color)
+   is .atlas-profile-menu's above; this only adds what No Surf changes. */
 #browser .atlas-profile-menu.atlas-nosurf-menu {
   width: 210px;
-  min-width: 196px;
-  padding: 6px;
-  border-radius: 12px;
-  background-color: var(--atlas-menu);
-  border: 1px solid var(--atlas-border);
-  box-shadow: var(--atlas-shadow);
-  color: var(--atlas-text-1);
   font-family: inherit;
   user-select: none;
   box-sizing: border-box;
@@ -109,7 +107,7 @@
 
 #browser .atlas-nosurf-menu .apm-category {
   font-family: inherit;
-  font-size: 10px;
+  font-size: var(--font-size-atlas-tiny);
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -124,22 +122,10 @@
   background-color: var(--atlas-border);
 }
 
+/* The item reset is .atlas-profile-menu .apm-item's above; this only changes the gaps. */
 #browser .atlas-nosurf-menu .apm-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   gap: 12px;
-  box-sizing: border-box;
-  width: 100%;
-  text-align: left;
   min-height: 32px;
-  padding: 6px 10px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  cursor: default;
   transition: background-color 120ms ease;
 }
 #browser .atlas-nosurf-menu .apm-item:hover {
@@ -154,14 +140,14 @@
   min-width: 0;
 }
 #browser .atlas-nosurf-menu .apm-chevron {
-  font-size: 13px;
+  font-size: var(--font-size-atlas-body);
   font-weight: 700;
   color: var(--atlas-text-2);
   opacity: 0.7;
 }
 #browser .atlas-nosurf-menu .apm-key {
   font-family: var(--atlas-font-mono, "Space Mono", ui-monospace, monospace);
-  font-size: 10px;
+  font-size: var(--font-size-atlas-tiny);
   opacity: 0.65;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -184,12 +170,12 @@
 #browser .atlas-newmenu .apm-addbtn { border: 1.5px dashed var(--atlas-text-2); color: var(--atlas-text-2); }
 #browser .atlas-newmenu .apm-addbtn:hover { color: var(--atlas-text-1); border-color: var(--atlas-text-1); }
 #browser .atlas-newmenu .apm-addbtn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
-#browser .atlas-newmenu .apm-who { display: flex; flex-direction: column; min-width: 0; padding: 2px 10px 4px; font-size: 14px; line-height: 20px; }
+#browser .atlas-newmenu .apm-who { display: flex; flex-direction: column; min-width: 0; padding: 2px 10px 4px; font-size: var(--font-size-atlas-medium); line-height: 20px; }
 #browser .atlas-newmenu .apm-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#browser .atlas-newmenu .apm-plan { font-size: 12px; line-height: 14px; color: var(--atlas-text-2); }
-#browser .atlas-newmenu .apm-item { justify-content: flex-start; gap: 10px; min-height: 36px; cursor: pointer; font-size: 14px; }
+#browser .atlas-newmenu .apm-plan { font-size: var(--font-size-atlas-small); line-height: 14px; color: var(--atlas-text-2); }
+#browser .atlas-newmenu .apm-item { justify-content: flex-start; gap: 10px; min-height: 36px; cursor: pointer; font-size: var(--font-size-atlas-medium); }
 #browser .atlas-newmenu .apm-item:hover { background-color: var(--atlas-hover-2); }
-#browser .atlas-newmenu .apm-head { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 32px; padding: 0 8px 0 4px; border: 0; border-radius: 8px; background: transparent; color: var(--atlas-text-2); font: inherit; font-size: 13px; cursor: pointer; text-align: left; }
+#browser .atlas-newmenu .apm-head { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 32px; padding: 0 8px 0 4px; border: 0; border-radius: 8px; background: transparent; color: var(--atlas-text-2); font: inherit; font-size: var(--font-size-atlas-body); cursor: pointer; text-align: left; }
 #browser .atlas-newmenu .apm-head:hover { background-color: var(--atlas-hover-2); color: var(--atlas-text-1); }
 #browser .atlas-newmenu .apm-head svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 #browser .atlas-newmenu .apm-item svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }

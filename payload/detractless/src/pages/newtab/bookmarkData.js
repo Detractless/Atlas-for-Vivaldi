@@ -1,8 +1,8 @@
 // Opening the bookmarks database. Shared by the first start and by a profile
 // switch, which may point BookmarkDB at another profile's database.
-import { BookmarkDB } from '../../services/bookmarksDB.js';
+import { BookmarkDB } from '../../services/bookmarks/bookmarksDB.js';
 import { refreshBookmarkCache } from '../../components/bookmarks/bookmarks.js';
-import { seedStarterContent } from '../../services/starterContent.js';
+import { seedStarterContent } from '../../services/bookmarks/starterContent.js';
 
 /** Open the bookmarks database, run its migrations, and seed a first-run profile. */
 export async function loadBookmarkData() {

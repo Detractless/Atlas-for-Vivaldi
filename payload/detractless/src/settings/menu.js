@@ -23,7 +23,7 @@ export function openMenu(btn) {
   if (owner === btn) return closeMenu();
   owner = btn;
   const c = CONTROLS[btn.dataset.select], cur = String(c.get());
-  // A locked setting (utils/focusLock.js) can only get stricter: the looser choices are shown but can't be picked.
+  // A locked setting (utils/focus-lock/focusLock.js) can only get stricter: the looser choices are shown but can't be picked.
   const off = (o) => !!c.allows && !c.allows(o.value);
   menu.innerHTML = c.options.map((o) =>
     `<li class="sp-menu-item" role="menuitemradio" tabindex="-1" aria-checked="${String(o.value) === cur}"${off(o) ? ' aria-disabled="true"' : ""} data-value="${o.value}"><span>${o.label}</span>${CHECK}</li>`

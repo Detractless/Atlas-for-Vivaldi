@@ -67,12 +67,12 @@ test("the name is centred on a thin line, and the links are centred and hug thei
   assert.doesNotMatch(rule(".bookmark-link").body, /(^|[;\s])width:\s*100%/, "a row is only as wide as its name");
 });
 
-test("the row measurements are one set of tokens, and bookmarks.js reads the same ones", () => {
+test("the row measurements are one set of tokens, and bookmarks-layout.js reads the same ones", () => {
   assert.equal(token("--bm-row-pitch"), token("--bm-row-height") + token("--bm-row-gap"), "pitch = height + gap");
   assert.equal(token("--bm-row-pitch"), 36);
-  const js = fs.readFileSync(path.join(ROOT, "payload", "detractless", "src", "components", "bookmarks", "bookmarks.js"), "utf8");
+  const js = fs.readFileSync(path.join(ROOT, "payload", "detractless", "src", "components", "bookmarks", "bookmarks-layout.js"), "utf8");
   for (const name of ["--bm-row-pitch", "--bm-row-gap", "--bm-well-padding", "--bm-title-height", "--bm-title-gap", "--bm-group-gap"]) {
-    assert.ok(js.includes(name), `bookmarks.js reads ${name}`);
+    assert.ok(js.includes(name), `bookmarks-layout.js reads ${name}`);
     assert.ok(rule(".bookmarks-content").body.includes(name + ":"), `bookmarks.css defines ${name}`);
   }
 });
@@ -82,7 +82,7 @@ test("right-click with no window to answer: a link opens its bookmark pop-up, th
   const page = await openEssentials(t);
   const { window: win, document: doc } = t;
   const dialogTitle = () => text(doc.querySelector(".bookmark-dialog .picker-title"));
-  // Nothing answers the message to the window here, so the pop-up opens (editInBar.js); the answered case is in newtab_edit_in_bar.test.js.
+  // Nothing answers the message to the window here, so the pop-up opens (edit-in-bar.js); the answered case is in newtab_edit_in_bar.test.js.
   contextMenu(win, page.querySelector(".bookmark-link"));
   await settle(win, 80);
   assert.equal(dialogTitle(), "Notion", "the bookmark's own dialog");

@@ -4,7 +4,6 @@
 // tests/unit/storage_keys.test.js holds to this file.
 import KEYS from './atlasKeys.json';
 
-export const EXTENSION_ID = KEYS.extensionId;
 export const BOOKMARKS_DB = KEYS.databases.bookmarks;
 export const PASTEKIT_DB = KEYS.databases.pastekit;
 

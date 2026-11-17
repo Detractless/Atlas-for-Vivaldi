@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { JSDOM } = require("jsdom");
 
-const source = fs.readFileSync(path.join(__dirname, "../../src/modules/35-panel-handle.js"), "utf8");
+const source = fs.readFileSync(path.join(__dirname, "../../src/modules/panels/35-panel-handle.js"), "utf8");
 const windows = [];
 test.after(() => windows.forEach((w) => w.close()));
 
@@ -96,7 +96,7 @@ test("with no matching tab, the card falls back to the page's own address", () =
 });
 
 test("the Downloads panel is titled Downloads", () => {
-  const p = open({ src: "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/components/atlas/downloads-panel.html" });
+  const p = open({ src: "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/components/atlas/atlas-downloads-panel.html" });
   press(p, "click");
   assert.equal(p.pop().querySelector("b").textContent, "Downloads");
 });
@@ -121,8 +121,41 @@ test("Close sidebar presses the showing panel's own button", () => {
   assert.deepEqual(p.clicks, ["EXT_PANEL_hehggadaopoacecdllhhajmbjkdcmajg"]);
 });
 
+test("the panel on screen wins over DOM order: the widest webview's button is pressed", () => {
+  const p = open();
+  const box = p.w.document.getElementById("panels-container");
+  const first = p.w.document.querySelector("webview");
+  first.getBoundingClientRect = () => ({ width: 50 });
+  const second = p.w.document.createElement("webview");
+  second.setAttribute("src", "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/components/atlas/atlas-downloads-panel.html");
+  second.getBoundingClientRect = () => ({ width: 240 });
+  box.appendChild(second);
+  press(p, "click");
+  run(p, "Close sidebar");
+  assert.deepEqual(p.clicks, ["WEBPANEL_atlas_downloads"]);
+});
+
+test("a close press the switch ignores is repeated once after the slide", async () => {
+  const p = open();
+  press(p, "click");
+  run(p, "Close sidebar");
+  await new Promise((r) => setTimeout(r, 350));
+  assert.deepEqual(p.clicks, ["EXT_PANEL_hehggadaopoacecdllhhajmbjkdcmajg", "EXT_PANEL_hehggadaopoacecdllhhajmbjkdcmajg"]);
+});
+
+test("a close press that closes the page is not repeated", async () => {
+  const p = open();
+  const view = p.w.document.querySelector("webview");
+  p.w.document.querySelector('[data-name="EXT_PANEL_hehggadaopoacecdllhhajmbjkdcmajg"]')
+    .addEventListener("click", () => { view.getBoundingClientRect = () => ({ width: 0 }); });
+  press(p, "click");
+  run(p, "Close sidebar");
+  await new Promise((r) => setTimeout(r, 350));
+  assert.deepEqual(p.clicks, ["EXT_PANEL_hehggadaopoacecdllhhajmbjkdcmajg"]);
+});
+
 test("the Downloads panel is closed through its own button", () => {
-  const p = open({ src: "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/components/atlas/downloads-panel.html" });
+  const p = open({ src: "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/components/atlas/atlas-downloads-panel.html" });
   press(p, "click");
   run(p, "Close sidebar");
   assert.deepEqual(p.clicks, ["WEBPANEL_atlas_downloads"]);
@@ -144,4 +177,16 @@ test("reload, new tab and copy act on the page in the sidebar", () => {
   assert.equal(p.reloaded(), 1);
   assert.deepEqual(JSON.parse(JSON.stringify(p.created)), [{ url }]);
   assert.deepEqual(p.copied, [url]);
+});
+
+test("Close sidebar finds the active panel wrapper when the page has navigated to the web", () => {
+  const p = open({ src: "https://chatgpt.com/c/6af5e10a-f1cc-83ea-ba7f-b0862cb193cf" });
+  const sw = p.w.document.querySelector('[data-name="WEBPANEL_atlas_downloads"]');
+  const wrap = p.w.document.createElement("div");
+  wrap.className = "button-toolbar panel-clickoutside-ignore active";
+  sw.parentNode.insertBefore(wrap, sw);
+  wrap.appendChild(sw);
+  press(p, "click");
+  run(p, "Close sidebar");
+  assert.deepEqual(p.clicks, ["WEBPANEL_atlas_downloads"]);
 });

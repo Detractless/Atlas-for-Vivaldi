@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("path");
 const esbuild = require("esbuild");
-const { openNewTab, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
+const { openNewTab, closeAll, waitFor, click } = require("./helpers/newtabDom");
 const { openAdd } = require("./helpers/addFlow");
 const { openWindow } = require("./helpers/windowDom");
 
@@ -88,12 +88,7 @@ test("a page with a subtitle, a bookmark on it, opened as one Google account, th
 test("the linked email goes only into Google links and the profile's own storage", async () => {
   const t = await openNewTab({ local: { atlasProfilesV2: profiles("school") } });
   const { window: win, document: doc } = t;
-  const input = doc.getElementById("search-input");
-  input.value = "example.com";
-  input.dispatchEvent(new win.Event("input", { bubbles: true }));
-  input.dispatchEvent(new win.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
-  await settle(win, 100);
-  assert.deepEqual(plain(win.__navigations), ["https://example.com/"], "a non-Google address gets nothing added");
+  assert.equal(doc.getElementById("search-input"), null, "the page has no search box to type an address into");
 
   click(win, doc.querySelector(".switcher-btn"));
   click(win, [...doc.querySelectorAll(".switcher-item")].find((li) => li.textContent.includes("Essentials")));

@@ -1,4 +1,4 @@
-// The address bar card (src/modules/18-addressbar-pills.js): when the address
+// The address bar card (src/modules/addressbar/18-addressbar-pills.js): when the address
 // field is in use, a card grows down from it over the page with the full
 // address wrapped and, while you type, the bookmarks whose name matches, as
 // pills, the same rule as the new tab's search.

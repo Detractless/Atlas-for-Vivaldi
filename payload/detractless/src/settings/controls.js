@@ -1,11 +1,11 @@
 // src/settings/controls.js — the Settings page controls. Each reads and writes
 // one setting through the registry, which saves it at once.
 import { getSetting, setSetting } from './registry.js';
-import { lockState, changeAllowed } from '../utils/focusLock.js';
+import { lockState, changeAllowed } from '../utils/focus-lock/focusLock.js';
 import { lockable } from './lockable.js';
 import { FADE_CONTROLS } from './fadeControls.js';
-import { flushSaturation, clickSaturationLock } from '../components/colorLock/colorLock.js';
-import { MODES, normalize, withMode, togglePart } from '../utils/socialFilter.js';
+import { flushSaturation, clickSaturationLock } from '../components/color-lock/color-lock.js';
+import { MODES, normalize, withMode, togglePart } from '../utils/social-filter/socialFilter.js';
 
 const options = (labels) => Object.entries(labels).map(([value, label]) => ({ value, label }));
 
@@ -30,7 +30,6 @@ const text = (key) => ({ get: () => String(getSetting(key) || ""), set: (v) => s
 
 const LIMITS = Object.fromEntries(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].map((v) => [v, v === "0" ? "Off" : v]));
 const DELAYS = { "0": "Off", "15": "15 seconds", "30": "30 seconds", "60": "1 minute", "120": "2 minutes", "300": "5 minutes" };
-const SATURATIONS = { "0": "0% (Monochrome)", "25": "25% (Muted)", "50": "50% (Balanced)", "75": "75% (Subtle)", "100": "100% (Full color)" };
 
 /* The theme is one object (mode + custom colours); the page only picks the mode. */
 const theme = {
@@ -56,7 +55,7 @@ const NSFW_ACTIONS = {
   blackout: "Make image black"
 };
 /* The social media filter is one setting, { mode, parts }: the mode is the pill, the parts are the chips (pages.js), and one
-   lock covers both (utils/socialFilter.js says when a change loosens it). */
+   lock covers both (utils/social-filter/socialFilter.js says when a change loosens it). */
 const socialFilter = lockable({
   options: options(MODES),
   get: () => normalize(getSetting("socialFilter")).mode,

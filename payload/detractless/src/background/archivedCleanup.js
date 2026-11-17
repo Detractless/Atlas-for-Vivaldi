@@ -2,7 +2,7 @@
 // profile, and what happens to it now that their code is gone.
 //
 // KEPT, untouched: the "pastekit" IndexedDB database (snippets still travel in
-// backups, see services/snippetBackup.js), chrome.storage.local "pastekit.settings"
+// backups, see services/import-export/snippetBackup.js), chrome.storage.local "pastekit.settings"
 // and "rhe_rules", and chrome.storage.session "rheTabStates" (cleared by the
 // browser at session end anyway). No user data is deleted here.
 //

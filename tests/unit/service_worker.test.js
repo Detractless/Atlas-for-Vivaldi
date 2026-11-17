@@ -8,25 +8,9 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 const { IDBFactory, IDBKeyRange } = require("fake-indexeddb");
+const { anyApi } = require("./service-worker/chrome-api-proxy");
 
 const BUNDLE = path.join(__dirname, "..", "..", "payload", "detractless", "src", "dist", "serviceWorker.bundle.js");
-
-/** Any chrome.a.b.c(...) call resolves to `undefined` and is recorded; so are addListener calls. */
-function anyApi(name, listeners, calls) {
-  return new Proxy(function () {}, {
-    get(_, prop) {
-      if (prop === "then") return undefined;
-      if (prop === "addListener") return (fn) => (listeners[name] = listeners[name] || []).push(fn);
-      return anyApi(`${name}.${String(prop)}`, listeners, calls);
-    },
-    apply(_, __, args) {
-      calls.push({ name, args });
-      const cb = args.find((a) => typeof a === "function");
-      if (cb) Promise.resolve().then(() => cb(undefined));
-      return Promise.resolve(undefined);
-    },
-  });
-}
 
 function storageArea(data = {}) {
   return {

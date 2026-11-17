@@ -11,6 +11,7 @@
          that preinit uses, so the order is load-bearing, not stylistic. -->
     <script src="src/pages/shared/themePreinit.js"></script>
     <script src="src/pages/newtab/preinit.js"></script>
+    <script src="src/pages/newtab/profiles-schema.js"></script>
     <script src="src/pages/newtab/profilesCore.js"></script>
     <link rel="stylesheet" href="src/pages/newtab/profilesPage.css">
 </head>
@@ -21,43 +22,9 @@
              this is the positioned host it renders into. -->
         <div class="switcher" id="tabs-container"></div>
 
-        <div id="search-page" class="page active">
-          <div id="home-grid">
-            <div id="spotlight-wrapper">
-                <div class="spotlight-search-container">
-                    <div class="search-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.34-4.34"/></svg>
-                    </div>
-                    <div class="search-input-wrapper">
-                        <!-- The placeholder carries the Shift+Enter hint because
-                             that override is otherwise invisible: plain Enter
-                             opens a matching bookmark, and nothing on screen says
-                             how to search for text that matches one, or for
-                             something URL-shaped like "notes.io". A placeholder
-                             only shows while the field is EMPTY, so it teaches
-                             on arrival rather than at the moment of need, which
-                             is the honest limit of putting it here. -->
-                        <input type="text" id="search-input" placeholder="Search the web, or Shift+Enter to force a search" autocomplete="off">
-                    </div>
-
-                    <div class="plus" id="plus">
-                        <div class="current-engine-icon-display" id="current-engine-icon-display">
-                            <img src="src/assets/svg/default.api.svg" alt="Default" width="20" height="20">
-                        </div>
-                    </div>
-                    <div id="engine-links"></div>
-                    <div id="bookmark-pills-wrapper">
-                        <!-- The fade and hidden-pill count are injected around this
-                             list by the shared scroll affordance (R-010). There used
-                             to be a hand-rolled #bookmark-fade-overlay here. -->
-                        <div id="bookmark-search-results" class="bookmark-search-results" style="display: none;"></div>
-                    </div>
-                </div>
-
-            </div>
-
-          </div>
-        </div>
+        <!-- Home: the page's own empty canvas. Search lives in the address bar,
+             so this page holds nothing; picking Home in the switcher shows it. -->
+        <div id="home-page" class="page"></div>
 
         <div id="bookmarks-page" class="page">
             <div id="bookmarks-content" class="bookmarks-content">
@@ -93,7 +60,7 @@
 
                 <!-- Home: engine list -->
                 <div id="engine-home">
-                    <div class="settings-section-header" style="margin-top: 4px;">Add</div>
+                    <div class="settings-section-header">Add</div>
                     <div class="settings-group">
                         <button class="settings-row" type="button" id="add-engine-btn">
                             <span class="settings-row-text">
@@ -109,13 +76,13 @@
                 <!-- Sub-page: Add Engine -->
                 <!-- Sub-page: Add Engine -->
                 <div class="engine-subpage" data-engine-panel="add" data-engine-title="Add Engine" hidden>
-                    <div class="settings-section-header" style="margin-top: 4px;">Name</div>
+                    <div class="settings-section-header">Name</div>
                     <input type="text" class="form-input engine-field" id="engine-add-name" placeholder="e.g. Google" autocomplete="off">
                     <div class="settings-section-header">Search URL</div>
                     <input type="url" class="form-input engine-field" id="engine-add-url" placeholder="https://example.com/search?q=%s" autocomplete="off">
                     <div class="settings-section-header">Icon</div>
                     <div class="settings-group">
-                        <button class="settings-row" style="border-radius: 16px;" type="button" id="engine-add-icon-row">
+                        <button class="settings-row" type="button" id="engine-add-icon-row">
                             <span class="settings-row-text">
                                 <span class="settings-row-title">Icon type</span>
                                 <span class="settings-row-value" id="engine-add-icon-label">Upload SVG</span>
@@ -123,9 +90,9 @@
                             <span class="settings-row-chevron" aria-hidden="true"></span>
                         </button>
                     </div>
-                    <p class="picker-error" id="engine-add-error" style="padding: 6px 0 0; font-size: 13px;"></p>
-                    <div style="margin-top: 20px;">
-                        <button class="save-btn" id="engine-add-submit" style="width: 100%;" type="button">Add Engine</button>
+                    <p class="picker-error" id="engine-add-error"></p>
+                    <div class="engine-add-actions">
+                        <button class="save-btn" id="engine-add-submit" type="button">Add Engine</button>
                     </div>
                 </div>
 
@@ -134,7 +101,7 @@
 
             </div>
             <div class="settings-footer">
-                <div class="footer-buttons" style="margin-left: auto;">
+                <div class="footer-buttons">
                     <button class="save-btn" id="save-engines">Close</button>
                 </div>
             </div>
@@ -146,6 +113,7 @@
     <!-- Atlas's right-click menu (installed beside the new tab by install.py step 1). -->
     <script src="components/atlas/atlas-menu.js"></script>
     <script src="components/atlas/atlas-ctxmenu.js"></script>
+    <script src="components/atlas/tab-shortcuts/tab-shortcuts.js"></script>
     <script src="src/pages/newtab/profilesPage.js"></script>
     <script src="src/pages/newtab/profileEditPage.js"></script>
 </body>

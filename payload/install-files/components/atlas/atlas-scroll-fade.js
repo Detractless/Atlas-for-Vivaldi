@@ -1,7 +1,7 @@
 /* Scroll fade, the counting: how long and how far you scroll, added to one total for every site.
-   Injected as a content script on web pages (src/modules/03-bridge-content-scripts.js), top frame only, never in a
+   Injected as a content script on web pages (src/modules/bridge/03-bridge-content-scripts.js), top frame only, never in a
    private window. The setting is `scrollFade` in chrome.storage.sync (payload/detractless/src/utils/scrollFade.js,
-   Settings > Focus). The dimming is not done here: src/modules/36-scroll-fade-layer.js draws it in the browser window,
+   Settings > Focus). The dimming is not done here: src/modules/appearance/36-scroll-fade-layer.js draws it in the browser window,
    over every page, and keeps the wait. This script can't import the setting's file, so normalize() repeats the fields it
    needs (on, except, restSeconds) in the same words; tests/unit/scroll_fade_rules.test.js feeds both the same values.
 

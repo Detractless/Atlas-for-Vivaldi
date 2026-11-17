@@ -7,12 +7,12 @@ import {
   setSpotlightVisible, setSearchEngineBehavior, setBookmarkPillBehavior, setFadeInEnabled,
   setAppThemeConfig, setSearchDelaySeconds,
 } from '../pages/newtab/newtabState.js';
-import { applySpotlightVisibility, applyFadeIn } from '../pages/newtab/displayEffects.js';
-import { requestSaturation } from '../components/colorLock/colorLock.js';
+import { applyFadeIn } from '../pages/newtab/displayEffects.js';
+import { requestSaturation } from '../components/color-lock/color-lock.js';
 import { applyThemeConfig } from '../pages/newtab/theme.js';
-import { updateCurrentEngine } from '../components/engines/enginesUI.js';
-import { requestTabLimit } from '../components/tabLimiter/tabLimiterUI.js';
-import { requestSearchDelay } from '../components/searchDelay/searchDelay.js';
+import { updateCurrentEngine } from '../components/engines/engines.js';
+import { requestTabLimit } from '../components/tab-limiter/tab-limiter.js';
+import { requestSearchDelay } from '../components/search-delay/search-delay.js';
 
 let defined = false;
 
@@ -25,14 +25,14 @@ export function defineAllSettings() {
   // setting stays so saved values, backups and profiles keep it.
   defineSetting({
     key: 'spotlightVisible',
-    apply: (v) => { setSpotlightVisible(v); applySpotlightVisibility(); },
+    apply: (v) => { setSpotlightVisible(v); },
   });
   defineSetting({
     key: 'searchEngineBehavior',
     apply: (v, { local }) => {
       setSearchEngineBehavior(v);
       // Choosing "always reset" in Settings resets the engine right away; at page
-      // start loadSavedEngine (enginesUI.js) does the same from storage.
+      // start loadSavedEngine (engines.js) does the same from storage.
       if (local && v === 'always-default') updateCurrentEngine('default');
     },
   });
@@ -54,13 +54,13 @@ export function defineAllSettings() {
   defineSetting({ key: 'pendingDelayDecrease' });
   defineSetting({ key: 'showQueryOnDelay' });
   defineSetting({ key: 'saturation', write: requestSaturation });
-  // The locks beside the tab limit, delay, color slider, content-shield mode, social media filter and scroll fade (utils/focusLock.js).
+  // The locks beside the tab limit, delay, color slider, content-shield mode, social media filter and scroll fade (utils/focus-lock/focusLock.js).
   defineSetting({ key: 'focusLocks' });
 
   // ── Content shield ──
   defineSetting({ key: 'nsfwAction' });
   defineSetting({ key: 'socialFilter' });
 
-  // ── Scroll fade ── (utils/scrollFade.js; components/atlas/atlas-scroll-fade.js counts the scrolling on pages; src/modules/36-scroll-fade-layer.js draws the dimming)
+  // ── Scroll fade ── (utils/scrollFade.js; components/atlas/atlas-scroll-fade.js counts the scrolling on pages; src/modules/appearance/36-scroll-fade-layer.js draws the dimming)
   defineSetting({ key: 'scrollFade' });
 }

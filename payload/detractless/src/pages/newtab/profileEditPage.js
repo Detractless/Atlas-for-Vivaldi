@@ -41,7 +41,7 @@
   const onPage = () => UI.current() === "profile";
   const redraw = () => UI.rerender();
 
-  /* The Google accounts the browser window found (src/modules/16-google-accounts.js
+  /* The Google accounts the browser window found (src/modules/accounts/16-google-accounts.js
      caches them in chrome.storage.local). Shown on the Google row; asked for
      afresh each time a profile's page opens. */
   let gaCache = null, gaLooking = false, googleTyped = false;
@@ -122,7 +122,7 @@
     ]);
   }
 
-  /* The Google account this profile opens Google links as (services/googleAccount.js
+  /* The Google account this profile opens Google links as (services/accounts/googleAccount.js
      in the bundle): picked from the found accounts, or typed in when there is no
      list or the user asks to type. */
   function googleRow(p) {

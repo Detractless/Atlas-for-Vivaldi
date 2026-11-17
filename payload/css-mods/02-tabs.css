@@ -141,7 +141,7 @@
 #browser.tabs-top #vivaldi-tooltip .tooltip .tab-solo .tooltip-item { margin-top: 8px; }
 /* Above the address bar's engine logo (z-index 2147483001), which would otherwise draw
    over the card. Vivaldi's own rule is more specific, hence !important. */
-#browser #vivaldi-tooltip .tooltip { z-index: 2147483002 !important; }
+#browser #vivaldi-tooltip .tooltip { z-index: var(--z-atlas-tooltip) !important; }
 #browser.tabs-top #vivaldi-tooltip .tooltip .tab-solo .tooltip-item::before {
   content: "";
   position: absolute;
@@ -166,15 +166,15 @@
 #browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text .title,
 #browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text .title:has(~ .info.size) {
   color: var(--atlas-text-1);
-  font-size: 12.5px;
+  font-size: var(--font-size-atlas-tooltip);
   -webkit-line-clamp: 2;
 }
 #browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text .url { color: var(--atlas-text-2); }
-/* Atlas's own pages: the extension id is replaced by the app name (src/modules/32-tab-card.js). */
+/* Atlas's own pages: the extension id is replaced by the app name (src/modules/tabs/32-tab-card.js). */
 #browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text .url.atlas-own { font-size: 0; }
 #browser #vivaldi-tooltip .tooltip .tab-solo .tooltip-item .thumbnail-text .url.atlas-own::after {
   content: "Atlas";
   display: block;
-  font-size: 12px;
+  font-size: var(--font-size-atlas-small);
 }
 

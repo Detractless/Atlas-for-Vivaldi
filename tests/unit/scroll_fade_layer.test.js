@@ -1,4 +1,4 @@
-// Scroll fade's dimming in the browser window (src/modules/36-scroll-fade-layer.js): one black layer over the page area,
+// Scroll fade's dimming in the browser window (src/modules/appearance/36-scroll-fade-layer.js): one black layer over the page area,
 // drawn from the one total the pages add to, for the tab you are on. It also keeps the wait: full dark starts it, and a
 // wait or rest that is over clears the total. The page script that counts: scroll_fade_page.test.js. The rules:
 // scroll_fade_rules.test.js. Like the colour filter (page_saturation.test.js) it is drawn in the window, not in a page.

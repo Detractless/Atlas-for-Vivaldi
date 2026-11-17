@@ -1,10 +1,10 @@
 import './bookmarks.css';
-import { BookmarkDB } from '../../services/bookmarksDB.js';
+import { BookmarkDB } from '../../services/bookmarks/bookmarksDB.js';
 // ContextMenu is imported only for its `disabled` flag now (R-012): this screen
 // no longer opens a menu, but the flag still gates whether right-click does
 // anything at all, so the setting behind it keeps meaning something.
-import { ContextMenu } from '../contextMenu/contextMenu.js';
-import { openGroupDialog, openBookmarkItemDialog } from './bookmarkDialog.js';
+import { ContextMenu } from '../context-menu/context-menu.js';
+import { openGroupDialog, openBookmarkItemDialog } from './bookmarks-dialog.js';
 import {
   currentBookmarkPage,
   bookmarks, setBookmarks,
@@ -12,89 +12,28 @@ import {
 } from '../../pages/newtab/newtabState.js';
 /* addBookmark takes resolved values from whatever collected them (today the
    add popup), so the writer never depends on the widget. */
-import { attachScrollAffordance } from '../shared/scrollAffordance.js';
-import { editInBar } from '../shared/editInBar.js';
-import { refreshBookmarkCache } from './bookmarkCache.js';
-import { forActiveAccount } from '../../services/googleAccount.js';
+import { attachScrollAffordance } from '../scroll-affordance/scroll-affordance.js';
+import { editInBar } from '../edit-in-bar/edit-in-bar.js';
+import { refreshBookmarkCache } from './bookmarks-cache.js';
+import { forActiveAccount } from '../../services/accounts/googleAccount.js';
+import { readFailedFor, clearReadFailure, readPageBookmarks, writePageBookmarks, insertBookmark } from './bookmarks-store.js';
+import { rowMetrics, wellHeight, rowsThatFit } from './bookmarks-layout.js';
 
-export { refreshBookmarkCache } from './bookmarkCache.js';
-export { renderBookmarkSearchResults, updateSearchDropdownSelection, hideBookmarkSearchResults, sortByUsage } from './bookmarkSearch.js';
+export { refreshBookmarkCache } from './bookmarks-cache.js';
 
-/* ── Read failure is not emptiness (R-020) ───────────────────────────────
-   An unreadable database and an empty one used to render identically: the
-   catch here did setBookmarks({}) and drew the "No bookmarks yet" state. That
-   matters because this extension's IndexedDB is the ONLY copy of a user's
-   bookmarks, and Chrome may clear it under disk pressure, so the one moment
-   the user most needs to be told something went wrong was the one moment the
-   UI confidently said nothing had.
-
-   It was also a latent destroyer. Module state became {} on a failed read, and
-   saveBookmarks writes module state, so any later save would have persisted
-   that emptiness over data that was merely unreadable at the time.
-
-   Two rules, and they are the whole fix:
-     1. A failed read NEVER becomes module state.
-     2. While the last read is known-failed, saving is refused.
-   Which page failed is tracked, not just THAT one did, so switching to a page
-   that reads fine clears the block instead of stranding the whole screen. */
-let _loadFailedPage = null;
-
-const loadFailed = () => _loadFailedPage !== null && _loadFailedPage === currentBookmarkPage;
+const loadFailed = () => readFailedFor(currentBookmarkPage);
 
 export function initializeBookmarks() { loadBookmarks(); }
 
 export async function loadBookmarks() {
-  try {
-    const savedBookmarks = await BookmarkDB.getBookmarks(currentBookmarkPage);
-    if (_loadFailedPage === currentBookmarkPage) _loadFailedPage = null;
-    setBookmarks((savedBookmarks && Object.keys(savedBookmarks).length > 0) ? savedBookmarks : {});
-  } catch (error) {
-    /* Deliberately NOT setBookmarks({}). Leaving the previous value alone keeps
-       rule 1: nothing derived from a failed read reaches state that a save
-       could write back. renderBookmarks reads the flag first, so what is left
-       in `bookmarks` is never what gets drawn. */
-    _loadFailedPage = currentBookmarkPage;
-    console.error('Detractless: could not read bookmarks for page', currentBookmarkPage, error);
-  }
+  const saved = await readPageBookmarks(currentBookmarkPage);
+  if (saved !== null) setBookmarks(saved);
   renderBookmarks();
 }
 
 export async function saveBookmarks() {
-  if (loadFailed()) {
-    // Rule 2. Writing here would turn a page we merely could not READ into a
-    // page that is genuinely empty on disk.
-    console.error('Detractless: refusing to save, the last read of page',
-      currentBookmarkPage, 'failed. Reload before changing anything.');
-    return;
-  }
-  try {
-    await BookmarkDB.saveBookmarks(currentBookmarkPage, bookmarks);
-    await refreshBookmarkCache();
-  } catch (error) {
-    console.error('Error saving bookmarks:', error);
-  }
+  await writePageBookmarks(currentBookmarkPage, bookmarks);
 }
-
-// ── Well geometry (R-008) ────────────────────────────────────────────────
-// A list must be a whole number of rows tall. At any other height the last row
-// is cut part way through, and the fade then paints over a row the user can
-// still see. Measurements come from the --bm-* tokens at the top of
-// bookmarks.css so this file and that one cannot disagree about what a row is.
-// `chrome` is what a group needs outside its list: the name line and the gap under it.
-// 0 is a real value here (no row gap, no padding), so only a missing token falls back.
-function rowMetrics(host) {
-  const cs = getComputedStyle(host);
-  const num = (name, fallback) => { const v = parseFloat(cs.getPropertyValue(name)); return Number.isFinite(v) ? v : fallback; };
-  return {
-    pitch: num('--bm-row-pitch', 36), gap: num('--bm-row-gap', 0), pad: num('--bm-well-padding', 0),
-    chrome: num('--bm-title-height', 24) + num('--bm-title-gap', 8), groupGap: num('--bm-group-gap', 32),
-  };
-}
-// Height of a well showing exactly `rows` rows. The last row has no gap under
-// it, hence the single subtraction.
-function wellHeight(rows, m) { return rows * m.pitch - m.gap + m.pad * 2; }
-// How many WHOLE rows fit in `px` of well. Always at least one.
-function rowsThatFit(px, m) { return Math.max(1, Math.floor((px - m.pad * 2 + m.gap) / m.pitch)); }
 
 export function renderBookmarks() {
   const container = document.getElementById("bookmarks-content"); if (!container) return; container.innerHTML = ""; const groups = Object.keys(bookmarks);
@@ -222,7 +161,7 @@ function onGroupContextMenu(e, groupName, rowBookmarks) {
      to parse or bounds-check. */
   const row = e.target.closest?.('.bookmark-link');
   const bookmark = row && rowBookmarks.get(row);
-  /* The address bar opens for it (editInBar.js); the pop-up below is what runs when nothing answers. */
+  /* The address bar opens for it (edit-in-bar.js); the pop-up below is what runs when nothing answers. */
   if (bookmark) {
     editInBar({ kind: 'bookmark', page: currentBookmarkPage, group: groupName, name: bookmark.name, url: bookmark.url },
       () => openBookmarkMenu(groupName, bookmark));
@@ -308,9 +247,8 @@ function openBookmarkMenu(groupName, bookmark) {
 
 /* R-015: the three alert() calls here are gone. R-021 moved validation again,
    out of this file entirely: each of the four dialogs validates its own answer
-   as it is given and reports on that dialog's error line, and resolveFlow
-   re-checks all four before the write. So there is nothing left to validate
-   here beyond the guard below. */
+   as it is given and reports on that dialog's error line. So there is nothing
+   left to validate here beyond the guard below. */
 /**
  * Write one bookmark. Takes RESOLVED values from the add flow rather than
  * reading a form: the flow owns its own state now (utils/addBookmarkFlow.js) and
@@ -319,30 +257,11 @@ function openBookmarkMenu(groupName, bookmark) {
  * @param {{name: string, url: string, group: string, page: any}} form
  */
 export async function addBookmark(form) {
-  if (!form || form.error) return;
-
-  const { name, group: targetGroup, page: targetPage } = form;
-  const finalUrl = form.url.match(/^https?:\/\//) ? form.url : "https://" + form.url;
-
-  try {
-    const targetBookmarks = await BookmarkDB.getBookmarks(targetPage) || {};
-    if (!targetBookmarks[targetGroup]) targetBookmarks[targetGroup] = [];
-    targetBookmarks[targetGroup].push({ name, url: finalUrl });
-    await BookmarkDB.saveBookmarks(targetPage, targetBookmarks);
-    await refreshBookmarkCache();
-    if (targetPage === currentBookmarkPage) {
-      /* R-020: safe to clear the block. This path did its OWN fresh read of the
-         target page a few lines up and would have thrown if that failed, so
-         targetBookmarks is known-good data rather than anything inherited from
-         the read that failed. */
-      if (_loadFailedPage === currentBookmarkPage) _loadFailedPage = null;
-      setBookmarks(targetBookmarks); renderBookmarks();
-    }
-    /* No modal to hide and no form to clear: the flow's last dialog closed
-       itself when its save returned, and the flow state is discarded by the
-       caller. */
-  } catch (error) {
-    console.error('[Detractless] could not save the bookmark', error);
+  const result = await insertBookmark(form);
+  if (result && result.page === currentBookmarkPage) {
+    clearReadFailure(currentBookmarkPage);
+    setBookmarks(result.bookmarks);
+    renderBookmarks();
   }
 }
 
@@ -362,8 +281,6 @@ export function renameGroup(oldName) {
   }
 }
 
-export function deleteGroup(groupName) { if (confirm(`Are you sure you want to delete the group "${groupName}" and all its bookmarks?`)) { delete bookmarks[groupName]; saveBookmarks(); renderBookmarks(); } }
-
 export async function moveGroupToPage(groupName, targetPage) {
   if (targetPage === currentBookmarkPage) return; const groupData = bookmarks[groupName]; if (!groupData) return;
   delete bookmarks[groupName]; await saveBookmarks();
@@ -373,22 +290,4 @@ export async function moveGroupToPage(groupName, targetPage) {
     await refreshBookmarkCache();
     renderBookmarks();
   } catch (error) { alert('Error moving group.'); }
-}
-
-export function renameBookmark(groupName, bookmark) {
-  const newName = prompt("Enter new name:", bookmark.name); if (newName === null || !newName.trim()) return;
-  const bookmarkIndex = bookmarks[groupName].findIndex((b) => b.name === bookmark.name && b.url === bookmark.url);
-  if (bookmarkIndex !== -1) { bookmarks[groupName][bookmarkIndex].name = newName.trim(); saveBookmarks(); renderBookmarks(); }
-}
-
-export function editBookmarkUrl(groupName, bookmark) {
-  const newUrl = prompt("Enter new URL:", bookmark.url); if (newUrl === null || !newUrl.trim()) return;
-  const bookmarkIndex = bookmarks[groupName].findIndex((b) => b.name === bookmark.name && b.url === bookmark.url);
-  if (bookmarkIndex !== -1) { let finalUrl = newUrl.trim().match(/^https?:\/\//) ? newUrl.trim() : "https://" + newUrl.trim(); bookmarks[groupName][bookmarkIndex].url = finalUrl; saveBookmarks(); renderBookmarks(); }
-}
-
-export function deleteBookmark(groupName, bookmark) {
-  if (confirm(`Are you sure you want to delete "${bookmark.name}"?`)) {
-    bookmarks[groupName] = bookmarks[groupName].filter((b) => b.name !== bookmark.name || b.url !== bookmark.url); if (bookmarks[groupName].length === 0) delete bookmarks[groupName]; saveBookmarks(); renderBookmarks();
-  }
 }

@@ -36,7 +36,7 @@
  * rulings removed.
  *
  * THE SEAM: this file owns the fade, the pill and the chevron. The fade's
- * CORNERS are not authored here or by the adopter: scrollAffordance.js copies
+ * CORNERS are not authored here or by the adopter: scroll-affordance.js copies
  * them off the scroller at runtime, because a fade whose radius disagrees with
  * its scroller either notches itself and leaks un-faded content at the corners
  * or overhangs and paints past them. This used to be a --scroll-fade-radius
@@ -61,7 +61,7 @@
   position: absolute; right: var(--space-3);
   display: inline-flex; align-items: center; gap: 5px;
   background: var(--surface-card); color: var(--text-tertiary);
-  font-family: var(--font-mono); font-size: 10px; line-height: 1;
+  font-family: var(--font-mono); font-size: var(--font-size-10); line-height: 1;
   padding: 5px 9px; border-radius: var(--radius-pill);
   pointer-events: none; opacity: 1;
   transition: opacity var(--dur-base) var(--ease-out);
@@ -122,7 +122,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
    settings modal in the new tab and the saved-tabs popups in the panel are the
    same component. */
 .modal {
-  display: none; position: fixed; inset: 0; z-index: 200;
+  display: none; position: fixed; inset: 0; z-index: var(--z-modal-overlay);
   background: var(--surface-overlay); backdrop-filter: blur(var(--blur-overlay));
   align-items: center; justify-content: center;
 }
@@ -148,9 +148,9 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
 /* ADR-1: card rows sit on the canvas, so hover moves AWAY from canvas tone. */
 .settings-row:hover { background: var(--hover-on-canvas); }
 .settings-row-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.settings-row-title { font-size: 15px; font-weight: 400; color: var(--text-primary); }
+.settings-row-title { font-size: var(--font-size-15); font-weight: 400; color: var(--text-primary); }
 .settings-row-danger { color: var(--text-error); }
-.settings-row-value { font-size: 12px; color: var(--text-tertiary); }
+.settings-row-value { font-size: var(--font-size-12); color: var(--text-tertiary); }
 .settings-row-value:empty { display: none; }
 
 /* ══ PICKER DIALOGS (promoted from newtab.css, spec 004) ══════════════════
@@ -160,7 +160,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
    bookmark dialogs and the side panel's dialogs (panelDialog.js) both
    render THIS vocabulary; the radio rows stayed in newtab.css. */
 @keyframes modalIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-.picker-modal { z-index: 400; display: flex; }
+.picker-modal { z-index: var(--z-picker-modal); display: flex; }
 .picker-card {
   background: var(--surface-card); border-radius: var(--radius-lg);
   width: 90%; max-width: 320px;
@@ -173,7 +173,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
   overflow: hidden;
 }
 .picker-title {
-  font-family: var(--font-sans); font-size: 18px; font-weight: 700;
+  font-family: var(--font-sans); font-size: var(--font-size-18); font-weight: 700;
   color: var(--text-primary);
   /* Sits OUTSIDE the well, so its inset is the card's, not the row's.
      BOTTOM SPACING IS MARGIN, NOT PADDING, and that is load-bearing: overflow
@@ -196,7 +196,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
 .picker-row {
   display: flex; align-items: center; gap: 12px; width: 100%;
   padding: 12px 16px; border: none; background: transparent; cursor: pointer;
-  font-family: var(--font-sans); font-size: 15px; color: var(--text-primary);
+  font-family: var(--font-sans); font-size: var(--font-size-15); color: var(--text-primary);
   text-align: left; transition: background var(--dur-fast) var(--ease-out);
 }
 /* ADR-1: hover names what is UNDERNEATH. A row inside the well paints the CARD
@@ -274,7 +274,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
 }
 .picker-row-icon { width: 16px; height: 16px; flex: none; display: flex; align-items: center; justify-content: center; }
 .picker-row-icon svg { width: 15px; height: 15px; display: block; }
-.picker-row-value { margin-left: auto; color: var(--text-tertiary); font-size: 14px; }
+.picker-row-value { margin-left: auto; color: var(--text-tertiary); font-size: var(--font-size-14); }
 .picker-row--danger { color: var(--color-error); }
 .picker-row--armed { background: var(--bg-error); color: var(--color-error); font-weight: var(--weight-semibold); }
 .picker-row--armed:hover { background: var(--bg-error); }
@@ -283,12 +283,12 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
   width: 100%; border: none; outline: none;
   background: var(--surface-muted); border-radius: var(--radius-lg);
   padding: 11px 14px;
-  font-family: var(--font-sans); font-size: 15px;
+  font-family: var(--font-sans); font-size: var(--font-size-15);
   color: var(--text-primary); caret-color: var(--text-primary);
 }
 .picker-field--upper {
   text-transform: uppercase; letter-spacing: 0.06em;
-  font-size: 13px; font-weight: var(--weight-semibold);
+  font-size: var(--font-size-13); font-weight: var(--weight-semibold);
 }
 .picker-error {
   display: none; font: var(--text-caption); color: var(--color-error); padding: 6px 2px 0;
@@ -299,7 +299,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
 .picker-btn {
   flex: 1; border: none; cursor: pointer; border-radius: var(--radius-pill);
   padding: 11px 0;
-  font-family: var(--font-sans); font-size: 14px; font-weight: var(--weight-medium);
+  font-family: var(--font-sans); font-size: var(--font-size-14); font-weight: var(--weight-medium);
   background: var(--surface-muted); color: var(--text-primary);
   transition: background var(--dur-fast) var(--ease-out);
 }

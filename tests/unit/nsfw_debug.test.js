@@ -8,10 +8,10 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "..", "..");
 const LOG_PATH = path.join(ROOT, "payload", "install-files", "components", "atlas", "atlas-nsfw-log.js");
 const GUARD_PATH = path.join(ROOT, "payload", "install-files", "components", "atlas", "atlas-nsfw-guard.js");
-const SCRIPTS_PATH = path.join(ROOT, "src", "modules", "03-bridge-content-scripts.js");
+const SCRIPTS_PATH = path.join(ROOT, "src", "modules", "bridge", "03-bridge-content-scripts.js");
 const KEYS_PATH = path.join(ROOT, "payload", "detractless", "src", "constants", "atlasKeys.json");
-const BRIDGE_PATH = path.join(ROOT, "src", "modules", "04-bridge-messages.js");
-const VERDICTS_PATH = path.join(ROOT, "src", "modules", "27-nsfw-verdicts.js");
+const BRIDGE_PATH = path.join(ROOT, "src", "modules", "bridge", "04-bridge-messages.js");
+const VERDICTS_PATH = path.join(ROOT, "src", "modules", "nsfw", "27-nsfw-verdicts.js");
 
 /* Runs the sink in a page-like sandbox and returns { sunk, counters, summary }. */
 function loadSink(items, onChanged) {

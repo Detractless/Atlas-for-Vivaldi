@@ -4,9 +4,10 @@ import re
 import shutil
 from pathlib import Path
 
-from . import util
+from . import config
 from .paths import get_atlas_root
-from .util import _guard, copy_file, copy_tree, fail, read_text, say, write_text
+from .console import fail, say
+from .file_access import _guard, copy_file, copy_tree, read_text, write_text
 
 
 COMPASS = (
@@ -33,6 +34,7 @@ DETRACTLESS_FILES = (
     "src/styles/fonts.css",
     "src/pages/shared/themePreinit.js",
     "src/pages/newtab/preinit.js",
+    "src/pages/newtab/profiles-schema.js",
     "src/pages/newtab/profilesCore.js",
     "src/pages/newtab/profilesPage.js",
     "src/pages/newtab/profileEditPage.js",
@@ -62,6 +64,7 @@ def step1_atlas_files(masters: Path, res: Path):
     say("Atlas files          installed")
 
 
+PROFILES_SCHEMA_TAG = '  <script src="src/pages/newtab/profiles-schema.js"></script>\n'
 PROFILES_TAG = '  <script src="src/pages/newtab/profilesCore.js"></script>\n'
 
 
@@ -74,7 +77,11 @@ def step2_window_html(res: Path):
         changed = True
     # The profile list/switcher is shared with the new tab; it must load before atlas.js.
     if "profilesCore.js" not in html:
-        html = html.replace('  <script src="atlas.js"></script>', PROFILES_TAG + '  <script src="atlas.js"></script>', 1)
+        schema_tag = "" if "profiles-schema.js" in html else PROFILES_SCHEMA_TAG
+        html = html.replace('  <script src="atlas.js"></script>', schema_tag + PROFILES_TAG + '  <script src="atlas.js"></script>', 1)
+        changed = True
+    elif "profiles-schema.js" not in html:
+        html = html.replace(PROFILES_TAG, PROFILES_SCHEMA_TAG + PROFILES_TAG, 1)
         changed = True
     if changed:
         write_text(win, html, label="window.html")
@@ -114,26 +121,7 @@ def _remove_archived_sidebar_files(res: Path):
         say(f"Tools sidebar        removed {gone} archived files")
 
 
-def step3_detractless(detract: Path, res: Path, skip: bool):
-    if skip:
-        return
-    if not detract.is_dir():
-        say("Detractless payload missing - SKIPPED")
-        return
-    for d in DETRACTLESS_DIRS:
-        if (detract / d).is_dir():
-            copy_tree(detract / d, res / d)
-    for rel in DETRACTLESS_FILES:
-        sp = detract / rel
-        if not sp.is_file():
-            fail(f"Payload is missing {rel} - package is incomplete.")
-        copy_file(sp, (res / rel).parent)
-    _remove_archived_sidebar_files(res)
-
-    if util.DRY:
-        say("Detractless          installed + shimmed  [dry-run: head edits skipped]")
-        return
-
+def _shim_html_heads(res: Path):
     for f in ("index.html", "gate.html"):
         p = res / f
         if not p.is_file():
@@ -165,6 +153,29 @@ def step3_detractless(detract: Path, res: Path, skip: bool):
                 t, count=1,
             )
         write_text(p, t, label=f)
+
+
+def step3_detractless(detract: Path, res: Path, skip: bool):
+    if skip:
+        return
+    if not detract.is_dir():
+        say("Detractless payload missing - SKIPPED")
+        return
+    for d in DETRACTLESS_DIRS:
+        if (detract / d).is_dir():
+            copy_tree(detract / d, res / d)
+    for rel in DETRACTLESS_FILES:
+        sp = detract / rel
+        if not sp.is_file():
+            fail(f"Payload is missing {rel} - package is incomplete.")
+        copy_file(sp, (res / rel).parent)
+    _remove_archived_sidebar_files(res)
+
+    if config.DRY:
+        say("Detractless          installed + shimmed  [dry-run: head edits skipped]")
+        return
+
+    _shim_html_heads(res)
     say("Detractless          installed + shimmed")
 
 

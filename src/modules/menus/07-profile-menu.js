@@ -1,0 +1,299 @@
+/* ── 07-profile-menu.js: Profile menu dropdown and "D" account button interceptor ── */
+
+/* The pointer under a dropdown. 45-degree sides and a rounded tip, the same shape as the tab card and the
+   toolbar popups: the tip stands about 7px above the panel and the pointer is 16px wide where it meets the edge.
+   It is kept clear of the panel's rounded corners so its feet never land on the curve. */
+function addDropTail(panel, anchorRect) {
+  var TH = 9, TW = TH * 2, R = 1.7, MID = TW / 2;
+  var pr = panel.getBoundingClientRect();
+  var cs = window.getComputedStyle(panel);
+  var bg = cs.backgroundColor, border = cs.borderTopColor;
+  var edge = (parseFloat(cs.borderTopLeftRadius) || 12) + MID;
+  var ax = anchorRect.left + anchorRect.width / 2;
+  var tx = Math.max(pr.left + edge, Math.min(ax, pr.right - edge));
+  var side = 'M0,' + TH + ' L' + (MID - R) + ',' + R + ' Q' + MID + ',0 ' + (MID + R) + ',' + R + ' L' + TW + ',' + TH;
+  var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'atlas-drop-tail');
+  svg.setAttribute('width', TW);
+  svg.setAttribute('height', TH + 2);
+  svg.setAttribute('viewBox', '0 0 ' + TW + ' ' + (TH + 2));
+  svg.innerHTML =
+    '<path d="' + side + ' Z" style="fill:' + bg + '"/>' +
+    '<path d="' + side + '" style="fill:none;stroke:' + border + ';stroke-width:1"/>';
+  svg.style.position = 'fixed';
+  svg.style.left = (tx - MID) + 'px';
+  svg.style.top = (pr.top - TH + 1) + 'px';
+  svg.style.zIndex = '10001';
+  svg.style.pointerEvents = 'none';
+  panel.appendChild(svg);
+}
+
+var AVATAR = '.toolbar-mainbar button[data-name="AccountButton"], button[data-name="AccountButton"], [data-name="AccountButton"]';
+var menu = null;
+
+/* Ask the new tab to do something. On a new tab already, message it; otherwise
+   open one and message it once loaded. Settings can name a page (Profiles). */
+function toNewTab(act, page) {
+  var extUrl = 'chrome-extension://' + ATLAS_EXT_ID + '/';
+  var targetUrl = extUrl + 'index.html' + (page ? '?settings=' + page : '') + '#settings';
+  var msg = { atlas: { act: act } };
+  if (page) msg.atlas.page = page;
+
+  if (typeof chrome === 'undefined' || !chrome.tabs) {
+    if (typeof window !== 'undefined') window.open(targetUrl, '_blank');
+    return;
+  }
+
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    var activeTab = tabs && tabs[0];
+    var isNewTab = activeTab && activeTab.url && (
+      activeTab.url.indexOf(extUrl) === 0 ||
+      activeTab.url.indexOf('chrome://newtab') === 0 ||
+      activeTab.url.indexOf('vivaldi://newtab') === 0 ||
+      activeTab.url.indexOf('index.html') !== -1
+    );
+
+    if (isNewTab) {
+      chrome.tabs.sendMessage(activeTab.id, msg, function () {
+        if (chrome.runtime && chrome.runtime.lastError) {
+          chrome.tabs.update(activeTab.id, { url: targetUrl });
+        }
+      });
+    } else {
+      chrome.tabs.create({ url: targetUrl });
+    }
+  });
+}
+function openNewTabSettings(page) { toNewTab('open-settings', page); }
+
+function setPanelBlur(on) {
+  var b = document.getElementById('browser');
+  if (b) b.classList.toggle('atlas-panel-blur', !!on);
+}
+
+function closeMenu() {
+  setPanelBlur(false);
+  if (!menu) return;
+  menu.remove();
+  menu = null;
+  document.removeEventListener('mousedown', onDocDown, true);
+  document.removeEventListener('keydown', onKeyDown, true);
+  if (typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('blur', closeMenu);
+}
+function onDocDown(e) { if (menu && !menu.contains(e.target)) closeMenu(); }
+function onKeyDown(e) { if (e.key === 'Escape') { closeMenu(); e.stopPropagation(); } }
+
+/* Profiles come from AtlasProfiles (profilesCore.js, loaded by window.html before
+   this file): the same list Settings > Profiles edits on the new tab. */
+var pEsc = function (t) { return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+function AP() { return window.AtlasProfiles || null; }
+
+function applyCorner() {
+  var ap = AP(), p = ap && ap.active();
+  if (p) document.documentElement.style.setProperty('--atlas-corner-avatar', ap.cornerUrl(p));
+}
+function pIcon(d) { return '<svg viewBox="0 0 20 20" aria-hidden="true">' + d + '</svg>'; }
+var PI = {
+  plus: pIcon('<path d="M10 4.5v11M4.5 10h11"/>'),
+  back: pIcon('<path d="m12 4-6 6 6 6"/>'),
+  bm: pIcon('<path d="M5.5 3.5h9v13l-4.5-3.2-4.5 3.2z"/>'),
+  page: pIcon('<rect x="3.5" y="3.5" width="13" height="13" rx="3.5"/><path d="M3.5 8h13"/>'),
+  group: pIcon('<rect x="3.5" y="4" width="13" height="5" rx="1.8"/><rect x="3.5" y="11" width="13" height="5" rx="1.8"/>'),
+  clock: pIcon('<circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 1.5"/>'),
+  down: pIcon('<path d="M10 3.5v9M6.5 9.5 10 13l3.5-3.5M4 16.5h12"/>'),
+  gear: pIcon('<circle cx="10" cy="10" r="2.4"/><path d="M8.6 2.8h2.8l.4 2 1.6.9 1.9-.7 1.4 2.4-1.5 1.3v1.8l1.5 1.3-1.4 2.4-1.9-.7-1.6.9-.4 2H8.6l-.4-2-1.6-.9-1.9.7-1.4-2.4 1.5-1.3V9.1L3.3 7.8l1.4-2.4 1.9.7 1.6-.9z"/>'),
+  atlas: pIcon('<circle cx="10" cy="10" r="7"/><path d="m12.8 7.2-1.9 3.7-3.7 1.9 1.9-3.7z"/>'),
+  sliders: pIcon('<path d="M4 6h8M15 6h1M4 14h2M9 14h7"/><circle cx="13.5" cy="6" r="1.6"/><circle cx="7.5" cy="14" r="1.6"/>')
+};
+/* Rows that open a second menu in place of the first, with a way back: its title and its rows [act, icon, label].
+   Settings: Atlas is Atlas's own settings page; Advanced is everything else the browser has (Vivaldi's settings). */
+var PSUBS = {
+  add: { title: 'Add', rows: [['add-bookmark', PI.bm, 'Add bookmark'], ['add-group', PI.group, 'Add group'], ['add-page', PI.page, 'Add page']] },
+  settings: { title: 'Settings', rows: [['ext', PI.atlas, 'Atlas'], ['browser', PI.sliders, 'Advanced']] }
+};
+var PACTS = {
+  'add-bookmark': function () { Atlas.openAdd('bookmark'); },
+  'add-group': function () { Atlas.openAdd('group'); },
+  'add-page': function () { Atlas.openAdd('page'); },
+  history: function () { if (Atlas.openHistory) Atlas.openHistory(); else chrome.tabs.create({ url: 'chrome://history/' }); },
+  downloads: function () { chrome.tabs.create({ url: 'vivaldi://downloads' }); },
+  ext: function () { openNewTabSettings(); },
+  browser: function () { chrome.tabs.create({ url: 'vivaldi://settings' }); }
+};
+
+function profileMenuRow(act, icon, label) {
+  return '<button type="button" class="apm-item" role="menuitem" data-act="' + act + '">' +
+    icon + '<span class="apm-row-label">' + label + '</span></button>';
+}
+
+/* One sub-menu (PSUBS): a back head, then that view's own rows. */
+function profileMenuSubHtml(sub) {
+  return '<button type="button" class="apm-head" data-back aria-label="Back">' + PI.back + '<span>' + sub.title + '</span></button>' +
+    '<div class="apm-sep"></div>' + sub.rows.map(function (x) { return profileMenuRow(x[0], x[1], x[2]); }).join('');
+}
+
+/* The main view: the profile strip when profiles are known, then the rows. */
+function profileMenuMainHtml(ap) {
+  var head = '', s = ap && ap.get();
+  if (s) {
+    var cur = ap.active();
+    head = '<div class="apm-strip">' + s.list.map(function (q) {
+      return '<button type="button" class="apm-pick' + (q.id === cur.id ? ' on' : '') + '" data-pick="' + pEsc(q.id) +
+        '" aria-label="' + pEsc(q.name) + '">' + ap.avatar(q, 'apm-av') + '</button>';
+    }).join('') + '<button type="button" class="apm-pick apm-addbtn" data-add aria-label="Add or edit profiles" title="Add or edit profiles">' + PI.plus + '</button></div>' +
+      '<div class="apm-who"><span class="apm-name">' + pEsc(cur.name) + '</span>' +
+      (cur.label ? '<span class="apm-plan">' + pEsc(cur.label) + '</span>' : '') + '</div><div class="apm-sep"></div>';
+  }
+  return head + profileMenuRow('add', PI.plus, 'Add') +
+    profileMenuRow('history', PI.clock, 'History') + profileMenuRow('downloads', PI.down, 'Downloads') +
+    profileMenuRow('settings', PI.gear, 'Settings');
+}
+
+/* Profile picks, sub-menu rows and the plain actions, all from one click. */
+function handleProfileMenuClick(ev, ap, state, refill) {
+  ev.stopPropagation();
+  var t = ev.target.closest ? ev.target : null;
+  var pk = t && t.closest('[data-pick]'), act = t && t.closest('[data-act]');
+  if (pk && ap) ap.switchTo(pk.getAttribute('data-pick')).then(function () { if (menu) refill(); });
+  else if (t && t.closest('[data-add]')) { closeMenu(); openNewTabSettings('profiles'); }
+  else if (t && t.closest('[data-back]')) { state.view = 'main'; refill(); }
+  else if (act && PSUBS[act.getAttribute('data-act')]) { state.view = act.getAttribute('data-act'); refill(); }
+  else if (act) { var f = PACTS[act.getAttribute('data-act')]; closeMenu(); try { f(); } catch (err) { atlasWarn('profile menu action failed', err); } }
+}
+
+function openMenu(btn) {
+  closeMenu();
+  if (typeof Atlas.closeUiMenu === 'function') Atlas.closeUiMenu();
+  else if (typeof closeUiMenu === 'function') closeUiMenu();
+
+  var host = document.getElementById('browser') || document.body;
+  var r = btn.getBoundingClientRect(), ap = AP();
+
+  menu = document.createElement('div');
+  menu.className = 'atlas-profile-menu atlas-nosurf-menu atlas-newmenu';
+  menu.setAttribute('role', 'menu');
+  /* 'main' is the profiles and the rows; 'add' or 'settings' (PSUBS) is what is left after that row is clicked:
+     its choices and a way back, so the menu is shorter. */
+  var state = { view: 'main' };
+
+  function fill() {
+    var sub = PSUBS[state.view];
+    menu.innerHTML = sub ? profileMenuSubHtml(sub) : profileMenuMainHtml(ap);
+    menu.style.top = Math.round(r.bottom + 6) + 'px';
+    menu.style.right = Math.round(window.innerWidth - r.right) + 'px';
+    addDropTail(menu, r);
+    if (!sub) applyCorner();
+  }
+  menu.__fill = fill;
+
+  menu.addEventListener('click', function (ev) { handleProfileMenuClick(ev, ap, state, fill); });
+
+  host.appendChild(menu);
+  setPanelBlur(true);
+  fill();
+  if (ap) ap.ready.then(function () { if (menu) fill(); });
+
+  document.addEventListener('mousedown', onDocDown, true);
+  document.addEventListener('keydown', onKeyDown, true);
+  if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('blur', closeMenu);
+}
+
+/* Intercept left clicks to toggle custom profile menu; allow right clicks to reach toolbar context menu */
+var lastToggle = 0;
+function intercept(e) {
+  var btn = e.target && e.target.closest && e.target.closest(AVATAR);
+  if (!btn) return;
+
+  if (e.type === 'contextmenu' || (e.button !== undefined && e.button !== 0)) {
+    if (menu) closeMenu();
+    return;
+  }
+
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+
+  if (e.type === 'pointerdown' || e.type === 'mousedown') {
+    var now = Date.now();
+    if (now - lastToggle > 250) {
+      lastToggle = now;
+      if (menu) {
+        closeMenu();
+      } else {
+        if (typeof Atlas.closeExtPop === 'function') Atlas.closeExtPop();
+        else if (typeof closeExtPop === 'function') closeExtPop();
+        openMenu(btn);
+      }
+    }
+  }
+}
+
+['pointerdown', 'mousedown', 'mouseup', 'pointerup', 'click'].forEach(function (t) {
+  document.addEventListener(t, intercept, true);
+});
+
+var _titleMutating = false;
+function syncAccountTitle(el) {
+  if (_titleMutating) return;
+  var btn = (el && el.closest) ? el.closest(AVATAR) : (document.querySelector && document.querySelector(AVATAR));
+  if (!btn) return;
+  _titleMutating = true;
+  try {
+    if (btn.getAttribute('title') !== 'No Surf') btn.setAttribute('title', 'No Surf');
+    if (btn.getAttribute('aria-label') !== 'No Surf') btn.setAttribute('aria-label', 'No Surf');
+    var parent = btn.closest('.button-toolbar');
+    if (parent && parent.getAttribute('title') && parent.getAttribute('title') !== 'No Surf') {
+      parent.setAttribute('title', 'No Surf');
+    }
+  } finally {
+    _titleMutating = false;
+  }
+}
+
+function observeAccountButton() {
+  if (AP() && !Atlas.__cornerWired) {
+    Atlas.__cornerWired = true;
+    AP().ready.then(applyCorner);
+    AP().onChange(function () { applyCorner(); if (menu && menu.__fill) menu.__fill(); });
+  }
+  var btn = document.querySelector ? document.querySelector(AVATAR) : null;
+  if (!btn) return;
+  syncAccountTitle(btn);
+  if (typeof MutationObserver !== 'undefined' && !btn.__atlasTitleObserved) {
+    btn.__atlasTitleObserved = true;
+    var mo = new MutationObserver(function () {
+      if (_titleMutating) return;
+      if (btn.getAttribute('title') !== 'No Surf' || btn.getAttribute('aria-label') !== 'No Surf') {
+        syncAccountTitle(btn);
+      }
+    });
+    mo.observe(btn, { attributes: true, attributeFilter: ['title', 'aria-label'] });
+  }
+}
+
+function onHoverOrFocus(e) {
+  var btn = e.target && e.target.closest ? e.target.closest(AVATAR) : null;
+  if (btn) {
+    syncAccountTitle(btn);
+    observeAccountButton();
+  }
+}
+
+['pointerenter', 'mouseenter', 'mouseover', 'focus'].forEach(function (t) {
+  document.addEventListener(t, onHoverOrFocus, true);
+});
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', observeAccountButton);
+  } else {
+    observeAccountButton();
+  }
+  setTimeout(observeAccountButton, 600);
+  setTimeout(observeAccountButton, 2000);
+}
+
+Atlas.addDropTail = addDropTail;
+Atlas.setPanelBlur = setPanelBlur;
+Atlas.closeMenu = closeMenu;
+

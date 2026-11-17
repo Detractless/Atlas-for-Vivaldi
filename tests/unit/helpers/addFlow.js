@@ -1,4 +1,4 @@
-// Driving the add popup (components/addPopup) in tests: one question per screen.
+// Driving the add popup (components/add-popup) in tests: one question per screen.
 "use strict";
 
 const { waitFor, settle, click } = require("./newtabDom");

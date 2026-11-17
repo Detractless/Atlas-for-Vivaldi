@@ -1,4 +1,4 @@
-// The add popup (components/addPopup): one question per screen. A bookmark is two screens (which website,
+// The add popup (components/add-popup): one question per screen. A bookmark is two screens (which website,
 // then the name and where it goes); a page is two screens (its name, then a subtitle). The profile menu's
 // "Add bookmark" and "Add page" and the + button open it.
 "use strict";

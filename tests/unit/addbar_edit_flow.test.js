@@ -1,4 +1,4 @@
-// Right-click on the new tab, in the address bar (src/modules/26-addbar-edit.js, opened by the message in
+// Right-click on the new tab, in the address bar (src/modules/addbar/26-addbar-edit.js, opened by the message in
 // 04-bridge-messages.js): the bar names what was clicked and offers pills; picking one turns the bar into that job.
 // The worker's answers are a stand-in (helpers/addbarHarness.js); the real worker is tested in addbar_edit_worker.test.js.
 "use strict";

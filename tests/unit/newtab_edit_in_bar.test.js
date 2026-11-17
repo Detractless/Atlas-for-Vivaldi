@@ -1,11 +1,11 @@
 // Right-click on the new tab asks the browser window to open the address bar for what was clicked
-// (components/shared/editInBar.js). If the window answers, no pop-up opens; if nothing answers, the pop-up does.
+// (components/edit-in-bar/edit-in-bar.js). If the window answers, no pop-up opens; if nothing answers, the pop-up does.
 // The window's side is in addbar_edit_flow.test.js. Deleting the page on screen from the bar is handled here too.
 "use strict";
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { openNewTab, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
+const { openNewTab, openEssentials: openSharedEssentials, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
 
 test.afterEach(closeAll);
 
@@ -21,17 +21,7 @@ async function openAnswered() {
   t.sent = sent;
   return t;
 }
-async function openEssentials(t) {
-  const { window: win, document: doc } = t;
-  click(win, doc.querySelector(".switcher-btn"));
-  click(win, [...doc.querySelectorAll(".switcher-item")].find((li) => li.textContent.includes("Essentials")));
-  const page = doc.getElementById("bookmarks-page");
-  await waitFor(() => page.classList.contains("active") && text(page).includes("Gmail"), 3000, "Essentials");
-  await settle(win, 50);
-  const { activeTabs } = await t.chrome.storage.sync.get(["activeTabs"]);
-  t.essentials = activeTabs.find((p) => p.label === "Essentials");
-  return page;
-}
+const openEssentials = (tab) => openSharedEssentials(tab, { rememberPage: true });
 
 test("right-click on a bookmark asks the window to open the bar for it, and no pop-up opens", async () => {
   const t = await openAnswered();
@@ -97,14 +87,16 @@ test("an unanswered or refused message falls back to the pop-up, so a right-clic
   assert.equal(text(t.document.querySelector(".bookmark-dialog .picker-title")), "PRODUCTIVITY", "even when sending throws");
 });
 
-test("when the page on screen is deleted from the bar, the new tab goes back to Home", async () => {
+test("when the page on screen is deleted from the bar, the new tab goes back to empty Home", async () => {
   const t = await openAnswered();
-  const page = await openEssentials(t);
+  await openEssentials(t);
   const { activeTabs } = await t.chrome.storage.sync.get(["activeTabs"]);
   await t.chrome.storage.sync.set({ activeTabs: activeTabs.filter((p) => p.id !== t.essentials.id) });   // what the worker does
   t.control.deliver({ atlas: { act: "data-changed" } });
-  await waitFor(() => t.document.getElementById("search-page").classList.contains("active"), 3000, "Home");
-  assert.ok(!page.classList.contains("active"), "the deleted page is not left on screen");
-  assert.ok(![...t.document.querySelectorAll("#tabs-container .switcher-item .label")].some((l) => l.textContent.includes("Essentials")), "and is gone from the switcher");
+  await waitFor(() => text(t.document.querySelector(".switcher-label")) === "Dashboard", 3000, "Home is selected");
+  assert.ok(t.document.getElementById("home-page").classList.contains("active"), "and the empty Home page is on screen");
+  assert.ok(!t.document.getElementById("bookmarks-page").classList.contains("active"), "no other page's bookmarks are");
+  assert.ok(![...t.document.querySelectorAll("#tabs-container .switcher-item .label")].some((l) => l.textContent.includes("Essentials")), "the deleted page is gone from the switcher");
+  assert.equal(t.document.getElementById("search-page"), null, "there is no Home page to fall back to");
   assert.deepEqual(t.errors, []);
 });

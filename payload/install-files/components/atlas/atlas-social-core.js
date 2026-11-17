@@ -19,6 +19,10 @@
   var HEALTH_KEY = 'atlas_social_health';
   var CHECK_DELAYS = [400, 1500, 4000, 8000, 15000, 30000];  /* after a page or route change; then every 30 s */
   var MODES = { off: 1, parts: 1, all: 1 };
+  var shadow = window.__atlasSocialShadow.create(ROUTE_ATTR, HELD_ATTR, SHADOW_ATTR);
+  var sweepShadows = shadow.sweepShadows;
+  var shadowWatch = shadow.shadowWatch;
+  var removeShadowStyles = shadow.removeShadowStyles;
 
   /* The setting made safe, the same rules as utils/socialFilter.js normalize(): a known mode and part ids. */
   function normalize(value, known) {
@@ -84,65 +88,6 @@
         h.dChecks = 0; h.dTrips = 0;
       });
       chrome.storage.local.set({ atlas_social_health: all });
-    });
-  }
-
-  /* Shadow roots: a page style cannot reach inside one, so a part's `shadow` rules ({ host, css, on? }) go into the
-     root of each host element, once each. Routes use :host-context, which sees the route attribute on <html>. */
-  function shadowText(rule, how) {
-    var decl = how === 'visibility' ? 'visibility:hidden!important' : 'display:none!important';
-    var out = [];
-    rule.css.forEach(function (sel) {
-      if (!rule.on) { out.push(sel + '{' + decl + '}'); return; }
-      rule.on.forEach(function (route) {
-        out.push(':host-context(html[' + ROUTE_ATTR + '="' + route + '"]) ' + sel + '{' + decl + '}');
-        out.push(':host-context(html[' + HELD_ATTR + '~="' + route + '"]) ' + sel + '{' + decl + '}');
-      });
-    });
-    return out.join('\n');
-  }
-
-  function sweepShadows(state) {
-    Object.keys(state.parts).forEach(function (id) {
-      var entry = state.parts[id];
-      (entry.part.shadow || []).forEach(function (rule, n) {
-        var hosts = document.querySelectorAll(rule.host);
-        for (var i = 0; i < hosts.length; i++) {
-          var host = hosts[i];
-          if (!host.shadowRoot || entry.done[n].has(host)) continue;
-          var style = document.createElement('style');
-          style.setAttribute(SHADOW_ATTR, id);
-          style.textContent = shadowText(rule, entry.part.hide);
-          host.shadowRoot.appendChild(style);
-          entry.done[n].add(host);
-        }
-      });
-    });
-  }
-
-  /* One watcher for the page, while any chosen part has shadow rules: hosts arrive as the page scrolls. */
-  function shadowWatch(state) {
-    var any = Object.keys(state.parts).some(function (id) { return state.parts[id].part.shadow; });
-    if (any && !state.shadowObserver) {
-      var timer = 0;
-      state.shadowObserver = new MutationObserver(function () {
-        if (!timer) timer = setTimeout(function () { timer = 0; sweepShadows(state); }, 40);
-      });
-      state.shadowObserver.observe(document.documentElement, { childList: true, subtree: true });
-    } else if (!any && state.shadowObserver) {
-      state.shadowObserver.disconnect();
-      state.shadowObserver = null;
-    }
-    if (any) sweepShadows(state);
-  }
-
-  function removeShadowStyles(entry, id) {
-    (entry.part.shadow || []).forEach(function (rule) {
-      var hosts = document.querySelectorAll(rule.host);
-      for (var i = 0; i < hosts.length; i++) {
-        var styles = hosts[i].shadowRoot ? hosts[i].shadowRoot.querySelectorAll('style[' + SHADOW_ATTR + '="' + id + '"]') : [];
-        for (var j = 0; j < styles.length; j++) styles[j].parentNode.removeChild(styles[j]);
-      }
     });
   }
 

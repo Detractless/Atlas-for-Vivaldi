@@ -35,7 +35,7 @@
     return `https://${urlObj.hostname}${p.path}?${p.param}=${encodeURIComponent(value)}`;
   }
 
-  // src/background/workerState.js
+  // src/background/state/workerState.js
   var tabLimit = 0;
   function setTabLimit(v) {
     tabLimit = v;
@@ -57,7 +57,7 @@
     managedEngines = v;
   }
 
-  // src/background/searchUrl.js
+  // src/background/search/searchUrl.js
   function standardiseUrl(inputUrl, managedEngines2) {
     try {
       const urlObj = new URL(inputUrl);
@@ -106,38 +106,7 @@
     }
   }
 
-  // src/services/log.js
-  function warn(where, err) {
-    try {
-      console.warn("[Atlas] " + where, err);
-    } catch (e) {
-    }
-  }
-
-  // src/services/storage.js
-  function call(area, op, arg) {
-    const chrome2 = globalThis.chrome;
-    return new Promise((resolve) => {
-      const done = (result) => {
-        const err = chrome2.runtime && chrome2.runtime.lastError;
-        if (err) warn(`chrome.storage.${area}.${op} failed`, err);
-        resolve(result);
-      };
-      try {
-        if (arg === void 0) chrome2.storage[area][op](done);
-        else chrome2.storage[area][op](arg, done);
-      } catch (e) {
-        warn(`chrome.storage.${area}.${op} threw`, e);
-        resolve(void 0);
-      }
-    });
-  }
-  var storageGet = (area, keys) => call(area, "get", keys).then((r) => r || {});
-  var storageSet = (area, items) => call(area, "set", items);
-  var storageRemove = (area, keys) => call(area, "remove", keys);
-
-  // src/services/tabSaver.js
-  var STORAGE_KEY = "savedTabGroups";
+  // src/services/tab-saver/saved-tab-groups.js
   var SKIP_SCHEMES = /^(chrome|chrome-extension|edge|about|devtools|view-source|moz-extension):/i;
   function shouldSaveTab(url) {
     if (!url || typeof url !== "string") return false;
@@ -195,6 +164,39 @@
   function nextSeq(groups) {
     return (groups || []).reduce((max, g) => Math.max(max, Number(g && g.seq) || 0), 0) + 1;
   }
+
+  // src/services/log.js
+  function warn(where, err) {
+    try {
+      console.warn("[Atlas] " + where, err);
+    } catch (e) {
+    }
+  }
+
+  // src/services/storage.js
+  function call(area, op, arg) {
+    const chrome2 = globalThis.chrome;
+    return new Promise((resolve) => {
+      const done = (result) => {
+        const err = chrome2.runtime && chrome2.runtime.lastError;
+        if (err) warn(`chrome.storage.${area}.${op} failed`, err);
+        resolve(result);
+      };
+      try {
+        if (arg === void 0) chrome2.storage[area][op](done);
+        else chrome2.storage[area][op](arg, done);
+      } catch (e) {
+        warn(`chrome.storage.${area}.${op} threw`, e);
+        resolve(void 0);
+      }
+    });
+  }
+  var storageGet = (area, keys) => call(area, "get", keys).then((r) => r || {});
+  var storageSet = (area, items) => call(area, "set", items);
+  var storageRemove = (area, keys) => call(area, "remove", keys);
+
+  // src/services/tab-saver/saved-tab-storage.js
+  var STORAGE_KEY = "savedTabGroups";
   async function readGroups() {
     return new Promise((resolve) => {
       storageGet("local", [STORAGE_KEY]).then((res) => resolve(res && res[STORAGE_KEY] || []));
@@ -213,12 +215,12 @@
     return entries;
   }
 
-  // src/background/tabLimiter.js
+  // src/background/limits/tabLimiter.js
   function isTabLimitExcluded(tab) {
     const data = typeof tab?.vivExtData === "string" ? tab.vivExtData : "";
     if (/"panelId"\s*:/.test(data)) return true;
     const url = typeof tab?.url === "string" ? tab.url : "";
-    return /^chrome-extension:\/\/mpognobbkildjkofajifpdfhcoklimli\/sidepanel\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/fcoeoabgfenejglbffodgkkbkcdhcgfn\/sidepanel\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/hehggadaopoacecdllhhajmbjkdcmajg\/codex-sidepanel\/index\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/[a-p]{32}\/components\/atlas\/downloads-panel\.html(?:\?.*)?$/.test(url);
+    return /^chrome-extension:\/\/mpognobbkildjkofajifpdfhcoklimli\/sidepanel\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/fcoeoabgfenejglbffodgkkbkcdhcgfn\/sidepanel\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/hehggadaopoacecdllhhajmbjkdcmajg\/codex-sidepanel\/index\.html(?:\?.*)?$/.test(url) || /^chrome-extension:\/\/[a-p]{32}\/components\/atlas\/atlas-downloads-panel\.html(?:\?.*)?$/.test(url);
   }
   async function getAllTabs() {
     const tabs = await chrome.tabs.query({});
@@ -294,7 +296,7 @@
     });
   }
 
-  // src/background/searchInterception.js
+  // src/background/search/searchInterception.js
   function handleSearchInterception(tabId, url) {
     if (searchDelayMs === 0) return;
     if (url.startsWith("chrome://") || url.startsWith("chrome-extension://")) return;
@@ -339,7 +341,7 @@
     }
   });
 
-  // src/utils/socialFilter.js
+  // src/utils/social-filter/socialFilter.js
   var SITES = [
     { name: "YouTube", key: "youtube", hosts: ["youtube.com"], aliases: ["youtu.be"] },
     { name: "Reddit", key: "reddit", hosts: ["reddit.com"], aliases: ["redd.it"] },
@@ -403,7 +405,7 @@
     return a.mode === "parts" && a.parts.some((id) => !b.parts.includes(id));
   }
 
-  // src/background/socialBlock.js
+  // src/background/social/socialBlock.js
   var mode = "off";
   var ready = storageGet("sync", ["socialFilter"]).then((r) => {
     mode = normalize(r.socialFilter).mode;
@@ -483,7 +485,7 @@
     return time(b) > time(a) || dist(b) > dist(a) || b.darkest < a.darkest || b.restSeconds < a.restSeconds || b.waitMinutes < a.waitMinutes || more;
   }
 
-  // src/utils/focusLock.js
+  // src/utils/focus-lock/focusLock.js
   var UNLOCK_MS = 30 * 60 * 1e3;
   var LOCKABLE = ["tabLimit", "searchDelaySeconds", "saturation", "nsfwAction", "socialFilter", "scrollFade"];
   var DEFAULTS2 = { tabLimit: 0, searchDelaySeconds: 0, saturation: 100, nsfwAction: "off", socialFilter: { mode: "off", parts: [] }, scrollFade: DEFAULTS };
@@ -532,7 +534,7 @@
     return Number.isFinite(until) && until > now ? { unlockAt: until } : null;
   }
 
-  // src/background/pendingChanges.js
+  // src/background/limits/pendingChanges.js
   var DELAY_TTL_MS = 24 * 60 * 60 * 1e3;
   function pruneActiveDelays() {
     const now = Date.now();
@@ -644,7 +646,7 @@
     return next;
   }
 
-  // src/background/usageLog.js
+  // src/background/usage/usageLog.js
   var chain = Promise.resolve();
   function recordUsage(message) {
     const host = cleanHost(message && message.host);
@@ -669,39 +671,6 @@
       console.error("Clearing usage failed:", e);
     });
     return job;
-  }
-
-  // src/services/mergeSync.js
-  var TOMBSTONE_WINDOW_MS = 90 * 24 * 60 * 60 * 1e3;
-
-  // src/services/bookmarkSync.js
-  function newBookmarkId() {
-    return typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID() || `bm-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  }
-  function dematerialize(nested, now = Date.now()) {
-    const records = [];
-    let sortIndex = 0;
-    for (const [pageKey, groups] of Object.entries(nested || {})) {
-      if (!pageKey.startsWith("page")) continue;
-      const page = Number(pageKey.slice(4));
-      if (Number.isNaN(page)) continue;
-      for (const [group, list] of Object.entries(groups || {})) {
-        for (const bm of list || []) {
-          if (!bm || bm.name === void 0 && bm.url === void 0) continue;
-          records.push({
-            id: newBookmarkId(),
-            page,
-            group,
-            name: bm.name,
-            url: bm.url,
-            sortIndex: sortIndex++,
-            updatedAt: now,
-            deletedAt: null
-          });
-        }
-      }
-    }
-    return records;
   }
 
   // src/constants/atlasKeys.json
@@ -823,7 +792,7 @@
       grayscale: {
         default: null,
         backup: false,
-        note: "Legacy: the old on/off switch. Read once and folded into saturation (utils/saturationLock.js legacySaturation), then removed."
+        note: "Legacy: the old on/off switch. Read once and folded into saturation (utils/focus-lock/saturationLock.js legacySaturation), then removed."
       },
       saturation: {
         default: 100,
@@ -840,7 +809,7 @@
       focusLocks: {
         default: null,
         backup: false,
-        note: "The locks on Settings > Focus (utils/focusLock.js): { tabLimit | searchDelaySeconds | saturation | nsfwAction | socialFilter: { unlockAt } }, unlockAt null while locked or the time its 30-minute unlock ends. Not per profile and not in backups, so a switch or an import can't undo a lock."
+        note: "The locks on Settings > Focus (utils/focus-lock/focusLock.js): { tabLimit | searchDelaySeconds | saturation | nsfwAction | socialFilter: { unlockAt } }, unlockAt null while locked or the time its 30-minute unlock ends. Not per profile and not in backups, so a switch or an import can't undo a lock."
       },
       "bookmarks-migrated": {
         default: null,
@@ -874,14 +843,14 @@
         backup: true,
         importWhen: "truthy",
         profile: "focus",
-        note: "The social media filter (utils/socialFilter.js): { mode: off | parts | all, parts: [ids of the parts to hide] }. Spec 006 makes the choices work: components/atlas/atlas-social-<site>.js hides parts, background/socialBlock.js blocks whole sites."
+        note: "The social media filter (utils/social-filter/socialFilter.js): { mode: off | parts | all, parts: [ids of the parts to hide] }. Spec 006 makes the choices work: components/atlas/atlas-social-<site>.js hides parts, background/socialBlock.js blocks whole sites."
       },
       scrollFade: {
         default: { on: false, by: "either", minutes: 5, screens: 150, darkest: 70, restSeconds: 60, waitMinutes: 10, except: [] },
         backup: true,
         importWhen: "truthy",
         profile: "focus",
-        note: "Scroll fade (utils/scrollFade.js): every page dims the longer or farther you scroll, on all sites together, then stays fully dim for a wait. { on, by: either | time | distance, minutes, screens, darkest (percent), restSeconds (clears a page that is not fully dim), waitMinutes (how long it stays fully dim), except: [host names left alone] }. Off until switched on. components/atlas/atlas-scroll-fade.js counts the scrolling; src/modules/36-scroll-fade-layer.js draws the dimming and keeps the wait; the Focus lock keeps it from getting weaker."
+        note: "Scroll fade (utils/scrollFade.js): every page dims the longer or farther you scroll, on all sites together, then stays fully dim for a wait. { on, by: either | time | distance, minutes, screens, darkest (percent), restSeconds (clears a page that is not fully dim), waitMinutes (how long it stays fully dim), except: [host names left alone] }. Off until switched on. components/atlas/atlas-scroll-fade.js counts the scrolling; src/modules/appearance/36-scroll-fade-layer.js draws the dimming and keeps the wait; the Focus lock keeps it from getting weaker."
       },
       nsfwStrictness: {
         default: 65,
@@ -943,12 +912,12 @@
       atlas_scroll_fade: {
         default: null,
         backup: false,
-        note: "Scroll fade total (components/atlas/atlas-scroll-fade.js adds to it, src/modules/36-scroll-fade-layer.js clears it): { ms of scrolling, screens scrolled, last: when you last scrolled, until: when the wait ends or 0 }. One total for every site and tab. Only numbers, never a page address. Never backed up."
+        note: "Scroll fade total (components/atlas/atlas-scroll-fade.js adds to it, src/modules/appearance/36-scroll-fade-layer.js clears it): { ms of scrolling, screens scrolled, last: when you last scrolled, until: when the wait ends or 0 }. One total for every site and tab. Only numbers, never a page address. Never backed up."
       },
       atlas_profile_setup: {
         default: null,
         backup: false,
-        note: "This Vivaldi profile has been given Atlas's settings: { v: recipe version, applied: false when the installer had already set it up, at: when }. Written by src/modules/39-profile-setup.js before it changes anything, so it can never run twice for one version. Belongs to the Vivaldi profile it is in; never backed up."
+        note: "This Vivaldi profile has been given Atlas's settings: { v: recipe version, applied: false when the installer had already set it up, at: when }. Written by src/modules/profiles/39-profile-setup.js before it changes anything, so it can never run twice for one version. Belongs to the Vivaldi profile it is in; never backed up."
       },
       atlasProfilesV2: {
         default: null,
@@ -956,12 +925,12 @@
       },
       atlasGoogleAccounts: {
         default: null,
-        note: "Google accounts signed into Vivaldi, read by the browser window (src/modules/16-google-accounts.js). Never backed up."
+        note: "Google accounts signed into Vivaldi, read by the browser window (src/modules/accounts/16-google-accounts.js). Never backed up."
       },
       atlasNsfwScores: {
         default: null,
         backup: false,
-        note: "Content Shield scores by URL digest so images are not classified again after a restart: {16-char digest: [score, time]}. Capped at 5000 entries / 1 MB, 7-day expiry (src/modules/27-nsfw-verdicts.js). Never backed up."
+        note: "Content Shield scores by URL digest so images are not classified again after a restart: {16-char digest: [score, time]}. Capped at 5000 entries / 1 MB, 7-day expiry (src/modules/nsfw/27-nsfw-verdicts.js). Never backed up."
       },
       __atlas_localstorage__: {
         default: {},
@@ -1008,7 +977,6 @@
   };
 
   // src/constants/storageKeys.js
-  var EXTENSION_ID = atlasKeys_default.extensionId;
   var BOOKMARKS_DB = atlasKeys_default.databases.bookmarks;
   var PASTEKIT_DB = atlasKeys_default.databases.pastekit;
   function syncDefault(key) {
@@ -1018,7 +986,125 @@
   }
   var BACKUP_SYNC_KEYS = Object.keys(atlasKeys_default.sync).filter((k) => atlasKeys_default.sync[k].backup).map((k) => ({ key: k, importWhen: atlasKeys_default.sync[k].importWhen || "defined" }));
 
-  // src/services/bookmarksDB.js
+  // src/services/bookmarks/mergeSync.js
+  var TOMBSTONE_WINDOW_MS = 90 * 24 * 60 * 60 * 1e3;
+
+  // src/services/bookmarks/bookmarkSync.js
+  function newBookmarkId() {
+    return typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID() || `bm-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+  function dematerialize(nested, now = Date.now()) {
+    const records = [];
+    let sortIndex = 0;
+    for (const [pageKey, groups] of Object.entries(nested || {})) {
+      if (!pageKey.startsWith("page")) continue;
+      const page = Number(pageKey.slice(4));
+      if (Number.isNaN(page)) continue;
+      for (const [group, list] of Object.entries(groups || {})) {
+        for (const bm of list || []) {
+          if (!bm || bm.name === void 0 && bm.url === void 0) continue;
+          records.push({
+            id: newBookmarkId(),
+            page,
+            group,
+            name: bm.name,
+            url: bm.url,
+            sortIndex: sortIndex++,
+            updatedAt: now,
+            deletedAt: null
+          });
+        }
+      }
+    }
+    return records;
+  }
+
+  // src/services/bookmarks/record-store.js
+  var recordStoreMethods = {
+    /** Raw nested-store read, independent of getAllBookmarks(). */
+    async _getAllNestedBookmarks() {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const request = this.db.transaction(["bookmarks"], "readonly").objectStore("bookmarks").getAll();
+        request.onsuccess = () => {
+          const result = {};
+          request.result.forEach((item) => {
+            result[`page${item.page}`] = item.data;
+          });
+          resolve(result);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    },
+    async getBookmarkRecords() {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const request = this.db.transaction(["bookmarkRecords"], "readonly").objectStore("bookmarkRecords").getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+    },
+    /** Rewrite the whole records set in one transaction (clear then put). */
+    async putBookmarkRecords(records) {
+      if (!this.db) await this.init();
+      return new Promise((resolve, reject) => {
+        const tx = this.db.transaction(["bookmarkRecords"], "readwrite");
+        const store = tx.objectStore("bookmarkRecords");
+        store.clear();
+        for (const record of records) store.put(record);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+      });
+    },
+    /**
+     * One-time, non-destructive migration. It skips existing records so synced
+     * data is never overwritten by a device that has not migrated yet.
+     */
+    async migrateBookmarksToRecords() {
+      if (!this.db) await this.init();
+      if (await this.getUiPref("bookmarksMigratedToRecords")) return;
+      const existing = await this.getBookmarkRecords();
+      if (existing.length === 0) {
+        const nested = await this._getAllNestedBookmarks();
+        await this.putBookmarkRecords(dematerialize(nested, Date.now()));
+      }
+      await this.setUiPref("bookmarksMigratedToRecords", true);
+    }
+  };
+
+  // src/services/bookmarks/bookmarksDB.js
+  function createStores(db) {
+    db.onversionchange = () => {
+      try {
+        db.close();
+      } catch (_) {
+      }
+    };
+    if (!db.objectStoreNames.contains("bookmarks")) db.createObjectStore("bookmarks", { keyPath: "page" });
+    if (!db.objectStoreNames.contains("icons")) db.createObjectStore("icons");
+    if (!db.objectStoreNames.contains("usage")) db.createObjectStore("usage", { keyPath: "url" });
+    if (!db.objectStoreNames.contains("uiPrefs")) {
+      const store = db.createObjectStore("uiPrefs", { keyPath: "key" });
+      const stash = typeof localStorage !== "undefined" ? localStorage : null;
+      const themePref = stash && stash.getItem("themePref");
+      const uiScaleStr = stash && stash.getItem("uiScale");
+      if (themePref) store.put({ key: "themePref", value: themePref });
+      if (uiScaleStr !== null) {
+        const scale = parseFloat(uiScaleStr);
+        if (!isNaN(scale)) store.put({ key: "uiScale", value: scale });
+      }
+      if (stash) {
+        stash.removeItem("themePref");
+        stash.removeItem("uiScale");
+      }
+    }
+    if (!db.objectStoreNames.contains("notes")) db.createObjectStore("notes", { keyPath: "id" });
+    if (!db.objectStoreNames.contains("events")) db.createObjectStore("events", { keyPath: "id" });
+    if (!db.objectStoreNames.contains("bookmarkRecords")) {
+      db.createObjectStore("bookmarkRecords", { keyPath: "id" });
+    }
+  }
   var BookmarkDB = {
     dbName: BOOKMARKS_DB,
     // v6 added the `notes` and `events` stores. Both features have been removed and
@@ -1028,6 +1114,7 @@
     // KEPT, not dropped — it is the backout snapshot until Phase 12 is proven.
     version: 7,
     db: null,
+    ...recordStoreMethods,
     async init() {
       if (!this.fixedName && window.AtlasProfiles) {
         await window.AtlasProfiles.ready;
@@ -1060,38 +1147,7 @@
           };
           resolve(this.db);
         };
-        request.onupgradeneeded = (event) => {
-          const db = event.target.result;
-          db.onversionchange = () => {
-            try {
-              db.close();
-            } catch (_) {
-            }
-          };
-          if (!db.objectStoreNames.contains("bookmarks")) db.createObjectStore("bookmarks", { keyPath: "page" });
-          if (!db.objectStoreNames.contains("icons")) db.createObjectStore("icons");
-          if (!db.objectStoreNames.contains("usage")) db.createObjectStore("usage", { keyPath: "url" });
-          if (!db.objectStoreNames.contains("uiPrefs")) {
-            const store = db.createObjectStore("uiPrefs", { keyPath: "key" });
-            const stash = typeof localStorage !== "undefined" ? localStorage : null;
-            const themePref = stash && stash.getItem("themePref");
-            const uiScaleStr = stash && stash.getItem("uiScale");
-            if (themePref) store.put({ key: "themePref", value: themePref });
-            if (uiScaleStr !== null) {
-              const scale = parseFloat(uiScaleStr);
-              if (!isNaN(scale)) store.put({ key: "uiScale", value: scale });
-            }
-            if (stash) {
-              stash.removeItem("themePref");
-              stash.removeItem("uiScale");
-            }
-          }
-          if (!db.objectStoreNames.contains("notes")) db.createObjectStore("notes", { keyPath: "id" });
-          if (!db.objectStoreNames.contains("events")) db.createObjectStore("events", { keyPath: "id" });
-          if (!db.objectStoreNames.contains("bookmarkRecords")) {
-            db.createObjectStore("bookmarkRecords", { keyPath: "id" });
-          }
-        };
+        request.onupgradeneeded = (event) => createStores(event.target.result);
       });
     },
     async getUiPref(key) {
@@ -1197,36 +1253,12 @@
         request.onerror = () => reject(request.error);
       });
     },
-    // ── Bookmark records (Phase 12) ──────────────────────────────────────────
-    //
-    // The nested `bookmarks` store above is the OLD form. Records are the new
-    // merge-owned form. During Phase 12 both exist; the nested store is the backout
-    // snapshot. `getAllBookmarks` still reads nested here (Landing A) and is
-    // repointed to materialise from records in Landing B — which is why the
-    // migration below uses its own raw reader rather than getAllBookmarks, so it
-    // keeps reading the ORIGINAL nested data whatever getAllBookmarks becomes.
-    /** Raw read of the nested `bookmarks` store, independent of getAllBookmarks. */
-    async _getAllNestedBookmarks() {
-      if (!this.db) await this.init();
-      return new Promise((resolve, reject) => {
-        const request = this.db.transaction(["bookmarks"], "readonly").objectStore("bookmarks").getAll();
-        request.onsuccess = () => {
-          const result = {};
-          request.result.forEach((item) => {
-            result[`page${item.page}`] = item.data;
-          });
-          resolve(result);
-        };
-        request.onerror = () => reject(request.error);
-      });
-    },
     /* ── Notes (side panel) ──────────────────────────────────────────────
          Deliberately in THIS database rather than a new one, and deliberately in the
-         `notes` store v6 already created. Two consequences worth stating: reset
-         covers notes for free, because resetService deletes this database whole; and
-         notes are NOT in the pastekit database, so the whole-store lock that gates
-         snippets does not gate them. A note is not a secret and must not be
-         unreachable because the snippet store happens to be locked.
+         `notes` store v6 already created. Notes follow the same database lifecycle
+         as bookmarks, and are NOT in the pastekit database, so the whole-store lock
+         that gates snippets does not gate them. A note is not a secret and must not
+         be unreachable because the snippet store happens to be locked.
     
          A note: { id, title, body, updatedAt }. */
     async listNotes() {
@@ -1264,43 +1296,6 @@
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
       });
-    },
-    async getBookmarkRecords() {
-      if (!this.db) await this.init();
-      return new Promise((resolve, reject) => {
-        const request = this.db.transaction(["bookmarkRecords"], "readonly").objectStore("bookmarkRecords").getAll();
-        request.onsuccess = () => resolve(request.result || []);
-        request.onerror = () => reject(request.error);
-      });
-    },
-    /** Rewrite the whole records set in one transaction (clear then put). */
-    async putBookmarkRecords(records) {
-      if (!this.db) await this.init();
-      return new Promise((resolve, reject) => {
-        const tx = this.db.transaction(["bookmarkRecords"], "readwrite");
-        const store = tx.objectStore("bookmarkRecords");
-        store.clear();
-        for (const record of records) store.put(record);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error);
-      });
-    },
-    /**
-     * One-time, NON-DESTRUCTIVE migration: dematerialise the nested bookmarks into
-     * records. The nested store is left untouched. Gated by a flag so it runs once;
-     * it also no-ops if records already exist, so a device that has synced records
-     * down before its own migration ran does not clobber them.
-     */
-    async migrateBookmarksToRecords() {
-      if (!this.db) await this.init();
-      if (await this.getUiPref("bookmarksMigratedToRecords")) return;
-      const existing = await this.getBookmarkRecords();
-      if (existing.length === 0) {
-        const nested = await this._getAllNestedBookmarks();
-        await this.putBookmarkRecords(dematerialize(nested, Date.now()));
-      }
-      await this.setUiPref("bookmarksMigratedToRecords", true);
     },
     async importAllBookmarks(data) {
       if (!this.db) await this.init();
@@ -1378,7 +1373,7 @@
     }
   };
 
-  // src/services/siteSuggestions.js
+  // src/services/bookmarks/siteSuggestions.js
   var TWO_PART_SUFFIXES = /* @__PURE__ */ new Set([
     "co.uk",
     "org.uk",
@@ -1499,7 +1494,7 @@
     return null;
   }
 
-  // src/background/addFlow.js
+  // src/background/flows/addFlow.js
   var DB_NAME = /^[A-Za-z0-9_.-]{1,80}$/;
   var SITES_FRESH_MS = 60 * 1e3;
   var sites = { at: 0, list: [] };
@@ -1586,7 +1581,7 @@
     return { ok: true, id: page.id };
   }
 
-  // src/background/editFlow.js
+  // src/background/flows/editFlow.js
   var MISSING = { error: "Something is missing" };
   var same = (a, b) => String(a) === String(b);
   async function editBookmark(m) {
@@ -1746,14 +1741,14 @@
     clearUsage: (m, send) => {
       clearUsage().then(() => ok(send));
     },
-    // --- Add bookmark / Add group / Add page in the address bar (src/modules/23-addbar-core.js) ---
+    // --- Add bookmark / Add group / Add page in the address bar (src/modules/addbar/23-addbar-core.js) ---
     addInfo: (m, send) => answer(addInfo(m), send),
     addGroups: (m, send) => answer(addGroups(m), send),
     addSuggest: (m, send) => answer(addSuggest(m), send),
     addBookmark: (m, send) => answer(addBookmarkTo(m).then(announce), send),
     addGroup: (m, send) => answer(addGroupTo(m).then(announce), send),
     addPage: (m, send) => answer(addPageTo(m).then(announce), send),
-    // --- Right-click on the new tab: change a bookmark, a group or a page (src/modules/26-addbar-edit.js) ---
+    // --- Right-click on the new tab: change a bookmark, a group or a page (src/modules/addbar/26-addbar-edit.js) ---
     editBookmark: (m, send) => answer(editBookmark(m).then(announce), send),
     editGroup: (m, send) => answer(editGroup(m).then(announce), send),
     editPage: (m, send) => answer(editPage(m).then(announce), send)
@@ -1782,7 +1777,7 @@
     }
   };
 
-  // src/utils/saturationLock.js
+  // src/utils/focus-lock/saturationLock.js
   var clampSaturation = (v) => {
     const n = Math.round(Number(v));
     return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 100;
@@ -1793,7 +1788,7 @@
     return 100;
   }
 
-  // src/background/saturationMigration.js
+  // src/background/state/saturationMigration.js
   async function migrateGrayscale() {
     const stored = await storageGet("sync", ["grayscale", "saturation"]);
     const level = legacySaturation(stored.grayscale, stored.saturation);
@@ -1811,7 +1806,7 @@
     await storageRemove("sync", "saturationLock");
   }
 
-  // src/background/stateSync.js
+  // src/background/state/stateSync.js
   var SEEDED_KEYS = ["tabLimit", "managementMethod", "searchDelaySeconds", "showQueryOnDelay", "customSearchEngines"];
   var initializeState = async () => {
     try {

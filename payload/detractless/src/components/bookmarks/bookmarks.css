@@ -45,7 +45,7 @@
    The whole line is the group's right-click target (see onGroupContextMenu). */
 .group-title {
   display: flex; align-items: center; gap: 14px; height: var(--bm-title-height);
-  font-size: 12px; font-weight: 500; line-height: 16px;
+  font-size: var(--font-size-12); font-weight: 500; line-height: 16px;
   color: var(--text-secondary);
 }
 .group-title::before, .group-title::after {
@@ -73,7 +73,7 @@
 .bookmark-link {
   display: flex; max-width: 100%; min-width: 0;
   border-radius: 10px;
-  font-size: 14px; line-height: 20px;
+  font-size: var(--font-size-14); line-height: 20px;
   color: var(--text-primary);
   transition: background var(--dur-fast) var(--ease-out);
 }
@@ -88,7 +88,7 @@
 /* A group with nothing in it yet (made with Add group): a quiet line under its name. */
 .group-empty {
   padding: 8px 12px; text-align: center;
-  font-size: 13px; line-height: 20px; color: var(--text-tertiary);
+  font-size: var(--font-size-13); line-height: 20px; color: var(--text-tertiary);
 }
 
 /* ── Scroll chrome ───────────────────────────────────────────────────────

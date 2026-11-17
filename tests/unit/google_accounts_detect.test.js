@@ -1,5 +1,5 @@
 // Spec 002, phase 1: finding the Google accounts signed into Vivaldi.
-// src/modules/16-google-accounts.js (browser-window side) reads Google's account
+// src/modules/accounts/16-google-accounts.js (browser-window side) reads Google's account
 // list, caches it in chrome.storage.local.atlasGoogleAccounts and answers the
 // new tab; a profile's edit page shows what was found.
 // No fixture here holds real account data: replies are made up in Google's shape.

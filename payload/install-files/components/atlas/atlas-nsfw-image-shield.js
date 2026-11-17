@@ -6,7 +6,6 @@
   var states = new WeakMap();
   var sources = window.__atlasNsfwImageSources;
   if (!sources || !window.__atlasNsfwImageObserver) return; // An older live registration uses the basic guard until restart.
-  var attributeNames = sources.attributes, sourceAttributeNames = sources.sourceAttributes;
   var capture = sources.capture, restoreSources = sources.restore, maskOriginalCandidates = sources.mask;
   var log = window.__atlasNsfwLog || function () {};
 
@@ -228,48 +227,54 @@
     send({ act: 'nsfw-retry', snapshotId: state.snapshotId }, function (response) {
       if (state.generation !== generation || !img.isConnected || state.phase !== 'retrying') return;
       if (!response || response.error || typeof response.isNsfw !== 'boolean') {
-        var rawError = response && (response.errorCode || response.error) || (response ? 'retry-failed' : 'bridge-no-response');
-        var errorAliases = { 'wasm-unavailable': 'runtime-unavailable', 'wasm-init-failed': 'model-load-failed' };
-        var errorCode = errorAliases[String(rawError)] || String(rawError);
-        var messages = {
-          'bridge-no-response': 'Checker didn’t respond',
-          'detector-unavailable': 'Checker unavailable',
-          'detector-timeout': 'Checker timed out',
-          'runtime-unavailable': 'Stronger model unavailable',
-          'model-load-failed': 'Stronger model couldn’t load',
-          'snapshot-decode-failed': 'Image couldn’t be prepared',
-          'inference-failed': 'Stronger check failed',
-          'snapshot-expired': 'Image check expired',
-          'invalid-snapshot': 'Image check expired',
-          'retry-capacity': 'Checker is busy',
-          'invalid-response': 'Stronger check returned no result',
-          'retry-failed': 'Stronger check failed'
-        };
-        var freshCheck = errorCode === 'snapshot-expired' || errorCode === 'invalid-snapshot';
-        var message = messages[errorCode] || 'Stronger check failed';
-        state.phase = 'error';
-        render(img, state, message, 'error', freshCheck ? 'Check again' : 'Try again', function () {
-          if (freshCheck) begin(img, state.source, true, null, true);
-          else retry(img, state);
-        });
-        log('retry.error', { kind: 'img', stage: 'strong', model: 'freepik-448-fp16',
-          errorCode: errorCode, errorDetail: response && response.errorDetail ? String(response.errorDetail).slice(0, 180) : '' });
+        retryFailed(img, state, response);
         return;
       }
-      state.snapshotId = '';
-      log('model.verdict', { kind: 'img', stage: response.stage, model: response.model, isNsfw: response.isNsfw, score: response.score, threshold: response.threshold, requestId: state.requestId, url: state.source });
-      if (response.isNsfw) {
-        state.phase = 'confirmed';
-        render(img, state, 'NSFW confirmed', 'confirmed');
-        return;
-      }
-      state.phase = 'sfw-confirmed';
-      render(img, state, 'SFW confirmed', 'sfw-confirmed');
-      if (state.ui) state.ui.fade();
-      setTimeout(function () {
-        if (state.generation === generation && state.phase === 'sfw-confirmed' && img.isConnected) restore(img, state);
-      }, 320);
+      retryVerdict(img, state, generation, response);
     });
+  }
+
+  /* Every way the stronger model can fail, by code, in the words the user sees. */
+  var RETRY_MESSAGES = {
+    'bridge-no-response': 'Checker didn’t respond', 'detector-unavailable': 'Checker unavailable',
+    'detector-timeout': 'Checker timed out', 'runtime-unavailable': 'Stronger model unavailable',
+    'model-load-failed': 'Stronger model couldn’t load', 'snapshot-decode-failed': 'Image couldn’t be prepared',
+    'inference-failed': 'Stronger check failed', 'snapshot-expired': 'Image check expired',
+    'invalid-snapshot': 'Image check expired', 'retry-capacity': 'Checker is busy',
+    'invalid-response': 'Stronger check returned no result', 'retry-failed': 'Stronger check failed'
+  };
+
+  /* An expired snapshot cannot be re-checked, so offer a fresh check instead. */
+  function retryFailed(img, state, response) {
+    var rawError = response && (response.errorCode || response.error) || (response ? 'retry-failed' : 'bridge-no-response');
+    var errorAliases = { 'wasm-unavailable': 'runtime-unavailable', 'wasm-init-failed': 'model-load-failed' };
+    var errorCode = errorAliases[String(rawError)] || String(rawError);
+    var freshCheck = errorCode === 'snapshot-expired' || errorCode === 'invalid-snapshot';
+    var message = RETRY_MESSAGES[errorCode] || 'Stronger check failed';
+    state.phase = 'error';
+    render(img, state, message, 'error', freshCheck ? 'Check again' : 'Try again', function () {
+      if (freshCheck) begin(img, state.source, true, null, true);
+      else retry(img, state);
+    });
+    log('retry.error', { kind: 'img', stage: 'strong', model: 'freepik-448-fp16',
+      errorCode: errorCode, errorDetail: response && response.errorDetail ? String(response.errorDetail).slice(0, 180) : '' });
+  }
+
+  /* The stronger model answered: confirm it, or fade the overlay back out. */
+  function retryVerdict(img, state, generation, response) {
+    state.snapshotId = '';
+    log('model.verdict', { kind: 'img', stage: response.stage, model: response.model, isNsfw: response.isNsfw, score: response.score, threshold: response.threshold, requestId: state.requestId, url: state.source });
+    if (response.isNsfw) {
+      state.phase = 'confirmed';
+      render(img, state, 'NSFW confirmed', 'confirmed');
+      return;
+    }
+    state.phase = 'sfw-confirmed';
+    render(img, state, 'SFW confirmed', 'sfw-confirmed');
+    if (state.ui) state.ui.fade();
+    setTimeout(function () {
+      if (state.generation === generation && state.phase === 'sfw-confirmed' && img.isConnected) restore(img, state);
+    }, 320);
   }
 
   function analyze(img, src, options) {
@@ -281,79 +286,9 @@
     begin(img, src, false);
   }
 
-  function isReplacement(img) {
-    var state = states.get(img); return !!(state && state.previewData && img.getAttribute('src') === state.previewData);
-  }
-
-  function mutationSnapshot(img, state, changedNode, attributeName) {
-    var fresh = capture(img), old = state.original;
-    if (!old) return fresh;
-    attributeNames.forEach(function (name) {
-      if (changedNode === img && name === attributeName) return;
-      if (!changedNode && name === 'src' && fresh.attrs.src.value !== state.previewData) return;
-      if (old.attrs[name]) fresh.attrs[name] = old.attrs[name];
-    });
-    fresh.sources = fresh.sources.map(function (entry) {
-      var prior = old.sources.find(function (candidate) { return candidate.node === entry.node; });
-      if (!prior) return entry;
-      sourceAttributeNames.forEach(function (name) {
-        if (changedNode === entry.node && name === attributeName) return;
-        entry.attrs[name] = prior.attrs[name];
-      });
-      return entry;
-    });
-    return fresh;
-  }
-
-  function savedAttribute(state, node, name) {
-    if (node === state.img) return state.original && state.original.attrs[name];
-    var entry = state.original && state.original.sources.find(function (candidate) { return candidate.node === node; });
-    return entry && entry.attrs[name];
-  }
-
-  function srcsetCandidate(value) {
-    if (!value) return '';
-    var first = String(value).split(',')[0].trim(); return first ? first.split(/\s+/)[0] : '';
-  }
-
-  function sourceChanged(img, changedNode, attributeName) {
-    if (changedNode && attributeName && sources.consumeOwnChange(changedNode, attributeName)) return true;
-    if (!img || !img.isConnected) return false;
-    var state = states.get(img);
-    if (!state) return false;
-    if (state.phase === 'sfw' && !changedNode) return true;
-    var previousAttribute = changedNode && attributeName ? savedAttribute(state, changedNode, attributeName) : null;
-    var currentAttribute = changedNode && attributeName && changedNode.hasAttribute(attributeName) ? changedNode.getAttribute(attributeName) : null;
-    var mutationValueChanged = !!(previousAttribute && (previousAttribute.present !== changedNode.hasAttribute(attributeName) || previousAttribute.value !== currentAttribute));
-    if (state.phase === 'sfw' && changedNode && attributeName) {
-      if (previousAttribute && !mutationValueChanged) return true;
-    }
-    if (isReplacement(img)) {
-      var sourceStillCleared = state && !img.getAttribute('srcset') && !img.getAttribute('data-srcset') && !img.getAttribute('data-src') && !img.getAttribute('data-original') && !img.getAttribute('data-thumb') && state.original.sources.every(function (entry) {
-        return !entry.node.isConnected || (!entry.node.getAttribute('srcset') && !entry.node.getAttribute('data-srcset'));
-      });
-      if (!changedNode && sourceStillCleared) return true;
-      if (changedNode === img && attributeName === 'src' && img.getAttribute('src') === state.previewData) return true;
-      if (changedNode && sourceStillCleared && (attributeName === 'srcset' || attributeName === 'data-srcset' || attributeName === 'data-src' || attributeName === 'data-original' || attributeName === 'data-thumb')) return true;
-    }
-    if (state.phase === 'new') return false;
-    if (attributeName === 'sizes') return true;
-    var originalOverride = mutationSnapshot(img, state, changedNode, attributeName);
-    var src = img.currentSrc || img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-original') || '';
-    if (changedNode === img && attributeName === 'src') src = img.getAttribute('src') || src;
-    if (changedNode && attributeName === 'srcset') {
-      var changedSet = changedNode.getAttribute('srcset');
-      if (changedNode === img) src = srcsetCandidate(changedSet) || src;
-      else if (changedNode.tagName === 'SOURCE') src = img.currentSrc && img.currentSrc !== state.previewData ? img.currentSrc : (srcsetCandidate(changedSet) || src);
-    }
-    var activeReplacementChanged = !!(state.previewData && isReplacement(img) && !sourceStillCleared);
-    if (src === state.source && !activeReplacementChanged && !(state.previewData && !isReplacement(img)) && !mutationValueChanged) return true;
-    log('ui.source-change', { kind: 'img', attribute: attributeName || 'currentSrc', requestId: state.requestId, url: state.source });
-    img.style.setProperty('visibility', 'hidden', 'important');
-    state.needsRestore = !!state.previewData;
-    begin(img, src, true, originalOverride);
-    return true;
-  }
+  var sourceMonitor = sources.createMonitor(states, log, begin);
+  var isReplacement = sourceMonitor.isReplacement;
+  var sourceChanged = sourceMonitor.sourceChanged;
 
   var walkImages = window.__atlasNsfwImageObserver.walk;
 

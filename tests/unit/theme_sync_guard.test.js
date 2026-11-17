@@ -1,4 +1,4 @@
-// The browser window's theme sync (src/modules/11-theme-sync.js) must not flash
+// The browser window's theme sync (src/modules/appearance/11-theme-sync.js) must not flash
 // the wrong theme: an empty theme read never undoes a chosen theme, and an older
 // asynchronous sync never writes after a newer one has started.
 "use strict";
@@ -10,7 +10,7 @@ const path = require("path");
 const vm = require("vm");
 
 const ROOT = path.resolve(__dirname, "..", "..");
-const SRC = fs.readFileSync(path.join(ROOT, "src/modules/11-theme-sync.js"), "utf8");
+const SRC = fs.readFileSync(path.join(ROOT, "src/modules/appearance/11-theme-sync.js"), "utf8");
 
 /** Runs the module with fake storage and Vivaldi prefs; `drain()` answers every pending pref read. */
 function boot(initialTheme, currentThemeId, initialScheme = 0) {

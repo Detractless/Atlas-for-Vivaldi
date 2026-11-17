@@ -1,7 +1,7 @@
 """Step 6b: the facts every other profile needs, written next to atlas.js.
 
 The installer sets up the one profile it is run for (preferences.py). Atlas's window code runs in every
-profile; src/modules/39-profile-setup.js reads this file on a profile's first open and applies the same
+profile; src/modules/profiles/39-profile-setup.js reads this file on a profile's first open and applies the same
 settings there (38-profile-recipe.js holds the rules; tests/unit/profile_recipe_parity.test.js keeps the two
 in step). Raise RECIPE_VERSION when the settings change and every profile applies them once more.
 """
@@ -11,7 +11,8 @@ from pathlib import Path
 
 from .paths import atlas_keys, newtab_url
 from .preferences import DOWNLOADS_PANEL_ID, DOWNLOADS_PANEL_PATH
-from .util import read_text, say, write_json
+from .console import say
+from .file_access import read_text, write_json
 
 RECIPE_VERSION = 2
 FACTS_FILE = "atlas-profile.json"

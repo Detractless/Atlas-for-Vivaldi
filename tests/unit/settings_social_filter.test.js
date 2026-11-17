@@ -1,11 +1,11 @@
-// Settings > Focus > Content shield: the NSFW image detection row, and the Social media filter under it (settings/pages.js,
-// shell.js, chipPane.js; the rules are utils/socialFilter.js and social_filter.test.js). Only the choices are saved so far:
+// Settings > Focus > Content shield: the NSFW image detection row, and the Social media filter under it (settings/pages/pages.js,
+// shell.js, chipPane.js; the rules are utils/social-filter/socialFilter.js and social_filter.test.js). Only the choices are saved so far:
 // nothing is blocked, and the row says so. Locked, the mode can't go down and a chip that is on can't be switched off.
 "use strict";
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { openNewTab, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
+const { openNewTab, openFocusSettings: openFocus, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
 
 test.afterEach(closeAll);
 
@@ -13,13 +13,6 @@ const text = (el) => (el ? el.textContent.replace(/\s+/g, " ").trim() : "");
 const plain = (v) => JSON.parse(JSON.stringify(v));
 const stored = async (t, key) => plain(await t.chrome.storage.sync.get([key]))[key];
 
-async function openFocus(t) {
-  const { window: win, document: doc } = t;
-  click(win, doc.getElementById("global-settings-btn"));
-  click(win, await waitFor(() => doc.querySelector('#sp-nav [data-page="focus"]'), 2000, "Focus in the menu"));
-  await waitFor(() => doc.querySelector("#sp-content [data-lock]"), 2000, "the Focus page");
-  return doc.getElementById("sp-content");
-}
 const chip = (content, id) => content.querySelector(`[data-chip="${id}"]`);
 const filterRow = (content) => content.querySelector('[data-select="socialFilter"]').closest(".sp-row");
 const note = (content) => text(filterRow(content).querySelector(".sp-row-desc"));
@@ -169,7 +162,7 @@ test("the panel follows the keyboard, stays put when a pill is switched, and goe
   assert.deepEqual(t.errors, []);
 });
 
-test("switching profile can't loosen a locked social media filter", async () => {
+test("switching profile cannot replace a locked social media filter", async () => {
   const profiles = {
     v: 2, active: "personal", owner: "personal",
     share: { bookmarks: true, theme: true, appearance: true, search: true, focus: false },
@@ -187,7 +180,7 @@ test("switching profile can't loosen a locked social media filter", async () => 
   await t.window.AtlasProfiles.switchTo("school");
   assert.deepEqual(plain(t.chrome.storage.sync._data.socialFilter), { mode: "parts", parts: ["likes"] }, "school's Off stays out");
   await t.window.AtlasProfiles.switchTo("work");
-  assert.deepEqual(plain(t.chrome.storage.sync._data.socialFilter), { mode: "all", parts: [] }, "work's stricter one comes in");
+  assert.deepEqual(plain(t.chrome.storage.sync._data.socialFilter), { mode: "parts", parts: ["likes"] }, "a stricter profile value cannot replace a locked filter");
   assert.deepEqual(plain(t.chrome.storage.sync._data.focusLocks), { socialFilter: { unlockAt: null } }, "the lock didn't move");
   assert.deepEqual(t.errors, []);
 });

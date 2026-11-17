@@ -7,24 +7,6 @@
   if (window.__harperContentScriptLoaded) return;
   window.__harperContentScriptLoaded = true;
 
-  // ── Local Fallback Typo Map ────────────────────────────────────────────────
-  const LOCAL_TYPOS = {
-    'teh': ['the'],
-    'definately': ['definitely'],
-    'recieve': ['receive'],
-    'seperate': ['separate'],
-    'adress': ['address'],
-    'wierd': ['weird'],
-    'occured': ['occurred'],
-    'untill': ['until'],
-    'succesful': ['successful'],
-    'neccessary': ['necessary'],
-    'alot': ['a lot'],
-    'beleive': ['believe'],
-    'truely': ['truly'],
-    'tommorrow': ['tomorrow']
-  };
-
   // State
   let activeElement = null;
   let activeIssues = [];
@@ -66,10 +48,17 @@
 
   // ── Local Fallback Grammar & Spelling Check ────────────────────────────────
   function localCheck(text) {
-    const issues = [];
-    if (!text) return issues;
+    if (!text) return [];
+    return [
+      ...checkRepeatedWords(text),
+      ...checkCapitalization(text),
+      ...checkTypos(text)
+    ].sort((a, b) => a.start - b.start);
+  }
 
-    // 1. Repeated words
+  /* The same word twice in a row. */
+  function checkRepeatedWords(text) {
+    const issues = [];
     const repeatRegex = /\b([a-zA-Z]{2,})\s+\1\b/gi;
     let match;
     while ((match = repeatRegex.exec(text)) !== null) {
@@ -83,8 +72,13 @@
         suggestions: [match[1]]
       });
     }
+    return issues;
+  }
 
-    // 2. Capitalization after terminal punctuation
+  /* A sentence that starts in lowercase. */
+  function checkCapitalization(text) {
+    const issues = [];
+    let match;
     const capRegex = /(?:^|[.!?]\s+)([a-z])/g;
     while ((match = capRegex.exec(text)) !== null) {
       const charIndex = match.index + match[0].length - 1;
@@ -98,13 +92,18 @@
         suggestions: [match[1].toUpperCase()]
       });
     }
+    return issues;
+  }
 
-    // 3. Local Typos
+  /* Words the shared typo map knows. */
+  function checkTypos(text) {
+    const issues = [];
+    let match;
     const wordRegex = /\b([a-zA-Z]{2,})\b/g;
     while ((match = wordRegex.exec(text)) !== null) {
       const raw = match[1];
       const lower = raw.toLowerCase();
-      if (LOCAL_TYPOS[lower]) {
+      if (HARPER_TYPOS[lower]) {
         issues.push({
           id: 'sp_' + match.index,
           type: 'spelling',
@@ -112,12 +111,11 @@
           end: match.index + raw.length,
           matchedText: raw,
           message: `Possible spelling mistake: '${raw}'`,
-          suggestions: LOCAL_TYPOS[lower]
+          suggestions: HARPER_TYPOS[lower]
         });
       }
     }
-
-    return issues.sort((a, b) => a.start - b.start);
+    return issues;
   }
 
   // ── Analysis Pipeline ──────────────────────────────────────────────────────
@@ -205,20 +203,8 @@
     }
   }
 
-  function showTooltipForIssue(el, issue) {
-    closeTooltip();
-    if (!issue) return;
-
-    const tooltip = document.createElement('div');
-    tooltip.className = 'harper-tooltip';
-
-    // Prevent context menu from bubbling up to page or Atlas context menu
-    tooltip.addEventListener('contextmenu', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-    });
-
-    // 1. Header
+  /* Badge and dismiss button row. */
+  function tooltipHeader(issue) {
     const header = document.createElement('div');
     header.className = 'harper-tooltip-header';
 
@@ -236,35 +222,41 @@
       closeTooltip();
     });
     header.appendChild(closeBtn);
-    tooltip.appendChild(header);
+    return header;
+  }
 
-    // 2. Message
+  /* One line of explanation. */
+  function tooltipMessage(issue) {
     const msg = document.createElement('div');
     msg.className = 'harper-tooltip-message';
     msg.textContent = issue.message || `Correction for '${issue.matchedText}'`;
-    tooltip.appendChild(msg);
+    return msg;
+  }
 
-    // 3. Suggestions
-    if (issue.suggestions && issue.suggestions.length > 0) {
-      const chipsContainer = document.createElement('div');
-      chipsContainer.className = 'harper-chips-container';
+  /* Replacement chips, or null when the issue suggests nothing. */
+  function tooltipSuggestions(el, issue) {
+    if (!issue.suggestions || issue.suggestions.length === 0) return null;
 
-      issue.suggestions.forEach((sugg) => {
-        const chip = document.createElement('button');
-        chip.className = 'harper-chip';
-        chip.textContent = sugg;
-        chip.addEventListener('click', (e) => {
-          e.stopPropagation();
-          applySuggestion(el, issue, sugg);
-          closeTooltip();
-        });
-        chipsContainer.appendChild(chip);
+    const chipsContainer = document.createElement('div');
+    chipsContainer.className = 'harper-chips-container';
+
+    issue.suggestions.forEach((sugg) => {
+      const chip = document.createElement('button');
+      chip.className = 'harper-chip';
+      chip.textContent = sugg;
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        applySuggestion(el, issue, sugg);
+        closeTooltip();
       });
+      chipsContainer.appendChild(chip);
+    });
 
-      tooltip.appendChild(chipsContainer);
-    }
+    return chipsContainer;
+  }
 
-    // 4. Actions: Ignore
+  /* Ignore, and for a spelling issue also add the word to the dictionary. */
+  function tooltipActions(el, issue) {
     const actions = document.createElement('div');
     actions.className = 'harper-tooltip-actions';
 
@@ -295,12 +287,11 @@
       actions.appendChild(addDictBtn);
     }
 
-    tooltip.appendChild(actions);
+    return actions;
+  }
 
-    // Position tooltip near the element or caret
-    document.body.appendChild(tooltip);
-    currentTooltip = tooltip;
-
+  /* Below the field when there is room, otherwise above; never off screen. */
+  function positionTooltip(tooltip, el) {
     const rect = el.getBoundingClientRect();
     let top = window.scrollY + rect.bottom + 6;
     let left = window.scrollX + rect.left + 10;
@@ -316,6 +307,30 @@
 
     tooltip.style.top = `${top}px`;
     tooltip.style.left = `${left}px`;
+  }
+
+  function showTooltipForIssue(el, issue) {
+    closeTooltip();
+    if (!issue) return;
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'harper-tooltip';
+
+    // Prevent context menu from bubbling up to page or Atlas context menu
+    tooltip.addEventListener('contextmenu', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+    });
+
+    tooltip.appendChild(tooltipHeader(issue));
+    tooltip.appendChild(tooltipMessage(issue));
+    const chips = tooltipSuggestions(el, issue);
+    if (chips) tooltip.appendChild(chips);
+    tooltip.appendChild(tooltipActions(el, issue));
+
+    document.body.appendChild(tooltip);
+    currentTooltip = tooltip;
+    positionTooltip(tooltip, el);
   }
 
   function applySuggestion(el, issue, replacement) {

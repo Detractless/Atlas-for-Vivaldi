@@ -14,7 +14,7 @@ class DownloadsPanelPrefsTest(unittest.TestCase):
         preferences._prefs_downloads_panel(v)
         els = v["panels"]["web"]["elements"]
         self.assertEqual([e["id"] for e in els], ["WEBPANEL_atlas_downloads"])
-        self.assertTrue(els[0]["url"].endswith("/components/atlas/downloads-panel.html"))
+        self.assertTrue(els[0]["url"].endswith("/components/atlas/atlas-downloads-panel.html"))
         self.assertTrue(els[0]["url"].startswith("chrome-extension://"))
         self.assertEqual(v["toolbars"]["panel"], ["WEBPANEL_atlas_downloads"])
         self.assertIs(v["downloads"]["open_panel_on_new"], False)
@@ -32,7 +32,7 @@ class DownloadsPanelPrefsTest(unittest.TestCase):
     def test_a_stale_address_is_corrected(self):
         v = {"panels": {"web": {"elements": [{"id": "WEBPANEL_atlas_downloads", "url": "chrome://downloads/"}]}}}
         preferences._prefs_downloads_panel(v)
-        self.assertTrue(v["panels"]["web"]["elements"][0]["url"].endswith("downloads-panel.html"))
+        self.assertTrue(v["panels"]["web"]["elements"][0]["url"].endswith("atlas-downloads-panel.html"))
 
 
 if __name__ == "__main__":

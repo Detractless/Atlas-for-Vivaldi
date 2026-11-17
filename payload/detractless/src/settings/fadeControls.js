@@ -1,8 +1,8 @@
 // src/settings/fadeControls.js — the Scroll fade controls on Settings > Focus. All of them change the one setting
 // `scrollFade` (utils/scrollFade.js), and one lock covers them all: while it holds, a change that would loosen the fade
-// (looser() in utils/scrollFade.js) is refused. settings/scrollFadePage.js draws them.
+// (looser() in utils/scrollFade.js) is refused. settings/pages/scrollFadePage.js draws them.
 import { getSetting, setSetting } from './registry.js';
-import { lockState, changeAllowed } from '../utils/focusLock.js';
+import { lockState, changeAllowed } from '../utils/focus-lock/focusLock.js';
 import { lockable } from './lockable.js';
 import { normalize, withField, cleanSite, BY, MINUTES, SCREENS, REST_SECONDS, WAIT_MINUTES, DARKEST_MIN, DARKEST_MAX } from '../utils/scrollFade.js';
 
@@ -35,7 +35,7 @@ const numbers = (name, usual, labelOf) => () => {
 };
 
 /* The darkest-it-gets slider moves fast while dragging, and chrome.storage.sync allows about 120 writes a minute, so
-   moves are saved in short steps and the last one always lands (the same way the color slider is: colorLock.js). */
+   moves are saved in short steps and the last one always lands (the same way the color slider is: color-lock.js). */
 const STEP_MS = 250;
 let wantDarkest = null, darkestTimer = 0;
 function saveDarkest() {

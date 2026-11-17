@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM } = require('jsdom');
 
-const source = fs.readFileSync(path.join(__dirname, '../../src/modules/07-profile-menu.js'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '../../src/modules/menus/07-profile-menu.js'), 'utf8');
 const fn = source.slice(source.indexOf('function addDropTail'), source.indexOf('var AVATAR ='));
 
 function tailFor(panelRect, anchorRect, radius) {

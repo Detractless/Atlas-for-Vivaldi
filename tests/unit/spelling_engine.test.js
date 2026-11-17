@@ -1,4 +1,4 @@
-// The offline spelling engine (src/modules/14-spelling.js, shipped as
+// The offline spelling engine (src/modules/spelling/14-spelling.js, shipped as
 // components/atlas/atlas-spelling.js). Ported from the Windows-era tier-2 and
 // adversarial Python suites, which ran one Node process per word.
 "use strict";

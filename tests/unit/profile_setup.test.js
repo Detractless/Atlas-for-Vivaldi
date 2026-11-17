@@ -1,4 +1,4 @@
-// src/modules/39-profile-setup.js: the first time a Vivaldi profile opens, Atlas's settings are applied to it
+// src/modules/profiles/39-profile-setup.js: the first time a Vivaldi profile opens, Atlas's settings are applied to it
 // and its window is swapped for a new one (the look is read when a window opens). A stand-in Vivaldi keeps the
 // profile's settings in an object and its windows and tabs in a list, so what happened can be read back.
 "use strict";
@@ -10,19 +10,13 @@ const path = require("path");
 const { openWindow } = require("./helpers/windowDom");
 
 const Recipe = {};
-new Function("Atlas", fs.readFileSync(path.join(__dirname, "..", "..", "src", "modules", "38-profile-recipe.js"), "utf8"))(Recipe);
+new Function("Atlas", fs.readFileSync(path.join(__dirname, "..", "..", "src", "modules", "profiles", "38-profile-recipe.js"), "utf8"))(Recipe);
 
 const plain = (v) => JSON.parse(JSON.stringify(v === undefined ? null : v));
 let open = [];
 test.afterEach(() => { for (const w of open) w.window.close(); open = []; });
 
-const FACTS = {
-  version: 2,
-  cssDir: "/Users/x/Library/Application Support/Vivaldi/Atlas/css-mods",
-  newTabUrl: "chrome-extension://abc/index.html",
-  downloadsPanel: { id: "WEBPANEL_atlas_downloads", url: "chrome-extension://abc/components/atlas/downloads-panel.html" },
-  themes: [{ id: "AtlasLight", name: "Atlas Light" }, { id: "AtlasDark", name: "Atlas Dark" }],
-};
+const FACTS = require("../fixtures/profile-facts.json");
 const FAST = { start: 20, settle: 20, poll: 15, polls: 2, tries: 6 };
 const LOOK = "vivaldi.appearance.css_ui_mods_directory";
 

@@ -4,31 +4,33 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..", "..");
-const BRIDGE_PATH = path.join(ROOT, "src", "modules", "04-bridge-messages.js");
-const VERDICTS_PATH = path.join(ROOT, "src", "modules", "27-nsfw-verdicts.js");
-const RETRY_BRIDGE_PATH = path.join(ROOT, "src", "modules", "28-nsfw-retry-bridge.js");
-const PREPARE_BRIDGE_PATH = path.join(ROOT, "src", "modules", "29-nsfw-shield-prepare.js");
+const BRIDGE_PATH = path.join(ROOT, "src", "modules", "bridge", "04-bridge-messages.js");
+const VERDICTS_PATH = path.join(ROOT, "src", "modules", "nsfw", "27-nsfw-verdicts.js");
+const RETRY_BRIDGE_PATH = path.join(ROOT, "src", "modules", "nsfw", "28-nsfw-retry-bridge.js");
+const PREPARE_BRIDGE_PATH = path.join(ROOT, "src", "modules", "nsfw", "29-nsfw-shield-prepare.js");
 const OFFSCREEN_PATH = path.join(ROOT, "payload", "install-files", "components", "atlas", "nsfw", "offscreen.js");
 const OFFSCREEN_HTML_PATH = path.join(ROOT, "payload", "install-files", "components", "atlas", "nsfw", "offscreen.html");
 const GUARD_PATH = path.join(ROOT, "payload", "install-files", "components", "atlas", "atlas-nsfw-guard.js");
 
-function loadBridge(options) {
-  options = options || {};
-  const code = fs.readFileSync(BRIDGE_PATH, "utf8") + "\n" + fs.readFileSync(VERDICTS_PATH, "utf8") + "\n" + fs.readFileSync(RETRY_BRIDGE_PATH, "utf8") + "\n" + fs.readFileSync(PREPARE_BRIDGE_PATH, "utf8");
-  const frames = [];
-  const doc = {
+/* A minimal document: only what the bridge modules touch. */
+function makeDoc(frames) {
+  return {
     body: { appendChild(el) { frames.push(el); } },
     getElementById(id) { return frames.find((f) => f.id === id) || null; },
     createElement() { return { id: "", style: {}, src: "" }; },
   };
-  const store = {};
-  const localStorage = {
+}
+
+function makeLocalStorage(store) {
+  return {
     getItem(k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
     setItem(k, v) { store[k] = String(v); },
   };
-  const calls = [], syncReads = [], stats = { classify: 0, strong: 0 };
-  const localData = options.localData || {};
-  const local = {
+}
+
+/* chrome.storage.local, delayed on request so tests can race it. */
+function makeLocalStore(options, localData) {
+  return {
     get(key, cb) {
       const out = {};
       if (typeof key === "string" && Object.prototype.hasOwnProperty.call(localData, key)) out[key] = localData[key];
@@ -36,6 +38,10 @@ function loadBridge(options) {
     },
     set(obj, cb) { Object.assign(localData, obj); if (cb) cb(); },
   };
+}
+
+/* Every bridge message the modules send, answered the way the browser would. */
+function makeChrome(options, local, calls, syncReads, stats) {
   const chrome = {
     runtime: {
       lastError: undefined,
@@ -78,6 +84,21 @@ function loadBridge(options) {
     },
     tabs: { onUpdated: { addListener() {} } },
   };
+  return chrome;
+}
+
+function loadBridge(options) {
+  options = options || {};
+  const code = [BRIDGE_PATH, VERDICTS_PATH, RETRY_BRIDGE_PATH, PREPARE_BRIDGE_PATH]
+    .map((file) => fs.readFileSync(file, "utf8")).join("\n");
+  const frames = [];
+  const doc = makeDoc(frames);
+  const store = {};
+  const localStorage = makeLocalStorage(store);
+  const calls = [], syncReads = [], stats = { classify: 0, strong: 0 };
+  const localData = options.localData || {};
+  const local = makeLocalStore(options, localData);
+  const chrome = makeChrome(options, local, calls, syncReads, stats);
   const sandbox = new Function(
     "chrome", "document", "localStorage", "setInterval", "setTimeout", "window", "console",
     code + "\nreturn { classifyNsfwImage: classifyNsfwImage, prepareNsfwImage: prepareNsfwImage, retryNsfwImage: retryNsfwImage, releaseNsfwImage: releaseNsfwImage, nsfwThreshold: nsfwThreshold, " +
@@ -92,4 +113,5 @@ function loadBridge(options) {
     calls, syncReads, frames, stats, localData, firstVersion: api.firstVersion, strongVersion: api.strongVersion,
   };
 }
+
 module.exports = { loadBridge, OFFSCREEN_PATH, OFFSCREEN_HTML_PATH, GUARD_PATH };

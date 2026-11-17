@@ -19,12 +19,12 @@ const KEYS = JSON.parse(fs.readFileSync(path.join(SRC, "constants", "atlasKeys.j
 /* Calls the scanner cannot resolve to literal keys, and why that is fine. */
 const DYNAMIC_OK = {
   "payload/detractless/src/settings/registry.js": "keys come from settings/definitions.js, each checked against the list by syncDefault()",
-  "payload/detractless/src/services/dataImport.js": "keys come from BACKUP_SYNC_KEYS (the list)",
-  "payload/detractless/src/services/dataExport.js": "keys come from BACKUP_SYNC_KEYS (the list)",
-  "payload/detractless/src/background/stateSync.js": "SEEDED_KEYS, each checked by syncDefault()",
+  "payload/detractless/src/services/import-export/dataImport.js": "keys come from BACKUP_SYNC_KEYS (the list)",
+  "payload/detractless/src/services/import-export/dataExport.js": "keys come from BACKUP_SYNC_KEYS (the list)",
+  "payload/detractless/src/background/state/stateSync.js": "SEEDED_KEYS, each checked by syncDefault()",
   "payload/detractless/src/components/tabs/tabs.js": "legacy page<id> key (syncPatterns)",
-  "payload/detractless/src/background/editFlow.js": "legacy page<id> key (syncPatterns), removed with its page as tabs.js deletePage does",
-  "src/modules/02-bridge-setup.js": "seeds the service-worker defaults (atlas_window.test.js checks the values)",
+  "payload/detractless/src/background/flows/editFlow.js": "legacy page<id> key (syncPatterns), removed with its page as tabs.js deletePage does",
+  "src/modules/bridge/02-bridge-setup.js": "seeds the service-worker defaults (atlas_window.test.js checks the values)",
 };
 
 function sourceFiles() {
@@ -68,6 +68,7 @@ function loadProfilesCore() {
   const area = { get: (k, cb) => cb({}), set: (o, cb) => cb && cb(), remove: (k, cb) => cb && cb() };
   ctx.chrome = { storage: { sync: area, local: area, onChanged: { addListener() {} } } };
   vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(SRC, "pages", "newtab", "profiles-schema.js"), "utf8"), ctx);
   vm.runInContext(fs.readFileSync(path.join(SRC, "pages", "newtab", "profilesCore.js"), "utf8"), ctx);
   return ctx.AtlasProfiles;
 }

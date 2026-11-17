@@ -1,4 +1,4 @@
-// The locks on Settings > Focus (utils/focusLock.js): you lock it, while locked it can only get stricter,
+// The locks on Settings > Focus (utils/focus-lock/focusLock.js): you lock it, while locked it can only get stricter,
 // clicking again starts a 30-minute unlock, clicking during it keeps it locked. Also the queued changes from the
 // version before, which still finish unless locked since (background/pendingChanges.js).
 // The Settings page around them: settings_focus_locks.test.js. Bundled to CommonJS and run as plain code.
@@ -6,18 +6,9 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const path = require("path");
-const esbuild = require("esbuild");
+const { loadSourceModule } = require("../helpers/source-module-loader");
 
-const SRC = path.join(__dirname, "..", "..", "payload", "detractless", "src");
-function load(rel) {
-  const out = esbuild.buildSync({ entryPoints: [path.join(SRC, rel)], bundle: true, format: "cjs", platform: "node", write: false }).outputFiles[0].text;
-  const m = { exports: {} };
-  new Function("module", "exports", "require", out)(m, m.exports, require);
-  return m.exports;
-}
-
-const L = load("utils/focusLock.js");
+const L = loadSourceModule("utils/focus-lock/focusLock.js");
 const NOW = 1_800_000_000_000;
 const MIN = 60 * 1000;
 
@@ -81,13 +72,15 @@ test("damaged locks: a bad time stays locked until clicked; anything else that i
     { saturation: { unlockAt: null } }, "ended and unknown locks are dropped");
 });
 
-test("a profile's values or a backup can't loosen a locked setting; stricter ones and unlocked ones come in", () => {
+test("a backup or profile cannot replace any currently locked setting", () => {
   const locks = { searchDelaySeconds: { unlockAt: null }, saturation: { unlockAt: NOW + MIN }, nsfwAction: { unlockAt: null } };
   const current = { searchDelaySeconds: 60, saturation: 40, tabLimit: 5, nsfwAction: "blur" };
   assert.deepEqual(L.withoutLoosening({ searchDelaySeconds: 15, saturation: 30, tabLimit: 0, nsfwAction: "off", Theme: "x" }, current, locks, NOW),
-    { saturation: 30, tabLimit: 0, Theme: "x" });
+    { tabLimit: 0, Theme: "x" });
   assert.deepEqual(L.withoutLoosening({ searchDelaySeconds: 120, saturation: 90, nsfwAction: "blackout" }, current, locks, NOW),
-    { searchDelaySeconds: 120, nsfwAction: "blackout" });
+    {});
+  assert.deepEqual(L.withoutLoosening({ searchDelaySeconds: 15 }, current, { searchDelaySeconds: { unlockAt: NOW + MIN } }, NOW),
+    {}, "an unlocking setting is still protected");
 });
 
 test("an old color lock carries on until it would have ended", () => {
@@ -109,7 +102,7 @@ test("a change queued by the version before finishes on time, unless the setting
     remove: (keys, cb) => { for (const k of [].concat(keys)) delete data[k]; cb(); },
   };
   globalThis.chrome = { storage: { sync: area, local: area }, runtime: {}, tabs: { query: (q, cb) => (cb ? cb([]) : Promise.resolve([])) } };
-  const { checkPendingIncrease, checkPendingDelayDecrease } = load("background/pendingChanges.js");
+  const { checkPendingIncrease, checkPendingDelayDecrease } = loadSourceModule("background/limits/pendingChanges.js");
   await checkPendingIncrease();
   await checkPendingDelayDecrease();
   assert.equal(data.tabLimit, 8, "the tab limit is unlocked: its queued increase finishes");

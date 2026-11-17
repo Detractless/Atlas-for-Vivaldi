@@ -1,21 +1,11 @@
-// Atlas's right-click menus in the browser window (src/modules/05-contextmenu.js draws the click
+// Atlas's right-click menus in the browser window (src/modules/menus/05-contextmenu.js draws the click
 // handlers, 37-ui-menu.js the menu), in a stand-in window.html.
 "use strict";
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { openWindow } = require("./helpers/windowDom");
+const { plain, startWindow: start } = require("../helpers/window-test-fixture");
 const { rightClick, uiMenuHost, uiMenuItems, menuLabels, answer } = require("./helpers/windowMenus");
-
-const plain = (v) => JSON.parse(JSON.stringify(v === undefined ? null : v));
-let open = [];
-test.afterEach(() => { for (const w of open) w.window.close(); open = []; });
-
-async function start(opts) {
-  const w = await openWindow(opts);
-  open.push(w);
-  return w;
-}
 
 test("right-clicking a tab shows the tab menu", async () => {
   const w = await start();

@@ -1,7 +1,7 @@
-// The pictures the panel beside the social media filter pills flips through (settings/chipPane.js): one slide per site, each
+// The pictures the panel beside the social media filter pills flips through (settings/pages/chipPane.js): one slide per site, each
 // a screenshot of that site showing the part, already cut to a 16:10 picture around it. The files are in assets/social/,
 // named <part>-<site>.jpg. A part with no pictures yet (New-posts banners) has no entry, and its card is text only.
-// The pictures belong to the sites they show; settings/chipPane.js shows them as examples of the part.
+// The pictures belong to the sites they show; settings/pages/chipPane.js shows them as examples of the part.
 
 export const SLIDE_DIR = 'src/assets/social/';
 

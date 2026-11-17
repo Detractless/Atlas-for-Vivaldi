@@ -1,4 +1,4 @@
-// The installer (installer/preferences.py) sets up one profile; src/modules/38-profile-recipe.js sets up every
+// The installer (installer/preferences.py) sets up one profile; src/modules/profiles/38-profile-recipe.js sets up every
 // other one. A profile must end up the same either way, so run both on the same starting profile and compare
 // every setting the recipe knows about.
 "use strict";
@@ -10,7 +10,7 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 
 const ROOT = path.resolve(__dirname, "..", "..");
-const SOURCE = fs.readFileSync(path.join(ROOT, "src", "modules", "38-profile-recipe.js"), "utf8");
+const SOURCE = fs.readFileSync(path.join(ROOT, "src", "modules", "profiles", "38-profile-recipe.js"), "utf8");
 const Atlas = {};
 new Function("Atlas", SOURCE)(Atlas);
 

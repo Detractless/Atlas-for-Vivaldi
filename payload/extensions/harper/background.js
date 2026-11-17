@@ -5,122 +5,7 @@
 
 'use strict';
 
-// ── Built-in Typo Correction Map ─────────────────────────────────────────────
-const COMMON_TYPOS = {
-  'teh': ['the'],
-  'definately': ['definitely'],
-  'recieve': ['receive'],
-  'seperate': ['separate'],
-  'adress': ['address'],
-  'wierd': ['weird'],
-  'occured': ['occurred'],
-  'occurence': ['occurrence'],
-  'untill': ['until'],
-  'succesful': ['successful'],
-  'neccessary': ['necessary'],
-  'necessery': ['necessary'],
-  'alot': ['a lot'],
-  'goverment': ['government'],
-  'beleive': ['believe'],
-  'truely': ['truly'],
-  'tommorrow': ['tomorrow'],
-  'tomorow': ['tomorrow'],
-  'calender': ['calendar'],
-  'accomodate': ['accommodate'],
-  'achieve': ['achieve'],
-  'acheive': ['achieve'],
-  'across': ['across'],
-  'accross': ['across'],
-  'agressive': ['aggressive'],
-  'apparant': ['apparent'],
-  'appearence': ['appearance'],
-  'argument': ['argument'],
-  'arguement': ['argument'],
-  'assasination': ['assassination'],
-  'basicly': ['basically'],
-  'begining': ['beginning'],
-  'bizzare': ['bizarre'],
-  'buisness': ['business'],
-  'colleague': ['colleague'],
-  'collegue': ['colleague'],
-  'commited': ['committed'],
-  'concious': ['conscious'],
-  'curiosity': ['curiosity'],
-  'curiousity': ['curiosity'],
-  'decission': ['decision'],
-  'dissapear': ['disappear'],
-  'disappoint': ['disappoint'],
-  'disapoint': ['disappoint'],
-  'embarass': ['embarrass'],
-  'environment': ['environment'],
-  'existance': ['existence'],
-  'experiance': ['experience'],
-  'familar': ['familiar'],
-  'finelly': ['finally'],
-  'foriegn': ['foreign'],
-  'fourty': ['forty'],
-  'freind': ['friend'],
-  'further': ['further'],
-  'grammer': ['grammar'],
-  'gaurantee': ['guarantee'],
-  'guarentee': ['guarantee'],
-  'happend': ['happened'],
-  'harrass': ['harass'],
-  'heigth': ['height'],
-  'hieght': ['height'],
-  'hierachy': ['hierarchy'],
-  'humourous': ['humorous'],
-  'ignorence': ['ignorance'],
-  'immediatly': ['immediately'],
-  'independant': ['independent'],
-  'interupt': ['interrupt'],
-  'knowlege': ['knowledge'],
-  'liasion': ['liaison'],
-  'libary': ['library'],
-  'lisence': ['license'],
-  'maintainance': ['maintenance'],
-  'millenium': ['millennium'],
-  'mischievious': ['mischievous'],
-  'misspell': ['misspell'],
-  'mispell': ['misspell'],
-  'noticable': ['noticeable'],
-  'ocassion': ['occasion'],
-  'ocasionally': ['occasionally'],
-  'persistant': ['persistent'],
-  'posession': ['possession'],
-  'prefered': ['preferred'],
-  'priviledge': ['privilege'],
-  'pronounciation': ['pronunciation'],
-  'publically': ['publicly'],
-  'realy': ['really'],
-  'recommand': ['recommend'],
-  'refered': ['referred'],
-  'relevent': ['relevant'],
-  'religous': ['religious'],
-  'rember': ['remember'],
-  'resistence': ['resistance'],
-  'rythm': ['rhythm'],
-  'seige': ['siege'],
-  'sence': ['sense'],
-  'similer': ['similar'],
-  'suprise': ['surprise'],
-  'tendancy': ['tendency'],
-  'therefor': ['therefore'],
-  'threshhold': ['threshold'],
-  'tomatos': ['tomatoes'],
-  'tounge': ['tongue'],
-  'truely': ['truly'],
-  'unforseen': ['unforeseen'],
-  'unfortunatly': ['unfortunately'],
-  'usefull': ['useful'],
-  'vaccum': ['vacuum'],
-  'vehical': ['vehicle'],
-  'visable': ['visible'],
-  'weather': ['weather'],
-  'writting': ['writing'],
-  'yall': ["y'all"],
-  'yeild': ['yield']
-};
+importScripts('typo-map.js');
 
 // ── Built-in Offline Lexicon (~2,500 common English words) ───────────────────
 const RAW_LEXICON = [
@@ -408,8 +293,8 @@ function getSpellingSuggestions(word, maxResults = 3) {
   const lower = word.toLowerCase();
 
   // 1. Instant lookup in common typos
-  if (COMMON_TYPOS[lower]) {
-    const direct = COMMON_TYPOS[lower];
+  if (HARPER_TYPOS[lower]) {
+    const direct = HARPER_TYPOS[lower];
     // Preserve initial capitalization if input was capitalized
     if (/^[A-Z]/.test(word)) {
       return direct.map(s => s.charAt(0).toUpperCase() + s.slice(1));
@@ -452,9 +337,21 @@ const CONFUSION_RULES = [
 
 function analyzeText(text) {
   if (!text || typeof text !== 'string') return [];
-  const issues = [];
+  const issues = [
+    ...findRepeatedWords(text),
+    ...findCapitalizationIssues(text),
+    ...findConfusionIssues(text),
+    ...findArticleIssues(text)
+  ];
+  issues.push(...findSpellingIssues(text, issues));
+  // Sort issues in chronological offset order
+  issues.sort((a, b) => a.start - b.start);
+  return issues;
+}
 
-  // 1. Grammar Check: Repeated Words (e.g. "the the", "in in", "is is")
+/* 1. Grammar: the same word twice in a row. */
+function findRepeatedWords(text) {
+  const issues = [];
   const repeatedWordRegex = /\b([a-zA-Z]{2,})\s+\1\b/gi;
   let match;
   while ((match = repeatedWordRegex.exec(text)) !== null) {
@@ -469,8 +366,13 @@ function analyzeText(text) {
       suggestions: [singleWord]
     });
   }
+  return issues;
+}
 
-  // 2. Grammar Check: Capitalization at beginning of text or after terminal punctuation
+/* 2. Grammar: a sentence that starts in lowercase. */
+function findCapitalizationIssues(text) {
+  const issues = [];
+  let match;
   const sentenceCapRegex = /(?:^|[.!?]\s+)([a-z])/g;
   while ((match = sentenceCapRegex.exec(text)) !== null) {
     const charIndex = match.index + match[0].length - 1;
@@ -485,8 +387,13 @@ function analyzeText(text) {
       suggestions: [char.toUpperCase()]
     });
   }
+  return issues;
+}
 
-  // 3. Grammar Check: Common Confusions & Collocations
+/* 3. Grammar: the confusion table above. */
+function findConfusionIssues(text) {
+  const issues = [];
+  let match;
   for (const rule of CONFUSION_RULES) {
     const regex = new RegExp(rule.pattern.source, 'gi');
     while ((match = regex.exec(text)) !== null) {
@@ -503,8 +410,13 @@ function analyzeText(text) {
       });
     }
   }
+  return issues;
+}
 
-  // 4. Grammar Check: Indefinite Article Agreement ("a" vs "an")
+/* 4. Grammar: "a" before a vowel sound, "an" before a consonant sound. */
+function findArticleIssues(text) {
+  const issues = [];
+  let match;
   const articleRegex = /\b(a|an)\s+([a-zA-Z]+)\b/gi;
   while ((match = articleRegex.exec(text)) !== null) {
     const art = match[1].toLowerCase();
@@ -538,8 +450,14 @@ function analyzeText(text) {
       });
     }
   }
+  return issues;
+}
 
-  // 5. Spelling Check: Scan individual words
+/* 5. Spelling: words no dictionary or typo map knows, skipping anything a
+   grammar rule already flagged and never touching all-caps acronyms. */
+function findSpellingIssues(text, existingIssues) {
+  const issues = [];
+  let match;
   const wordRegex = /\b([a-zA-Z]{2,})\b/g;
   while ((match = wordRegex.exec(text)) !== null) {
     const rawWord = match[1];
@@ -547,7 +465,7 @@ function analyzeText(text) {
     const endIndex = startIndex + rawWord.length;
 
     // Check if covered by an existing grammar issue
-    const alreadyHandled = issues.some(iss => iss.start <= startIndex && iss.end >= endIndex);
+    const alreadyHandled = existingIssues.some(iss => iss.start <= startIndex && iss.end >= endIndex);
     if (alreadyHandled) continue;
 
     // Ignore acronyms / all caps (e.g. NASA, HTML, URL, USA)
@@ -567,9 +485,6 @@ function analyzeText(text) {
       });
     }
   }
-
-  // Sort issues in chronological offset order
-  issues.sort((a, b) => a.start - b.start);
   return issues;
 }
 
@@ -620,7 +535,7 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage)
 // Export for testing/internal use
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    COMMON_TYPOS,
+    HARPER_TYPOS,
     isWordKnown,
     getSpellingSuggestions,
     analyzeText,

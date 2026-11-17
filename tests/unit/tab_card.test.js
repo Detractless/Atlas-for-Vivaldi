@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM } = require('jsdom');
 
-const source = fs.readFileSync(path.join(__dirname, '../../src/modules/32-tab-card.js'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '../../src/modules/tabs/32-tab-card.js'), 'utf8');
 const ID = 'mpognobbkildjkofajifpdfhcoklimli';
 const OTHER = 'cjpalhdlnbpafiamejdnhcphjbkeiagm';
 
@@ -92,8 +92,10 @@ test('the card CSS hides the thumbnail, RAM line, favicon and extension id, and 
   assert.ok(/\.url\.atlas-own \{ font-size: 0; \}/.test(css), 'the id text is collapsed');
   assert.ok(/\.url\.atlas-own::after \{[^}]*content: "Atlas"/.test(css), 'and "Atlas" is drawn in its place');
   const address = fs.readFileSync(path.join(__dirname, '../../payload/css-mods/03-addressbar.css'), 'utf8');
-  const logo = /#browser \.atlas-enginebtn \{[^}]*z-index:\s*(\d+)/.exec(address);
-  const above = /#browser #vivaldi-tooltip \.tooltip \{\s*z-index:\s*(\d+) !important/.exec(css);
-  assert.ok(logo && above, 'both z-index rules present');
-  assert.ok(Number(above[1]) > Number(logo[1]), 'the card draws above the address bar engine logo');
+  const tokens = fs.readFileSync(path.join(__dirname, '../../payload/css-mods/00-tokens.css'), 'utf8');
+  const logo = /#browser \.atlas-enginebtn \{[^}]*z-index:\s*var\((--z-atlas-engine-button)\)/.exec(address);
+  const above = /#browser #vivaldi-tooltip \.tooltip \{\s*z-index:\s*var\((--z-atlas-tooltip)\) !important/.exec(css);
+  const value = (name) => Number(new RegExp(`${name}:\\s*(\\d+)`).exec(tokens)?.[1]);
+  assert.ok(logo && above, 'both z-index tokens are used');
+  assert.ok(value(above[1]) > value(logo[1]), 'the card draws above the address bar engine logo');
 });

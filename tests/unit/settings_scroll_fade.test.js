@@ -1,4 +1,4 @@
-// Settings > Focus > Scroll fade (settings/scrollFadePage.js, fadeControls.js, shell.js; the rules are utils/scrollFade.js and
+// Settings > Focus > Scroll fade (settings/pages/scrollFadePage.js, fadeControls.js, shell.js; the rules are utils/scrollFade.js and
 // scroll_fade_rules.test.js, the counting script is scroll_fade_page.test.js, the dimming in the window is
 // scroll_fade_layer.test.js): the rows, what each choice saves, the sites left alone as pills, the pictures that follow the
 // slider, and the one lock: locked, the fade can only get stronger.
@@ -6,7 +6,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { openNewTab, closeAll, waitFor, settle, click } = require("./helpers/newtabDom");
+const { openNewTab, openFocusSettings: openFocus, settingsMenuChoices: menuOf, closeSettingsMenu: closeMenu, pickSettingsChoice: pick, dragSettingsSlider: drag, closeAll, settle, click } = require("./helpers/newtabDom");
 
 test.afterEach(closeAll);
 
@@ -15,36 +15,11 @@ const plain = (v) => JSON.parse(JSON.stringify(v));
 const stored = async (t, key) => plain(await t.chrome.storage.sync.get([key]))[key];
 const ON = { on: true, by: "either", minutes: 5, screens: 150, darkest: 70, restSeconds: 60, waitMinutes: 10, except: [] };
 
-async function openFocus(t) {
-  const { window: win, document: doc } = t;
-  click(win, doc.getElementById("global-settings-btn"));
-  click(win, await waitFor(() => doc.querySelector('#sp-nav [data-page="focus"]'), 2000, "Focus in the menu"));
-  await waitFor(() => doc.querySelector("#sp-content [data-lock]"), 2000, "the Focus page");
-  return doc.getElementById("sp-content");
-}
 const rowTitles = (content) => [...content.querySelector("[data-fadeshape]").querySelectorAll(".sp-row-title")].map(text);
 const pillOf = (content, key) => text(content.querySelector(`[data-select="${key}"] span`));
 const sites = (content) => [...content.querySelectorAll("[data-site]")].map((b) => b.dataset.site);
 const lockBtn = (content) => content.querySelector('[data-lock="scrollFade"]');
 
-/** Open `key`'s menu and say which choices can be picked: { label: true | false }. */
-function menuOf(t, key) {
-  click(t.window, t.document.querySelector(`#sp-content [data-select="${key}"]`));
-  return Object.fromEntries([...t.document.querySelectorAll("#sp-menu .sp-menu-item")].map((li) => [text(li), li.getAttribute("aria-disabled") !== "true"]));
-}
-const closeMenu = (t, key) => { if (t.document.querySelector("#sp-menu.open")) click(t.window, t.document.querySelector(`#sp-content [data-select="${key}"]`)); };
-async function pick(t, key, label) {
-  menuOf(t, key);
-  click(t.window, [...t.document.querySelectorAll("#sp-menu .sp-menu-item")].find((li) => text(li) === label));
-  await settle(t.window, 80);
-  closeMenu(t, key);   // a greyed-out choice leaves the menu open
-}
-const drag = async (t, slider, v) => {
-  slider.value = String(v);
-  slider.dispatchEvent(new t.window.Event("input", { bubbles: true }));
-  slider.dispatchEvent(new t.window.Event("change", { bubbles: true }));
-  await settle(t.window, 100);
-};
 const type = async (t, input, value) => {
   input.value = value;
   input.dispatchEvent(new t.window.Event("change", { bubbles: true }));

@@ -20,7 +20,8 @@ ROOT = Path(__file__).resolve().parents[2]
 PAYLOAD = ROOT / "payload"
 sys.path.insert(0, str(ROOT))
 
-from installer import util, files, preferences, profile_facts, system  # noqa: E402
+from installer import config, files, file_access, preferences, profile_facts  # noqa: E402
+from installer.vivaldi import system  # noqa: E402
 
 
 def old_installer():
@@ -30,6 +31,42 @@ def old_installer():
     mod = type(sys)("atlas_install_old")
     exec(compile(source, "<old install.py>", "exec"), mod.__dict__)
     return mod
+
+
+def comparable_preferences(prefs):
+    """Remove known post-split additions before comparing shared behavior."""
+    prefs = json.loads(json.dumps(prefs))
+    session = prefs.get("session")
+    if isinstance(session, dict):
+        session.pop("restore_on_startup", None)
+        if not session:
+            prefs.pop("session")
+
+    vivaldi = prefs.get("vivaldi")
+    if not isinstance(vivaldi, dict):
+        return prefs
+    startup = vivaldi.get("startup")
+    if isinstance(startup, dict):
+        startup.pop("type", None)
+        if not startup:
+            vivaldi.pop("startup")
+    downloads = vivaldi.get("downloads")
+    if isinstance(downloads, dict):
+        downloads.pop("open_panel_on_new", None)
+        if not downloads:
+            vivaldi.pop("downloads")
+    panels = vivaldi.get("panels")
+    if isinstance(panels, dict):
+        web = panels.get("web")
+        if isinstance(web, dict) and isinstance(web.get("elements"), list):
+            web["elements"] = [e for e in web["elements"]
+                                if not isinstance(e, dict) or e.get("id") != "WEBPANEL_atlas_downloads"]
+            if not web["elements"]:
+                web.pop("elements")
+    toolbars = vivaldi.get("toolbars")
+    if isinstance(toolbars, dict) and isinstance(toolbars.get("panel"), list):
+        toolbars["panel"] = [x for x in toolbars["panel"] if x != "WEBPANEL_atlas_downloads"]
+    return prefs
 
 
 SAMPLE_PREFS = {
@@ -52,7 +89,7 @@ SAMPLE_PREFS = {
 class InstallerTest(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
-        util.DRY = False
+        config.DRY = False
         self.quiet = redirect_stdout(io.StringIO())
         self.quiet.__enter__()
 
@@ -69,7 +106,7 @@ class InstallerTest(unittest.TestCase):
         src.mkdir()
         for n in ("keep.js", "x.pem", ".DS_Store", "keep.js.map"):
             (src / n).write_text("x")
-        util.copy_tree(src, dst)
+        file_access.copy_tree(src, dst)
         self.assertEqual(sorted(p.name for p in dst.iterdir()), ["keep.js"])
 
     def test_detractless_installs_only_loaded_files(self):
@@ -114,7 +151,7 @@ class InstallerTest(unittest.TestCase):
         self.assertEqual(json.loads(dated[0].read_text()), SAMPLE_PREFS)
 
     def test_step6_writes_what_the_original_installer_wrote(self):
-        """Splitting the installer must not change a single Preferences value."""
+        """Shared Preferences edits match the pre-split installer."""
         old = old_installer()
         cases = [SAMPLE_PREFS, {}, {"vivaldi": {"toolbars": {"navigation": ["AddressField"]}}}]
         for i, prefs in enumerate(cases):
@@ -125,8 +162,19 @@ class InstallerTest(unittest.TestCase):
             (b / "Preferences").write_text(json.dumps(prefs))
             self.run_step6(old, a / "Preferences")
             self.run_step6(preferences, b / "Preferences")
-            self.assertEqual(json.loads((b / "Preferences").read_text()),
-                             json.loads((a / "Preferences").read_text()), f"case {i}")
+            self.assertEqual(comparable_preferences(json.loads((b / "Preferences").read_text())),
+                             comparable_preferences(json.loads((a / "Preferences").read_text())), f"case {i}")
+
+    def test_user_startup_settings_are_preserved(self):
+        prefs_file = self.tmp / "Preferences"
+        prefs_file.write_text(json.dumps({
+            "session": {"restore_on_startup": 4},
+            "vivaldi": {"startup": {"type": 1}},
+        }))
+        self.run_step6(preferences, prefs_file)
+        result = json.loads(prefs_file.read_text())
+        self.assertEqual(result["session"]["restore_on_startup"], 4)
+        self.assertEqual(result["vivaldi"]["startup"]["type"], 1)
 
     def test_profile_facts_hold_what_other_profiles_need(self):
         css = self.tmp / "css-mods"
@@ -147,7 +195,7 @@ class InstallerTest(unittest.TestCase):
     def test_a_dry_run_writes_no_facts_file(self):
         res = self.tmp / "res"
         res.mkdir()
-        util.DRY = True
+        config.DRY = True
         profile_facts.step6_profile_facts(res, PAYLOAD, self.tmp / "css-mods")
         self.assertFalse((res / "atlas-profile.json").exists())
 

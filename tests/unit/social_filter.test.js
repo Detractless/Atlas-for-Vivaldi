@@ -1,23 +1,14 @@
-// The social media filter's rules (utils/socialFilter.js) and its Focus lock (utils/focusLock.js): the list of parts, what
+// The social media filter's rules (utils/social-filter/socialFilter.js) and its Focus lock (utils/focus-lock/focusLock.js): the list of parts, what
 // a saved value is made into, and what counts as loosening it. The Settings page around it: settings_social_filter.test.js.
 // Bundled to CommonJS and run as plain code.
 "use strict";
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const path = require("path");
-const esbuild = require("esbuild");
+const { loadSourceModule: load } = require("./source-module-loader/load-source-module");
 
-const SRC = path.join(__dirname, "..", "..", "payload", "detractless", "src");
-function load(rel) {
-  const out = esbuild.buildSync({ entryPoints: [path.join(SRC, rel)], bundle: true, format: "cjs", platform: "node", write: false }).outputFiles[0].text;
-  const m = { exports: {} };
-  new Function("module", "exports", "require", out)(m, m.exports, require);
-  return m.exports;
-}
-
-const F = load("utils/socialFilter.js");
-const L = load("utils/focusLock.js");
+const F = load("utils/social-filter/socialFilter.js");
+const L = load("utils/focus-lock/focusLock.js");
 const NOW = 1_800_000_000_000;
 const locked = { socialFilter: { unlockAt: null } };
 const ok = (from, to) => L.changeAllowed(locked, "socialFilter", from, to, NOW);
@@ -77,11 +68,11 @@ test("locked, the filter can only get stricter; unlocked, anything goes", () => 
   assert.equal(L.changeAllowed(unlocking, "socialFilter", { mode: "all", parts: [] }, { mode: "off", parts: [] }, NOW), false, "still locked while it unlocks");
 });
 
-test("a profile or a backup can't loosen a locked filter, and its lock is kept like the others", () => {
+test("a profile or a backup can't replace a locked filter, and its lock is kept like the others", () => {
   const current = { socialFilter: { mode: "parts", parts: ["likes"] }, tabLimit: 5 };
   assert.deepEqual(L.withoutLoosening({ socialFilter: { mode: "off", parts: [] }, tabLimit: 9 }, current, locked, NOW), { tabLimit: 9 });
   const stricter = { socialFilter: { mode: "all", parts: [] } };
-  assert.deepEqual(L.withoutLoosening(stricter, current, locked, NOW), stricter);
+  assert.deepEqual(L.withoutLoosening(stricter, current, locked, NOW), {});
   assert.ok(L.LOCKABLE.includes("socialFilter"));
   assert.deepEqual(L.clickLock({}, "socialFilter", NOW), { socialFilter: { unlockAt: null } });
   assert.equal(L.lockState(L.clickLock({}, "socialFilter", NOW), "socialFilter", NOW), "held");

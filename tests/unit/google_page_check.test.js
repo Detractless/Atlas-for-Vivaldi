@@ -1,7 +1,7 @@
 // Spec 002, phase 4: every Google, Gmail and YouTube page that opens (typed in
 // the address bar, a link, history) uses the active profile's account.
 // components/atlas/atlas-google-account.js runs in the page and asks the browser
-// window (src/modules/16-google-accounts.js), which decides with redirectFor.
+// window (src/modules/accounts/16-google-accounts.js), which decides with redirectFor.
 "use strict";
 
 const test = require("node:test");
@@ -11,6 +11,7 @@ const path = require("path");
 require("./helpers/jsdomNavigation");
 const { JSDOM, VirtualConsole } = require("jsdom");
 const { openWindow } = require("./helpers/windowDom");
+const { googleAccountListReply } = require("../helpers/google-account-reply");
 
 const SCRIPT = fs.readFileSync(path.join(__dirname, "..", "..", "payload", "install-files", "components", "atlas", "atlas-google-account.js"), "utf8");
 const plain = (v) => JSON.parse(JSON.stringify(v === undefined ? null : v));
@@ -79,22 +80,12 @@ test("guard: the same tab and address are not switched twice within 5 seconds (n
 
 /* ── The browser window's side ─────────────────────────────────────────── */
 
-function listAccountsReply(accounts) {
-  const entries = accounts.map((a) => {
-    const e = ["gaia.l.a", 1, a.name, a.email, "", 1, 1, a.index];
-    while (e.length < (a.signedOut ? 15 : 16)) e.push(0);
-    return e;
-  });
-  const js = JSON.stringify(["gaia.l.a.r", entries]).replace(/"/g, "\\x22").replace(/\//g, "\\/");
-  return `<html><head><script>window.parent.postMessage('${js}', 'x');</script></head></html>`;
-}
-
 async function windowWith(linked) {
   const p = (id, email) => ({ id, name: id, label: "", color: 0, icon: "", db: "", settings: {}, google: email ? { email } : null });
   const w = await openWindow({
     local: { atlasProfilesV2: { v: 2, active: "work", owner: "work", share: { bookmarks: true, theme: true, appearance: true, search: true, focus: true },
       list: [p("work", linked), p("personal", null)] } },
-    fetch: () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(listAccountsReply([
+    fetch: () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(googleAccountListReply([
       { name: "Pat", email: "pat@gmail.com", index: 0 }, { name: "Work", email: "pat@work.com", index: 3 },
       { name: "Old", email: "old@example.com", index: 4, signedOut: true }])) }),
   });

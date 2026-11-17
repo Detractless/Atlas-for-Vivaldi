@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 
-const load = () => import(pathToFileURL(path.join(__dirname, "..", "..", "payload", "detractless", "src", "background", "tabLimiter.js")).href);
+const load = () => import(pathToFileURL(path.join(__dirname, "..", "..", "payload", "detractless", "src", "background", "limits", "tabLimiter.js")).href);
 const tab = (o) => Object.assign({ id: 1, url: "https://a.test/" }, o);
 const PANEL = '{"ext_id":"abc","panelId":"EXT_PANEL_hehggadaopoacecdllhhajmbjkdcmajg","restoreStatus":"restored"}';
 
@@ -16,7 +16,7 @@ test("a sidebar panel's page is not counted as a tab", async () => {
 
 test("the Downloads panel is recognised by address before its panel id exists", async () => {
   const { isTabLimitExcluded } = await load();
-  assert.equal(isTabLimitExcluded(tab({ url: "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/components/atlas/downloads-panel.html" })), true);
+  assert.equal(isTabLimitExcluded(tab({ url: "chrome-extension://mpognobbkildjkofajifpdfhcoklimli/components/atlas/atlas-downloads-panel.html" })), true);
 });
 
 test("ordinary tabs are counted, including Atlas's own new-tab page", async () => {

@@ -3,7 +3,7 @@
   position: fixed;
   top: 16px;
   left: 16px;
-  z-index: 50;
+  z-index: var(--z-switcher);
   display: inline-block;
   margin: 0;
 }
@@ -48,7 +48,7 @@
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 50;
+  z-index: var(--z-switcher);
   /* Fixed, not min-width: every page's subtitle is held to what fits one line
      at this width (MAX_CHARS in services/pageSubtitle.js), so rows never wrap
      and all stay the same height. Change the two together. */
@@ -79,7 +79,7 @@
   padding: 8px 10px;
   border-radius: 10px;
   font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
-  font-size: 14px;
+  font-size: var(--font-size-14);
   line-height: 20px;
   color: var(--text-primary);
   cursor: pointer;
@@ -106,7 +106,7 @@
 }
 .switcher-item .sub {
   display: block;
-  font-size: 12px;
+  font-size: var(--font-size-12);
   line-height: 16px;
   color: var(--text-secondary);
   overflow: hidden;

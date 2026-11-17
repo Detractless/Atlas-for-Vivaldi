@@ -18,3 +18,5 @@ package-lock.json -text
 *.gz binary
 *.zip binary
 *.dmg binary
+# Refactor scan reports, written by the refactor skill in its own format.
+.agent/** -text

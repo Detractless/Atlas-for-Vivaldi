@@ -24,7 +24,7 @@ body {
   background-color: var(--surface-canvas);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--font-size-14);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
@@ -73,6 +73,12 @@ a {
   --mono-800: #1c1c18;
   --mono-900: #111110;
   --mono-950: #0a0a09;
+  --color-black: #000;
+  --color-preview-background: #111;
+  --overlay-black-soft: rgba(0, 0, 0, .12);
+  --overlay-black-medium: rgba(0, 0, 0, .2);
+  --overlay-chip: rgba(10, 10, 9, .78);
+  --overlay-white-soft: rgba(255, 255, 255, .08);
   --radius-xs: 8px;
   --radius-sm: 12px;
   --radius-md: 18px;
@@ -133,6 +139,26 @@ a {
   --text-label: 500 13px/1.3 var(--font-sans);
   --text-caption: 400 12px/1.35 var(--font-sans);
   --text-mono: 400 12px/1.3 var(--font-mono);
+  --font-size-13: 13px;
+  --font-size-15: 15px;
+  --font-size-26: 26px;
+  --font-size-10: 10px;
+  --font-size-11: 11px;
+  --font-size-12: 12px;
+  --font-size-14: 14px;
+  --font-size-16: 16px;
+  --font-size-18: 18px;
+  --font-size-48: 48px;
+  --font-size-24: 24px;
+  --z-context-menu: 300;
+  --z-switcher: 50;
+  --z-floating-suggestions: 40;
+  --z-header-actions: 10;
+  --z-settings-overlay: 210;
+  --z-settings-menu: 220;
+  --z-modal-overlay: 200;
+  --z-picker-modal: 400;
+  --z-add-popup-dropdown: 5;
   --tracking-tight: -0.02em;
   --tracking-snug: -0.01em;
   --tracking-normal: 0;
@@ -178,6 +204,16 @@ a {
   --bg-error: #2E1815;
   --surface-base: var(--surface-muted);
 }
+:root {
+  --bg-body: var(--surface-canvas);
+  --win-bg: var(--surface-canvas);
+  --ctrl-bg: var(--surface-card);
+  --ctrl-hover: var(--surface-hover);
+  --border: var(--line-hairline);
+  --text-pri: var(--text-primary);
+  --text-sec: var(--text-secondary);
+  --sel-bg: var(--select-bg);
+}
 :root[data-theme=light] {
   --surface-canvas: #E3E3E0;
   --surface-card: #FFFFFF;
@@ -191,10 +227,6 @@ a {
   --text-secondary: #76766F;
   --text-tertiary: #9A9A95;
   --text-error: #B3382E;
-  --mono-200: #D8D7D3;
-  --mono-400: #9A9A95;
-  --mono-600: #57574F;
-  --mono-900: #111110;
   --surface-inverse: var(--mono-900);
   --text-inverse: #FFFFFF;
   --text-on-muted: var(--mono-600);
@@ -211,16 +243,6 @@ a {
   --bg-error: #FBEAE8;
   --surface-base: var(--surface-muted);
 }
-:root {
-  --bg-body: var(--surface-canvas);
-  --win-bg: var(--surface-canvas);
-  --ctrl-bg: var(--surface-card);
-  --ctrl-hover: var(--surface-hover);
-  --border: var(--line-hairline);
-  --text-pri: var(--text-primary);
-  --text-sec: var(--text-secondary);
-  --sel-bg: var(--select-bg);
-}
 
 /* src/pages/gate/gate.css */
 body {
@@ -232,6 +254,17 @@ body {
 .container {
   max-width: 600px;
   padding: 20px;
+}
+#reveal-container p {
+  font-size: var(--font-size-24);
+  margin-bottom: 30px;
+}
+#social-title {
+  font-size: var(--font-size-24);
+  margin-bottom: 12px;
+}
+#social-text {
+  opacity: .7;
 }
 .query-display {
   position: fixed;
@@ -267,21 +300,21 @@ body {
   flex-shrink: 0;
 }
 .query-label {
-  font-size: 10px;
+  font-size: var(--font-size-10);
   letter-spacing: var(--tracking-wider);
   text-transform: uppercase;
   color: var(--text-secondary);
   flex-shrink: 0;
 }
 .query-text {
-  font-size: 13px;
+  font-size: var(--font-size-13);
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .countdown {
   font-family: var(--font-mono);
-  font-size: 48px;
+  font-size: var(--font-size-48);
   font-weight: 700;
   margin: 40px 0;
   letter-spacing: 2px;
@@ -292,7 +325,7 @@ body {
 #reveal-button {
   padding: 12px 28px;
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--font-size-13);
   font-weight: 600;
   background: var(--accent);
   color: var(--accent-text);
@@ -321,7 +354,8 @@ body {
   position: relative;
   width: 240px;
   height: 240px;
-  color: var(--text-tertiary);
+  color: inherit;
+  margin: 20px 0;
 }
 .lds-facebook div {
   display: inline-block;
