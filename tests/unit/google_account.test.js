@@ -34,14 +34,6 @@ function profiles(active, emails = {}) {
 }
 const EMAILS = { personal: "pat@gmail.com", school: "pat@students.ksu.edu" };
 const account = (url) => new URL(url).searchParams.get("authuser");
-
-function type(win, input, value) {
-  input.value = value;
-  input.dispatchEvent(new win.Event("input", { bubbles: true }));
-}
-function key(win, el, k) {
-  el.dispatchEvent(new win.KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
-}
 const link = (page, name) => [...page.querySelectorAll("a")].find((a) => text(a) === name);
 
 test("withGoogleAccount: Google and YouTube links get the account; nothing else does", () => {
@@ -80,13 +72,8 @@ test("when the linked account is among the signed-in ones, links use its number 
   const found = { accounts: [
     { index: 0, name: "Other", email: "other@example.com", photo: "", signedIn: true },
     { index: 3, name: "Pat", email: EMAILS.school, photo: "", signedIn: true }], at: 1 };
-  const t = await openNewTab({ sync: { selectedSearchEngine: "google" }, local: { atlasProfilesV2: profiles("school", EMAILS), atlasGoogleAccounts: found } });
-  const { window: win, document: doc } = t;
-  const input = doc.getElementById("search-input");
-  type(win, input, "cats");
-  key(win, input, "Enter");
-  await settle(win, 100);
-  assert.equal(account(plain(win.__navigations)[0]), "3");
+  const t = await openNewTab({ local: { atlasProfilesV2: profiles("school", EMAILS), atlasGoogleAccounts: found } });
+  const { window: win } = t;
   const page = await openEssentials(t);
   assert.equal(account(link(page, "Gmail").href), "3");
   await t.chrome.storage.local.set({ atlasGoogleAccounts: { accounts: [], at: 2, error: "offline" } });
@@ -99,28 +86,6 @@ test("with no linked account, Google bookmarks open unchanged", async () => {
   const t = await openNewTab({ local: { atlasProfilesV2: profiles("school") } });
   const page = await openEssentials(t);
   assert.equal(link(page, "Gmail").getAttribute("href"), "https://mail.google.com");
-});
-
-test("a Google search and a bookmark pill open as the linked account", async () => {
-  const t = await openNewTab({ sync: { selectedSearchEngine: "google" }, local: { atlasProfilesV2: profiles("school", EMAILS) } });
-  const { window: win, document: doc } = t;
-  const input = doc.getElementById("search-input");
-  type(win, input, "cats");
-  key(win, input, "Enter");
-  await settle(win, 100);
-  type(win, input, "gmail");
-  await waitFor(() => doc.querySelectorAll("#bookmark-search-results .bookmark-search-item:not(.empty)").length === 1, 2000, "Gmail pill");
-  key(win, input, "ArrowDown");
-  key(win, input, "Enter");
-  await settle(win, 100);
-  type(win, input, "./calendar");
-  const pill = await waitFor(() => doc.querySelector("#bookmark-search-results .bookmark-search-item:not(.empty)"), 2000, "Calendar pill");
-  click(win, pill);
-  await settle(win, 100);
-  const navs = plain(win.__navigations);
-  assert.equal(navs.length, 3, navs.join(" "));
-  assert.equal(new URL(navs[0]).searchParams.get("q"), "cats");
-  assert.deepEqual(navs.map(account), [EMAILS.school, EMAILS.school, EMAILS.school]);
 });
 
 test("switching profile switches the account, without a reload", async () => {

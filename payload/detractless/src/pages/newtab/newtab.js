@@ -8,16 +8,15 @@ import { refreshBookmarkCache, initializeBookmarks, loadBookmarks } from '../../
 import { initAddPopup } from '../../components/add-popup/add-popup.js';
 import { watchSystemTheme } from './theme.js';
 import { showPage } from './displayEffects.js';
-import { initializeTabs, setTabNavigationCallbacks, renderTabs, selectSearchTab } from '../../components/tabs/tabs.js';
+import { initializeTabs, setTabNavigationCallbacks, renderTabs, selectTab, selectSearchTab } from '../../components/tabs/tabs.js';
 import { showModal } from './modalVisibility.js';
 // The tab limiter's stylesheet; imported here so the CSS keeps its place in the bundle.
 import '../../components/tab-limiter/tab-limiter.js';
-import { loadSearchEngines, loadSavedEngine, setManageEnginesCallback, renderEngineDropdown, updateCurrentEngine, followEnginePicks } from '../../components/engines/engines.js';
+import { loadSearchEngines, loadSavedEngine, updateCurrentEngine } from '../../components/engines/engines.js';
 import { initEngineModal } from '../../components/engines/engines-modal.js';
-import { initializeSearch } from '../../components/search/search.js';
 import { setImportCompleteCallback } from './importExport.js';
 import { runOrphanRepairOnce } from '../../services/orphanCleanup.js';
-import { spotlightVisible, setCurrentBookmarkPage, activeTabs, currentEngine } from './newtabState.js';
+import { setCurrentBookmarkPage, activeTabs, currentEngine, currentBookmarkPage, currentPage } from './newtabState.js';
 import { loadBookmarkData } from './bookmarkData.js';
 import { installProfileSwitch, installDataChanged } from './profileSwitch.js';
 import { defineAllSettings } from '../../settings/definitions.js';
@@ -62,24 +61,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.querySelectorAll(".modal").forEach(modal => modal.addEventListener("click", e => e.stopPropagation()));
 
-  await loadSearchEngines(); initializeSearch(); loadSavedEngine(); followEnginePicks();
+  await loadSearchEngines(); loadSavedEngine();
 
-  showPage("search");
-  const searchInput = document.getElementById("search-input");
+  // Home is its own empty page; bookmark pages open only when picked.
+  showPage("home");
+  selectSearchTab();
   // ?engines (the address bar's "Engine lists") opens the engine list.
   if (new URLSearchParams(location.search).has('engines')) showModal('engine-modal');
-  else if (searchInput && spotlightVisible && !isSettingsUrl()) setTimeout(() => searchInput.focus(), 100);
 });
 
 function wireCallbacks() {
   setTabNavigationCallbacks({
     onTabClick: (tab) => {
-      if (tab.type === "search") { showPage("search"); }
+      if (tab.type === "search") { showPage("home"); focusAddressBar(); }
       else { setCurrentBookmarkPage(tab.id); showPage("bookmarks"); loadBookmarks(); }
     },
-    onNavigateToSearch: () => showPage("search")
+    onNavigateToSearch: () => { showPage("home"); focusAddressBar(); }
   });
-  setManageEnginesCallback(() => showModal('engine-modal'));
   setImportCompleteCallback(onImportComplete);
 }
 
@@ -89,7 +87,6 @@ async function onImportComplete(importData) {
   loadBookmarks();
   await loadSettings();
   if (importData.selectedSearchEngine) updateCurrentEngine(currentEngine);
-  renderEngineDropdown();
 }
 
 function initFeatures() {
@@ -125,17 +122,22 @@ function wireSettingsOpeners() {
   }
 }
 
+/** The Home tab opens the address bar: the page's search card is gone. */
+function focusAddressBar() {
+  try {
+    chrome.runtime.sendMessage({ atlas: { act: "focus-addressbar" } }, (reply) => {
+      const lastError = chrome.runtime && chrome.runtime.lastError; // read, so Chrome does not log it
+      return !lastError && !!reply;
+    });
+  } catch (e) { /* no extension runtime here */ }
+}
+
 window.addEventListener("pageshow", () => {
-  // R-013: the page nav owns its own selection now, so returning to Home is a
-  // call rather than a poke at a hidden radio that no longer exists.
-  selectSearchTab();
-  showPage("search");
-  const searchInput = document.getElementById("search-input");
+  // R-013: the page nav owns its own selection now, so returning to the page
+  // that was open is a call rather than a poke at a hidden radio.
+  if (currentPage === "bookmarks") { showPage("bookmarks"); selectTab(currentBookmarkPage); }
+  else { showPage("home"); selectSearchTab(); }
   // Was a call to a function that only existed inside the DOMContentLoaded
   // handler, so restoring a cached tab with ?settings threw a ReferenceError.
-  if (isSettingsUrl()) {
-    openSettingsFromUrl();
-  } else if (searchInput && spotlightVisible) {
-    setTimeout(() => searchInput.focus(), 100);
-  }
+  if (isSettingsUrl()) openSettingsFromUrl();
 });

@@ -10,7 +10,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { openWindow } = require("./helpers/windowDom");
-const { openNewTab, closeAll, waitFor, settle } = require("./helpers/newtabDom");
+const { openNewTab, closeAll, waitFor } = require("./helpers/newtabDom");
 
 const plain = (v) => JSON.parse(JSON.stringify(v === undefined ? null : v));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -222,14 +222,11 @@ test("a custom engine logo comes from the new tab's database", async () => {
   assert.equal(btnIcon(w), "data:image/png;base64,TUlORQ==");
 });
 
-test("the new tab: ?engines opens the engine list, and a pick made elsewhere shows on its engine button", async () => {
+test("the new tab: ?engines opens the engine list", async () => {
   const t = await openNewTab({ query: "?engines", sync: { selectedSearchEngine: "google" } });
   await waitFor(() => t.document.getElementById("engine-modal").classList.contains("show"), 3000, "engine list open");
-  const icon = () => t.document.querySelector("#current-engine-icon-display img").getAttribute("src");
-  await waitFor(() => icon() && icon().includes("google"), 3000, "Google on the engine button");
-  await t.chrome.storage.sync.set({ selectedSearchEngine: "bing" });
-  await settle(t.window, 100);
-  assert.match(icon(), /bing/);
+  assert.equal(t.document.getElementById("current-engine-icon-display"), null, "the page has no engine button any more");
+  assert.deepEqual(t.errors, []);
 });
 
 // ── On the Atlas new tab (01-addressbar.js, 20-addressbar-newtab.js) ──

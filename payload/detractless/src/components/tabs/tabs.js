@@ -78,6 +78,14 @@ export function selectSearchTab() {
   }
 }
 
+/** Select one page in the switcher by id (used when the page on screen is gone). */
+export function selectTab(id) {
+  const tab = activeTabs.find((t) => String(t.id) === String(id));
+  if (!tab) return;
+  selectedTabId = tab.id;
+  syncSelection();
+}
+
 function buildShell(container) {
   container.className = 'switcher';
   container.innerHTML = `

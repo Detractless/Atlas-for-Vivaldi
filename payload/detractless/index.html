@@ -22,43 +22,9 @@
              this is the positioned host it renders into. -->
         <div class="switcher" id="tabs-container"></div>
 
-        <div id="search-page" class="page active">
-          <div id="home-grid">
-            <div id="spotlight-wrapper">
-                <div class="spotlight-search-container">
-                    <div class="search-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.34-4.34"/></svg>
-                    </div>
-                    <div class="search-input-wrapper">
-                        <!-- The placeholder carries the Shift+Enter hint because
-                             that override is otherwise invisible: plain Enter
-                             opens a matching bookmark, and nothing on screen says
-                             how to search for text that matches one, or for
-                             something URL-shaped like "notes.io". A placeholder
-                             only shows while the field is EMPTY, so it teaches
-                             on arrival rather than at the moment of need, which
-                             is the honest limit of putting it here. -->
-                        <input type="text" id="search-input" placeholder="Search the web, or Shift+Enter to force a search" autocomplete="off">
-                    </div>
-
-                    <div class="plus" id="plus">
-                        <div class="current-engine-icon-display" id="current-engine-icon-display">
-                            <img src="src/assets/svg/default.api.svg" alt="Default" width="20" height="20">
-                        </div>
-                    </div>
-                    <div id="engine-links"></div>
-                    <div id="bookmark-pills-wrapper">
-                        <!-- The fade and hidden-pill count are injected around this
-                             list by the shared scroll affordance (R-010). There used
-                             to be a hand-rolled #bookmark-fade-overlay here. -->
-                        <div id="bookmark-search-results" class="bookmark-search-results" style="display: none;"></div>
-                    </div>
-                </div>
-
-            </div>
-
-          </div>
-        </div>
+        <!-- Home: the page's own empty canvas. Search lives in the address bar,
+             so this page holds nothing; picking Home in the switcher shows it. -->
+        <div id="home-page" class="page"></div>
 
         <div id="bookmarks-page" class="page">
             <div id="bookmarks-content" class="bookmarks-content">

@@ -29,7 +29,11 @@ async function refreshAfterOutsideAdd() {
   await initializeTabs();
   if (currentPage === 'bookmarks') {
     if (activeTabs.some((t) => String(t.id) === String(currentBookmarkPage))) loadBookmarks();
-    else { selectSearchTab(); showPage('search'); }   // the page on screen was deleted from the address bar: back to Home
+    else {
+      // The page on screen was deleted from the address bar: go back to empty Home.
+      showPage('home');
+      selectSearchTab();
+    }
   }
   if (window.AtlasSettingsUI) window.AtlasSettingsUI.rerender();
 }
@@ -46,7 +50,7 @@ export async function applyProfileSwitch() {
   await initializeTabs();
   if (currentPage === 'bookmarks') {
     if (activeTabs.some((t) => String(t.id) === String(currentBookmarkPage))) loadBookmarks();
-    else { selectSearchTab(); showPage('search'); }
+    else { showPage('home'); selectSearchTab(); }
   }
   await loadSearchEngines();
   loadSavedEngine();

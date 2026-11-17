@@ -20,7 +20,6 @@ import { readFailedFor, clearReadFailure, readPageBookmarks, writePageBookmarks,
 import { rowMetrics, wellHeight, rowsThatFit } from './bookmarks-layout.js';
 
 export { refreshBookmarkCache } from './bookmarks-cache.js';
-export { renderBookmarkSearchResults, updateSearchDropdownSelection, hideBookmarkSearchResults, sortByUsage } from './bookmarks-search.js';
 
 const loadFailed = () => readFailedFor(currentBookmarkPage);
 

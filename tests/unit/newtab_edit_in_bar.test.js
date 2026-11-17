@@ -87,14 +87,16 @@ test("an unanswered or refused message falls back to the pop-up, so a right-clic
   assert.equal(text(t.document.querySelector(".bookmark-dialog .picker-title")), "PRODUCTIVITY", "even when sending throws");
 });
 
-test("when the page on screen is deleted from the bar, the new tab goes back to Home", async () => {
+test("when the page on screen is deleted from the bar, the new tab goes back to empty Home", async () => {
   const t = await openAnswered();
-  const page = await openEssentials(t);
+  await openEssentials(t);
   const { activeTabs } = await t.chrome.storage.sync.get(["activeTabs"]);
   await t.chrome.storage.sync.set({ activeTabs: activeTabs.filter((p) => p.id !== t.essentials.id) });   // what the worker does
   t.control.deliver({ atlas: { act: "data-changed" } });
-  await waitFor(() => t.document.getElementById("search-page").classList.contains("active"), 3000, "Home");
-  assert.ok(!page.classList.contains("active"), "the deleted page is not left on screen");
-  assert.ok(![...t.document.querySelectorAll("#tabs-container .switcher-item .label")].some((l) => l.textContent.includes("Essentials")), "and is gone from the switcher");
+  await waitFor(() => text(t.document.querySelector(".switcher-label")) === "Dashboard", 3000, "Home is selected");
+  assert.ok(t.document.getElementById("home-page").classList.contains("active"), "and the empty Home page is on screen");
+  assert.ok(!t.document.getElementById("bookmarks-page").classList.contains("active"), "no other page's bookmarks are");
+  assert.ok(![...t.document.querySelectorAll("#tabs-container .switcher-item .label")].some((l) => l.textContent.includes("Essentials")), "the deleted page is gone from the switcher");
+  assert.equal(t.document.getElementById("search-page"), null, "there is no Home page to fall back to");
   assert.deepEqual(t.errors, []);
 });

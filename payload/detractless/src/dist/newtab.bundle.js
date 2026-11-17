@@ -1160,11 +1160,10 @@
   // src/pages/newtab/newtabState.js
   var appThemeConfig = DEFAULT_THEME;
   var currentTheme = "dark";
-  var currentPage = "search";
+  var currentPage = "home";
   var currentBookmarkPage = 1;
   var bookmarks = {};
   var fadeInEnabled = true;
-  var spotlightVisible = false;
   var searchEngineBehavior = "remember";
   var bookmarkPillBehavior = "always";
   var activeTabs = [];
@@ -1175,7 +1174,6 @@
   var allCachedBookmarks = [];
   var allCachedGroups = {};
   var usageScores = /* @__PURE__ */ new Map();
-  var searchDropdownIndex = -1;
   function setAppThemeConfig(v) {
     appThemeConfig = v;
   }
@@ -1195,16 +1193,12 @@
     fadeInEnabled = v;
   }
   function setSpotlightVisible() {
-    spotlightVisible = false;
   }
   function setSearchEngineBehavior(v) {
     searchEngineBehavior = v;
   }
   function setBookmarkPillBehavior(v) {
     bookmarkPillBehavior = v;
-  }
-  function getBookmarkPillBehavior() {
-    return bookmarkPillBehavior;
   }
   function setActiveTabs(v) {
     activeTabs = v;
@@ -1229,9 +1223,6 @@
   }
   function setUsageScores(v) {
     usageScores = v;
-  }
-  function setSearchDropdownIndex(v) {
-    searchDropdownIndex = v;
   }
 
   // src/components/scroll-affordance/scroll-affordance.js
@@ -1481,84 +1472,6 @@
   }
   var wellHeight = (rows, metrics) => rows * metrics.pitch - metrics.gap + metrics.pad * 2;
   var rowsThatFit = (px, metrics) => Math.max(1, Math.floor((px - metrics.pad * 2 + metrics.gap) / metrics.pitch));
-
-  // src/utils/pillSelection.js
-  function initialSelectionIndex(matchCount) {
-    return !matchCount || matchCount <= 0 ? -1 : 0;
-  }
-  function resolveEnterAction(listVisible, selectedIndex, matchCount, forceSearch = false) {
-    if (forceSearch) return "search";
-    if (!listVisible) return "search";
-    if (!matchCount || matchCount <= 0) return "search";
-    if (selectedIndex < 0) return "search";
-    return "bookmark";
-  }
-  function searchTextFor(value) {
-    const raw = (value == null ? "" : String(value)).trim();
-    return raw.startsWith("./") ? raw.slice(2).trim() : raw;
-  }
-
-  // src/components/bookmarks/bookmarks-search.js
-  function renderBookmarkSearchResults(matches) {
-    const resultsContainer = document.getElementById("bookmark-search-results");
-    if (!resultsContainer) return;
-    resultsContainer.innerHTML = "";
-    setSearchDropdownIndex(-1);
-    resultsContainer.style.animation = "none";
-    resultsContainer.offsetHeight;
-    resultsContainer.style.animation = "";
-    if (matches.length === 0) {
-      resultsContainer.innerHTML = "";
-      const emptyItem = document.createElement("div");
-      emptyItem.className = "bookmark-search-item empty";
-      emptyItem.textContent = "No matching bookmarks";
-      resultsContainer.appendChild(emptyItem);
-      resultsContainer.style.display = "flex";
-      return;
-    }
-    matches.forEach((bm, idx) => {
-      const item = document.createElement("div");
-      item.className = "bookmark-search-item";
-      item.dataset.url = bm.url;
-      item.dataset.index = idx;
-      item.style.animationDelay = `${idx * 0.05}s`;
-      const nameDiv = document.createElement("div");
-      nameDiv.className = "bookmark-search-item-name";
-      nameDiv.textContent = bm.name;
-      item.appendChild(nameDiv);
-      item.addEventListener("click", () => {
-        BookmarkDB.recordClick(bm.url).catch((e) => warn("recording a bookmark click failed", e));
-        window.location.href = forActiveAccount(bm.url);
-      });
-      resultsContainer.appendChild(item);
-    });
-    resultsContainer.style.display = "flex";
-    const initial = initialSelectionIndex(matches.length);
-    if (initial >= 0) updateSearchDropdownSelection(initial);
-    else setSearchDropdownIndex(-1);
-  }
-  function hideBookmarkSearchResults() {
-    const resultsContainer = document.getElementById("bookmark-search-results");
-    if (resultsContainer) resultsContainer.style.display = "none";
-    setSearchDropdownIndex(-1);
-  }
-  function updateSearchDropdownSelection(index) {
-    const resultsContainer = document.getElementById("bookmark-search-results");
-    if (!resultsContainer) return;
-    const items = resultsContainer.querySelectorAll(".bookmark-search-item:not(.empty)");
-    if (items.length === 0) return;
-    items.forEach((i2) => i2.classList.remove("selected"));
-    if (index >= items.length) index = items.length - 1;
-    if (index < 0) index = 0;
-    setSearchDropdownIndex(index);
-    if (items[searchDropdownIndex]) {
-      items[searchDropdownIndex].classList.add("selected");
-      items[searchDropdownIndex].scrollIntoView({ block: "nearest" });
-    }
-  }
-  function sortByUsage(list) {
-    return [...list].sort((a, b) => (usageScores.get(b.url) || 0) - (usageScores.get(a.url) || 0));
-  }
 
   // src/components/bookmarks/bookmarks.js
   var loadFailed = () => readFailedFor(currentBookmarkPage);
@@ -1865,6 +1778,12 @@
       selectedTabId = home.id;
       syncSelection();
     }
+  }
+  function selectTab(id) {
+    const tab = activeTabs.find((t) => String(t.id) === String(id));
+    if (!tab) return;
+    selectedTabId = tab.id;
+    syncSelection();
   }
   function buildShell(container) {
     container.className = "switcher";
@@ -2538,8 +2457,8 @@
       }
       const input = e.target && e.target.matches && e.target.matches("input") ? e.target : null;
       if (!input) return;
-      const isUrl2 = input.dataset.field === "url";
-      if (isUrl2 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      const isUrl = input.dataset.field === "url";
+      if (isUrl && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
         const n = sitePills(popup).length;
         if (!n) return;
         e.preventDefault();
@@ -2549,7 +2468,7 @@
       }
       if (e.key !== "Enter") return;
       e.preventDefault();
-      if (isUrl2) {
+      if (isUrl) {
         const pills = sitePills(popup);
         if (pills.length) pickSite(popup, pills[popup.siteAt].value);
         else next(popup);
@@ -2727,20 +2646,12 @@
       }
     }
   }
-  function applySpotlightVisibility() {
-    const searchPage2 = document.getElementById("search-page");
-    if (searchPage2) searchPage2.classList.toggle("hide-spotlight", !spotlightVisible);
-  }
   function showPage(pageName) {
     document.querySelectorAll(".page").forEach((page) => page.classList.remove("active"));
     const targetPage = document.getElementById(`${pageName}-page`);
     if (!targetPage) return;
     targetPage.classList.add("active");
     setCurrentPage(pageName);
-    if (pageName === "search") {
-      const searchInput = document.getElementById("search-input");
-      if (searchInput && spotlightVisible) setTimeout(() => searchInput.focus(), 50);
-    }
     if (pageName === "bookmarks" && fadeInEnabled) {
       const bookmarksContent = document.querySelector(".bookmarks-content");
       if (bookmarksContent) {
@@ -2886,78 +2797,13 @@
   }
 
   // src/components/engines/engines.js
-  var _onManageEngines = null;
-  function setManageEnginesCallback(cb) {
-    _onManageEngines = cb;
-  }
   async function loadSearchEngines() {
     setSearchEngines(await loadEngines());
   }
-  function renderEngineDropdown() {
-    const container = document.getElementById("engine-links");
-    if (!container) return;
-    container.innerHTML = "";
-    Object.keys(searchEngines).sort((a, b) => a === "default" ? -1 : b === "default" ? 1 : 0).forEach((key) => {
-      const engine = searchEngines[key];
-      if (engine.isHidden) return;
-      const a = document.createElement("a");
-      a.href = "#";
-      a.className = "plus__link";
-      a.dataset.engine = key;
-      a.title = engine.name;
-      const img = document.createElement("img");
-      img.alt = "";
-      img.width = 14;
-      img.height = 14;
-      img.style.cssText = "width:14px;height:14px;object-fit:contain;flex-shrink:0;";
-      img.onerror = () => {
-        img.style.display = "none";
-      };
-      setEngineIconSrc(img, engine, key);
-      const nameSpan = document.createElement("span");
-      nameSpan.textContent = engine.name;
-      a.appendChild(img);
-      a.appendChild(nameSpan);
-      container.appendChild(a);
-    });
-    const manageBtn = document.createElement("button");
-    manageBtn.className = "plus__link plus__manage";
-    manageBtn.innerHTML = `${Icons.list} Engine Lists`;
-    manageBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const plusEl = document.getElementById("plus");
-      if (plusEl) plusEl.classList.remove("plus--active");
-      const linksEl = document.getElementById("engine-links");
-      if (linksEl) linksEl.classList.remove("active");
-      if (_onManageEngines) _onManageEngines();
-    });
-    container.appendChild(manageBtn);
-  }
-  function showEngine(engineKey) {
-    const engine = searchEngines[engineKey];
-    const iconDisplay = document.getElementById("current-engine-icon-display");
-    if (!iconDisplay || !engine) return false;
-    iconDisplay.innerHTML = "";
-    const img = document.createElement("img");
-    setEngineIconSrc(img, engine, engineKey);
-    img.alt = engine.name;
-    img.onerror = () => {
-      img.src = "src/assets/svg/default.api.svg";
-    };
-    iconDisplay.appendChild(img);
-    setCurrentEngine(engineKey);
-    return true;
-  }
   function updateCurrentEngine(engineKey) {
-    if (showEngine(engineKey)) saveSelectedEngine(engineKey);
-  }
-  function followEnginePicks() {
-    if (!(window.chrome && chrome.storage && chrome.storage.onChanged)) return;
-    chrome.storage.onChanged.addListener((changes, area) => {
-      const c = area === "sync" && changes.selectedSearchEngine;
-      if (!c || searchEngineBehavior === "always-default") return;
-      if (c.newValue && c.newValue !== currentEngine && searchEngines[c.newValue]) showEngine(c.newValue);
-    });
+    if (!searchEngines[engineKey]) return;
+    setCurrentEngine(engineKey);
+    saveSelectedEngine(engineKey);
   }
   function loadSavedEngine() {
     try {
@@ -2965,16 +2811,9 @@
         storageGet("sync", ["selectedSearchEngine", "searchEngineBehavior", "defaultEngineKey"]).then((result) => {
           setSearchEngineBehavior(result.searchEngineBehavior || "remember");
           setDefaultEngineKey(result.defaultEngineKey || "default");
-          if (searchEngineBehavior === "always-default") {
-            setCurrentEngine(defaultEngineKey);
-            updateCurrentEngine(defaultEngineKey);
-          } else if (result.selectedSearchEngine && searchEngines[result.selectedSearchEngine]) {
-            setCurrentEngine(result.selectedSearchEngine);
-            updateCurrentEngine(currentEngine);
-          } else {
-            updateCurrentEngine(defaultEngineKey);
-          }
-          renderEngineDropdown();
+          if (searchEngineBehavior === "always-default") setCurrentEngine(defaultEngineKey);
+          else if (result.selectedSearchEngine && searchEngines[result.selectedSearchEngine]) setCurrentEngine(result.selectedSearchEngine);
+          else setCurrentEngine(defaultEngineKey);
         });
       }
     } catch (error) {
@@ -3268,7 +3107,6 @@
   }
   function saveSearchEngines() {
     saveEngines(searchEngines, () => {
-      renderEngineDropdown();
       renderEngineListInModal();
     });
   }
@@ -3671,352 +3509,6 @@
     if (remaining <= 0) return "";
     const target = pendingIncrease.targetLimit === 0 ? "Off" : pendingIncrease.targetLimit;
     return `Queued: ${target} in ${formatTimeRemaining(remaining)}`;
-  }
-
-  // src/utils/url.js
-  var KNOWN_TLDS = /* @__PURE__ */ new Set([
-    // generic
-    "com",
-    "org",
-    "net",
-    "edu",
-    "gov",
-    "mil",
-    "int",
-    "info",
-    "biz",
-    "name",
-    "pro",
-    "mobi",
-    "asia",
-    "tel",
-    "travel",
-    "jobs",
-    "aero",
-    "coop",
-    "museum",
-    // common modern generics
-    "app",
-    "dev",
-    "io",
-    "ai",
-    "co",
-    "me",
-    "tv",
-    "cc",
-    "xyz",
-    "online",
-    "site",
-    "tech",
-    "store",
-    "blog",
-    "cloud",
-    "page",
-    "live",
-    "shop",
-    "wiki",
-    "design",
-    "art",
-    "fun",
-    "space",
-    "world",
-    "today",
-    "news",
-    "media",
-    "email",
-    "link",
-    "click",
-    "host",
-    "press",
-    "club",
-    "life",
-    "vip",
-    "top",
-    "one",
-    "run",
-    "fm",
-    "gg",
-    "sh",
-    "ly",
-    "to",
-    "is",
-    "am",
-    "so",
-    "st",
-    "md",
-    "ms",
-    "im",
-    "ws",
-    // country codes in common use
-    "uk",
-    "de",
-    "fr",
-    "jp",
-    "cn",
-    "ru",
-    "br",
-    "in",
-    "au",
-    "ca",
-    "us",
-    "es",
-    "it",
-    "nl",
-    "se",
-    "no",
-    "fi",
-    "dk",
-    "pl",
-    "ch",
-    "at",
-    "be",
-    "cz",
-    "gr",
-    "pt",
-    "ro",
-    "hu",
-    "ie",
-    "nz",
-    "mx",
-    "kr",
-    "tw",
-    "hk",
-    "sg",
-    "za",
-    "il",
-    "tr",
-    "ua",
-    "ar",
-    "cl",
-    "pe",
-    "ph",
-    "th",
-    "vn",
-    "id",
-    "my",
-    "eu"
-  ]);
-  var HOSTNAME_PATTERN = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+$/;
-  function isUrl(input) {
-    input = input.trim();
-    if (!input) return false;
-    if (input.match(/^https?:\/\//i)) return true;
-    if (input.match(/^(ftp|ftps|file):\/\//i)) return true;
-    if (isFilePath(input)) return true;
-    if (input.match(/^(localhost|(\d{1,3}\.){3}\d{1,3})(:\d+)?([/?#].*)?$/i)) return true;
-    if (input.includes(" ")) return false;
-    if (!input.includes(".")) return false;
-    const hostname = input.split(/[/?#]/)[0].split(":")[0];
-    if (!HOSTNAME_PATTERN.test(hostname)) return false;
-    const tld = hostname.slice(hostname.lastIndexOf(".") + 1).toLowerCase();
-    return KNOWN_TLDS.has(tld);
-  }
-  function isFilePath(input) {
-    input = input.trim();
-    if (input.match(/^file:\/\//i)) return false;
-    if (input.match(/^[a-zA-Z]:[/\\]/)) return true;
-    if (input.startsWith("\\\\")) return true;
-    if (input.match(/^\/[^/]/)) return true;
-    return false;
-  }
-  function filePathToUrl(input) {
-    input = input.trim().replace(/\\/g, "/");
-    if (input.startsWith("//")) return "file:" + input;
-    if (input.match(/^[a-zA-Z]:\//)) return "file:///" + input;
-    return "file://" + input;
-  }
-  function formatUrl(input) {
-    input = input.trim();
-    if (input.match(/^https?:\/\//i)) return input;
-    if (input.match(/^(ftp|ftps|file):\/\//i)) return input;
-    if (isFilePath(input)) return filePathToUrl(input);
-    return "https://" + input;
-  }
-
-  // src/components/search/search.js
-  function initializeSearch() {
-    const searchInput = document.getElementById("search-input");
-    const plus = document.getElementById("plus");
-    const resultsContainer = document.getElementById("bookmark-search-results");
-    if (!searchInput) return;
-    const ui = { searchInput, plus, resultsContainer };
-    searchInput.addEventListener("input", () => onSearchInput(ui));
-    searchInput.addEventListener("focus", () => {
-      const v = searchInput.value;
-      if (getBookmarkPillBehavior() !== "never" && (v.startsWith("./") || getBookmarkPillBehavior() === "always" && v.trim().length > 0)) {
-        searchInput.dispatchEvent(new Event("input"));
-      }
-    });
-    if (resultsContainer) {
-      attachScrollAffordance(resultsContainer, { items: ".bookmark-search-item:not(.empty)" });
-    }
-    const searchCard = searchInput.closest(".spotlight-search-container");
-    document.addEventListener("click", (e) => {
-      const wrapper = document.getElementById("bookmark-pills-wrapper");
-      const inSearch = searchCard && searchCard.contains(e.target);
-      const inPills = resultsContainer && resultsContainer.contains(e.target) || wrapper && wrapper.contains(e.target);
-      if (resultsContainer && !inSearch && !inPills) {
-        hideBookmarkSearchResults();
-      }
-    });
-    searchInput.addEventListener("keydown", (e) => onSearchKeydown(e, ui));
-    if (plus) wireEnginePicker(plus);
-  }
-  function matchingBookmarks(query) {
-    return allCachedBookmarks.filter((bm) => bm.name.toLowerCase().includes(query));
-  }
-  function showPills(ui, bookmarks2) {
-    ui.plus.classList.remove("plus--active");
-    renderBookmarkSearchResults(sortByUsage(bookmarks2));
-  }
-  function onSearchInput(ui) {
-    const val = ui.searchInput.value;
-    if (getBookmarkPillBehavior() === "never") {
-      hideBookmarkSearchResults();
-    } else if (val.startsWith("./")) {
-      const raw = val.substring(2);
-      const query = raw.trim().toLowerCase();
-      if (raw === " ") showPills(ui, allCachedBookmarks);
-      else if (query.length > 0) showPills(ui, matchingBookmarks(query));
-      else hideBookmarkSearchResults();
-    } else if (getBookmarkPillBehavior() === "always" && val.trim().length > 0) {
-      const matched = matchingBookmarks(val.trim().toLowerCase());
-      if (matched.length > 0) showPills(ui, matched);
-      else hideBookmarkSearchResults();
-    } else {
-      hideBookmarkSearchResults();
-    }
-  }
-  function pillItems(ui) {
-    return ui.resultsContainer.querySelectorAll(".bookmark-search-item:not(.empty)");
-  }
-  async function onSearchKeydown(e, ui) {
-    const { searchInput, resultsContainer } = ui;
-    const isSearchActive = getBookmarkPillBehavior() !== "never" && (searchInput.value.startsWith("./") || getBookmarkPillBehavior() === "always") && resultsContainer && resultsContainer.style.display === "flex";
-    if (movePillSelection(e, ui, isSearchActive)) return;
-    if (e.key === "Enter") await submitSearch(e, ui, isSearchActive);
-  }
-  function movePillSelection(e, ui, isSearchActive) {
-    if (e.key === "ArrowDown" && isSearchActive) {
-      e.preventDefault();
-      updateSearchDropdownSelection(searchDropdownIndex + 1);
-      return true;
-    }
-    if (e.key === "ArrowUp" && isSearchActive) {
-      e.preventDefault();
-      updateSearchDropdownSelection(searchDropdownIndex - 1);
-      return true;
-    }
-    if (e.key === "Tab" && isSearchActive && searchDropdownIndex < 0) {
-      if (pillItems(ui).length > 0) {
-        e.preventDefault();
-        updateSearchDropdownSelection(0);
-        return true;
-      }
-    }
-    return false;
-  }
-  async function submitSearch(e, ui, isSearchActive) {
-    const { searchInput } = ui;
-    const items = isSearchActive ? pillItems(ui) : [];
-    const forceSearch = e.shiftKey;
-    if (resolveEnterAction(isSearchActive, searchDropdownIndex, items.length, forceSearch) === "bookmark") {
-      window.location.href = forActiveAccount(items[searchDropdownIndex].dataset.url);
-      return;
-    }
-    const query = searchTextFor(searchInput.value);
-    if (!query) return;
-    const targetUrl = !forceSearch && isUrl(query) ? await destinationUrl(query) : searchUrl(query, searchInput);
-    if (targetUrl === null) return;
-    window.location.href = forActiveAccount(targetUrl);
-    searchInput.value = "";
-  }
-  async function destinationUrl(query) {
-    let targetUrl = formatUrl(query);
-    if (targetUrl.startsWith("file://") || isFilePath(query)) {
-      if (!targetUrl.startsWith("file://")) targetUrl = filePathToUrl(query);
-      try {
-        const allowed = await new Promise(
-          (resolve) => chrome.extension.isAllowedFileSchemeAccess(resolve)
-        );
-        if (!allowed) {
-          showFileAccessWarning();
-          return null;
-        }
-      } catch (_) {
-      }
-    }
-    return targetUrl;
-  }
-  function searchUrl(query, searchInput) {
-    if (currentEngine === "default" && window.chrome && window.chrome.search) {
-      try {
-        chrome.search.query({ text: query, disposition: "CURRENT_TAB" });
-        searchInput.value = "";
-        return null;
-      } catch (error) {
-        return "https://www.google.com/search?q=" + encodeURIComponent(query);
-      }
-    }
-    const engine = searchEngines[currentEngine];
-    if (engine) return engine.url + encodeURIComponent(query);
-    const defaultEngine = searchEngines[defaultEngineKey];
-    if (defaultEngine) return defaultEngine.url + encodeURIComponent(query);
-    return "https://www.google.com/search?q=" + encodeURIComponent(query);
-  }
-  function wireEnginePicker(plus) {
-    const engineLinks = document.getElementById("engine-links");
-    const close2 = () => {
-      plus.classList.remove("plus--active");
-      if (engineLinks) engineLinks.classList.remove("active");
-    };
-    plus.addEventListener("click", (e) => {
-      e.stopPropagation();
-      hideBookmarkSearchResults();
-      plus.classList.toggle("plus--active");
-      if (engineLinks) engineLinks.classList.toggle("active", plus.classList.contains("plus--active"));
-    });
-    if (engineLinks) engineLinks.addEventListener("click", function(e) {
-      const link = e.target.closest(".plus__link");
-      if (link && link.dataset.engine) {
-        e.preventDefault();
-        e.stopPropagation();
-        updateCurrentEngine(link.dataset.engine);
-        plus.classList.remove("plus--active");
-        engineLinks.classList.remove("active");
-      }
-    });
-    document.addEventListener("click", (e) => {
-      if (!plus.contains(e.target) && (!engineLinks || !engineLinks.contains(e.target))) close2();
-    });
-  }
-  function showFileAccessWarning() {
-    document.querySelectorAll(".file-access-warning").forEach((n) => n.remove());
-    const overlay = document.createElement("div");
-    overlay.className = "modal show file-access-warning";
-    overlay.style.zIndex = "500";
-    const card2 = document.createElement("div");
-    card2.className = "picker-card";
-    card2.style.cssText = "max-width: 340px; padding: 24px;";
-    const title = document.createElement("div");
-    title.className = "picker-title";
-    title.style.cssText = "padding: 0 0 8px; font-size: 16px;";
-    title.textContent = "File access not enabled";
-    const body = document.createElement("div");
-    body.style.cssText = "font-size: 13px; color: var(--text-secondary); line-height: 1.55; padding: 0 0 20px;";
-    body.innerHTML = `This extension doesn't have permission to open local files.<br><br>To enable it, open <strong>chrome://extensions</strong> in your browser, find <strong>Detractless New Tab</strong>, click <strong>Details</strong>, and turn on <strong>"Allow access to file URLs"</strong>.`;
-    const dismissBtn = document.createElement("button");
-    dismissBtn.className = "picker-btn picker-btn--primary";
-    dismissBtn.style.cssText = "width: 100%;";
-    dismissBtn.textContent = "Dismiss";
-    dismissBtn.type = "button";
-    dismissBtn.addEventListener("click", () => overlay.remove());
-    card2.append(title, body, dismissBtn);
-    overlay.appendChild(card2);
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) overlay.remove();
-    });
-    document.body.appendChild(overlay);
   }
 
   // src/services/import-export/dataExport.js
@@ -5975,8 +5467,8 @@
     if (currentPage === "bookmarks") {
       if (activeTabs.some((t) => String(t.id) === String(currentBookmarkPage))) loadBookmarks();
       else {
+        showPage("home");
         selectSearchTab();
-        showPage("search");
       }
     }
     if (window.AtlasSettingsUI) window.AtlasSettingsUI.rerender();
@@ -5994,8 +5486,8 @@
     if (currentPage === "bookmarks") {
       if (activeTabs.some((t) => String(t.id) === String(currentBookmarkPage))) loadBookmarks();
       else {
+        showPage("home");
         selectSearchTab();
-        showPage("search");
       }
     }
     await loadSearchEngines();
@@ -6102,7 +5594,6 @@
       key: "spotlightVisible",
       apply: (v) => {
         setSpotlightVisible(v);
-        applySpotlightVisibility();
       }
     });
     defineSetting({
@@ -7169,28 +6660,28 @@
     wireSettingsOpeners();
     document.querySelectorAll(".modal").forEach((modal) => modal.addEventListener("click", (e) => e.stopPropagation()));
     await loadSearchEngines();
-    initializeSearch();
     loadSavedEngine();
-    followEnginePicks();
-    showPage("search");
-    const searchInput = document.getElementById("search-input");
+    showPage("home");
+    selectSearchTab();
     if (new URLSearchParams(location.search).has("engines")) showModal("engine-modal");
-    else if (searchInput && spotlightVisible && !isSettingsUrl()) setTimeout(() => searchInput.focus(), 100);
   });
   function wireCallbacks() {
     setTabNavigationCallbacks({
       onTabClick: (tab) => {
         if (tab.type === "search") {
-          showPage("search");
+          showPage("home");
+          focusAddressBar();
         } else {
           setCurrentBookmarkPage(tab.id);
           showPage("bookmarks");
           loadBookmarks();
         }
       },
-      onNavigateToSearch: () => showPage("search")
+      onNavigateToSearch: () => {
+        showPage("home");
+        focusAddressBar();
+      }
     });
-    setManageEnginesCallback(() => showModal("engine-modal"));
     setImportCompleteCallback(onImportComplete);
   }
   async function onImportComplete(importData) {
@@ -7198,7 +6689,6 @@
     loadBookmarks();
     await loadSettings();
     if (importData.selectedSearchEngine) updateCurrentEngine(currentEngine);
-    renderEngineDropdown();
   }
   function initFeatures() {
     initializeBookmarks();
@@ -7225,14 +6715,23 @@
       });
     }
   }
-  window.addEventListener("pageshow", () => {
-    selectSearchTab();
-    showPage("search");
-    const searchInput = document.getElementById("search-input");
-    if (isSettingsUrl()) {
-      openSettingsFromUrl();
-    } else if (searchInput && spotlightVisible) {
-      setTimeout(() => searchInput.focus(), 100);
+  function focusAddressBar() {
+    try {
+      chrome.runtime.sendMessage({ atlas: { act: "focus-addressbar" } }, (reply) => {
+        const lastError = chrome.runtime && chrome.runtime.lastError;
+        return !lastError && !!reply;
+      });
+    } catch (e) {
     }
+  }
+  window.addEventListener("pageshow", () => {
+    if (currentPage === "bookmarks") {
+      showPage("bookmarks");
+      selectTab(currentBookmarkPage);
+    } else {
+      showPage("home");
+      selectSearchTab();
+    }
+    if (isSettingsUrl()) openSettingsFromUrl();
   });
 })();

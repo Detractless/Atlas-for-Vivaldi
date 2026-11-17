@@ -13,7 +13,7 @@ import {
   defaultEngineKey, setDefaultEngineKey
 } from '../../pages/newtab/newtabState.js';
 import { setEngineIconSrc } from './engines-icons.js';
-import { renderEngineDropdown, updateCurrentEngine } from './engines.js';
+import { updateCurrentEngine } from './engines.js';
 import { iconChoice, resetIconChoice, openIconTypePicker } from './engines-icon-picker.js';
 import { storageSet } from '../../services/storage.js';
 
@@ -171,7 +171,6 @@ function openEngineItemDialog(key) {
 
 function saveSearchEngines() {
   saveEngines(searchEngines, () => {
-    renderEngineDropdown();
     renderEngineListInModal();
   });
 }

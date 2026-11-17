@@ -7,7 +7,7 @@ import {
   setSpotlightVisible, setSearchEngineBehavior, setBookmarkPillBehavior, setFadeInEnabled,
   setAppThemeConfig, setSearchDelaySeconds,
 } from '../pages/newtab/newtabState.js';
-import { applySpotlightVisibility, applyFadeIn } from '../pages/newtab/displayEffects.js';
+import { applyFadeIn } from '../pages/newtab/displayEffects.js';
 import { requestSaturation } from '../components/color-lock/color-lock.js';
 import { applyThemeConfig } from '../pages/newtab/theme.js';
 import { updateCurrentEngine } from '../components/engines/engines.js';
@@ -25,7 +25,7 @@ export function defineAllSettings() {
   // setting stays so saved values, backups and profiles keep it.
   defineSetting({
     key: 'spotlightVisible',
-    apply: (v) => { setSpotlightVisible(v); applySpotlightVisibility(); },
+    apply: (v) => { setSpotlightVisible(v); },
   });
   defineSetting({
     key: 'searchEngineBehavior',

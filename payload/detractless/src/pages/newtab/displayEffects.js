@@ -1,6 +1,6 @@
 // What the display settings DO to the page. Reading and saving them is the
 // settings registry's job (settings/definitions.js); these only apply a value.
-import { fadeInEnabled, spotlightVisible, setCurrentPage } from './newtabState.js';
+import { fadeInEnabled, setCurrentPage } from './newtabState.js';
 
 export function applyFadeIn() {
   const bookmarksContent = document.querySelector(".bookmarks-content");
@@ -15,10 +15,7 @@ export function applyFadeIn() {
   }
 }
 
-export function applySpotlightVisibility() {
-  const searchPage = document.getElementById("search-page");
-  if (searchPage) searchPage.classList.toggle("hide-spotlight", !spotlightVisible);
-}
+/* The search bar's show/hide switch stood here with the bar itself. */
 
 /* The UI scale (body zoom) stood here. The setting is gone; preinit.js clears what it left behind. */
 
@@ -27,10 +24,6 @@ export function showPage(pageName) {
   const targetPage = document.getElementById(`${pageName}-page`);
   if (!targetPage) return;
   targetPage.classList.add("active"); setCurrentPage(pageName);
-  if (pageName === "search") {
-    const searchInput = document.getElementById("search-input");
-    if (searchInput && spotlightVisible) setTimeout(() => searchInput.focus(), 50);
-  }
   if (pageName === "bookmarks" && fadeInEnabled) {
     const bookmarksContent = document.querySelector(".bookmarks-content");
     if (bookmarksContent) { bookmarksContent.classList.remove("fade-in"); void bookmarksContent.offsetWidth; bookmarksContent.classList.add("fade-in"); }
