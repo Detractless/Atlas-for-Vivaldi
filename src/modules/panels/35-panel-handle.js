@@ -33,11 +33,13 @@ function atlasPanelView() {
 
 /* The panel's own button in the (hidden) switch strip; pressing it again closes the sidebar. */
 function atlasPanelSwitch(view) {
-  var src = view.getAttribute('src') || '', id = null, m;
+  var src = (view && (view.getAttribute('src') || view.src)) || '', id = null, m;
   if (/\/components\/atlas\/atlas-downloads-panel\.html/.test(src)) id = 'WEBPANEL_atlas_downloads';
   else if ((m = /^chrome-extension:\/\/([a-p]{32})\//.exec(src))) id = 'EXT_PANEL_' + m[1];
-  var named = id && document.querySelector('[data-name="' + id + '"]');
-  return named || document.querySelector('#switch button.button-on');
+  var named = id && document.querySelector('#switch [data-name="' + id + '"], [data-name="' + id + '"]');
+  var active = document.querySelector('#switch .active button, #switch .panel-clickoutside-ignore.active button, #switch .button-toolbar.active button');
+  var ext = m && document.querySelector('.toolbar-extensions button[data-name="' + m[1] + '"], button[data-name="' + m[1] + '"]');
+  return named || active || ext || document.querySelector('#switch button.button-on');
 }
 
 /* Press a panel switch the way a user does: Vivaldi's switch ignores a bare click(),
@@ -54,6 +56,9 @@ function atlasPressSwitch(button) {
    after the slide, the press was swallowed, so press the same switch once more. */
 function atlasCloseSidebar(retried) {
   var view = atlasPanelView(), button = view && atlasPanelSwitch(view);
+  if (!button) {
+    button = document.querySelector('#switch .active button, #switch .panel-clickoutside-ignore.active button, #switch .button-toolbar.active button');
+  }
   if (!button) return;
   atlasPressSwitch(button);
   if (retried) return;

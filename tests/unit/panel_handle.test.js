@@ -178,3 +178,15 @@ test("reload, new tab and copy act on the page in the sidebar", () => {
   assert.deepEqual(JSON.parse(JSON.stringify(p.created)), [{ url }]);
   assert.deepEqual(p.copied, [url]);
 });
+
+test("Close sidebar finds the active panel wrapper when the page has navigated to the web", () => {
+  const p = open({ src: "https://chatgpt.com/c/6af5e10a-f1cc-83ea-ba7f-b0862cb193cf" });
+  const sw = p.w.document.querySelector('[data-name="WEBPANEL_atlas_downloads"]');
+  const wrap = p.w.document.createElement("div");
+  wrap.className = "button-toolbar panel-clickoutside-ignore active";
+  sw.parentNode.insertBefore(wrap, sw);
+  wrap.appendChild(sw);
+  press(p, "click");
+  run(p, "Close sidebar");
+  assert.deepEqual(p.clicks, ["WEBPANEL_atlas_downloads"]);
+});

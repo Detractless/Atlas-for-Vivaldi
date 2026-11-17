@@ -105,6 +105,9 @@ def _prefs_downloads_panel(v: dict):
     ours = [e for e in elements if isinstance(e, dict) and e.get("id") == DOWNLOADS_PANEL_ID]
     if ours:
         ours[0]["url"] = url
+        ours[0]["title"] = "Downloads"
+        ours[0]["faviconUrl"] = ""
+        ours[0]["faviconUrlValid"] = False
     else:
         elements.append({
             "id": DOWNLOADS_PANEL_ID, "url": url, "title": "Downloads", "faviconUrl": "",
