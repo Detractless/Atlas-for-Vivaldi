@@ -23,7 +23,7 @@ test("bridge hosts the detector in an iframe when chrome.offscreen is missing", 
   assert.ok(env.frames[0].src.endsWith("components/atlas/nsfw/offscreen.html"), "iframe loads the detector page");
   const sets = env.calls.filter((c) => c.type === "SET_SETTINGS");
   assert.equal(sets.length, 1, "sends settings once, not per retry");
-  assert.equal(sets[0].filterThreshold, 0.889871, "uses the fixed, locally evaluated threshold");
+  assert.equal(sets[0].filterThreshold, 0.50, "uses the fixed, locally evaluated threshold");
   assert.equal(sets[0].filterStrictness, undefined, "does not forward a sensitivity preference");
   assert.ok(!env.syncReads.flat().includes("nsfwStrictness"), "the detector ignores the old saved sensitivity value");
   assert.equal(env.calls.filter((c) => c.type === "CLASSIFY").length, 3, "retries while the frame is still loading");
@@ -37,8 +37,8 @@ test("identical in-flight URLs share one prediction, and the score is cached", a
   assert.equal(env.stats.classify, 1, "the second caller joins the first prediction");
 
   await wait(30);
-  assert.deepEqual(first, [{ isNsfw: true, score: 0.9, source: "detector", threshold: 0.889871 }]);
-  assert.deepEqual(second, [{ isNsfw: true, score: 0.9, source: "detector", threshold: 0.889871 }], "both callers get the same answer");
+  assert.deepEqual(first, [{ isNsfw: true, score: 0.9, source: "detector", threshold: 0.50 }]);
+  assert.deepEqual(second, [{ isNsfw: true, score: 0.9, source: "detector", threshold: 0.50 }], "both callers get the same answer");
 
   const cached = [];
   env.classify({ url: "https://example.test/one.jpg" }, (r) => cached.push(r));
@@ -46,7 +46,7 @@ test("identical in-flight URLs share one prediction, and the score is cached", a
   assert.equal(cached[0].isNsfw, true);
   assert.equal(cached[0].score, 0.9);
   assert.equal(cached[0].source, "cache", "the answer names where the score came from");
-  assert.equal(cached[0].threshold, 0.889871, "the answer carries the threshold it was judged on");
+  assert.equal(cached[0].threshold, 0.50, "the answer carries the threshold it was judged on");
   assert.equal(env.stats.classify, 1, "no new prediction for the cached URL");
 });
 
@@ -213,17 +213,17 @@ test("old sensitivity values no longer change the fixed detector threshold", asy
   oldHigh.classify({ url: "https://example.test/three.jpg" }, (r) => got.push(["old 100", r]));
   await wait(30);
   assert.deepEqual(got, [
-    ["old 1", { isNsfw: false, score: 0.3, source: "detector", threshold: 0.889871 }],
-    ["old 100", { isNsfw: false, score: 0.3, source: "detector", threshold: 0.889871 }],
+    ["old 1", { isNsfw: false, score: 0.3, source: "detector", threshold: 0.50 }],
+    ["old 100", { isNsfw: false, score: 0.3, source: "detector", threshold: 0.50 }],
   ]);
 });
 
 test("the one fixed threshold is the detector's evaluated operating point", () => {
   const env = loadBridge();
-  assert.equal(env.threshold(), 0.889871);
+  assert.equal(env.threshold(), 0.50);
   assert.equal(env.threshold(1), env.threshold(100), "arguments cannot create another sensitivity mode");
   const code = fs.readFileSync(OFFSCREEN_PATH, "utf8");
-  assert.ok(code.includes("var _threshold = 0.889871"), "offscreen inference starts at the fixed threshold");
+  assert.ok(code.includes("var _threshold = 0.50"), "offscreen inference starts at the fixed threshold");
   assert.ok(code.includes("msg.filterThreshold"), "the bridge and offscreen inference share the same fixed value");
   assert.ok(!code.includes("filterStrictness"), "the old adjustable threshold path is removed");
 });
@@ -234,7 +234,7 @@ test("offscreen image loading reads bytes instead of a CORS-restricted img", () 
   assert.ok(code.includes("credentials: 'include', referrer: page"), "retries once with page cookies and referrer");
   assert.ok(code.includes("createImageBitmap(blob)"), "decodes the fetched blob");
   assert.ok(!code.includes("crossOrigin"), "no anonymous img request");
-  assert.ok(code.includes("Math.round(sexy * 10000) / 10000"), "scores come back as 0.0-1.0 floats");
+  assert.ok(code.includes("Math.round(nsfw * 10000) / 10000"), "scores come back as 0.0-1.0 floats");
   assert.ok(fs.readFileSync(path.join(path.dirname(OFFSCREEN_PATH), "offscreen-work.js"), "utf8").includes("status: error.status"), "failures report the HTTP status");
   assert.ok(code.includes("msg.type === 'PREPARE_SHIELD'"), "can create a blurred checking image before classification");
   assert.ok(code.includes("classifyUrl(msg.url, msg.page, msg.shield === true, msg.preparedId, msg.forceFresh === true)"), "classification consumes the preview's saved fetch token");

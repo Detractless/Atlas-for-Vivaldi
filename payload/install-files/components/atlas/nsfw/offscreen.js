@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var _threshold = 0.889871;
+  var _threshold = 0.50;
   var _model = null;
   var _initPromise = null;
   var _snapshots = new Map();
@@ -22,28 +22,27 @@
     if (_snapshots.size !== before) console.info('[NSFW-Offscreen] Expired pending image snapshots.');
   }, 60000);
 
-  // Labels order for MobileNetV2 NSFW model:
-  // 0: Drawing, 1: Hentai, 2: Neutral, 3: Porn, 4: Sexy
+  // SwiftFormer-S model (OwenElliott/image-safety-classifier-s)
+  // Output classes: 0: NSFL (Gore), 1: NSFW (Adult), 2: SFW (Safe)
   async function initDetector() {
     if (_initPromise) return _initPromise;
     _initPromise = (async () => {
-      if (typeof tf === 'undefined') {
-        throw new Error('TensorFlow.js not loaded');
+      if (typeof ort === 'undefined' || !ort.InferenceSession) {
+        throw new Error('ONNX Runtime Web not loaded');
       }
-      // Ensure WebGL GPU backend is active (pure GLSL shaders, zero WASM/eval)
-      await tf.setBackend('webgl');
-      await tf.ready();
+      ort.env.wasm.wasmPaths = chrome.runtime.getURL('components/atlas/nsfw/');
+      ort.env.wasm.numThreads = 1;
 
-      // The top-level graph is the active NSFWJS MobileNetV2 model; Marqo's graph is separate under models/marqo/.
-      var modelUrl = chrome.runtime.getURL('components/atlas/nsfw/models/model.json');
-      _model = await tf.loadGraphModel(modelUrl);
-
-      // Pre-warm WebGL shader pipeline with a dummy tensor
-      tf.tidy(() => {
-        var dummy = tf.zeros([1, 224, 224, 3]);
-        _model.predict(dummy);
+      var modelUrl = chrome.runtime.getURL('components/atlas/nsfw/models/image-safety-classifier-s.onnx');
+      _model = await ort.InferenceSession.create(modelUrl, {
+        executionProviders: ['wasm'],
+        graphOptimizationLevel: 'all'
       });
-      console.log('[NSFW-Offscreen] TFJS WebGL detector initialized and warmed up.');
+
+      // Warm up session with dummy tensor [1, 3, 224, 224] float32 (0-255 range)
+      var dummy = new ort.Tensor('float32', new Float32Array(1 * 3 * 224 * 224), [1, 3, 224, 224]);
+      await _model.run({ [_model.inputNames[0]]: dummy });
+      console.log('[NSFW-Offscreen] SwiftFormer-S ONNX detector initialized and warmed up.');
     })();
     return _initPromise;
   }
@@ -54,22 +53,27 @@
     var canvas = document.createElement('canvas');
     canvas.width = 224;
     canvas.height = 224;
-    var ctx = canvas.getContext('2d');
+    var ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(bitmap, 0, 0, 224, 224);
 
-    var probabilities = tf.tidy(() => {
-      // MobileNetV2 graph expects normalized [0, 1] input range
-      var imgTensor = tf.browser.fromPixels(canvas).toFloat().div(255.0);
-      var expanded = imgTensor.expandDims(0);
-      var output = _model.predict(expanded);
-      return Array.from(output.dataSync());
-    });
+    var rgba = ctx.getImageData(0, 0, 224, 224).data;
+    var plane = 224 * 224;
+    var pixels = new Float32Array(3 * plane);
+    for (var p = 0; p < plane; p++) {
+      pixels[p] = rgba[p * 4];                 // Red channel
+      pixels[plane + p] = rgba[p * 4 + 1];     // Green channel
+      pixels[2 * plane + p] = rgba[p * 4 + 2]; // Blue channel
+    }
 
-    // Indexes: 0=Drawing, 1=Hentai, 2=Neutral, 3=Porn, 4=Sexy
-    var hentai = probabilities[1] || 0;
-    var porn = probabilities[3] || 0;
-    var sexy = probabilities[4] || 0;
-    var nsfwScore = porn + hentai + (sexy * 0.5);
+    var tensor = new ort.Tensor('float32', pixels, [1, 3, 224, 224]);
+    var output = await _model.run({ [_model.inputNames[0]]: tensor });
+    var probabilities = Array.from(output[_model.outputNames[0]].data);
+
+    // Classes: 0: NSFL, 1: NSFW, 2: SFW
+    var nsfl = probabilities[0] || 0;
+    var nsfw = probabilities[1] || 0;
+    var sfw = probabilities[2] || 0;
+    var nsfwScore = nsfl + nsfw;
 
     var isBlocked = nsfwScore >= _threshold;
 
@@ -77,9 +81,9 @@
       result: isBlocked,
       score: Math.round(nsfwScore * 10000) / 10000,
       details: {
-        porn: Math.round(porn * 10000) / 10000,
-        hentai: Math.round(hentai * 10000) / 10000,
-        sexy: Math.round(sexy * 10000) / 10000
+        nsfl: Math.round(nsfl * 10000) / 10000,
+        nsfw: Math.round(nsfw * 10000) / 10000,
+        sfw: Math.round(sfw * 10000) / 10000
       }
     };
   }
