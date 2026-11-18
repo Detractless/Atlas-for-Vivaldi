@@ -716,7 +716,7 @@ function saveNsfwDebugEvents(events) {
 }
 
 function ensureNsfwSettings() {
-  var key = nsfwThreshold() + "|MobileNetV2_NSFWJS";
+  var key = nsfwThreshold() + "|SwiftFormer_S";
   if (_nsfwSentSettings === key) return;
   _nsfwSentSettings = key;
   chrome.runtime.sendMessage({ target: "offscreen", type: "SET_SETTINGS", filterThreshold: nsfwThreshold() }, function () {
@@ -4792,8 +4792,8 @@ var NSFW_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 var NSFW_STORE_KEY = "atlasNsfwScores";
 var NSFW_STORE_BYTES = 1024 * 1024;
 var NSFW_STORE_FLUSH_MS = 2000;
-var NSFW_MOBILENET_THRESHOLD = 0.889871;
-var NSFW_FIRST_MODEL_VERSION = "mobilenetv2-224-rgb01-v1";
+var NSFW_SWIFTFORMER_THRESHOLD = 0.50;
+var NSFW_FIRST_MODEL_VERSION = "swiftformer-s-224-v1";
 var NSFW_STRONG_MODEL_VERSION = "freepik-eva02-448-fp16-clip-v1";
 var NSFW_STRONG_THRESHOLD = 0.729;
 var _nsfwScores = new Map();
@@ -4802,8 +4802,8 @@ var _nsfwStoreTimer = 0;
 var _nsfwStoreLoading = false;
 var _nsfwStoreWaiters = [];
 
-function nsfwThreshold() { return NSFW_MOBILENET_THRESHOLD; }
-function nsfwVerdict(score) { return score >= NSFW_MOBILENET_THRESHOLD; }
+function nsfwThreshold() { return NSFW_SWIFTFORMER_THRESHOLD; }
+function nsfwVerdict(score) { return score >= NSFW_SWIFTFORMER_THRESHOLD; }
 function nsfwHash(url) {
   var h1 = 0x811c9dc5, h2 = 0x9e3779b9, i, c;
   for (i = 0; i < url.length; i++) {

@@ -28,7 +28,8 @@ unzip /tmp/atlas-models/atlas-content-shield-models.zip -d payload/install-files
 | Part | What it is |
 | --- | --- |
 | `models/freepik-eva02-448-fp16.onnx` | The larger image model (165 MB). |
-| `models/marqo-384-fp32.onnx`, `models/marqo/` | The second image model, in ONNX and TensorFlow.js form. |
+| `models/image-safety-classifier-s.onnx` | The fast image classifier (SwiftFormer-S, 22.6 MB). |
+| `models/marqo-384-fp32.onnx`, `models/marqo/` | The legacy Marqo image model. |
 | `models/group1-shard*`, `models/model.json` | The TensorFlow.js model's weights and layout. |
 | `ort.min.js`, `ort-wasm-*`, `tf.min.js`, `tfjs-backend-*` | The ONNX Runtime and TensorFlow.js libraries that run them. |
 | `offscreen*.js`, `offscreen.html`, `regenerator-shim.js` | The page that loads the models off screen. |

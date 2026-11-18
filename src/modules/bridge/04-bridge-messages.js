@@ -134,7 +134,7 @@ function saveNsfwDebugEvents(events) {
 }
 
 function ensureNsfwSettings() {
-  var key = nsfwThreshold() + "|MobileNetV2_NSFWJS";
+  var key = nsfwThreshold() + "|SwiftFormer_S";
   if (_nsfwSentSettings === key) return;
   _nsfwSentSettings = key;
   chrome.runtime.sendMessage({ target: "offscreen", type: "SET_SETTINGS", filterThreshold: nsfwThreshold() }, function () {
